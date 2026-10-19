@@ -1,0 +1,142 @@
+/*
+ * Vorlaeufige Board-Beschreibung der Steuerung EV-CC-AC1-M3-CBC-RCM-ETH.
+ * Belege: docs/takt-adc-gpio.md, docs/ethernet-phy.md, docs/firmware-ladeadresse.md.
+ * Nur fuer statische Builds; auf Hardware nicht erprobt und nicht freigegeben.
+ * Flash-Aufteilung: docs/ersatzfirmware-architektur.md (Sektoren 0..2 Bootloader,
+ * Sektor 3 Originalparameter, Anwendung ab 0x08010000).
+ */
+/dts-v1/;
+#include <st/f2/stm32f207Xe.dtsi>
+#include <st/f2/stm32f207v(c-e-f-g)tx-pinctrl.dtsi>
+
+/ {
+	model = "Phoenix Contact EV-CC-AC1-M3-CBC-RCM-ETH";
+	compatible = "phoenix,ev-cc-ac1";
+
+	chosen {
+		zephyr,sram = &sram0;
+		zephyr,flash = &flash0;
+		zephyr,code-partition = &app_partition;
+		zephyr,entropy = &rng;
+	};
+};
+
+/* HSE 25 MHz (Quarz laut Nutzer); 25/25*240/2 = 120 MHz (Original: 100 MHz) */
+&clk_hse {
+	clock-frequency = <DT_FREQ_M(25)>;
+	status = "okay";
+};
+
+&pll {
+	div-m = <25>;
+	mul-n = <240>;
+	div-p = <2>;
+	div-q = <5>;
+	clocks = <&clk_hse>;
+	status = "okay";
+};
+
+&rcc {
+	clocks = <&pll>;
+	clock-frequency = <DT_FREQ_M(120)>;
+	ahb-prescaler = <1>;
+	apb1-prescaler = <4>;
+	apb2-prescaler = <2>;
+};
+
+/* RMII: PC1 MDC, PA2 MDIO, PA1 REF_CLK, PA7 CRS_DV, PC4/PC5 RXD, PB11 TX_EN, PB12/PB13 TXD */
+&mac {
+	status = "okay";
+	pinctrl-0 = <&eth_rxd0_pc4 &eth_rxd1_pc5 &eth_ref_clk_pa1 &eth_crs_dv_pa7
+		     &eth_tx_en_pb11 &eth_txd0_pb12 &eth_txd1_pb13>;
+	pinctrl-names = "default";
+	phy-connection-type = "rmii";
+	phy-handle = <&phy>;
+};
+
+&mdio {
+	status = "okay";
+	pinctrl-0 = <&eth_mdio_pa2 &eth_mdc_pc1>;
+	pinctrl-names = "default";
+
+	/* KSZ8081RND, Adresse 0, 25-MHz-Modus (XI an PA8/MCO1, Hypothese) */
+	phy: ethernet-phy@0 {
+		compatible = "microchip,ksz8081";
+		reg = <0x00>;
+		microchip,interface-type = "rmii-25MHz";
+	};
+};
+
+/* CP-PWM: TIM1 CH1 auf PE9 */
+&timers1 {
+	status = "okay";
+	st,prescaler = <59>;
+
+	pwm1: pwm {
+		status = "okay";
+		pinctrl-0 = <&tim1_ch1_pe9>;
+		pinctrl-names = "default";
+	};
+};
+
+/* CP+ PA0 (IN0), CP- PB1 (IN9); weitere Kanaele siehe docs/takt-adc-gpio.md */
+&adc1 {
+	status = "okay";
+	pinctrl-0 = <&adc1_in0_pa0 &adc1_in9_pb1>;
+	pinctrl-names = "default";
+	st,adc-clock-source = "SYNC";
+	st,adc-prescaler = <4>;
+};
+
+&iwdg {
+	status = "okay";
+};
+
+&rtc {
+	status = "okay";
+};
+
+&backup_sram {
+	status = "okay";
+};
+
+&flash0 {
+	reg = <0x08000000 DT_SIZE_K(512)>;
+
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* Sektoren 0..2: vorhandener Bootloader (nicht anfassen) */
+		bootloader_partition: partition@0 {
+			label = "bootloader";
+			reg = <0x00000000 DT_SIZE_K(48)>;
+			read-only;
+		};
+
+		/* Sektor 3: Parameter der Originalfirmware (nur lesen) */
+		orig_params_partition: partition@c000 {
+			label = "orig-params";
+			reg = <0x0000c000 DT_SIZE_K(16)>;
+			read-only;
+		};
+
+		/* Sektoren 4..6: Anwendung (64 + 128 + 128 KB) */
+		app_partition: partition@10000 {
+			label = "app";
+			reg = <0x00010000 DT_SIZE_K(320)>;
+		};
+
+		/* Sektor 7: eigene Parameter (Option P1, nicht entschieden) */
+		storage_partition: partition@60000 {
+			label = "storage";
+			reg = <0x00060000 DT_SIZE_K(128)>;
+		};
+	};
+};
+
+/* Hardware-Zufallsgenerator (TCP-Sequenznummern, Ports) */
+&rng {
+	status = "okay";
+};

@@ -1,0 +1,5 @@
+board:
+  name: ev_cc_ac1
+  full_name: Phoenix Contact EV-CC-AC1-M3-CBC-RCM-ETH (vorlaeufig)
+  socs:
+    - name: stm32f207xx
