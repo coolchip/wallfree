@@ -43,6 +43,8 @@ static const struct gpio_dt_spec rs485_de[] = {
 BUILD_ASSERT(ARRAY_SIZE(dout) == EVSE_DOUT_COUNT);
 BUILD_ASSERT(ARRAY_SIZE(led) == EVSE_LED_COUNT);
 BUILD_ASSERT(ARRAY_SIZE(dip) == 10);
+BUILD_ASSERT(ARRAY_SIZE(led_aux) == 3); /* Modem 1/2, Netzwerk (PC2) */
+#define LED_AUX_NET 2
 BUILD_ASSERT(ARRAY_SIZE(rotary) == 4);
 
 static atomic_t protect_latch;
@@ -224,6 +226,11 @@ int hw_gpio_init(void)
 		return -EIO;
 	}
 	return 0;
+}
+
+void hw_gpio_net_led(bool on)
+{
+	gpio_pin_set_dt(&led_aux[LED_AUX_NET], on);
 }
 
 void hw_gpio_led(enum evse_led idx, bool on)

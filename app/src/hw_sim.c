@@ -125,6 +125,8 @@ static struct {
 	bool dout[EVSE_DOUT_COUNT];
 	bool led[EVSE_LED_COUNT];
 	bool dout_en;
+	bool net_led;
+	bool link;
 	/* Messung */
 	struct hw_block block;
 	bool block_valid;
@@ -139,6 +141,7 @@ static struct {
 	.ld = LD_PULSE,
 	.pulse_start = -1,
 	.last_edge = INT64_MIN,
+	.link = true,
 };
 
 static atomic_t protect_latch;
@@ -418,6 +421,16 @@ bool hw_gpio_reset_button(void)
 	return k_uptime_get() < (int64_t)opt_reset_ms;
 }
 
+void hw_gpio_net_led(bool on)
+{
+	m.net_led = on;
+}
+
+bool hw_sim_link(void)
+{
+	return m.link;
+}
+
 void hw_gpio_led(enum evse_led led, bool on)
 {
 	m.led[led] = on;
@@ -492,9 +505,10 @@ static int cmd_status(const struct shell *sh, size_t argc, char **argv)
 	shell_print(sh, "actuator: locked=%d stuck=%d  welded=%d", c.locked, c.stuck, c.welded);
 	shell_print(sh, "out: duty=%u contactor=%d lock=%d unlock=%d rcm_test=%d pe1=%d", c.duty,
 		    c.contactor, c.lock_pin, c.unlock_pin, c.rcm_test, c.pe1);
-	shell_print(sh, "dout ER=%d LR=%d VR=%d CR=%d en=%d  led P=%d E=%d C=%d R=%d", c.dout[0],
-		    c.dout[1], c.dout[2], c.dout[3], c.dout_en, c.led[0], c.led[1], c.led[2],
-		    c.led[3]);
+	shell_print(sh, "dout ER=%d LR=%d VR=%d CR=%d en=%d  led P=%d E=%d C=%d R=%d N=%d",
+		    c.dout[0], c.dout[1], c.dout[2], c.dout[3], c.dout_en, c.led[0], c.led[1],
+		    c.led[2], c.led[3], c.net_led);
+	shell_print(sh, "link=%d", c.link);
 	return 0;
 }
 
@@ -624,6 +638,12 @@ static int cmd_weld(const struct shell *sh, size_t argc, char **argv)
 	return parse_bool(sh, argv[1], &m.welded);
 }
 
+static int cmd_link(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	return parse_bool(sh, argv[1], &m.link);
+}
+
 static int cmd_supply(const struct shell *sh, size_t argc, char **argv)
 {
 	ARG_UNUSED(sh);
@@ -653,6 +673,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_sim,
 	SHELL_CMD_ARG(rcm, NULL, "<ok|fault|clear|dead|err 0|1> Fehlerstromsensor", cmd_rcm, 2, 1),
 	SHELL_CMD_ARG(actuator, NULL, "<ok|stuck> Verriegelungsaktor", cmd_actuator, 2, 0),
 	SHELL_CMD_ARG(weld, NULL, "<0|1> Schuetz verschweisst (Sense bleibt aktiv)", cmd_weld, 2, 0),
+	SHELL_CMD_ARG(link, NULL, "<0|1> Netzverbindung (Netzwerk-LED)", cmd_link, 2, 0),
 	SHELL_CMD_ARG(supply, NULL, "<mV> Versorgungsmessung", cmd_supply, 2, 0),
 	SHELL_CMD_ARG(hang, NULL, "Messbloecke anhalten (Ueberwachung pruefen)", cmd_hang, 1, 0),
 	SHELL_SUBCMD_SET_END);

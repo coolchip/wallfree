@@ -2,6 +2,7 @@
 #ifndef WALLFREE_APP_EVSE_TASK_H_
 #define WALLFREE_APP_EVSE_TASK_H_
 
+#include <wallfree/api/events.h>
 #include <wallfree/api/reset.h>
 #include <wallfree/evse/charger.h>
 
@@ -46,6 +47,12 @@ enum evse_iface {
 
 /** Lebenszeichen eines Schnittstellen-Threads (Limit 10 s). */
 void evse_task_iface_beat(enum evse_iface id);
+
+/**
+ * Naechstes Ereignis (SOLL-ERR-10) ab Nummer @p *seq, siehe wf_ev_ring_get.
+ * Erkannt im Automatenthread, ausgegeben im WebSocket-Thread.
+ */
+bool evse_task_event_get(uint32_t *seq, struct wf_event *ev);
 
 void evse_task_maint_begin(void);
 void evse_task_maint_end(void);

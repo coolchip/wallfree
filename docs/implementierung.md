@@ -28,10 +28,11 @@ Hardware ausgefuehrt; Tests belegen keine elektrische Sicherheit.
 | [sysconf.c](../lib/api/sysconf.c) | Netz- und Systemparameter: Pruefung, JSON, Speicherkodierung (Kennungen 3010..3015), Import der Originalfelder 404/315..326 | 10.1, F20, F25, SOLL-NVM-10 | api_sysconf |
 | [reset.c](../lib/api/reset.c) | Resetgrund aus Flags und Backup-Code | SOLL-RT-14 | api_reset |
 | [ratelimit.c](../lib/api/ratelimit.c) | Bremse gegen Passwort-Durchprobieren je Absenderadresse | SOLL-API-07 | api_ratelimit |
+| [events.c](../lib/api/events.c) | Ereignisse: Vergleich zweier Momentaufnahmen (Fehler, Schuetz, Verriegelungsergebnis, Zustand), Ringpuffer mit fortlaufender Nummer, JSON | SOLL-ERR-10 | evse_charger (api_events: Vergleich, Ueberlauf, JSON, Ladezyklus mit Verriegelung und Fehlerstrom im Simulationsmodell) |
 | [param.c](../lib/evse/param.c) | Parametertabelle (Konfiguration, Laufzeit, Status) mit Name, Kennung, Herkunftsfeld, Einheit, Bereich, Default; Schreiben mit Grenz-/Zustandspruefung und Fehlercode; Wiederherstellen gespeicherter Werte | 10, SOLL-PAR-01..03/40, E14, SOLL-API-20/30 | evse_param (Konsistenz, Grenzen jedes Parameters, Sonderregeln) |
 
 Aufruf: `scripts/run-tests.sh` (twister; `--simple` ohne twister, `--coverage` mit gcovr).
-Stand 2026-10-19: **182 Tests in fuenf Suiten, alle bestanden**; Abdeckung `lib/` **96 % Zeilen,
+Stand 2026-10-19: **187 Tests in fuenf Suiten, alle bestanden**; Abdeckung `lib/` **96 % Zeilen,
 88 % Verzweigungen** (gcovr; nicht abgedeckt sind vor allem Lesefehler des Flashs). Twister-/Testabhaengigkeiten wurden am 2026-10-19 mit
 Freigabe des Nutzers in `~/zephyrproject/.venv` installiert (`requirements-run-test.txt`,
 `requirements-build-test.txt`); `twister --coverage` bricht in dieser Version ab, daher ruft das
@@ -87,6 +88,8 @@ Neue Festlegungen werden weiter mit *neu* markiert, bis sie bestaetigt sind.
 | *(Web):* Anmeldung | Oberflaeche hinter Digest wie die API (Anmeldedialog des Browsers); im Werkszugang nur Zugangsdaten-Seite; nach der Aenderung fragt der Browser neu | SOLL-API-07 |
 | *(Web):* Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickt beim WebSocket-Aufbau evtl. keine Anmeldung, auf Hardware ungeprueft), Abfrage alle 2 s | |
 | *(Web):* Sollstrom-Schieber | 6..32 A in 1-A-Schritten, dazu "Laden aus" (0) | evcc ueberschreibt den Wert, wenn verbunden |
+| *neu (API):* Ereignisformat (SOLL-ERR-10) | WebSocket-Topic `evse/event`, je Ereignis ein Rahmen, Payload `{"seq", "t_ms", "type", ...}`: `state` (`from`/`to` = S0..S10), `error` (`set`/`cleared` als Namen wie `/evse/errors`), `lock` (`lock_state` 1/3/5, nur Endzustaende), `contactor` (`on`, Schuetz-Soll); `seq` fortlaufend ab 1 je Start, Luecke = verloren (Ringpuffer 16); kein Nachsenden beim Verbinden; jedes Ereignis zusaetzlich als Logzeile `Ereignis {...}` | Spezifikation nennt kein Format; evcc ignoriert unbekannte Topics |
+| *neu (HW):* Netzwerk-LED | PC2 aktiv Low [HYP]; "verbunden" = Link (Carrier) und bevorzugte IPv4-Adresse; Takt aus der Systemworkqueue (haengt diese, steht die LED) | SOLL-LED-06 |
 | *neu (API):* Erkennen geschlossener WebSockets | `websocket_recv_msg` mit 2 ms Timeout je Client und Zyklus statt `zsock_poll` auf dem WebSocket-Deskriptor | mit Timeout 0 bzw. Poll sahen die Host-Sockets der Simulation den Abbau nie; auf der Steuerung hoechstens 6 ms je 100 ms |
 | *neu (Bedienung):* Log vor Neustart | geordneter Neustart: Meldung, dann 200 ms fuer den Log-Thread, dann Reset (bei Fristablauf Schuetz sofort per Register aus); kein `LOG_PANIC` in Thread-Neustartpfaden, Meldungen der Ueberwachung koennen verloren gehen (Grund steht in BKP19) | `LOG_PANIC` blockierte mit verbundenem Telnet-Client die Systemworkqueue (siehe unten) |
 | Abbruch des RCM-Selbsttests nach dem Testimpuls | Zustand "Abbruch laeuft" bis 3,4 s nach Teststart: SWITCH_1/2 ausgeblendet, ERR_OUT wirksam; kein neuer Test, kein Weg zum Schuetz in dieser Zeit | der Sensor faehrt seinen Trip-Test zu Ende; dessen Ausloesungen wurden sonst als echter Fehlerstrom gewertet |
@@ -130,8 +133,9 @@ Bereichskopfs.
 
 ## Anwendung und Hardwareschicht (`app/`, nur gebaut)
 
-Stand 2026-10-19. Baut fuer `ev_cc_ac1` ohne Warnung: **295 388 B Flash** (von 320 KB, 90 %),
-**114 172 B RAM** (87 %); Korrekturen aus dem Ende-zu-Ende-Test +0,2 KB Flash/RAM; Netz-/Systemparameter und Bremse +5,7 KB Flash, Weboberflaeche +12 KB,
+Stand 2026-10-19. Baut fuer `ev_cc_ac1` ohne Warnung: **297 012 B Flash** (von 320 KB, 91 %),
+**115 452 B RAM** (88 %); Ereignisse und Netzwerk-LED +1,6 KB Flash, +1,3 KB RAM; Korrekturen
+aus dem Ende-zu-Ende-Test +0,2 KB Flash/RAM; Netz-/Systemparameter und Bremse +5,7 KB Flash, Weboberflaeche +12 KB,
 Shell-Kommandos/Resetgrund/Fehlerhistorie +6 KB. Parameterspeicher: +8,2 KB Flash, +5,1 KB RAM. HTTP-/WebSocket-API:
 +37,8 KB Flash (HTTP-Server 13,5 KB, WebSocket 2,6 KB, PSA-SHA-1 aus tf-psa-crypto 5,9 KB),
 +22 KB RAM (vor allem 4 Client-Kontexte des HTTP-Servers, 9,7 KB). `tf-psa-crypto` wurde am
@@ -147,10 +151,10 @@ west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d ~/zephyrproject/build
 | --- | --- | --- |
 | [hw_stm32.c](../app/src/hw_stm32.c) | TIM1 CH1/PE9 (PSC 49, center-aligned Modus 1, ARR 1000, 1 kHz), ADC1 10 Raenge in zwei 5er-Gruppen, Start im TIM1-Update-Interrupt bei CNT < 50 bzw. > 950, DMA2 Stream0 zirkular 80 Worte, Skalierung wie Original; MCO1 = HSE an PA8; PA15-Resetimpuls 11 ms; fruehe sichere Pinpegel; sicherer Zustand per Register | SOLL-RT-01..03, SOLL-IO-02, SOLL-BOOT-02/09, SOLL-RT-20 |
 | [hw_gpio.c](../app/src/hw_gpio.c) | alle Ein-/Ausgaenge aus `zephyr,user`; RCM-Flankeninterrupt schaltet PE2 per Register ab und setzt einen Schutz-Latch, der Ein-Befehle sperrt; PE0-Flankenzeitstempel; PB2 erst nach der ersten Ausgabe | SOLL-PROT-01/05, SOLL-IO-01/21 |
-| [evse_task.c](../app/src/evse_task.c) | Schutzthread (Prio 0, 1 ms): RCM-Pegel zyklisch, Ueberwachung Automat (100 ms) und Messbloecke (50 ms), IWDG 250 ms, Wartungsmodus fuer Flash-Loeschen; Automatenthread (Prio 2, 10 ms und je Messblock), meldet Aenderungen des Verriegelungszustands an den Speicher-Thread; Fault-Handler: sicherer Zustand, Neustart | SOLL-RT-04/05/10..12/21 |
+| [evse_task.c](../app/src/evse_task.c) | Ereigniserkennung im Automatenthread (Momentaufnahme vor/nach `evse_step`, Ringpuffer mit Spinlock, Ausgabe im WebSocket-Thread); Schutzthread (Prio 0, 1 ms): RCM-Pegel zyklisch, Ueberwachung Automat (100 ms) und Messbloecke (50 ms), IWDG 250 ms, Wartungsmodus fuer Flash-Loeschen; Automatenthread (Prio 2, 10 ms und je Messblock), meldet Aenderungen des Verriegelungszustands an den Speicher-Thread; Fault-Handler: sicherer Zustand, Neustart | SOLL-RT-04/05/10..12/21 |
 | [storage.c](../app/src/storage.c) | Flash-Adapter auf die Partitionen (Sektor 7 lesen/schreiben/loeschen, Sektor 3 nur lesen, Lage beim Bauen geprueft); Speicher-Thread (Prio 12): Verriegelungszustand speichern, Verdichten im sicheren Zustand; Werksreset, Import | SOLL-NVM-01..05/10, SOLL-RT-13, SOLL-BOOT-04/20/21 |
-| [http_api.c](../app/src/http_api.c) | HTTP-Server Port 80: `/info/name`, `/info/features`, `/evse/state`, `/evse/external_current`, `/evse/params`, `/evse/param_info`, `/credentials`, `/system/config`, `/system/config_info`, `/system/restart`, WebSocket `/ws` (bis 3 Clients, Push-Thread alle 100 ms bzw. sofort nach Schreibzugriffen, ein Topic je Rahmen); Digest-Pruefung je Anfrage | SOLL-API-01..07/30 |
-| [netcfg.c](../app/src/netcfg.c) | Netz-/Systemparameter laden, Hostname, DHCP oder feste Adresse, Telnet; Aendern (atomar), Import | 10.1, F20, F25 |
+| [http_api.c](../app/src/http_api.c) | Ereignisse als Topic `evse/event` an alle WebSocket-Clients und ins Log (SOLL-ERR-10). HTTP-Server Port 80: `/info/name`, `/info/features`, `/evse/state`, `/evse/external_current`, `/evse/params`, `/evse/param_info`, `/credentials`, `/system/config`, `/system/config_info`, `/system/restart`, WebSocket `/ws` (bis 3 Clients, Push-Thread alle 100 ms bzw. sofort nach Schreibzugriffen, ein Topic je Rahmen); Digest-Pruefung je Anfrage | SOLL-API-01..07/30 |
+| [netcfg.c](../app/src/netcfg.c) | Netz-/Systemparameter laden, Hostname, DHCP oder feste Adresse, Telnet; Aendern (atomar), Import; Netzwerk-LED PC2 (Systemworkqueue, 500 ms): an bei Link und IPv4-Adresse, sonst 1 Hz | 10.1, F20, F25, SOLL-LED-06 |
 | [auth.c](../app/src/auth.c) | Zugangsdaten (HA1), Werkszugang, Passwortaenderung, Nonce-Geheimnis je Start | SOLL-API-07 |
 | [web/](../web/) | Weboberflaeche: Werkszugang -> Zugangsdaten festlegen; "Einfach": Zustand, Fahrzeug, erlaubter Strom, Fehler, Sollstrom setzen; "Experte": alle Parameter mit Bereich, Default, Feld, Hilfetext und Schreiben, Netz/System mit Neustart, Zugangsdaten | SOLL-API-31 |
 | [main.c](../app/src/main.c) | Startablauf: GPIO, Parameterspeicher (ungueltig -> neu anlegen), Reset-Taster 5 s -> Bereich loeschen, gespeicherte Werte laden, DIP/Drehschalter, Messung, Threads | SOLL-BOOT-01..10/20 |
@@ -232,8 +236,9 @@ scripts/sim-run.sh [--build] [--dip=0x109] [--rotary=5] [--http-port=8081] [--re
 | Reset | Prozess startet sich per `execv` neu ([sim_host.c](../app/src/sim_host.c), Host-Seite); Flags/BKP19 und der physische Modellzustand (Fahrzeug bleibt angesteckt, Aktorstellung) gehen ueber Umgebungsvariablen mit; neuer Prozess = Einschalten |
 | Flash | Zephyr-Flash-Simulator mit Datei (`--flash=`), Partitionen an den Stellen von Sektor 3 und 7 ([Overlay](../app/boards/native_sim_native_64.overlay)) |
 | Netz | Host-Sockets (`NET_NATIVE_OFFLOADED_SOCKETS`), keine Adress-/DHCP-Konfiguration; `bind` setzt dort `SO_REUSEADDR`, weil das Telnet-Backend es nicht tut und TIME_WAIT nach einem Neustart den Port blockiert |
-| Bedienung | Shell-Kommando `sim` (`status`, `car`, `diode`, `cable`, `din`, `ld`, `rcm`, `actuator`, `weld`, `supply`, `hang`); DIP/Drehschalter/Reset-Taster per Kommandozeile |
-| Logging | verzoegert mit Log-Thread wie auf der Steuerung (native_sim waehlt sonst den Sofortmodus); `NET_LOG` an |
+| Bedienung | Shell-Kommando `sim` (`status`, `car`, `diode`, `cable`, `din`, `ld`, `rcm`, `actuator`, `weld`, `link`, `supply`, `hang`); DIP/Drehschalter/Reset-Taster per Kommandozeile |
+| Logging | verzoegert mit Log-Thread wie auf der Steuerung (native_sim waehlt sonst den Sofortmodus); `NET_LOG` an; stdout zeilengepuffert (sonst erscheint das Log in einer Datei erst kilobyteweise) |
+| Netz-LED | `sim link 0`/`1` steuert, ob das Netz als verbunden gilt |
 
 Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](../tests/e2e/wfsim.py)):
 
@@ -241,9 +246,11 @@ Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](.
 | --- | --- | --- |
 | T1Api | 401 mit Challenge; Werkszugang nur `/credentials` und Oberflaeche (403 sonst); Passwortregeln; Aenderung; `/info/*`, `/system/*`, alle Webdateien gzip; Ruhezustand; Parameter lesen/Beschreibung/Grenzen/Syntaxfehler/Schreiben; Laden B -> PWM -> C -> Schuetz; Sollstrom 10 A (Tastgrad 166, 9960 mA), Ablehnung 3 A, 0 = aus, wieder ein; WebSocket Erstsynchronisation und Push < 1 s; 3 WebSockets gleichzeitig und Wiederverwendung der Plaetze, Abbruch ohne Close-Rahmen; WebSocket ohne bzw. mit falscher Anmeldung geschlossen; Abstecken; Neustart mit Persistenz (Zugangsdaten, Parameter, Hostname) und Resetgrund `user_restart`, Sollstrom wieder Startwert; Neustart waehrend des Ladens geordnet und danach wieder Laden; Bremse 5 x 401, dann 429 mit `Retry-After` | SOLL-API-01..07/30/31, SOLL-CUR-21, SOLL-NVM-03, SOLL-PAR-03, SOLL-RT-14/22 |
 | T2Faults | Fehlerstrom beim Laden: Schuetz aus, `error_state` 3, RCM-Fehler aktiv; Messbloecke stehen -> Reset `supervision_limit`; Reset-Taster 6 s beim Start -> Werkszugang wieder aktiv | SOLL-PROT-01/05, SOLL-RT-10/14, SOLL-BOOT-20 |
-| T3ZephyrTelnet | harter Telnet-Abbruch: HTTP, WebSocket, neue Telnet-Sitzung und geordneter Neustart laufen weiter | SOLL-RT-11 |
+| T1Api (Forts.) | Ereignisse beim Sollstrom 0 und wieder ein (Zustand aus S6, Schuetz aus/ein, `seq`/`t_ms` steigend, Logzeile); Netzwerk-LED an, bei `sim link 0` 1 Hz, danach wieder an | SOLL-ERR-10, SOLL-LED-06 |
+| T2Faults (Forts.) | Ereignisse beim Fehlerstrom: `error` mit RCM, Schuetz aus, Zustand S9 | SOLL-ERR-10 |
+| T3ZephyrTelnet | harter Telnet-Abbruch: HTTP, WebSocket, neue Telnet-Sitzung, geordneter Neustart und Logausgabe laufen weiter | SOLL-RT-11 |
 
-Stand 2026-10-19: **20 Tests, alle bestanden** (zweimal hintereinander), Laufzeit ca. 1 min.
+Stand 2026-10-19: **23 Tests, alle bestanden** (zweimal hintereinander), Laufzeit ca. 70 s.
 
 ### Durch den Ende-zu-Ende-Test gefundene Fehler (behoben)
 
@@ -264,16 +271,16 @@ Alle vier betreffen auch die Steuerung; im Hardware-Build mitkorrigiert.
    und Ausgabe ansteht. Erst die Schnittstellen-Ueberwachung bzw. der IWDG setzten zurueck, mit
    falschem Resetgrund. `LOG_PANIC` aus den Thread-Pfaden entfernt (Festlegung oben).
 
-### Beobachtung in Zephyr 4.4.2 (offen)
+### Irrtum korrigiert: kein Log-Stillstand nach Telnet-Abbruch
 
-Bricht ein Telnet-Client hart ab (RST), waehrend Shell- oder Logausgabe ansteht, stand danach in
-einem Teil der Laeufe die **Logausgabe dauerhaft** (Log-Thread haengt im Telnet-Backend); HTTP,
-WebSocket, neue Telnet-Sitzungen und Neustart liefen weiter (Test T3). Ursache vermutlich im
-Telnet-Backend (`shell_telnet.c`: `telnet_end_client_connection()` ruft
-`k_work_cancel_delayable_sync()` auch aus der eigenen Sende-Arbeit auf; Schreibpfad bricht die
-Sende-Arbeit synchron ab). Auf der Steuerung ist Telnet das einzige Log-Ziel. Moegliche Wege:
-Zephyr-Fehlerbericht/Patch, Telnet-Backend ohne Log (`CONFIG_SHELL_TELNET_INIT_LOG_LEVEL_NONE`),
-oder Telnet ohnehin spaeter entfernen (F20). **Entscheidung des Nutzers offen.**
+Zwischenzeitlich sah es so aus, als bliebe nach einem harten Telnet-Abbruch die Logausgabe
+dauerhaft stehen (Verdacht auf `shell_telnet.c` in Zephyr 4.4.2). Ursache war die
+**Blockpufferung von stdout** in der Simulation (Log in eine Datei umgeleitet, native_sim leert
+nicht): Meldungen erschienen erst Kilobytes spaeter. Mit zeilengepuffertem stdout laufen nach dem
+Abbruch alle Meldungen weiter (Test T3, 3 von 3 Laeufen). Kein Befund fuer die Steuerung.
+Fehler 4 oben (LOG_PANIC) bleibt ein echter Befund: die Selbstblockade folgt aus dem Quelltext
+(`k_work_cancel_delayable_sync()` der Telnet-Sende-Arbeit aus der Systemworkqueue heraus) und trat
+reproduzierbar auf (Resetgrund `fault` statt `user_restart`).
 
 ### Abweichungen der Simulation von der Steuerung
 
@@ -287,15 +294,12 @@ oder Telnet ohnehin spaeter entfernen (F20). **Entscheidung des Nutzers offen.**
 ## Noch nicht umgesetzt
 
 - Startablauf auf der Hardware (SOLL-BOOT, H1).
-- SOLL-LED-06: Netzwerk-LED an PC2 [HYP] (an bei Link und Adresse, sonst 1 Hz).
-- SOLL-ERR-10: Ereignisse (Fehler, Zustandswechsel, Verriegelung, Schuetz) als eigene
-  WebSocket-Meldungen; bisher nur `evse/state` und `evse/external_current`.
-- Zugriffsprotokoll fehlt (nur Log-Warnung bei Fehlversuchen).
+- Zugriffsprotokoll: in der Spezifikation ohne eigene Anforderung; bisher Log-Warnung bei
+  Fehlversuchen (mit Absender) und Ereignisse im Log. Umfang mit dem Nutzer klaeren.
+- Ereignisse in der Weboberflaeche noch nicht angezeigt.
 - RAM-Reserve ~14 KB: Heap (16 KB) und Client-Kontexte bei Bedarf verkleinern.
 - Weboberflaeche im Browser gegen die Simulation noch nicht durchgeklickt (Dateien werden im
   Ende-zu-Ende-Test nur abgerufen und entpackt); evcc gegen die Simulation spaeter (Nutzer).
-- Zephyr-Fehler im Telnet-Backend (Log-Stillstand nach Telnet-Abbruch, siehe unten): Umgang
-  entscheiden.
 
 ## Naechste Schritte (Stand 2026-10-19)
 
@@ -303,7 +307,8 @@ oder Telnet ohnehin spaeter entfernen (F20). **Entscheidung des Nutzers offen.**
 2. ~~Ende-zu-Ende-Test auf dem PC vorbereiten~~ – erledigt 2026-10-19 (`scripts/run-e2e.sh`,
    20 Tests; vier Fehler der Anwendung gefunden und behoben, siehe unten). Offen: Browser-
    Durchlauf der Oberflaeche, evcc (Nutzer: spaeter).
-3. Kleinere offene Anforderungen: SOLL-ERR-10 (Ereignisse), SOLL-LED-06, Zugriffsprotokoll.
+3. ~~Kleinere offene Anforderungen~~: SOLL-ERR-10 und SOLL-LED-06 umgesetzt (2026-10-19, Format
+   *neu*, zu bestaetigen); Zugriffsprotokoll offen (Umfang klaeren).
 4. **H0 (Freigabe noetig):** Bootloader auslesen; danach SOLL-SH-10/SOLL-BOOT-30 (Update-Uebergabe),
    Pruefung Start-SP, loescht der Bootloader Sektor 7.
 5. **H1 (Freigabe noetig):** Pruefplan fuer den ersten Probelauf ohne Last: Pinpegel, LEDs, IWDG,

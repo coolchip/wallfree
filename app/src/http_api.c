@@ -27,6 +27,7 @@
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/net/websocket.h>
+#include <wallfree/api/events.h>
 #include <wallfree/api/evse_api.h>
 #include <wallfree/api/ratelimit.h>
 #include <wallfree/evse/persist.h>
@@ -366,6 +367,11 @@ JSON_RESOURCE(info_features_r, "/info/features", BIT(HTTP_GET), info_features, f
 /* ------------------------------------------------ /evse (SOLL-API-03..05/30) */
 
 static K_SEM_DEFINE(ws_wake, 0, 1);
+
+void http_api_notify(void)
+{
+	k_sem_give(&ws_wake);
+}
 
 static void evse_state(struct http_client_ctx *client, struct res *r,
 		       struct http_response_ctx *rsp)
@@ -766,6 +772,46 @@ static void ws_send(int i, int t)
 	}
 }
 
+/*
+ * Ereignisse (SOLL-ERR-10): an alle verbundenen Clients als Topic
+ * evse/event und ins Log ("Protokoll"). Kein Nachsenden beim Verbinden;
+ * verlorene Ereignisse (Ringpuffer uebergelaufen) zeigt die Luecke in seq.
+ */
+static uint32_t ev_seq = 1;
+static char ev_payload[320];
+static char ev_frame[384];
+
+static void ws_events(void)
+{
+	struct wf_event ev;
+	uint32_t want = ev_seq;
+
+	while (evse_task_event_get(&ev_seq, &ev)) {
+		struct wf_jbuf b;
+
+		if (ev.seq != want) {
+			LOG_WRN("%u Ereignisse verloren", ev.seq - want);
+		}
+		want = ev.seq + 1;
+		wf_jb_init(&b, ev_payload, sizeof(ev_payload));
+		wf_ev_json(&ev, &b);
+		if (b.overflow) {
+			continue;
+		}
+		LOG_INF("Ereignis %s", ev_payload);
+		int n = snprintf(ev_frame, sizeof(ev_frame), "{\"topic\":\"evse/event\",\"payload\":%s}",
+				 ev_payload);
+
+		for (int i = 0; i < WS_MAX; i++) {
+			if (ws[i].sock >= 0 && n > 0 && (size_t)n < sizeof(ev_frame) &&
+			    websocket_send_msg(ws[i].sock, (const uint8_t *)ev_frame, (size_t)n,
+					       WEBSOCKET_OPCODE_DATA_TEXT, false, true, WS_SEND_MS) < 0) {
+				ws_close(i);
+			}
+		}
+	}
+}
+
 static void ws_entry(void *p1, void *p2, void *p3)
 {
 	ARG_UNUSED(p1);
@@ -796,6 +842,7 @@ static void ws_entry(void *p1, void *p2, void *p3)
 		for (int i = 0; i < WS_MAX; i++) {
 			ws[i].full_sync = false;
 		}
+		ws_events();
 		k_mutex_unlock(&ws_mtx);
 	}
 }

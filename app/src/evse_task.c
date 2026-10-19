@@ -15,7 +15,9 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
 #include <zephyr/sys/atomic.h>
+#include <wallfree/api/events.h>
 #include "evse_task.h"
+#include "http_api.h"
 #include "hw.h"
 #include "storage.h"
 
@@ -150,6 +152,38 @@ void k_sys_fatal_error_handler(unsigned int reason, const struct arch_esf *esf)
 	hw_reset_with(WF_RST_FAULT);
 }
 
+/* ------------------------------------------------ Ereignisse (SOLL-ERR-10) */
+
+static struct wf_ev_ring ev_ring;
+static struct k_spinlock ev_lock;
+
+static void events_post(const struct wf_ev_snap *before, const struct wf_ev_snap *after,
+			int64_t now)
+{
+	struct wf_event ev[WF_EV_MAX_DIFF];
+	size_t n = wf_ev_diff(before, after, now, ev);
+
+	if (n == 0) {
+		return;
+	}
+	k_spinlock_key_t key = k_spin_lock(&ev_lock);
+
+	for (size_t i = 0; i < n; i++) {
+		wf_ev_ring_push(&ev_ring, ev[i]);
+	}
+	k_spin_unlock(&ev_lock, key);
+	http_api_notify(); /* Ausgabe und Log im WebSocket-Thread */
+}
+
+bool evse_task_event_get(uint32_t *seq, struct wf_event *ev)
+{
+	k_spinlock_key_t key = k_spin_lock(&ev_lock);
+	bool ok = wf_ev_ring_get(&ev_ring, seq, ev);
+
+	k_spin_unlock(&ev_lock, key);
+	return ok;
+}
+
 /* ------------------------------------------------ Automatenthread */
 
 static void charger_entry(void *p1, void *p2, void *p3)
@@ -184,12 +218,18 @@ static void charger_entry(void *p1, void *p2, void *p3)
 		in.last_sense_edge = hw_gpio_last_sense_edge();
 		in.meter_valid = false; /* keine Messquelle (F1) */
 
+		struct wf_ev_snap snap_before, snap_after;
+
 		k_mutex_lock(&ev_mtx, K_FOREVER);
+		wf_ev_snap_take(&ev, &snap_before);
 		evse_step(&ev, &in, now);
+		wf_ev_snap_take(&ev, &snap_after);
 		out = ev.out;
 		bool p_errors = (ev.errors & EVSE_ERR_CLASS_P) != 0;
 		enum evse_lock_state lock = ev.lock.state;
 		k_mutex_unlock(&ev_mtx);
+
+		events_post(&snap_before, &snap_after, now);
 
 		/* Feld 465: Endzustand speichern lassen (Speicher-Thread, SOLL-PAR-40) */
 		if (lock != last_lock) {
@@ -340,6 +380,7 @@ int evse_task_start(const struct evse_config *cfg, enum evse_lock_state stored_l
 	int64_t now = k_uptime_get();
 
 	evse_init(&ev, cfg, stored_lock, now);
+	wf_ev_ring_init(&ev_ring);
 	atomic_set(&charger_beat, (atomic_val_t)now);
 	atomic_set(&block_beat, (atomic_val_t)now);
 	for (int i = 0; i < EVSE_IFACE_COUNT; i++) {

@@ -313,7 +313,7 @@ const char *api_err_reset(unsigned int bit)
 	return bit < N_ERR ? err_reset[bit] : NULL;
 }
 
-static void err_list(struct wf_jbuf *b, evse_err_t m)
+void api_json_err_list(struct wf_jbuf *b, evse_err_t m)
 {
 	bool first = true;
 
@@ -334,9 +334,9 @@ void api_json_errors(const struct evse *e, evse_ms_t now, struct wf_jbuf *b)
 {
 	wf_jb_raw(b, "{");
 	wf_jb_key(b, "active", true);
-	err_list(b, e->errors);
+	api_json_err_list(b, e->errors);
 	wf_jb_key(b, "seen", false);
-	err_list(b, e->errors_seen);
+	api_json_err_list(b, e->errors_seen);
 	wf_jb_key(b, "history", false);
 	wf_jb_raw(b, "[");
 	bool truncated = false;
@@ -349,9 +349,9 @@ void api_json_errors(const struct evse *e, evse_ms_t now, struct wf_jbuf *b)
 		kv(b, "age_ms", now - ev->t, true);
 		kv(b, "state", ev->state, false);
 		wf_jb_key(b, "set", false);
-		err_list(b, ev->set);
+		api_json_err_list(b, ev->set);
 		wf_jb_key(b, "cleared", false);
-		err_list(b, ev->cleared);
+		api_json_err_list(b, ev->cleared);
 		wf_jb_raw(b, "}");
 		/* Platz fuer den Abschluss lassen; aeltere Eintraege entfallen */
 		if (b->overflow || b->size - b->len < 24) {

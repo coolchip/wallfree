@@ -5,6 +5,8 @@
  * Vorher werden alle Dateideskriptoren ausser 0..2 geschlossen, damit der
  * HTTP- und der Telnet-Port im neuen Prozess wieder frei sind.
  *
+ * stdout ist zeilengepuffert (Log in Datei sofort sichtbar).
+ *
  * Zusaetzlich setzt bind() hier SO_REUSEADDR: Zephyrs Telnet-Backend tut das
  * nicht, und nach einem Neustart mit offener Telnet-Verbindung blockiert
  * sonst TIME_WAIT den Port (auf der Steuerung loescht der Reset den
@@ -19,17 +21,26 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 #include <nsi_cmdline.h>
+#include <nsi_tasks.h>
 #include <nsi_tracing.h>
 #include "sim_host.h"
 
-int bind(int fd, const struct sockaddr *addr, socklen_t len)
+/* Log zeilenweise auch in Dateien/Pipes (sonst Blockpuffer: Meldungen
+ * erschienen erst Kilobytes spaeter, was wie ein Log-Stillstand aussah) */
+static void line_buffered_stdout(void)
 {
-	static int (*real_bind)(int, const struct sockaddr *, socklen_t);
+	setvbuf(stdout, NULL, _IOLBF, 0);
+}
+NSI_TASK(line_buffered_stdout, PRE_BOOT_1, 0);
+
+/* Deklaration wie glibc mit _GNU_SOURCE (transparente Union) */
+int bind(int fd, __CONST_SOCKADDR_ARG addr, socklen_t len)
+{
+	static int (*real_bind)(int, __CONST_SOCKADDR_ARG, socklen_t);
 	int one = 1;
 
 	if (real_bind == NULL) {
-		real_bind = (int (*)(int, const struct sockaddr *, socklen_t))dlsym(RTLD_NEXT,
-										     "bind");
+		*(void **)&real_bind = dlsym(RTLD_NEXT, "bind"); /* Form nach POSIX dlsym */
 	}
 	(void)setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
 	return real_bind(fd, addr, len);

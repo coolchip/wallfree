@@ -79,6 +79,8 @@ bool hw_gpio_reset_button(void);
 /** Einzelne LED direkt setzen (nur vor dem Start der Ladelogik, z. B. Werksreset). */
 void hw_gpio_led(enum evse_led led, bool on);
 void hw_gpio_read_rcm(struct evse_rcm_levels *lv);
+/** Netzwerk-LED PC2 [HYP] (SOLL-LED-06), unabhaengig von der Ladelogik. */
+void hw_gpio_net_led(bool on);
 int64_t hw_gpio_last_sense_edge(void);
 
 /**
@@ -95,6 +97,8 @@ void hw_protect_clear(void);
 #if defined(CONFIG_ARCH_POSIX)
 /** PC-Simulation: HTTP-Port aus der Kommandozeile (--http-port). */
 uint16_t hw_sim_http_port(void);
+/** PC-Simulation: Netzverbindung laut Modell ("sim link"). */
+bool hw_sim_link(void);
 #endif
 
 #endif /* WALLFREE_APP_HW_H_ */

@@ -11,6 +11,7 @@ die Tests belegen nichts ueber die reale Steuerung.
 
 import gzip
 import os
+import re
 import shutil
 import socket
 import tempfile
@@ -209,6 +210,25 @@ class T1Api(SimCase):
         finally:
             ws.close()
 
+    def test_10c_ereignisse(self):
+        # SOLL-ERR-10: Schuetz und Zustandswechsel als evse/event, fortlaufende Nummern
+        ws = self.sim.ws_connect(self.auth)
+        try:
+            ws.recv_topic("evse/state")
+            self.sim.request("POST", "/evse/external_current", 0, auth=self.auth)
+            # S6 Laden -> geordnetes Ende (S7), Schuetz aus spaetestens nach 5 s
+            ws.recv_topic("evse/event", lambda p: p["type"] == "state" and p["from"] == 6)
+            off = ws.recv_topic("evse/event", lambda p: p["type"] == "contactor", timeout=8)
+            self.assertFalse(off["on"])
+            self.sim.request("POST", "/evse/external_current", 16000, auth=self.auth)
+            on = ws.recv_topic("evse/event", lambda p: p["type"] == "contactor", timeout=10)
+            self.assertTrue(on["on"])
+            self.assertGreater(on["seq"], off["seq"])
+            self.assertGreater(on["t_ms"], off["t_ms"])
+        finally:
+            ws.close()
+        self.assertIn('"type":"contactor","on":true', self.sim.log_text())  # Protokoll
+
     def test_11_websocket_ohne_anmeldung(self):
         ws = self.sim.ws_connect(None)
         try:
@@ -224,6 +244,21 @@ class T1Api(SimCase):
                 ws.recv(timeout=2)
         finally:
             ws.close()
+
+    def test_11b_netzwerk_led(self):
+        # SOLL-LED-06: an bei Verbindung, sonst 1 Hz
+        self.assertIn("N=1", self.shell("sim status"))
+        self.shell("sim link 0")
+        seen = set()
+        for _ in range(8):
+            seen.add(re.search(r"N=(\d)", self.shell("sim status")).group(1))
+            time.sleep(0.2)
+        self.assertEqual(seen, {"0", "1"})
+        self.shell("sim link 1")
+        time.sleep(0.6)
+        for _ in range(4):
+            self.assertIn("N=1", self.shell("sim status"))
+            time.sleep(0.2)
 
     def test_12_abstecken(self):
         self.shell("sim car A")
@@ -283,7 +318,16 @@ class T2Faults(SimCase):
         T2Faults.auth = self.set_credentials()
         self.shell("sim car C")
         self.sim.wait_state(self.auth, lambda s: s["charger_state"] == 3, what="Laden")
+        ws = self.sim.ws_connect(self.auth)
+        ws.recv_topic("evse/state")
         self.shell("sim rcm fault")
+        try:
+            err = ws.recv_topic("evse/event", lambda p: p["type"] == "error")
+            self.assertTrue(any(n.startswith("RCM") for n in err["set"]), err)
+            ws.recv_topic("evse/event", lambda p: p["type"] == "contactor" and not p["on"])
+            ws.recv_topic("evse/event", lambda p: p["type"] == "state" and p["to"] == 9)
+        finally:
+            ws.close()
         # WARP-Code 3 = Fehlerstromueberwachung (Spezifikation 12.1)
         st = self.sim.wait_state(self.auth, lambda s: s["error_state"] == 3, what="RCM-Fehler",
                                  timeout=3)
@@ -319,8 +363,7 @@ class T2Faults(SimCase):
 class T3ZephyrTelnet(SimCase):
     """Telnet-Client bricht hart ab (RST), waehrend Shell-Ausgabe ansteht.
 
-    Der Betrieb muss weiterlaufen. Beobachtet mit Zephyr 4.4.2 (nicht in jedem
-    Lauf): danach steht die Logausgabe dauerhaft; siehe docs/implementierung.md.
+    Betrieb und Logausgabe muessen weiterlaufen.
     """
 
     def abort_telnet(self):
@@ -348,6 +391,15 @@ class T3ZephyrTelnet(SimCase):
         self.sim.wait_restart(boots, timeout=10)
         self.assertEqual(self.sim.get_json("/system/info", auth)["reset_reason"],
                          "user_restart")
+
+    def test_02_log_nach_telnet_abbruch(self):
+        self.abort_telnet()
+        for _ in range(3):
+            ws = self.sim.ws_connect(None)  # erzeugt je eine Warnung im Log
+            ws.close()
+        time.sleep(1)
+        tail = self.sim.log_text().rsplit("Telnet socket", 1)[-1]
+        self.assertEqual(tail.count("WebSocket ohne gueltige Anmeldung"), 3)
 
 
 if __name__ == "__main__":

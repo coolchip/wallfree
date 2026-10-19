@@ -69,6 +69,9 @@ const char *api_err_name(unsigned int bit);
 /** Ruecksetzbedingung des Fehlerbits laut Tabelle 11.1 (Klartext). */
 const char *api_err_reset(unsigned int bit);
 
+/** Fehlerbits als JSON-Feld der Namen, z. B. ["RCM-DC6","RCM-AC30"]. */
+void api_json_err_list(struct wf_jbuf *b, evse_err_t m);
+
 /**
  * GET /evse/errors (SOLL-ERR-01): {"active": [...], "seen": [...],
  * "history": [{"age_ms": n, "state": n, "set": [...], "cleared": [...]}, ...]},

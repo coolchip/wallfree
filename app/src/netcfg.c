@@ -17,6 +17,7 @@
 #include <zephyr/net/dhcpv4.h>
 #include <zephyr/net/hostname.h>
 #include <zephyr/shell/shell_telnet.h>
+#include "hw.h"
 #include "netcfg.h"
 #include "storage.h"
 
@@ -121,8 +122,38 @@ static bool same(const struct wf_sysconf *x, const struct wf_sysconf *y)
 	return true;
 }
 
+/* ------------------------------------------------ Netzwerk-LED (SOLL-LED-06) */
+
+#define NETLED_MS 500 /* 1 Hz: 500 ms an, 500 ms aus */
+
+static void netled_fn(struct k_work *w);
+static K_WORK_DELAYABLE_DEFINE(netled_work, netled_fn);
+static bool netled_on;
+
+/* verbunden = Link und IPv4-Adresse (fest oder per DHCP) */
+static bool net_connected(void)
+{
+#if defined(CONFIG_NET_NATIVE_OFFLOADED_SOCKETS)
+	return hw_sim_link();
+#else
+	struct net_if *iface = net_if_get_default();
+
+	return iface != NULL && net_if_is_carrier_ok(iface) &&
+	       net_if_ipv4_get_global_addr(iface, NET_ADDR_PREFERRED) != NULL;
+#endif
+}
+
+static void netled_fn(struct k_work *w)
+{
+	ARG_UNUSED(w);
+	netled_on = net_connected() ? true : !netled_on;
+	hw_gpio_net_led(netled_on);
+	k_work_schedule(&netled_work, K_MSEC(NETLED_MS));
+}
+
 void netcfg_init(void)
 {
+	k_work_schedule(&netled_work, K_NO_WAIT);
 	k_mutex_lock(&mtx, K_FOREVER);
 	load(&saved);
 	active = saved;
