@@ -40,9 +40,10 @@ Hilfetexten fuer Web/Shell), keine veraenderlichen statischen Daten.
 
 ## Bei der Implementierung festgelegte Details
 
-Diese Punkte waren in der Spezifikation nicht eindeutig. Die ersten sieben hat der Nutzer am
-2026-10-19 bestaetigt ("in Ordnung"); die mit *neu* markierten sind danach hinzugekommen.
-Die Festlegung "Entriegeln klemmt" hat der Nutzer am 2026-10-19 ebenfalls bestaetigt.
+Diese Punkte waren in der Spezifikation nicht eindeutig. **Alle Festlegungen dieser Tabelle hat
+der Nutzer bestaetigt** (2026-10-19): die ersten sieben ("in Ordnung"), "Entriegeln klemmt"
+einzeln, alle uebrigen (*neu*: Speicher, API, System, Web, Bedienung, HW) gesammelt.
+Neue Festlegungen werden weiter mit *neu* markiert, bis sie bestaetigt sind.
 
 | Punkt | Umsetzung | Grund |
 | --- | --- | --- |
@@ -53,39 +54,39 @@ Die Festlegung "Entriegeln klemmt" hat der Nutzer am 2026-10-19 ebenfalls bestae
 | Code 38 Nachlauf | aktiv bei Code-19-Eingang und Status A/B oder < 1 s nach Schuetz-Aus | Ist-Spez. §12 |
 | S9 bei CP A mit Schutzfehler | Entriegeln ist trotzdem erlaubt (Schuetz aus), bis 4 Versuche | sonst bliebe der Stecker bei z. B. RCM-Sensorfehler verriegelt |
 | Ladeerlaubnis/Freigabe | Freigabe verlangt **keinen** aktiven Fehler (strenger als Original, das nur einzelne Fehler prueft) | SOLL-EN-02 |
-| *neu, bestaetigt:* Entriegeln klemmt | nach 4 Fehlversuchen bleiben Zaehler und ERR-UNLOCK bis zum naechsten Fahrzeug bzw. Neustart; keine weiteren Impulse. Der misslungene Start-Entriegelungsversuch zaehlt mit | sonst Dauerversuche am blockierten Motor alle paar Sekunden (auch das Original versucht es endlos) |
-| *neu:* D9 ohne Verriegelungswunsch | S1 geht mit D9 nur bei ML = 1 nach S2 | vorher Pendeln S1<->S2 in jedem Zyklus |
-| *neu (Speicher):* Loeschen nur in S1 | im Betrieb nur S1 mit CP A, Schuetz aus, ohne Verriegelungszyklus und RCM-Selbsttest; S0 nur vor dem Start der Ladelogik (Spezifikation: "S1 bzw. S0") | in S0 laufen Selbsttest und Start-Entriegelung, deren Zeitfolge der stehende Bus stoeren wuerde |
-| *neu (Speicher):* Ablauf des Verdichtens | Ladelogik per Sperre angehalten, Thread-/Messueberwachung ausgesetzt, IWDG auf Maximum (~32 s); CPU steht bis zu 4 s. CP bleibt +12 V (TIM1 laeuft weiter), Schuetz aus; ein in dieser Zeit angestecktes Fahrzeug wird danach erkannt | Spezifikation SOLL-NVM-04, SOLL-RT-13 |
-| *neu (Speicher):* Ausloeser des Verdichtens | ausstehende Werte, beschaedigter Rest oder weniger als 4 KB frei; Pruefung jede Sekunde im Speicher-Thread | 128 KB reichen fuer rund 10 000 Aenderungen; Verdichten selten |
-| *neu (Speicher):* ungueltiger Bereich beim Start | sofort neu angelegt, Werkseinstellungen, Meldung im Log und in `evse nvm`; kein Fehlerbit der Ladelogik | SOLL-NVM-05 sagt nur "Meldung" |
-| *neu (Speicher):* Import | 409/412 aus dem unteren Byte (im Original 1-Byte-Felder); jede Uebernahme ueber `evse_param_set`; Netzwerkfelder 315..326 werden nur angezeigt, weil Wallfree noch keine Netzparameter hat | SOLL-NVM-10 |
-| *neu (Speicher):* Werksreset per Shell | `evse factory-reset confirm`, nur im sicheren Zustand, danach Neustart | einfachster Weg zu konsistenten Defaults |
-| *neu (API):* Werkszugang | Benutzer `admin`, Passwort `wallfree`; bis zur Aenderung beantworten alle Ressourcen ausser `/credentials` mit 403 (auch evcc) | SOLL-API-07 nennt kein Passwort |
-| *neu (API):* Nonces | gelten bis zum Neustart (Geheimnis je Start), keine Ablaufzeit, keine Pruefung von `nc`; Nonce eines frueheren Starts -> 401 mit `stale=true` | evcc erneuert die Challenge nur nach einem 401; eine Ablaufzeit liesse den WebSocket-Aufbau (kein 401 moeglich) dauerhaft scheitern. Folge: mitgeschnittene Anfragen sind bis zum Neustart wiederholbar (ohne TLS ohnehin mitlesbar) |
-| *neu (API):* WebSocket-Anmeldung | Zephyr sendet 101 vor dem Anwendungs-Callback; ohne gueltige vorab gesendete Anmeldung wird die Verbindung ohne Daten geschlossen. Ein Browser muss vorher eine HTTP-Ressource abgerufen haben | Zephyr-Server bietet keinen Haken vor dem Upgrade |
-| *neu (API):* `error_state` 1 | sonstige Fehler (z. B. ERR-LOCK, CP ungueltig) -> 1, bei WARP unbelegt; Vorrang RCM > Schuetz > Schalter/Konfiguration | WARP kennt keinen allgemeinen Fehlercode |
-| *neu (API):* `contactor_state` | aus dem Schuetz-Soll (3/0), `contactor_error` 2 bzw. 6 bei ERR-CONTACTOR | keine Spannungsmessung vor/nach dem Schuetz |
-| *neu (API):* `allowed_charging_current` | 0 ohne PWM, auch im Statuswert gleichen Namens (vorher Rechenwert auch ohne PWM) | Spezifikation 12.1 |
-| *neu (API):* `POST /evse/params` | jeder Wert einzeln (nicht atomar); Syntaxfehler -> nichts geschrieben | Zustandsregeln stecken in den Schreibfunktionen |
-| *neu (API):* Zugangsdaten speichern | ein Eintrag (HA1 + Benutzer, Kennung 3001), damit ein Stromausfall nie Benutzer und HA1 trennt | |
-| *neu (System):* Wirksamkeit | Netz-/Systemparameter wirken erst nach Neustart; `POST /system/restart` nur in S1 ohne Fahrzeug (sonst 409) | Adresswechsel im Betrieb wuerde laufende Verbindungen (evcc) kappen |
-| *neu (System):* Telnet aus | `shell_stop`: Port 23 bleibt offen, Kommandos werden nicht ausgefuehrt | Zephyr kann den Telnet-Port zur Laufzeit nicht schliessen |
-| *neu (System):* widerspruechliche gespeicherte Adresse | Start mit DHCP und Warnung im Log | lieber erreichbar als gar kein Netz |
-| *neu (System):* Import Netz | Felder 404 (DHCP), 315..326 (IP/Maske/Gateway) nach Original-Webseite; alles oder nichts; Geraetename 310 wird nicht uebernommen | Belegung aus `wallbe2/analysis/web/lan.html` |
-| *neu (API):* Bremse | 5 freie Fehlversuche je Adresse, dann 10 s, verdoppelt bis 5 min, 429 mit `Retry-After`; nur falsches Passwort zaehlt (fehlende Anmeldung und veraltete Nonce nicht) | |
-| *neu (API):* Absender beim WebSocket | aus Zephyr-Interna ermittelt (Kopfzeilenfeld des Client-Kontexts, Zephyr 4.4.2); bei Zephyr-Updates pruefen | der WebSocket-Callback liefert keinen TCP-Socket |
-| *neu (Bedienung):* Neustart | nur geordnet: `evse_request_shutdown` (wirkt wie fehlende Verfuegbarkeit -> S7 mit 5-s-Frist -> S10), warten bis Schuetz aus, hoechstens 15 s, dann sicherer Zustand und Reset; gilt fuer Shell, HTTP, Werksreset. `kernel reboot` entfernt | SOLL-RT-22, SOLL-SH-20 |
-| *neu (Bedienung):* Quittieren | `evse errors clear` / `POST /evse/errors/ack` quittiert nur ERR-CONTACTOR (F14); die Ausgabe nennt fuer alle anderen die Ruecksetzbedingung | SOLL-ERR-03 |
-| *neu (Bedienung):* Selbsttest | `evse selftest` nur in S1, CP A, Schuetz aus | SOLL-SH-07 |
-| *neu (Bedienung):* Fehlerhistorie | 32 Ereignisse im RAM (Zeit, neu, geloescht, Zustand), geht beim Neustart verloren; HTTP gibt so viele aus, wie in 1,5 KB passen (`truncated`) | SOLL-ERR-01 |
-| *neu (HW):* IWDG | startet zu Beginn von `main` (250 ms); bis zum Schutzthread bedient ihn `main`, auch waehrend des Werksreset-Wartens | SOLL-BOOT-03, SOLL-RT-12 |
-| *neu (HW):* Resetgrund | BKP19 = 0x5746xxxx vor Software-Resets; Grund `supervision_limit`, `fault`, `user_restart`, `factory_reset`, `interface_hang` bzw. aus RCC_CSR | SOLL-RT-14 |
-| *neu (HW):* Schnittstellen-Ueberwachung | Speicher-, WebSocket-Thread, System-Workqueue (10 s); HTTP-Server/Telnet von Zephyr nicht ueberwachbar | SOLL-RT-11 |
-| *neu (Web):* Anmeldung | Oberflaeche hinter Digest wie die API (Anmeldedialog des Browsers); im Werkszugang nur Zugangsdaten-Seite; nach der Aenderung fragt der Browser neu | SOLL-API-07 |
-| *neu (Web):* Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickt beim WebSocket-Aufbau evtl. keine Anmeldung, auf Hardware ungeprueft), Abfrage alle 2 s | |
-| *neu (Web):* Sollstrom-Schieber | 6..32 A in 1-A-Schritten, dazu "Laden aus" (0) | evcc ueberschreibt den Wert, wenn verbunden |
-| *neu:* Abbruch des RCM-Selbsttests nach dem Testimpuls | Zustand "Abbruch laeuft" bis 3,4 s nach Teststart: SWITCH_1/2 ausgeblendet, ERR_OUT wirksam; kein neuer Test, kein Weg zum Schuetz in dieser Zeit | der Sensor faehrt seinen Trip-Test zu Ende; dessen Ausloesungen wurden sonst als echter Fehlerstrom gewertet |
+| Entriegeln klemmt | nach 4 Fehlversuchen bleiben Zaehler und ERR-UNLOCK bis zum naechsten Fahrzeug bzw. Neustart; keine weiteren Impulse. Der misslungene Start-Entriegelungsversuch zaehlt mit | sonst Dauerversuche am blockierten Motor alle paar Sekunden (auch das Original versucht es endlos) |
+| D9 ohne Verriegelungswunsch | S1 geht mit D9 nur bei ML = 1 nach S2 | vorher Pendeln S1<->S2 in jedem Zyklus |
+| *(Speicher):* Loeschen nur in S1 | im Betrieb nur S1 mit CP A, Schuetz aus, ohne Verriegelungszyklus und RCM-Selbsttest; S0 nur vor dem Start der Ladelogik (Spezifikation: "S1 bzw. S0") | in S0 laufen Selbsttest und Start-Entriegelung, deren Zeitfolge der stehende Bus stoeren wuerde |
+| *(Speicher):* Ablauf des Verdichtens | Ladelogik per Sperre angehalten, Thread-/Messueberwachung ausgesetzt, IWDG auf Maximum (~32 s); CPU steht bis zu 4 s. CP bleibt +12 V (TIM1 laeuft weiter), Schuetz aus; ein in dieser Zeit angestecktes Fahrzeug wird danach erkannt | Spezifikation SOLL-NVM-04, SOLL-RT-13 |
+| *(Speicher):* Ausloeser des Verdichtens | ausstehende Werte, beschaedigter Rest oder weniger als 4 KB frei; Pruefung jede Sekunde im Speicher-Thread | 128 KB reichen fuer rund 10 000 Aenderungen; Verdichten selten |
+| *(Speicher):* ungueltiger Bereich beim Start | sofort neu angelegt, Werkseinstellungen, Meldung im Log und in `evse nvm`; kein Fehlerbit der Ladelogik | SOLL-NVM-05 sagt nur "Meldung" |
+| *(Speicher):* Import | 409/412 aus dem unteren Byte (im Original 1-Byte-Felder); jede Uebernahme ueber `evse_param_set`; Netzwerkfelder 315..326 werden nur angezeigt, weil Wallfree noch keine Netzparameter hat | SOLL-NVM-10 |
+| *(Speicher):* Werksreset per Shell | `evse factory-reset confirm`, nur im sicheren Zustand, danach Neustart | einfachster Weg zu konsistenten Defaults |
+| *(API):* Werkszugang | Benutzer `admin`, Passwort `wallfree`; bis zur Aenderung beantworten alle Ressourcen ausser `/credentials` mit 403 (auch evcc) | SOLL-API-07 nennt kein Passwort |
+| *(API):* Nonces | gelten bis zum Neustart (Geheimnis je Start), keine Ablaufzeit, keine Pruefung von `nc`; Nonce eines frueheren Starts -> 401 mit `stale=true` | evcc erneuert die Challenge nur nach einem 401; eine Ablaufzeit liesse den WebSocket-Aufbau (kein 401 moeglich) dauerhaft scheitern. Folge: mitgeschnittene Anfragen sind bis zum Neustart wiederholbar (ohne TLS ohnehin mitlesbar) |
+| *(API):* WebSocket-Anmeldung | Zephyr sendet 101 vor dem Anwendungs-Callback; ohne gueltige vorab gesendete Anmeldung wird die Verbindung ohne Daten geschlossen. Ein Browser muss vorher eine HTTP-Ressource abgerufen haben | Zephyr-Server bietet keinen Haken vor dem Upgrade |
+| *(API):* `error_state` 1 | sonstige Fehler (z. B. ERR-LOCK, CP ungueltig) -> 1, bei WARP unbelegt; Vorrang RCM > Schuetz > Schalter/Konfiguration | WARP kennt keinen allgemeinen Fehlercode |
+| *(API):* `contactor_state` | aus dem Schuetz-Soll (3/0), `contactor_error` 2 bzw. 6 bei ERR-CONTACTOR | keine Spannungsmessung vor/nach dem Schuetz |
+| *(API):* `allowed_charging_current` | 0 ohne PWM, auch im Statuswert gleichen Namens (vorher Rechenwert auch ohne PWM) | Spezifikation 12.1 |
+| *(API):* `POST /evse/params` | jeder Wert einzeln (nicht atomar); Syntaxfehler -> nichts geschrieben | Zustandsregeln stecken in den Schreibfunktionen |
+| *(API):* Zugangsdaten speichern | ein Eintrag (HA1 + Benutzer, Kennung 3001), damit ein Stromausfall nie Benutzer und HA1 trennt | |
+| *(System):* Wirksamkeit | Netz-/Systemparameter wirken erst nach Neustart; `POST /system/restart` nur in S1 ohne Fahrzeug (sonst 409) | Adresswechsel im Betrieb wuerde laufende Verbindungen (evcc) kappen |
+| *(System):* Telnet aus | `shell_stop`: Port 23 bleibt offen, Kommandos werden nicht ausgefuehrt | Zephyr kann den Telnet-Port zur Laufzeit nicht schliessen |
+| *(System):* widerspruechliche gespeicherte Adresse | Start mit DHCP und Warnung im Log | lieber erreichbar als gar kein Netz |
+| *(System):* Import Netz | Felder 404 (DHCP), 315..326 (IP/Maske/Gateway) nach Original-Webseite; alles oder nichts; Geraetename 310 wird nicht uebernommen | Belegung aus `wallbe2/analysis/web/lan.html` |
+| *(API):* Bremse | 5 freie Fehlversuche je Adresse, dann 10 s, verdoppelt bis 5 min, 429 mit `Retry-After`; nur falsches Passwort zaehlt (fehlende Anmeldung und veraltete Nonce nicht) | |
+| *(API):* Absender beim WebSocket | aus Zephyr-Interna ermittelt (Kopfzeilenfeld des Client-Kontexts, Zephyr 4.4.2); bei Zephyr-Updates pruefen | der WebSocket-Callback liefert keinen TCP-Socket |
+| *(Bedienung):* Neustart | nur geordnet: `evse_request_shutdown` (wirkt wie fehlende Verfuegbarkeit -> S7 mit 5-s-Frist -> S10), warten bis Schuetz aus, hoechstens 15 s, dann sicherer Zustand und Reset; gilt fuer Shell, HTTP, Werksreset. `kernel reboot` entfernt | SOLL-RT-22, SOLL-SH-20 |
+| *(Bedienung):* Quittieren | `evse errors clear` / `POST /evse/errors/ack` quittiert nur ERR-CONTACTOR (F14); die Ausgabe nennt fuer alle anderen die Ruecksetzbedingung | SOLL-ERR-03 |
+| *(Bedienung):* Selbsttest | `evse selftest` nur in S1, CP A, Schuetz aus | SOLL-SH-07 |
+| *(Bedienung):* Fehlerhistorie | 32 Ereignisse im RAM (Zeit, neu, geloescht, Zustand), geht beim Neustart verloren; HTTP gibt so viele aus, wie in 1,5 KB passen (`truncated`) | SOLL-ERR-01 |
+| *(HW):* IWDG | startet zu Beginn von `main` (250 ms); bis zum Schutzthread bedient ihn `main`, auch waehrend des Werksreset-Wartens | SOLL-BOOT-03, SOLL-RT-12 |
+| *(HW):* Resetgrund | BKP19 = 0x5746xxxx vor Software-Resets; Grund `supervision_limit`, `fault`, `user_restart`, `factory_reset`, `interface_hang` bzw. aus RCC_CSR | SOLL-RT-14 |
+| *(HW):* Schnittstellen-Ueberwachung | Speicher-, WebSocket-Thread, System-Workqueue (10 s); HTTP-Server/Telnet von Zephyr nicht ueberwachbar | SOLL-RT-11 |
+| *(Web):* Anmeldung | Oberflaeche hinter Digest wie die API (Anmeldedialog des Browsers); im Werkszugang nur Zugangsdaten-Seite; nach der Aenderung fragt der Browser neu | SOLL-API-07 |
+| *(Web):* Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickt beim WebSocket-Aufbau evtl. keine Anmeldung, auf Hardware ungeprueft), Abfrage alle 2 s | |
+| *(Web):* Sollstrom-Schieber | 6..32 A in 1-A-Schritten, dazu "Laden aus" (0) | evcc ueberschreibt den Wert, wenn verbunden |
+| Abbruch des RCM-Selbsttests nach dem Testimpuls | Zustand "Abbruch laeuft" bis 3,4 s nach Teststart: SWITCH_1/2 ausgeblendet, ERR_OUT wirksam; kein neuer Test, kein Weg zum Schuetz in dieser Zeit | der Sensor faehrt seinen Trip-Test zu Ende; dessen Ausloesungen wurden sonst als echter Fehlerstrom gewertet |
 
 ## Parameter: Festlegungen
 
@@ -213,8 +214,7 @@ Assert-Texte, LTO, Shell-Hilfe (zusammen ~100 KB).
 
 ## Naechste Schritte (Stand 2026-10-19)
 
-1. **Festlegungen bestaetigen:** alle mit *neu* markierten Zeilen in "Bei der Implementierung
-   festgelegte Details" (Speicher, API, System, Web, Bedienung, HW).
+1. ~~Festlegungen bestaetigen~~ – erledigt, Nutzer 2026-10-19 (alle bestaetigt).
 2. **Ende-zu-Ende-Test auf dem PC vorbereiten:** Anwendung zusaetzlich fuer `native_sim` mit
    simulierter Hardwareschicht (Simulationsmodell statt TIM1/ADC/GPIO, Flash-Simulator, Netz
    ueber Zephyrs native Sockets). Damit HTTP, Digest, WebSocket, Weboberflaeche und Persistenz
