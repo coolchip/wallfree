@@ -63,6 +63,19 @@ typedef void (*api_written_t)(void *ctx, const struct evse_param *p, int32_t v);
 int api_set_params(struct evse *e, const char *body, size_t len, evse_ms_t now,
 		   api_written_t written, void *ctx, struct wf_jbuf *out);
 
+/** Name des Fehlerbits @p bit (z. B. "CP-INVALID"), NULL ausserhalb. */
+const char *api_err_name(unsigned int bit);
+
+/** Ruecksetzbedingung des Fehlerbits laut Tabelle 11.1 (Klartext). */
+const char *api_err_reset(unsigned int bit);
+
+/**
+ * GET /evse/errors (SOLL-ERR-01): {"active": [...], "seen": [...],
+ * "history": [{"age_ms": n, "state": n, "set": [...], "cleared": [...]}, ...]},
+ * Historie juengste zuerst.
+ */
+void api_json_errors(const struct evse *e, evse_ms_t now, struct wf_jbuf *b);
+
 /** {"error": "<text>"} */
 void api_json_error(struct wf_jbuf *b, const char *text);
 

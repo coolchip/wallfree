@@ -51,6 +51,25 @@ static bool duty_is_pwm(uint16_t d)
 	return d >= 30 && d <= 970;
 }
 
+/* SOLL-ERR-01: jede Aenderung der aktiven Fehler als Ereignis */
+static void record_errors(struct evse *e, evse_ms_t now)
+{
+	if (e->errors == e->hist_prev) {
+		return;
+	}
+	struct evse_err_event *ev = &e->hist[e->hist_head];
+
+	ev->t = now;
+	ev->set = e->errors & ~e->hist_prev;
+	ev->cleared = e->hist_prev & ~e->errors;
+	ev->state = (uint8_t)e->state;
+	e->hist_head = (uint8_t)((e->hist_head + 1) % EVSE_ERR_HIST);
+	if (e->hist_count < EVSE_ERR_HIST) {
+		e->hist_count++;
+	}
+	e->hist_prev = e->errors;
+}
+
 void evse_init(struct evse *e, const struct evse_config *cfg, enum evse_lock_state stored_lock,
 	       evse_ms_t now)
 {
@@ -447,7 +466,8 @@ static void update_release_and_current(struct evse *e)
 	struct evse_current_in ci;
 
 	/* SOLL-EN-10 */
-	e->avail_missing = (dip(e, 8) && !e->din.xr) || (dip(e, 10) && !e->rt.available_register);
+	e->avail_missing = (dip(e, 8) && !e->din.xr) || (dip(e, 10) && !e->rt.available_register) ||
+			   e->shutdown; /* SOLL-RT-22 */
 	/* SOLL-EN-01 */
 	e->permission = (dip(e, 7) && e->din.en) || (dip(e, 10) && e->rt.enable_register) ||
 			(!dip(e, 7) && !dip(e, 10));
@@ -1091,6 +1111,7 @@ void evse_step(struct evse *e, const struct evse_inputs *in, evse_ms_t now)
 		}
 	}
 	update_outputs(e, now);
+	record_errors(e, now);
 }
 
 void evse_safe_state(struct evse *e, evse_ms_t now)
@@ -1115,6 +1136,30 @@ bool evse_lock_command(struct evse *e, bool lock, evse_ms_t now)
 		return false;
 	}
 	return lock_req(e, lock, now);
+}
+
+bool evse_selftest_command(struct evse *e, evse_ms_t now)
+{
+	if (e->state != EVSE_S1_IDLE || evse_cp_raw(&e->cp) != EVSE_CP_A || e->contactor ||
+	    e->rcm.test == EVSE_RCM_TEST_RUNNING || e->rcm.test == EVSE_RCM_TEST_ABORTING) {
+		return false;
+	}
+	return evse_rcm_selftest_start(&e->rcm, &e->rcm_lv, now);
+}
+
+void evse_request_shutdown(struct evse *e)
+{
+	e->shutdown = true;
+}
+
+const struct evse_err_event *evse_err_hist_at(const struct evse *e, size_t i)
+{
+	if (i >= e->hist_count) {
+		return NULL;
+	}
+	size_t k = (e->hist_head + EVSE_ERR_HIST - 1 - i) % EVSE_ERR_HIST;
+
+	return &e->hist[k];
 }
 
 bool evse_ack_contactor_fault(struct evse *e)

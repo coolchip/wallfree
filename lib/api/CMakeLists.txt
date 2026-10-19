@@ -7,4 +7,5 @@ zephyr_library_sources(
   evse_api.c
   sysconf.c
   ratelimit.c
+  reset.c
 )

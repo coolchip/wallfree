@@ -225,3 +225,8 @@ int hw_gpio_init(void)
 	}
 	return 0;
 }
+
+void hw_gpio_led(enum evse_led idx, bool on)
+{
+	gpio_pin_set_dt(&led[idx], on);
+}

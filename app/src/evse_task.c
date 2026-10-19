@@ -16,7 +16,6 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/logging/log_ctrl.h>
 #include <zephyr/sys/atomic.h>
-#include <zephyr/sys/reboot.h>
 #include "evse_task.h"
 #include "hw.h"
 #include "storage.h"
@@ -58,6 +57,46 @@ void evse_release(void)
 	k_mutex_unlock(&ev_mtx);
 }
 
+/* ------------------------------------------------ geordneter Neustart (SOLL-RT-22) */
+
+#define REBOOT_WAIT_MS 15000
+
+static int64_t reboot_deadline;
+static atomic_t reboot_pending;
+static enum wf_reset reboot_code;
+
+static void reboot_work_fn(struct k_work *w);
+static K_WORK_DELAYABLE_DEFINE(reboot_work, reboot_work_fn);
+
+static void reboot_work_fn(struct k_work *w)
+{
+	ARG_UNUSED(w);
+	struct evse *e = evse_acquire();
+	bool off = evse_contactor_is_off(e);
+
+	evse_release();
+	if (off || k_uptime_get() >= reboot_deadline) {
+		LOG_WRN("Neustart%s", off ? "" : " nach Fristablauf (Schuetz wird hart abgeschaltet)");
+		LOG_PANIC();
+		hw_reset_with(reboot_code); /* zuerst sicherer Zustand */
+	}
+	k_work_schedule(&reboot_work, K_MSEC(100));
+}
+
+int evse_task_reboot_orderly(enum wf_reset code)
+{
+	if (!atomic_cas(&reboot_pending, 0, 1)) {
+		return -EALREADY;
+	}
+	reboot_code = code;
+	evse_request_shutdown(evse_acquire());
+	evse_release();
+	reboot_deadline = k_uptime_get() + REBOOT_WAIT_MS;
+	/* kurz warten, damit Antworten (HTTP, Shell) noch hinausgehen */
+	k_work_schedule(&reboot_work, K_MSEC(300));
+	return 0;
+}
+
 void evse_task_maint_begin(void)
 {
 	atomic_set(&maint, 1);
@@ -79,7 +118,7 @@ static void fail_safe_and_reboot(const char *why)
 	hw_safe_state_regs();
 	LOG_ERR("sicherer Zustand: %s", why);
 	LOG_PANIC();
-	sys_reboot(SYS_REBOOT_COLD);
+	hw_reset_with(WF_RST_LIMIT);
 }
 
 void k_sys_fatal_error_handler(unsigned int reason, const struct arch_esf *esf)
@@ -89,8 +128,7 @@ void k_sys_fatal_error_handler(unsigned int reason, const struct arch_esf *esf)
 	hw_safe_state_regs();
 	LOG_PANIC();
 	LOG_ERR("Fataler Fehler %u, Neustart", reason);
-	sys_reboot(SYS_REBOOT_COLD);
-	CODE_UNREACHABLE;
+	hw_reset_with(WF_RST_FAULT);
 }
 
 /* ------------------------------------------------ Automatenthread */
@@ -153,6 +191,96 @@ static void charger_entry(void *p1, void *p2, void *p3)
 	}
 }
 
+/* ------------------------------------------------ IWDG (SOLL-BOOT-03, SOLL-RT-12) */
+
+static const struct device *const wdt_dev = DEVICE_DT_GET(DT_NODELABEL(iwdg));
+static int wdt_ch = -1;
+
+int evse_task_wdt_start(void)
+{
+	struct wdt_timeout_cfg wcfg = {
+		.window = {.min = 0, .max = IWDG_TIMEOUT_MS},
+		.flags = WDT_FLAG_RESET_SOC,
+	};
+
+	if (!device_is_ready(wdt_dev)) {
+		return -ENODEV;
+	}
+	wdt_ch = wdt_install_timeout(wdt_dev, &wcfg);
+	if (wdt_ch < 0 || wdt_setup(wdt_dev, WDT_OPT_PAUSE_HALTED_BY_DBG) != 0) {
+		wdt_ch = -1;
+		return -EIO;
+	}
+	return 0;
+}
+
+void evse_task_wdt_feed(void)
+{
+	/* nur bis der Schutzthread laeuft; danach bedient ausschliesslich er */
+	if (wdt_ch >= 0 && !atomic_get(&started)) {
+		(void)wdt_feed(wdt_dev, wdt_ch);
+	}
+}
+
+/* ------------------------------------------------ Schnittstellen-Threads (SOLL-RT-11) */
+
+#define IFACE_LIMIT_MS 10000
+
+static atomic_t iface_beat[EVSE_IFACE_COUNT];
+static const char *const iface_names[EVSE_IFACE_COUNT] = {"storage", "ws_push", "sysworkq"};
+
+void evse_task_iface_beat(enum evse_iface id)
+{
+	atomic_set(&iface_beat[id], (atomic_val_t)k_uptime_get_32());
+}
+
+static void sysworkq_beat_fn(struct k_work *w);
+static K_WORK_DELAYABLE_DEFINE(sysworkq_beat, sysworkq_beat_fn);
+
+static void sysworkq_beat_fn(struct k_work *w)
+{
+	ARG_UNUSED(w);
+	evse_task_iface_beat(EVSE_IFACE_SYSWORKQ);
+	k_work_schedule(&sysworkq_beat, K_SECONDS(1));
+}
+
+/*
+ * Einmal je Sekunde aus dem Schutzthread: haengt ein Schnittstellen-Thread
+ * laenger als 10 s, Meldung; Neustart nur ohne Ladevorgang (Schuetz aus,
+ * S1/S9/S10). Die Sperre der Ladelogik wird nur ohne Warten versucht.
+ */
+static void check_ifaces(uint32_t now32)
+{
+	static bool reported;
+	int hung = -1;
+
+	for (int i = 0; i < EVSE_IFACE_COUNT; i++) {
+		if (now32 - (uint32_t)atomic_get(&iface_beat[i]) > IFACE_LIMIT_MS) {
+			hung = i;
+		}
+	}
+	if (hung < 0) {
+		reported = false;
+		return;
+	}
+	if (!reported) {
+		reported = true;
+		LOG_ERR("Thread %s meldet sich nicht (> %d s)", iface_names[hung], IFACE_LIMIT_MS / 1000);
+	}
+	if (k_mutex_lock(&ev_mtx, K_NO_WAIT) != 0) {
+		return;
+	}
+	bool idle = evse_contactor_is_off(&ev) &&
+		    (ev.state == EVSE_S1_IDLE || ev.state == EVSE_S9_ERROR ||
+		     ev.state == EVSE_S10_UNAVAILABLE);
+
+	k_mutex_unlock(&ev_mtx);
+	if (idle) {
+		LOG_PANIC();
+		hw_reset_with(WF_RST_NET_HANG);
+	}
+}
+
 /* ------------------------------------------------ Schutzthread */
 
 static void prot_entry(void *p1, void *p2, void *p3)
@@ -160,23 +288,11 @@ static void prot_entry(void *p1, void *p2, void *p3)
 	ARG_UNUSED(p1);
 	ARG_UNUSED(p2);
 	ARG_UNUSED(p3);
-	const struct device *wdt = DEVICE_DT_GET(DT_NODELABEL(iwdg));
-	struct wdt_timeout_cfg wcfg = {
-		.window = {.min = 0, .max = IWDG_TIMEOUT_MS},
-		.flags = WDT_FLAG_RESET_SOC,
-	};
-	int ch = -1;
-
-	if (device_is_ready(wdt)) {
-		ch = wdt_install_timeout(wdt, &wcfg);
-		if (ch >= 0) {
-			(void)wdt_setup(wdt, WDT_OPT_PAUSE_HALTED_BY_DBG);
-		}
-	}
-	if (ch < 0) {
+	if (wdt_ch < 0) {
 		fail_safe_and_reboot("IWDG nicht verfuegbar");
 	}
 	int64_t t0 = k_uptime_get();
+	int64_t last_iface_check = t0;
 
 	for (;;) {
 		struct evse_rcm_levels lv;
@@ -198,8 +314,13 @@ static void prot_entry(void *p1, void *p2, void *p3)
 				fail_safe_and_reboot("keine Messbloecke");
 			}
 		}
+		/* SOLL-RT-11: Schnittstellen-Threads, einmal je Sekunde */
+		if (now - t0 > STARTUP_GRACE_MS && now - last_iface_check >= 1000) {
+			last_iface_check = now;
+			check_ifaces(now32);
+		}
 		/* SOLL-RT-12: IWDG nur bei eingehaltenen Limits */
-		(void)wdt_feed(wdt, ch);
+		(void)wdt_feed(wdt_dev, wdt_ch);
 		k_sleep(K_MSEC(1));
 	}
 }
@@ -214,6 +335,10 @@ int evse_task_start(const struct evse_config *cfg, enum evse_lock_state stored_l
 	evse_init(&ev, cfg, stored_lock, now);
 	atomic_set(&charger_beat, (atomic_val_t)now);
 	atomic_set(&block_beat, (atomic_val_t)now);
+	for (int i = 0; i < EVSE_IFACE_COUNT; i++) {
+		evse_task_iface_beat(i);
+	}
+	k_work_schedule(&sysworkq_beat, K_SECONDS(1));
 
 	k_thread_create(&prot_thread, prot_stack, K_THREAD_STACK_SIZEOF(prot_stack), prot_entry,
 			NULL, NULL, NULL, PROT_PRIO, 0, K_NO_WAIT);

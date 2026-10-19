@@ -3,15 +3,17 @@
  * Shell-Kommandos (Soll-Spezifikation 12.3). Alle Zugriffe ueber die
  * Parametertabelle mit Grenzpruefung (SOLL-SH-02, SOLL-SH-20).
  */
+#include <stdio.h>
 #include <stdlib.h>
 #include <zephyr/kernel.h>
 #include <string.h>
 #include <zephyr/shell/shell.h>
-#include <zephyr/sys/reboot.h>
+#include <wallfree/api/evse_api.h>
 #include <wallfree/evse/param.h>
 #include "evse_task.h"
 #include "netcfg.h"
 #include "storage.h"
+#include "sysinfo.h"
 
 static const char *const state_names[] = {
 	"S0 INIT", "S1 IDLE", "S2 LOCKING", "S3 WAIT", "S4 SELFTEST", "S5 PWM_ON",
@@ -37,6 +39,8 @@ static int cmd_status(const struct shell *sh, size_t argc, char **argv)
 	shell_print(sh, "Strom    Soll %d mA, Fahrzeug darf %d mA", cur, allowed);
 	shell_print(sh, "Schuetz  %s, Verriegelung %d", contactor ? "ein" : "aus", lock);
 	shell_print(sh, "Fehler   0x%08x, Warnungen 0x%x", err, warn);
+	shell_print(sh, "System   %s, Resetgrund %s, Laufzeit %lld s", sysinfo_version(),
+		    wf_reset_name(sysinfo_reset_reason()), (long long)(k_uptime_get() / 1000));
 	return 0;
 }
 
@@ -176,8 +180,7 @@ static int cmd_factory_reset(const struct shell *sh, size_t argc, char **argv)
 		return -EIO;
 	}
 	shell_print(sh, "Werkseinstellungen geschrieben, Neustart");
-	k_msleep(100);
-	sys_reboot(SYS_REBOOT_COLD);
+	(void)evse_task_reboot_orderly(WF_RST_FACTORY);
 	return 0;
 }
 
@@ -232,6 +235,181 @@ static int cmd_import(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+/* ------------------------------------------------ Laufzeitwerte (SOLL-SH-03..05) */
+
+/* Schreiben ueber die Parametertabelle: gleiche Pruefung wie HTTP (SOLL-SH-20) */
+static int set_rt(const struct shell *sh, const char *name, const char *text)
+{
+	char *end;
+	long v = strtol(text, &end, 0);
+
+	if (*end != '\0') {
+		shell_error(sh, "keine Zahl: %s", text);
+		return -EINVAL;
+	}
+	int err = evse_param_set_by_name(evse_acquire(), name, (int32_t)v, k_uptime_get());
+
+	evse_release();
+	if (err != EVSE_PARAM_OK) {
+		shell_error(sh, "%s abgelehnt: %s", name, evse_param_strerror(err));
+		return -EINVAL;
+	}
+	shell_print(sh, "%s = %ld", name, v);
+	return 0;
+}
+
+static int cmd_current(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	return set_rt(sh, "external_current", argv[1]);
+}
+
+static int cmd_enable(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	return set_rt(sh, "enable_register", argv[1]);
+}
+
+static int cmd_avail(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	return set_rt(sh, "available_register", argv[1]);
+}
+
+static int cmd_pause(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	return set_rt(sh, "pause_request", argv[1]);
+}
+
+static int cmd_pwm5(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	return set_rt(sh, "pwm5_request", argv[1]);
+}
+
+static int cmd_lock(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	return set_rt(sh, "lock_request", argv[1]);
+}
+
+static int cmd_unlock(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	return set_rt(sh, "unlock_request", "1");
+}
+
+/* ------------------------------------------------ Fehler (SOLL-SH-06, SOLL-ERR-01/03) */
+
+static void print_mask(const struct shell *sh, const char *prefix, evse_err_t m)
+{
+	char line[160];
+	int n = snprintf(line, sizeof(line), "%s", prefix);
+
+	for (unsigned int i = 0; api_err_name(i) != NULL; i++) {
+		if ((m & (1u << i)) && n < (int)sizeof(line)) {
+			n += snprintf(line + n, sizeof(line) - n, " %s", api_err_name(i));
+		}
+	}
+	shell_print(sh, "%s", m ? line : prefix);
+}
+
+static int cmd_errors(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	static struct evse_err_event hist[EVSE_ERR_HIST];
+	struct evse *e = evse_acquire();
+	evse_err_t act = e->errors, seen = e->errors_seen;
+	size_t n = evse_err_hist_count(e);
+	int64_t now = k_uptime_get();
+
+	for (size_t i = 0; i < n; i++) {
+		hist[i] = *evse_err_hist_at(e, i);
+	}
+	evse_release();
+
+	if (act == 0) {
+		shell_print(sh, "aktiv: keine");
+	}
+	for (unsigned int i = 0; api_err_name(i) != NULL; i++) {
+		if (act & (1u << i)) {
+			shell_print(sh, "aktiv: ERR-%-13s loescht: %s", api_err_name(i), api_err_reset(i));
+		}
+	}
+	print_mask(sh, "seit Start:", seen);
+	shell_print(sh, "Historie (juengste zuerst, vor s):");
+	for (size_t i = 0; i < n; i++) {
+		char pfx[48];
+
+		snprintf(pfx, sizeof(pfx), "  -%6lld s S%-2u +", (long long)((now - hist[i].t) / 1000),
+			 hist[i].state);
+		if (hist[i].set) {
+			print_mask(sh, pfx, hist[i].set);
+		}
+		if (hist[i].cleared) {
+			pfx[strlen(pfx) - 1] = '-';
+			print_mask(sh, pfx, hist[i].cleared);
+		}
+	}
+	return 0;
+}
+
+static int cmd_errors_clear(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	struct evse *e = evse_acquire();
+	bool had = (e->errors & EVSE_ERR_CONTACTOR) != 0;
+	bool ok = had && evse_ack_contactor_fault(e);
+	evse_err_t left = e->errors;
+
+	evse_release();
+	/* SOLL-ERR-03: alle anderen Fehler loeschen sich nach ihrer Regel selbst */
+	if (had) {
+		shell_print(sh, ok ? "Schuetzfehler quittiert"
+				   : "Schuetzfehler nicht quittiert (Ursache besteht oder falscher Zustand)");
+	}
+	if (left & ~(ok ? EVSE_ERR_CONTACTOR : 0)) {
+		print_mask(sh, "weiter aktiv (siehe evse errors):", left & ~(ok ? EVSE_ERR_CONTACTOR : 0));
+	} else {
+		shell_print(sh, "keine aktiven Fehler");
+	}
+	return 0;
+}
+
+/* SOLL-SH-07 */
+static int cmd_selftest(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	bool ok = evse_selftest_command(evse_acquire(), k_uptime_get());
+
+	evse_release();
+	if (!ok) {
+		shell_error(sh, "nur in S1 ohne Fahrzeug (CP A) und wenn kein Test laeuft");
+		return -EBUSY;
+	}
+	shell_print(sh, "RCM-Selbsttest gestartet; Ergebnis: evse param get rcm_selftest "
+			"(2 bestanden, 3 fehlgeschlagen)");
+	return 0;
+}
+
+/* SOLL-SH-11, SOLL-RT-22 */
+static int cmd_reboot(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	if (evse_task_reboot_orderly(WF_RST_USER) != 0) {
+		shell_print(sh, "Neustart laeuft bereits");
+		return 0;
+	}
+	shell_print(sh, "Neustart: Laden wird geordnet beendet (hoechstens 15 s)");
+	return 0;
+}
+
 /* ------------------------------------------------ Systemparameter */
 
 static int cmd_sys_list(const struct shell *sh, size_t argc, char **argv)
@@ -268,6 +446,11 @@ static int cmd_sys_set(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_errors,
+	SHELL_CMD_ARG(clear, NULL, "quittieren (nur Schuetzfehler; andere loeschen sich selbst)",
+		      cmd_errors_clear, 1, 0),
+	SHELL_SUBCMD_SET_END);
+
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_sys,
 	SHELL_CMD_ARG(list, NULL, "Netz- und Systemparameter", cmd_sys_list, 1, 0),
 	SHELL_CMD_ARG(set, NULL, "<name> <wert> (wirkt nach Neustart)", cmd_sys_set, 3, 0),
@@ -284,6 +467,17 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_evse,
 	SHELL_CMD(param, &sub_param, "Parameter", NULL),
 	SHELL_CMD_ARG(ack, NULL, "Schuetzfehler quittieren", cmd_ack, 1, 0),
 	SHELL_CMD(sys, &sub_sys, "Netz- und Systemparameter", NULL),
+	SHELL_CMD_ARG(current, NULL, "<mA> Sollstrom Slot external (0, 6000..80000)", cmd_current,
+		      2, 0),
+	SHELL_CMD_ARG(enable, NULL, "0|1 Freigabe-Register (mit D10)", cmd_enable, 2, 0),
+	SHELL_CMD_ARG(avail, NULL, "0|1 Verfuegbarkeit (mit D10)", cmd_avail, 2, 0),
+	SHELL_CMD_ARG(pause, NULL, "0|1 Laden unterbrechen", cmd_pause, 2, 0),
+	SHELL_CMD_ARG(pwm5, NULL, "0|1 5-%-Modus", cmd_pwm5, 2, 0),
+	SHELL_CMD_ARG(lock, NULL, "0|1 Verriegelungswunsch (mit D9)", cmd_lock, 2, 0),
+	SHELL_CMD_ARG(unlock, NULL, "Entriegeln anfordern", cmd_unlock, 1, 0),
+	SHELL_CMD_ARG(errors, &sub_errors, "aktive Fehler, Historie", cmd_errors, 1, 0),
+	SHELL_CMD_ARG(selftest, NULL, "RCM-Selbsttest (nur S1, CP A)", cmd_selftest, 1, 0),
+	SHELL_CMD_ARG(reboot, NULL, "geordneter Neustart (SOLL-RT-22)", cmd_reboot, 1, 0),
 	SHELL_CMD_ARG(nvm, NULL, "Zustand des Parameterspeichers", cmd_nvm, 1, 0),
 	SHELL_CMD_ARG(factory-reset, NULL, "confirm: Werkseinstellungen und Neustart",
 		      cmd_factory_reset, 1, 1),

@@ -110,6 +110,13 @@ class Handler(BaseHTTPRequestHandler):
                             "restart_required": s.active != s.sys})
         elif self.path == "/system/config_info":
             self.send_json(SYSINFO)
+        elif self.path == "/system/info":
+            self.send_json({"firmware": "vorschau", "reset_reason": "power_on", "reset_flags": 80,
+                            "uptime_ms": int((time.time() - s.t0) * 1000)})
+        elif self.path == "/evse/errors":
+            self.send_json({"active": [], "seen": ["CP-INVALID"], "history": [
+                {"age_ms": 42000, "state": 1, "set": [], "cleared": ["CP-INVALID"]},
+                {"age_ms": 45000, "state": 1, "set": ["CP-INVALID"], "cleared": []}]})
         else:
             self.send_json({"error": "nicht gefunden"}, 404)
 
@@ -149,7 +156,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({"restart_required": s.active != s.sys})
         if self.path == "/system/restart":
             s.active = dict(s.sys)
-            return self.send_json({})
+            return self.send_json({}, 202)
+        if self.path == "/evse/errors/ack":
+            return self.send_json({"acknowledged": False})
         self.send_json({"error": "nicht gefunden"}, 404)
 
     def log_message(self, fmt, *args):

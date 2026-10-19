@@ -2,6 +2,7 @@
 #ifndef WALLFREE_APP_EVSE_TASK_H_
 #define WALLFREE_APP_EVSE_TASK_H_
 
+#include <wallfree/api/reset.h>
 #include <wallfree/evse/charger.h>
 
 /**
@@ -22,6 +23,30 @@ void evse_release(void);
  * Messueberwachung aussetzen. Nur mit gehaltener evse_acquire()-Sperre im
  * sicheren Zustand verwenden; danach gelten die Limits wieder ab jetzt.
  */
+/**
+ * Geordneter Neustart (SOLL-RT-22, SOLL-SH-11): Ladeende anfordern, auf
+ * Schuetz aus warten (hoechstens 15 s), sicherer Zustand, Reset. Kehrt sofort
+ * zurueck. @return 0 oder -EALREADY
+ */
+int evse_task_reboot_orderly(enum wf_reset code);
+
+/** IWDG gleich zu Beginn von main starten (SOLL-BOOT-03). @return 0 oder Fehler */
+int evse_task_wdt_start(void);
+
+/** IWDG bedienen, solange der Schutzthread noch nicht laeuft (Startablauf). */
+void evse_task_wdt_feed(void);
+
+/** Ueberwachte Schnittstellen-Threads (SOLL-RT-11) */
+enum evse_iface {
+	EVSE_IFACE_STORAGE = 0,
+	EVSE_IFACE_WS,
+	EVSE_IFACE_SYSWORKQ,
+	EVSE_IFACE_COUNT,
+};
+
+/** Lebenszeichen eines Schnittstellen-Threads (Limit 10 s). */
+void evse_task_iface_beat(enum evse_iface id);
+
 void evse_task_maint_begin(void);
 void evse_task_maint_end(void);
 

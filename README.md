@@ -32,6 +32,28 @@ cd ~/zephyrproject && . .venv/bin/activate && cd zephyr
 west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d ~/zephyrproject/build-wallfree
 ```
 
+## Testen (PC)
+
+Ladelogik (`lib/evse`), Parameterspeicher (`lib/nvm`) und API-Bausteine (`lib/api`) sind reines C
+und werden fuer `native_sim/native/64` als Linux-Programm gebaut und mit ztest geprueft:
+
+```sh
+scripts/run-tests.sh              # alle Suiten ueber twister
+scripts/run-tests.sh --simple     # ohne twister; Logs unter build/tests/<suite>.log/.run
+scripts/run-tests.sh --coverage   # zusaetzlich Abdeckung von lib/ (gcovr)
+```
+
+| Suite | Inhalt |
+| --- | --- |
+| `tests/evse/meas` | CP, PP, Eingaenge, Stromvorgabe |
+| `tests/evse/prot` | Verriegelung, RCM-Selbsttest, Schuetzueberwachung |
+| `tests/evse/charger` | Automat mit Simulationsmodell (`sim.c`: Fahrzeug, Kabel, RCM-Sensor, Aktor, Schuetz, 1-ms-Schritte), Ausgaenge, Parameter, Persistenz, API-Abbildung |
+| `tests/nvm` | Speicherformat mit simuliertem Flash und Stromausfall nach jedem Byte, Sektor-3-Leser |
+| `tests/api` | MD5, Digest, JSON, Systemparameter, Bremse |
+
+Nicht abgedeckt: Hardwareschicht, HTTP-Server, Netz (die App wird nur gebaut). Bestandene Tests
+belegen keine elektrische Sicherheit.
+
 ## Herkunft der Befunde
 
 Die Spezifikation stuetzt sich auf eine statische Analyse der Originalfirmware. Die

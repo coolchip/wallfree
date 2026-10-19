@@ -223,6 +223,7 @@ static void storage_entry(void *p1, void *p2, void *p3)
 
 	for (;;) {
 		(void)k_sem_take(&storage_sem, K_MSEC(STORAGE_PERIOD_MS));
+		evse_task_iface_beat(EVSE_IFACE_STORAGE);
 
 		atomic_val_t lp = atomic_set(&lock_pending, 0);
 

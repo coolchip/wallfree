@@ -16,7 +16,7 @@ keine elektrische Sicherheit.
 | [lock.c](../lib/evse/lock.c) | Verriegelungszyklus, LD permanent/gepulst, Option `unlock_check` | SOLL-LOCK-01..17, F27 | `tests/evse/prot` (evse_lock) |
 | [rcm.c](../lib/evse/rcm.c) | Fehlerstrom-Latch, Selbsttest-Zeitfolge | SOLL-PROT-04..13 | evse_rcm |
 | [ctm.c](../lib/evse/ctm.c) | Schuetzueberwachung Modi 0..4 | SOLL-PROT-20..23 | evse_ctm |
-| [charger.c](../lib/evse/charger.c) | Automat S0..S10, Vorrangliste, Weckfolge, Freigabe, Fehlermodell, LEDs, sicherer Zustand | 5, 9.2, 11, SOLL-PROT-01/41, SOLL-LOCK-20..41, SOLL-RT-20 | `tests/evse/charger` (evse_charger, evse_charger2: 45 Szenarien mit Simulationsmodell) |
+| [charger.c](../lib/evse/charger.c) | Automat S0..S10, Vorrangliste, Weckfolge, Freigabe, Fehlermodell mit Historie (32 Ereignisse), LEDs, sicherer Zustand, Selbsttest auf Anforderung, geordnetes Ende vor Neustart (`evse_request_shutdown`) | 5, 9.2, 11, SOLL-PROT-01/41, SOLL-LOCK-20..41, SOLL-RT-20 | `tests/evse/charger` (evse_charger, evse_charger2: 45 Szenarien mit Simulationsmodell) |
 | [outputs.c](../lib/evse/outputs.c) | Ausgangsfunktionen 0..42 | 9.3 | evse_outputs (Wahrheitstabelle aller Codes) |
 | [persist.c](../lib/evse/persist.c) | Laden/Speichern der Konfiguration und des Verriegelungs-Endzustands (465), Loeschbedingung, Import aus Sektor 3 | SOLL-BOOT-04, SOLL-NVM-03/04/10, SOLL-PAR-03/40 | evse_persist (mit Simulationsmodell und simuliertem Flash) |
 | [nvm.c](../lib/nvm/nvm.c) | Log-Format in einer Loescheinheit: Anhaengen, RAM-Puffer bei vollem Bereich, Verdichten, Formatieren, Erkennung unterbrochener Vorgaenge | SOLL-NVM-01..05 | `tests/nvm` (nvm: Stromausfall nach jedem Byte beim Anhaengen und Verdichten, Ausfall beim Loeschen, Pruefsummenfehler, voller Bereich) |
@@ -25,11 +25,12 @@ keine elektrische Sicherheit.
 | [json.c](../lib/api/json.c) | JSON-Ausgabe mit Maskierung, Lesen flacher Objekte | 12.1 | api_json |
 | [evse_api.c](../lib/api/evse_api.c) | `evse/state` (WARP-Abbildung), `external_current`, alle Parameter lesen/schreiben, Parameterbeschreibung in Teilen | SOLL-API-03..05/30 | evse_api (mit Simulationsmodell) |
 | [sysconf.c](../lib/api/sysconf.c) | Netz- und Systemparameter: Pruefung, JSON, Speicherkodierung (Kennungen 3010..3015), Import der Originalfelder 404/315..326 | 10.1, F20, F25, SOLL-NVM-10 | api_sysconf |
+| [reset.c](../lib/api/reset.c) | Resetgrund aus Flags und Backup-Code | SOLL-RT-14 | api_reset |
 | [ratelimit.c](../lib/api/ratelimit.c) | Bremse gegen Passwort-Durchprobieren je Absenderadresse | SOLL-API-07 | api_ratelimit |
 | [param.c](../lib/evse/param.c) | Parametertabelle (Konfiguration, Laufzeit, Status) mit Name, Kennung, Herkunftsfeld, Einheit, Bereich, Default; Schreiben mit Grenz-/Zustandspruefung und Fehlercode; Wiederherstellen gespeicherter Werte | 10, SOLL-PAR-01..03/40, E14, SOLL-API-20/30 | evse_param (Konsistenz, Grenzen jedes Parameters, Sonderregeln) |
 
 Aufruf: `scripts/run-tests.sh` (twister; `--simple` ohne twister, `--coverage` mit gcovr).
-Stand 2026-10-19: **173 Tests in fuenf Suiten, alle bestanden**; Abdeckung `lib/` **95 % Zeilen,
+Stand 2026-10-19: **182 Tests in fuenf Suiten, alle bestanden**; Abdeckung `lib/` **96 % Zeilen,
 88 % Verzweigungen** (gcovr; nicht abgedeckt sind vor allem Lesefehler des Flashs). Twister-/Testabhaengigkeiten wurden am 2026-10-19 mit
 Freigabe des Nutzers in `~/zephyrproject/.venv` installiert (`requirements-run-test.txt`,
 `requirements-build-test.txt`); `twister --coverage` bricht in dieser Version ab, daher ruft das
@@ -74,6 +75,13 @@ Die Festlegung "Entriegeln klemmt" hat der Nutzer am 2026-10-19 ebenfalls bestae
 | *neu (System):* Import Netz | Felder 404 (DHCP), 315..326 (IP/Maske/Gateway) nach Original-Webseite; alles oder nichts; Geraetename 310 wird nicht uebernommen | Belegung aus `wallbe2/analysis/web/lan.html` |
 | *neu (API):* Bremse | 5 freie Fehlversuche je Adresse, dann 10 s, verdoppelt bis 5 min, 429 mit `Retry-After`; nur falsches Passwort zaehlt (fehlende Anmeldung und veraltete Nonce nicht) | |
 | *neu (API):* Absender beim WebSocket | aus Zephyr-Interna ermittelt (Kopfzeilenfeld des Client-Kontexts, Zephyr 4.4.2); bei Zephyr-Updates pruefen | der WebSocket-Callback liefert keinen TCP-Socket |
+| *neu (Bedienung):* Neustart | nur geordnet: `evse_request_shutdown` (wirkt wie fehlende Verfuegbarkeit -> S7 mit 5-s-Frist -> S10), warten bis Schuetz aus, hoechstens 15 s, dann sicherer Zustand und Reset; gilt fuer Shell, HTTP, Werksreset. `kernel reboot` entfernt | SOLL-RT-22, SOLL-SH-20 |
+| *neu (Bedienung):* Quittieren | `evse errors clear` / `POST /evse/errors/ack` quittiert nur ERR-CONTACTOR (F14); die Ausgabe nennt fuer alle anderen die Ruecksetzbedingung | SOLL-ERR-03 |
+| *neu (Bedienung):* Selbsttest | `evse selftest` nur in S1, CP A, Schuetz aus | SOLL-SH-07 |
+| *neu (Bedienung):* Fehlerhistorie | 32 Ereignisse im RAM (Zeit, neu, geloescht, Zustand), geht beim Neustart verloren; HTTP gibt so viele aus, wie in 1,5 KB passen (`truncated`) | SOLL-ERR-01 |
+| *neu (HW):* IWDG | startet zu Beginn von `main` (250 ms); bis zum Schutzthread bedient ihn `main`, auch waehrend des Werksreset-Wartens | SOLL-BOOT-03, SOLL-RT-12 |
+| *neu (HW):* Resetgrund | BKP19 = 0x5746xxxx vor Software-Resets; Grund `supervision_limit`, `fault`, `user_restart`, `factory_reset`, `interface_hang` bzw. aus RCC_CSR | SOLL-RT-14 |
+| *neu (HW):* Schnittstellen-Ueberwachung | Speicher-, WebSocket-Thread, System-Workqueue (10 s); HTTP-Server/Telnet von Zephyr nicht ueberwachbar | SOLL-RT-11 |
 | *neu (Web):* Anmeldung | Oberflaeche hinter Digest wie die API (Anmeldedialog des Browsers); im Werkszugang nur Zugangsdaten-Seite; nach der Aenderung fragt der Browser neu | SOLL-API-07 |
 | *neu (Web):* Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickt beim WebSocket-Aufbau evtl. keine Anmeldung, auf Hardware ungeprueft), Abfrage alle 2 s | |
 | *neu (Web):* Sollstrom-Schieber | 6..32 A in 1-A-Schritten, dazu "Laden aus" (0) | evcc ueberschreibt den Wert, wenn verbunden |
@@ -118,8 +126,9 @@ Bereichskopfs.
 
 ## Anwendung und Hardwareschicht (`app/`, nur gebaut)
 
-Stand 2026-10-19. Baut fuer `ev_cc_ac1` ohne Warnung: **289 284 B Flash** (von 320 KB, 88 %),
-**112 060 B RAM** (85 %); Netz-/Systemparameter und Bremse +5,7 KB Flash, Weboberflaeche +12 KB. Parameterspeicher: +8,2 KB Flash, +5,1 KB RAM. HTTP-/WebSocket-API:
+Stand 2026-10-19. Baut fuer `ev_cc_ac1` ohne Warnung: **295 232 B Flash** (von 320 KB, 90 %),
+**113 916 B RAM** (87 %); Netz-/Systemparameter und Bremse +5,7 KB Flash, Weboberflaeche +12 KB,
+Shell-Kommandos/Resetgrund/Fehlerhistorie +6 KB. Parameterspeicher: +8,2 KB Flash, +5,1 KB RAM. HTTP-/WebSocket-API:
 +37,8 KB Flash (HTTP-Server 13,5 KB, WebSocket 2,6 KB, PSA-SHA-1 aus tf-psa-crypto 5,9 KB),
 +22 KB RAM (vor allem 4 Client-Kontexte des HTTP-Servers, 9,7 KB). `tf-psa-crypto` wurde am
 2026-10-19 mit Freigabe des Nutzers als west-Modul nachgeladen (`manifest.project-filter` um
@@ -141,7 +150,8 @@ west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d ~/zephyrproject/build
 | [auth.c](../app/src/auth.c) | Zugangsdaten (HA1), Werkszugang, Passwortaenderung, Nonce-Geheimnis je Start | SOLL-API-07 |
 | [web/](../web/) | Weboberflaeche: Werkszugang -> Zugangsdaten festlegen; "Einfach": Zustand, Fahrzeug, erlaubter Strom, Fehler, Sollstrom setzen; "Experte": alle Parameter mit Bereich, Default, Feld, Hilfetext und Schreiben, Netz/System mit Neustart, Zugangsdaten | SOLL-API-31 |
 | [main.c](../app/src/main.c) | Startablauf: GPIO, Parameterspeicher (ungueltig -> neu anlegen), Reset-Taster 5 s -> Bereich loeschen, gespeicherte Werte laden, DIP/Drehschalter, Messung, Threads | SOLL-BOOT-01..10/20 |
-| [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `evse param list/get/set` (persistente Werte werden gespeichert), `evse ack`, `evse nvm`, `evse factory-reset confirm`, `evse import-original` (Telnet) | SOLL-SH-01/02/06/08/09, SOLL-SH-19/20 |
+| [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `param list/get/set`, `current`, `enable`, `avail`, `pause`, `pwm5`, `lock`, `unlock`, `errors [clear]`, `selftest`, `reboot`, `ack`, `nvm`, `sys list/set`, `factory-reset confirm`, `import-original` (Telnet) | SOLL-SH-01..09/11, SOLL-SH-19/20 |
+| [sysinfo.c](../app/src/sysinfo.c) | Resetgrund beim Start, Firmwarestand (`git describe` beim Bauen), Laufzeit; `GET /system/info` | SOLL-RT-14 |
 
 Pruefung am Build (2026-10-19): Systemtakt 100 MHz (`CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC`),
 Ladeadresse `0x08010000`, Interrupttabelle: TIM1_UP -> `tim1_up_isr`, DMA2_Stream0 ->
@@ -166,11 +176,9 @@ Anwendung sie direkt steuert; der Groessentest bringt sie per `spike-size/app.ov
 
 ### Noch offen in der Hardwareschicht
 
-- Resetgrund ueber den Neustart sichern (SOLL-RT-14), Neustart nur ohne Ladung bei haengenden
-  Netz-Threads (SOLL-RT-11).
-- IWDG schon vor dem Werksreset-Warten starten (SOLL-BOOT-03); bisher startet der Schutzthread
-  ihn erst nach dem Laden der Parameter.
-- Power-LED 5 Hz nach dem Werksreset bis zum Loslassen (SOLL-BOOT-20).
+- Update-Uebergabe an den Bootloader (SOLL-SH-10, SOLL-BOOT-30): zurueckgestellt bis H0
+  (SOLL-BOOT-31: Bootloader zuerst auslesen).
+- Zugriff auf RTC-Backup-Register ohne RTC-Takt (nur PWR-Takt und DBP) ist eine Annahme (H1).
 
 ## Noch nicht umgesetzt
 
@@ -178,7 +186,9 @@ Anwendung sie direkt steuert; der Groessentest bringt sie per `spike-size/app.ov
 - System- und Netzparameter (Hostname, IP, Zugangsdaten, Telnet) gehoeren nicht zur Ladelogik
   und kommen in eine eigene Tabelle der Anwendung (Speicherkennungen ab 3000); danach Import
   der Netzwerkfelder 315..326.
-- Restliche Shell-Kommandos (12.3).
+- **Flash-Reserve nur noch ~25 KB** (295 KB von 320 KB). Groesster abschaltbarer Posten: Netz-
+  Shell-Kommandos (`CONFIG_NET_SHELL`, ~17 KB, Groessentest). Vor OCPP/TLS Speicherfrage neu
+  bewerten (Architektur §7).
 - Weboberflaeche: Darstellung nur mit `scripts/web-preview.py` (Attrappen der API, ohne Digest und
   WebSocket) in Chrome geprueft; gegen die echte Firmware erst mit Netz (native_sim oder H1).
 - Test der API mit evcc gegen einen `native_sim`-Build mit Netz (Spezifikation 12: nur nach

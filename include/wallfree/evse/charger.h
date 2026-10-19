@@ -15,6 +15,7 @@
 #ifndef WALLFREE_EVSE_CHARGER_H_
 #define WALLFREE_EVSE_CHARGER_H_
 
+#include <stddef.h>
 #include <wallfree/evse/common.h>
 #include <wallfree/evse/cp.h>
 #include <wallfree/evse/ctm.h>
@@ -80,6 +81,15 @@ enum evse_led_mode {
 	EVSE_LEDM_2HZ,
 	EVSE_LEDM_5HZ,
 };
+
+/** Ereignis der Fehlerhistorie (SOLL-ERR-01) */
+struct evse_err_event {
+	evse_ms_t t;
+	evse_err_t set;      /**< neu aufgetretene Fehler */
+	evse_err_t cleared;  /**< geloeschte Fehler */
+	uint8_t state;       /**< Automatenzustand danach */
+};
+#define EVSE_ERR_HIST 32
 
 /** Konfiguration (Abschnitt 10.1) und Schalterstellungen. */
 struct evse_config {
@@ -197,6 +207,11 @@ struct evse {
 	/* Fehler */
 	evse_err_t errors;
 	evse_err_t errors_seen;      /**< seit Start aufgetreten (SOLL-ERR-01) */
+	struct evse_err_event hist[EVSE_ERR_HIST]; /**< Ringpuffer, nur RAM */
+	uint8_t hist_head;           /**< naechster Schreibplatz */
+	uint8_t hist_count;
+	evse_err_t hist_prev;
+	bool shutdown;               /**< Neustart angefordert: geordnet beenden (SOLL-RT-22) */
 	uint32_t warnings;
 	evse_ms_t supply_low_since;
 	evse_ms_t supply_good_since;
@@ -240,6 +255,33 @@ void evse_safe_state(struct evse *e, evse_ms_t now);
  * nur in S1 bei Schuetz aus. @return false, wenn nicht erlaubt oder busy.
  */
 bool evse_lock_command(struct evse *e, bool lock, evse_ms_t now);
+
+/**
+ * RCM-Selbsttest auf Anforderung (SOLL-SH-07): nur in S1, CP A, Schuetz aus,
+ * kein Test laeuft. @return true, wenn gestartet.
+ */
+bool evse_selftest_command(struct evse *e, evse_ms_t now);
+
+/**
+ * Neustart vorbereiten (SOLL-RT-22): wirkt wie fehlende Verfuegbarkeit,
+ * laufendes Laden endet geordnet (S7, Frist 5 s), danach S10.
+ */
+void evse_request_shutdown(struct evse *e);
+
+/** Schuetz aus (Soll und Ausgabe), Neustart jetzt zulaessig? */
+static inline bool evse_contactor_is_off(const struct evse *e)
+{
+	return !e->contactor && !e->out.contactor;
+}
+
+/** Anzahl Eintraege der Fehlerhistorie. */
+static inline size_t evse_err_hist_count(const struct evse *e)
+{
+	return e->hist_count;
+}
+
+/** Eintrag @p i der Fehlerhistorie, 0 = juengster. */
+const struct evse_err_event *evse_err_hist_at(const struct evse *e, size_t i);
 
 /** Schuetzfehler quittieren (F14, SOLL-ERR-03). @return true bei Erfolg. */
 bool evse_ack_contactor_fault(struct evse *e);

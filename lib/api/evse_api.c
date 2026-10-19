@@ -284,3 +284,83 @@ int api_set_params(struct evse *e, const char *body, size_t len, evse_ms_t now,
 	wf_jb_raw(out, "{}");
 	return 200;
 }
+
+/* ------------------------------------------------ Fehler (SOLL-ERR-01) */
+
+static const char *const err_names[] = {
+	"CABLE-REJECT", "PP-INVALID", "CP-INVALID", "LOCK", "UNLOCK", "LD-LOST", "OVERCURRENT",
+	"METER-COMM", "STATE-D", "CONTACTOR", "DIODE", "INPUT", "RCM-SELFTEST", "RCM-SENSOR",
+	"RCM-DC6", "RCM-AC30", "SWITCH", "CONFIG", "INTERNAL",
+};
+
+static const char *const err_reset[] = {
+	"anderer Kabelwert", "Bedingung entfaellt", "CP-Pegel >= 1,2 V", "Erfolg, CP A",
+	"Erfolg, CP A", "Wiederverriegeln, CP A", "CP A", "Messquelle wieder gueltig", "CP A",
+	"Quittierung (F14)", "CP A", "Eingang inaktiv", "Selbsttest bestanden",
+	"Selbsttest bestanden", "Selbsttest bestanden", "Selbsttest bestanden", "Neustart",
+	"Parameterkorrektur bzw. Neustart", "Neustart",
+};
+
+#define N_ERR (sizeof(err_names) / sizeof(err_names[0]))
+
+const char *api_err_name(unsigned int bit)
+{
+	return bit < N_ERR ? err_names[bit] : NULL;
+}
+
+const char *api_err_reset(unsigned int bit)
+{
+	return bit < N_ERR ? err_reset[bit] : NULL;
+}
+
+static void err_list(struct wf_jbuf *b, evse_err_t m)
+{
+	bool first = true;
+
+	wf_jb_raw(b, "[");
+	for (unsigned int i = 0; i < N_ERR; i++) {
+		if (m & (1u << i)) {
+			if (!first) {
+				wf_jb_raw(b, ",");
+			}
+			wf_jb_str(b, err_names[i]);
+			first = false;
+		}
+	}
+	wf_jb_raw(b, "]");
+}
+
+void api_json_errors(const struct evse *e, evse_ms_t now, struct wf_jbuf *b)
+{
+	wf_jb_raw(b, "{");
+	wf_jb_key(b, "active", true);
+	err_list(b, e->errors);
+	wf_jb_key(b, "seen", false);
+	err_list(b, e->errors_seen);
+	wf_jb_key(b, "history", false);
+	wf_jb_raw(b, "[");
+	bool truncated = false;
+
+	for (size_t i = 0; i < evse_err_hist_count(e); i++) {
+		const struct evse_err_event *ev = evse_err_hist_at(e, i);
+		size_t mark = b->len;
+
+		wf_jb_raw(b, i == 0 ? "{" : ",{");
+		kv(b, "age_ms", now - ev->t, true);
+		kv(b, "state", ev->state, false);
+		wf_jb_key(b, "set", false);
+		err_list(b, ev->set);
+		wf_jb_key(b, "cleared", false);
+		err_list(b, ev->cleared);
+		wf_jb_raw(b, "}");
+		/* Platz fuer den Abschluss lassen; aeltere Eintraege entfallen */
+		if (b->overflow || b->size - b->len < 24) {
+			b->len = mark;
+			b->p[mark] = '\0';
+			b->overflow = false;
+			truncated = true;
+			break;
+		}
+	}
+	wf_jb_raw(b, truncated ? "],\"truncated\":true}" : "]}");
+}

@@ -27,7 +27,6 @@
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/net/websocket.h>
-#include <zephyr/sys/reboot.h>
 #include <wallfree/api/evse_api.h>
 #include <wallfree/api/ratelimit.h>
 #include <wallfree/evse/persist.h>
@@ -37,6 +36,7 @@
 #include "netcfg.h"
 #include "http_api.h"
 #include "storage.h"
+#include "sysinfo.h"
 
 LOG_MODULE_REGISTER(http_api, LOG_LEVEL_INF);
 
@@ -455,6 +455,43 @@ static void param_info(struct http_client_ctx *client, struct res *r,
 	rsp->final_chunk = r->cursor > evse_param_count();
 }
 
+static void evse_errors(struct http_client_ctx *client, struct res *r,
+			struct http_response_ctx *rsp)
+{
+	ARG_UNUSED(client);
+	ARG_UNUSED(r);
+	struct wf_jbuf b;
+
+	wf_jb_init(&b, out, sizeof(out));
+	api_json_errors(evse_acquire(), k_uptime_get(), &b);
+	evse_release();
+	respond_json(rsp, HTTP_200_OK, &b);
+}
+
+JSON_RESOURCE(evse_errors_r, "/evse/errors", BIT(HTTP_GET), evse_errors, false, 0);
+
+/* SOLL-ERR-03: nur der Schuetzfehler wird quittiert; andere loeschen sich selbst */
+static void evse_errors_ack(struct http_client_ctx *client, struct res *r,
+			    struct http_response_ctx *rsp)
+{
+	ARG_UNUSED(client);
+	ARG_UNUSED(r);
+	struct evse *e = evse_acquire();
+	bool had = (e->errors & EVSE_ERR_CONTACTOR) != 0;
+	bool ok = had && evse_ack_contactor_fault(e);
+
+	evse_release();
+	if (had && !ok) {
+		respond_error(rsp, HTTP_409_CONFLICT,
+			      "Schuetzfehler nicht quittierbar (Ursache besteht oder falscher Zustand)");
+		return;
+	}
+	k_sem_give(&ws_wake);
+	strcpy(out, ok ? "{\"acknowledged\":true}" : "{\"acknowledged\":false}");
+	respond(rsp, HTTP_200_OK, strlen(out));
+}
+
+JSON_RESOURCE(evse_errors_ack_r, "/evse/errors/ack", BIT(HTTP_POST), evse_errors_ack, false, 16);
 JSON_RESOURCE(evse_state_r, "/evse/state", BIT(HTTP_GET), evse_state, false, 0);
 JSON_RESOURCE(external_current_r, "/evse/external_current", BIT(HTTP_GET) | BIT(HTTP_POST),
 	      external_current, false, 64);
@@ -567,33 +604,30 @@ static void system_config_info(struct http_client_ctx *client, struct res *r,
 	respond_json(rsp, HTTP_200_OK, &b);
 }
 
-static void reboot_work_fn(struct k_work *w)
-{
-	ARG_UNUSED(w);
-	/* SOLL-RT-20: sicherer Zustand vor dem Neustart */
-	hw_safe_state_regs();
-	sys_reboot(SYS_REBOOT_COLD);
-}
-static K_WORK_DELAYABLE_DEFINE(reboot_work, reboot_work_fn);
-
 static void system_restart(struct http_client_ctx *client, struct res *r,
 			   struct http_response_ctx *rsp)
 {
 	ARG_UNUSED(client);
 	ARG_UNUSED(r);
-	bool ok = evse_flash_erase_allowed(evse_acquire());
-
-	evse_release();
-	if (!ok) {
-		respond_error(rsp, HTTP_409_CONFLICT, "Neustart nur ohne Fahrzeug in S1");
-		return;
-	}
-	/* Antwort noch senden lassen, dann neu starten */
-	k_work_schedule(&reboot_work, K_MSEC(500));
+	/* SOLL-RT-22: laufendes Laden endet geordnet, hoechstens 15 s */
+	(void)evse_task_reboot_orderly(WF_RST_USER);
 	strcpy(out, "{}");
-	respond(rsp, HTTP_200_OK, 2);
+	respond(rsp, HTTP_202_ACCEPTED, 2);
 }
 
+static void system_info(struct http_client_ctx *client, struct res *r,
+			struct http_response_ctx *rsp)
+{
+	ARG_UNUSED(client);
+	ARG_UNUSED(r);
+	struct wf_jbuf b;
+
+	wf_jb_init(&b, out, sizeof(out));
+	sysinfo_json(&b);
+	respond_json(rsp, HTTP_200_OK, &b);
+}
+
+JSON_RESOURCE(system_info_r, "/system/info", BIT(HTTP_GET), system_info, false, 0);
 JSON_RESOURCE(system_config_r, "/system/config", BIT(HTTP_GET) | BIT(HTTP_POST), system_config,
 	      false, 512);
 JSON_RESOURCE(system_config_info_r, "/system/config_info", BIT(HTTP_GET), system_config_info,
@@ -738,6 +772,7 @@ static void ws_entry(void *p1, void *p2, void *p3)
 
 	for (;;) {
 		(void)k_sem_take(&ws_wake, K_MSEC(WS_PERIOD_MS));
+		evse_task_iface_beat(EVSE_IFACE_WS);
 		ws_render();
 
 		k_mutex_lock(&ws_mtx, K_FOREVER);

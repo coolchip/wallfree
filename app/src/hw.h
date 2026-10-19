@@ -9,6 +9,7 @@
 #define WALLFREE_APP_HW_H_
 
 #include <zephyr/kernel.h>
+#include <wallfree/api/reset.h>
 #include <wallfree/evse/charger.h>
 
 /** Ein Messblock: Mittel ueber 8 PWM-Perioden, Skalierung wie Original ("mV"). */
@@ -47,6 +48,18 @@ void hw_safe_state_regs(void);
 void hw_contactor_off_regs(void);
 
 /**
+ * Systemreset mit Grund (SOLL-RT-14): sicherer Zustand, Code in RTC-Backup-
+ * Register 19, Reset. Ohne Zephyr-REBOOT, damit 'kernel reboot' entfaellt.
+ */
+FUNC_NORETURN void hw_reset_with(enum wf_reset code);
+
+/**
+ * Beim Start: Reset-Flags (RCC_CSR) und Code aus Backup-Register 19 lesen
+ * und beide loeschen. @p flags als WF_RSTF_*.
+ */
+void hw_reset_take(uint32_t *flags, uint32_t *bkp);
+
+/**
  * IWDG-Limit fuer Flash-Loeschen auf das Maximum setzen (true) bzw. den
  * vorherigen Wert wiederherstellen (false), SOLL-RT-13.
  */
@@ -57,6 +70,8 @@ void hw_iwdg_long(bool on);
 int hw_gpio_init(void);
 void hw_gpio_read_switches(evse_dip_t *dip, uint8_t *rotary);
 bool hw_gpio_reset_button(void);
+/** Einzelne LED direkt setzen (nur vor dem Start der Ladelogik, z. B. Werksreset). */
+void hw_gpio_led(enum evse_led led, bool on);
 void hw_gpio_read_rcm(struct evse_rcm_levels *lv);
 int64_t hw_gpio_last_sense_edge(void);
 

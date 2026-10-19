@@ -209,13 +209,48 @@ function Params() {
 	</table><//>`);
 }
 
+function Errors() {
+	const [d, setD] = useState(null);
+	const [msg, setMsg] = useState(null);
+	const load = () => api('/evse/errors').then(setD).catch((e) => setMsg({ ok: false, text: e.message }));
+	useEffect(() => { load(); const t = setInterval(load, 3000); return () => clearInterval(t); }, []);
+	const ack = async () => {
+		try {
+			const r = await post('/evse/errors/ack', {});
+			setMsg({ ok: true, text: r.acknowledged ? 'Schützfehler quittiert' : 'Nichts zu quittieren' });
+			load();
+		} catch (e) { setMsg({ ok: false, text: e.message }); }
+	};
+	if (!d) return null;
+	const age = (ms) => (ms < 60000 ? Math.round(ms / 1000) + ' s' : Math.round(ms / 60000) + ' min');
+	return html`<${Card} title="Fehler">
+		<p>Aktiv: <b class=${d.active.length ? 'bad' : 'ok'}>${d.active.join(', ') || 'keine'}</b></p>
+		<p class="muted msg">Seit Start: ${d.seen.join(', ') || 'keine'}. Fehler löschen sich nach ihrer
+			Regel selbst; nur der Schützfehler wird quittiert.</p>
+		<div class="row"><button onClick=${ack}>Schützfehler quittieren</button></div>
+		<${Msg} m=${msg} />
+		${d.history.length > 0 && html`<table>
+			<tr><th>vor</th><th>Zustand</th><th>neu</th><th>gelöscht</th></tr>
+			${d.history.map((h) => html`<tr><td class="num">${age(h.age_ms)}</td>
+				<td>${STATES[h.state] || h.state}</td><td class="bad">${h.set.join(', ')}</td>
+				<td class="ok">${h.cleared.join(', ')}</td></tr>`)}
+		</table>`}
+		${d.truncated && html`<p class="muted msg">Ältere Einträge: Shell "evse errors".</p>`}
+	<//>`;
+}
+
 function System() {
 	const [cfg, setCfg] = useState(null);
 	const [info, setInfo] = useState([]);
 	const [edit, setEdit] = useState({});
 	const [msg, setMsg] = useState(null);
+	const [sysinfo, setSysinfo] = useState(null);
 	const load = () => api('/system/config').then(setCfg).catch((e) => setMsg({ ok: false, text: e.message }));
-	useEffect(() => { api('/system/config_info').then(setInfo).catch(() => {}); load(); }, []);
+	useEffect(() => {
+		api('/system/config_info').then(setInfo).catch(() => {});
+		api('/system/info').then(setSysinfo).catch(() => {});
+		load();
+	}, []);
 	if (!cfg) return null;
 	const val = (n) => (n in edit ? edit[n] : cfg.saved[n]);
 	const save = async (ev) => {
@@ -231,11 +266,11 @@ function System() {
 		}
 	};
 	const restart = async () => {
-		if (!confirm('Steuerung neu starten?')) return;
+		if (!confirm('Steuerung neu starten? Ein laufender Ladevorgang wird beendet.')) return;
 		try {
 			await post('/system/restart', {});
-			setMsg({ ok: true, text: 'Neustart … Seite lädt in 15 s neu' });
-			setTimeout(() => location.reload(), 15000);
+			setMsg({ ok: true, text: 'Neustart (laufendes Laden endet geordnet) … Seite lädt in 25 s neu' });
+			setTimeout(() => location.reload(), 25000);
 		} catch (e) { setMsg({ ok: false, text: e.message }); }
 	};
 	return html`<${Card} title="Netz und System">
@@ -252,6 +287,8 @@ function System() {
 		${cfg.restart_required && html`<p class="warn msg">Gespeicherte Werte wirken erst nach einem Neustart.</p>`}
 		<p class="muted msg">${'Aktiv: ' + (cfg.active.net_dhcp ? 'DHCP' : cfg.active.net_ip) +
 			', Hostname ' + (cfg.active.net_hostname || 'automatisch')}</p>
+		${sysinfo && html`<p class="muted msg">${'Firmware ' + sysinfo.firmware + ', letzter Reset: ' +
+			sysinfo.reset_reason + ', Laufzeit ' + Math.round(sysinfo.uptime_ms / 60000) + ' min'}</p>`}
 	<//>`;
 }
 
@@ -304,7 +341,7 @@ function Main() {
 		</header>
 		<main>
 			${view === 'simple' ? html`<${Simple} live=${live} />`
-				: html`<${Params} /><${System} /><${Credentials} first=${false} />`}
+				: html`<${Errors} /><${Params} /><${System} /><${Credentials} first=${false} />`}
 		</main>`;
 }
 

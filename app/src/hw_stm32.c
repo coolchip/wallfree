@@ -22,6 +22,8 @@
 #include <stm32_ll_dma.h>
 #include <stm32_ll_gpio.h>
 #include <stm32_ll_iwdg.h>
+#include <stm32_ll_pwr.h>
+#include <stm32_ll_rtc.h>
 #include <stm32_ll_rcc.h>
 #include <stm32_ll_tim.h>
 #include "hw.h"
@@ -328,4 +330,43 @@ void hw_iwdg_long(bool on)
 	while (!LL_IWDG_IsReady(IWDG) && k_uptime_get() - t0 < 100) {
 	}
 	LL_IWDG_ReloadCounter(IWDG);
+}
+
+/* ------------------------------------------------ Resetgrund (SOLL-RT-14) */
+
+/* BKP10/11/13/14/15 sind fuer die Bootloader-Uebergabe reserviert (SOLL-BOOT-30) */
+#define RESET_BKP LL_RTC_BKP_DR19
+
+static void bkp_access(void)
+{
+	LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_PWR);
+	LL_PWR_EnableBkUpAccess();
+}
+
+void hw_reset_take(uint32_t *flags, uint32_t *bkp)
+{
+	uint32_t f = 0;
+
+	f |= LL_RCC_IsActiveFlag_LPWRRST() ? WF_RSTF_LPWR : 0;
+	f |= LL_RCC_IsActiveFlag_WWDGRST() ? WF_RSTF_WWDG : 0;
+	f |= LL_RCC_IsActiveFlag_IWDGRST() ? WF_RSTF_IWDG : 0;
+	f |= LL_RCC_IsActiveFlag_SFTRST() ? WF_RSTF_SFT : 0;
+	f |= LL_RCC_IsActiveFlag_PORRST() ? WF_RSTF_POR : 0;
+	f |= LL_RCC_IsActiveFlag_PINRST() ? WF_RSTF_PIN : 0;
+	f |= LL_RCC_IsActiveFlag_BORRST() ? WF_RSTF_BOR : 0;
+	LL_RCC_ClearResetFlags();
+	*flags = f;
+
+	bkp_access();
+	*bkp = LL_RTC_BAK_GetRegister(RTC, RESET_BKP);
+	LL_RTC_BAK_SetRegister(RTC, RESET_BKP, 0);
+}
+
+FUNC_NORETURN void hw_reset_with(enum wf_reset code)
+{
+	hw_safe_state_regs();
+	bkp_access();
+	LL_RTC_BAK_SetRegister(RTC, RESET_BKP, wf_reset_bkp_value(code));
+	NVIC_SystemReset();
+	CODE_UNREACHABLE;
 }
