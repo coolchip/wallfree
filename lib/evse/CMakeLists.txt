@@ -10,4 +10,6 @@ zephyr_library_sources(
   lock.c
   rcm.c
   ctm.c
+  charger.c
+  outputs.c
 )
