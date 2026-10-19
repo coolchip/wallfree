@@ -21,6 +21,7 @@
 #include <stm32_ll_bus.h>
 #include <stm32_ll_dma.h>
 #include <stm32_ll_gpio.h>
+#include <stm32_ll_iwdg.h>
 #include <stm32_ll_rcc.h>
 #include <stm32_ll_tim.h>
 #include "hw.h"
@@ -292,4 +293,39 @@ int hw_analog_init(void)
 	LL_TIM_EnableCounter(TIM1);
 	LOG_INF("CP-PWM 1 kHz und ADC-Abtastung gestartet");
 	return 0;
+}
+
+/* ------------------------------------------------ IWDG fuer Flash-Loeschen */
+
+/*
+ * SOLL-RT-13: Der Zephyr-Treiber kann das Limit nach dem Start nicht mehr
+ * aendern, deshalb direkt ueber die Register (RM0033 Abschnitt IWDG). Das
+ * Loeschen eines 128-KB-Sektors dauert laut Zephyr-Devicetree hoechstens
+ * 4000 ms (stm32f2.dtsi, max-erase-time); Teiler 256 und Reload 4095 ergeben
+ * bei LSI 32 kHz rund 32 s (bei 47 kHz rund 22 s).
+ */
+static uint32_t iwdg_saved_pr;
+static uint32_t iwdg_saved_rlr;
+
+void hw_iwdg_long(bool on)
+{
+	if (on) {
+		iwdg_saved_pr = LL_IWDG_GetPrescaler(IWDG);
+		iwdg_saved_rlr = LL_IWDG_GetReloadCounter(IWDG);
+	}
+	/* Schreibfreigabe und Werte ohne Unterbrechung: ein Bedienen (0xAAAA)
+	 * aus dem Schutzthread wuerde die Freigabe sonst aufheben */
+	unsigned int key = irq_lock();
+
+	LL_IWDG_ReloadCounter(IWDG);
+	LL_IWDG_EnableWriteAccess(IWDG);
+	LL_IWDG_SetPrescaler(IWDG, on ? LL_IWDG_PRESCALER_256 : iwdg_saved_pr);
+	LL_IWDG_SetReloadCounter(IWDG, on ? IWDG_RLR_RL : iwdg_saved_rlr);
+	irq_unlock(key);
+
+	int64_t t0 = k_uptime_get();
+
+	while (!LL_IWDG_IsReady(IWDG) && k_uptime_get() - t0 < 100) {
+	}
+	LL_IWDG_ReloadCounter(IWDG);
 }

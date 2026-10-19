@@ -14,3 +14,4 @@ zephyr_library_sources(
   outputs.c
   param.c
 )
+zephyr_library_sources_ifdef(CONFIG_WALLFREE_NVM persist.c)

@@ -5,9 +5,12 @@
  */
 #include <stdlib.h>
 #include <zephyr/kernel.h>
+#include <string.h>
 #include <zephyr/shell/shell.h>
+#include <zephyr/sys/reboot.h>
 #include <wallfree/evse/param.h>
 #include "evse_task.h"
+#include "storage.h"
 
 static const char *const state_names[] = {
 	"S0 INIT", "S1 IDLE", "S2 LOCKING", "S3 WAIT", "S4 SELFTEST", "S5 PWM_ON",
@@ -87,16 +90,30 @@ static int cmd_param_set(const struct shell *sh, size_t argc, char **argv)
 		shell_error(sh, "keine Zahl: %s", argv[2]);
 		return -EINVAL;
 	}
+	const struct evse_param *p = evse_param_find(argv[1]);
 	struct evse *e = evse_acquire();
-	int err = evse_param_set_by_name(e, argv[1], (int32_t)v, k_uptime_get());
+	int err = evse_param_set(e, p, (int32_t)v, k_uptime_get());
 
 	evse_release();
 	if (err != EVSE_PARAM_OK) {
 		shell_error(sh, "abgelehnt: %s", evse_param_strerror(err));
 		return -EINVAL;
 	}
-	/* TODO SOLL-NVM: persistente Parameter speichern */
-	shell_print(sh, "ok");
+	if (!evse_param_persistent(p)) {
+		shell_print(sh, "ok (nicht persistent)");
+		return 0;
+	}
+	/* SOLL-PAR-03: wirkt sofort, wird angehaengt */
+	int r = storage_save_param(p, (int32_t)v);
+
+	if (r == NVM_OK) {
+		shell_print(sh, "ok, gespeichert");
+	} else if (r == NVM_PENDING) {
+		shell_warn(sh, "ok, Speichern ausstehend (Bereich voll, Verdichten im sicheren Zustand)");
+	} else {
+		shell_error(sh, "wirksam, aber nicht gespeichert (Fehler %d)", r);
+		return -EIO;
+	}
 	return 0;
 }
 
@@ -116,6 +133,95 @@ static int cmd_ack(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+static const char *const nvm_state_names[] = {"nicht eingehaengt", "gueltig", "leer",
+					       "ungueltig"};
+
+static int cmd_nvm(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	struct storage_status st;
+
+	storage_get_status(&st);
+	shell_print(sh, "Bereich   Sektor 7, %s", nvm_state_names[st.state]);
+	shell_print(sh, "Belegt    %u B, frei %u B", st.used, st.free);
+	shell_print(sh, "Ausstehend %u Werte nur im RAM%s", st.pending,
+		    st.pending ? " (Verdichten im sicheren Zustand)" : "");
+	shell_print(sh, "Verdichtet %u mal, letzter Fehler %d", st.compactions, st.last_error);
+	if (st.damaged) {
+		shell_warn(sh, "Rest nach unterbrochenem Schreiben unbrauchbar, wird verdichtet");
+	}
+	if (st.invalid_at_boot) {
+		shell_warn(sh, "Bereich war beim Start ungueltig: Werkseinstellungen (SOLL-NVM-05)");
+	}
+	return 0;
+}
+
+/* SOLL-SH-08 */
+static int cmd_factory_reset(const struct shell *sh, size_t argc, char **argv)
+{
+	if (argc < 2 || strcmp(argv[1], "confirm") != 0) {
+		shell_print(sh, "Werkseinstellungen: 'evse factory-reset confirm' (danach Neustart)");
+		return -EINVAL;
+	}
+	int r = storage_factory_reset();
+
+	if (r == -EBUSY) {
+		shell_error(sh, "nur ohne Fahrzeug in S1 (sicherer Zustand)");
+		return r;
+	}
+	if (r != 0) {
+		shell_error(sh, "fehlgeschlagen: %d", r);
+		return -EIO;
+	}
+	shell_print(sh, "Werkseinstellungen geschrieben, Neustart");
+	k_msleep(100);
+	sys_reboot(SYS_REBOOT_COLD);
+	return 0;
+}
+
+static const char *const import_names[] = {"uebernommen", "nicht gespeichert im Original",
+					   "abgelehnt", "noch nicht unterstuetzt",
+					   "uebernommen, Speichern fehlgeschlagen"};
+
+static void import_report(void *ctx, uint16_t field, const char *name, int32_t value,
+			  enum evse_import_result res, int err)
+{
+	const struct shell *sh = ctx;
+
+	if (res == EVSE_IMP_MISSING) {
+		shell_print(sh, "%4u %-22s -", field, name);
+	} else if (res == EVSE_IMP_REJECTED) {
+		shell_warn(sh, "%4u %-22s %6d %s: %s", field, name, value, import_names[res],
+			   evse_param_strerror(err));
+	} else {
+		shell_print(sh, "%4u %-22s %6d %s", field, name, value, import_names[res]);
+	}
+}
+
+/* SOLL-SH-09 */
+static int cmd_import(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	int r = storage_import_orig(import_report, (void *)sh);
+
+	if (r == EVSE_IMP_E_UNSAFE) {
+		shell_error(sh, "nur ohne Fahrzeug in S1 (sicherer Zustand)");
+		return -EBUSY;
+	}
+	if (r == EVSE_IMP_E_ORIG) {
+		shell_error(sh, "Originalbereich (Sektor 3) ungueltig oder leer");
+		return -ENOENT;
+	}
+	if (r < 0) {
+		shell_error(sh, "fehlgeschlagen: %d", r);
+		return -EIO;
+	}
+	shell_print(sh, "%d Werte uebernommen", r);
+	return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_param,
 	SHELL_CMD_ARG(list, NULL, "alle Parameter", cmd_param_list, 1, 0),
 	SHELL_CMD_ARG(get, NULL, "<name>", cmd_param_get, 2, 0),
@@ -126,6 +232,11 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_evse,
 	SHELL_CMD_ARG(status, NULL, "Zustand der Ladelogik", cmd_status, 1, 0),
 	SHELL_CMD(param, &sub_param, "Parameter", NULL),
 	SHELL_CMD_ARG(ack, NULL, "Schuetzfehler quittieren", cmd_ack, 1, 0),
+	SHELL_CMD_ARG(nvm, NULL, "Zustand des Parameterspeichers", cmd_nvm, 1, 0),
+	SHELL_CMD_ARG(factory-reset, NULL, "confirm: Werkseinstellungen und Neustart",
+		      cmd_factory_reset, 1, 1),
+	SHELL_CMD_ARG(import-original, NULL, "Einstellungen aus der Originalfirmware uebernehmen",
+		      cmd_import, 1, 0),
 	SHELL_SUBCMD_SET_END);
 
 SHELL_CMD_REGISTER(evse, &sub_evse, "Ladelogik", NULL);

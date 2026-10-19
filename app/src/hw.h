@@ -46,6 +46,12 @@ void hw_safe_state_regs(void);
 /** Schuetz sofort aus (Registerzugriff, ISR-tauglich). */
 void hw_contactor_off_regs(void);
 
+/**
+ * IWDG-Limit fuer Flash-Loeschen auf das Maximum setzen (true) bzw. den
+ * vorherigen Wert wiederherstellen (false), SOLL-RT-13.
+ */
+void hw_iwdg_long(bool on);
+
 /* ---- hw_gpio.c: digitale Ein-/Ausgaenge, Schutz-Interrupts ---- */
 
 int hw_gpio_init(void);

@@ -1,6 +1,6 @@
 # Implementierungsstand Ladelogik
 
-Stand: 2026-10-19. Hardwareunabhaengige Ladelogik als Zephyr-Modul (reines C99), getestet
+Stand: 2026-10-19. Hardwareunabhaengige Ladelogik und Parameterspeicher als Zephyr-Modul (reines C99), getestet
 auf dem PC (`native_sim/native/64`, ztest). **Nicht** auf Hardware ausgefuehrt; Tests belegen
 keine elektrische Sicherheit.
 
@@ -18,11 +18,14 @@ keine elektrische Sicherheit.
 | [ctm.c](../lib/evse/ctm.c) | Schuetzueberwachung Modi 0..4 | SOLL-PROT-20..23 | evse_ctm |
 | [charger.c](../lib/evse/charger.c) | Automat S0..S10, Vorrangliste, Weckfolge, Freigabe, Fehlermodell, LEDs, sicherer Zustand | 5, 9.2, 11, SOLL-PROT-01/41, SOLL-LOCK-20..41, SOLL-RT-20 | `tests/evse/charger` (evse_charger, evse_charger2: 45 Szenarien mit Simulationsmodell) |
 | [outputs.c](../lib/evse/outputs.c) | Ausgangsfunktionen 0..42 | 9.3 | evse_outputs (Wahrheitstabelle aller Codes) |
+| [persist.c](../lib/evse/persist.c) | Laden/Speichern der Konfiguration und des Verriegelungs-Endzustands (465), Loeschbedingung, Import aus Sektor 3 | SOLL-BOOT-04, SOLL-NVM-03/04/10, SOLL-PAR-03/40 | evse_persist (mit Simulationsmodell und simuliertem Flash) |
+| [nvm.c](../lib/nvm/nvm.c) | Log-Format in einer Loescheinheit: Anhaengen, RAM-Puffer bei vollem Bereich, Verdichten, Formatieren, Erkennung unterbrochener Vorgaenge | SOLL-NVM-01..05 | `tests/nvm` (nvm: Stromausfall nach jedem Byte beim Anhaengen und Verdichten, Ausfall beim Loeschen, Pruefsummenfehler, voller Bereich) |
+| [orig.c](../lib/nvm/orig.c) | Nur-Lese-Zugriff auf das Originalformat in Sektor 3 | SOLL-NVM-10 | nvm_orig (synthetisches Abbild) |
 | [param.c](../lib/evse/param.c) | Parametertabelle (Konfiguration, Laufzeit, Status) mit Name, Kennung, Herkunftsfeld, Einheit, Bereich, Default; Schreiben mit Grenz-/Zustandspruefung und Fehlercode; Wiederherstellen gespeicherter Werte | 10, SOLL-PAR-01..03/40, E14, SOLL-API-20/30 | evse_param (Konsistenz, Grenzen jedes Parameters, Sonderregeln) |
 
 Aufruf: `scripts/run-tests.sh` (twister; `--simple` ohne twister, `--coverage` mit gcovr).
-Stand 2026-10-19: **120 Tests, alle bestanden**; Abdeckung `lib/evse` **96 % Zeilen, 90 %
-Verzweigungen** (gcovr, alle drei Suiten). Twister-/Testabhaengigkeiten wurden am 2026-10-19 mit
+Stand 2026-10-19: **146 Tests in vier Suiten, alle bestanden**; Abdeckung `lib/` **95 % Zeilen,
+88 % Verzweigungen** (gcovr; nicht abgedeckt sind vor allem Lesefehler des Flashs). Twister-/Testabhaengigkeiten wurden am 2026-10-19 mit
 Freigabe des Nutzers in `~/zephyrproject/.venv` installiert (`requirements-run-test.txt`,
 `requirements-build-test.txt`); `twister --coverage` bricht in dieser Version ab, daher ruft das
 Skript gcovr direkt auf. Groesse fuer Cortex-M3 (`arm-zephyr-eabi-gcc` 14.3.0, `-Os`, ohne
@@ -46,6 +49,12 @@ Die Festlegung "Entriegeln klemmt" hat der Nutzer am 2026-10-19 ebenfalls bestae
 | Ladeerlaubnis/Freigabe | Freigabe verlangt **keinen** aktiven Fehler (strenger als Original, das nur einzelne Fehler prueft) | SOLL-EN-02 |
 | *neu, bestaetigt:* Entriegeln klemmt | nach 4 Fehlversuchen bleiben Zaehler und ERR-UNLOCK bis zum naechsten Fahrzeug bzw. Neustart; keine weiteren Impulse. Der misslungene Start-Entriegelungsversuch zaehlt mit | sonst Dauerversuche am blockierten Motor alle paar Sekunden (auch das Original versucht es endlos) |
 | *neu:* D9 ohne Verriegelungswunsch | S1 geht mit D9 nur bei ML = 1 nach S2 | vorher Pendeln S1<->S2 in jedem Zyklus |
+| *neu (Speicher):* Loeschen nur in S1 | im Betrieb nur S1 mit CP A, Schuetz aus, ohne Verriegelungszyklus und RCM-Selbsttest; S0 nur vor dem Start der Ladelogik (Spezifikation: "S1 bzw. S0") | in S0 laufen Selbsttest und Start-Entriegelung, deren Zeitfolge der stehende Bus stoeren wuerde |
+| *neu (Speicher):* Ablauf des Verdichtens | Ladelogik per Sperre angehalten, Thread-/Messueberwachung ausgesetzt, IWDG auf Maximum (~32 s); CPU steht bis zu 4 s. CP bleibt +12 V (TIM1 laeuft weiter), Schuetz aus; ein in dieser Zeit angestecktes Fahrzeug wird danach erkannt | Spezifikation SOLL-NVM-04, SOLL-RT-13 |
+| *neu (Speicher):* Ausloeser des Verdichtens | ausstehende Werte, beschaedigter Rest oder weniger als 4 KB frei; Pruefung jede Sekunde im Speicher-Thread | 128 KB reichen fuer rund 10 000 Aenderungen; Verdichten selten |
+| *neu (Speicher):* ungueltiger Bereich beim Start | sofort neu angelegt, Werkseinstellungen, Meldung im Log und in `evse nvm`; kein Fehlerbit der Ladelogik | SOLL-NVM-05 sagt nur "Meldung" |
+| *neu (Speicher):* Import | 409/412 aus dem unteren Byte (im Original 1-Byte-Felder); jede Uebernahme ueber `evse_param_set`; Netzwerkfelder 315..326 werden nur angezeigt, weil Wallfree noch keine Netzparameter hat | SOLL-NVM-10 |
+| *neu (Speicher):* Werksreset per Shell | `evse factory-reset confirm`, nur im sicheren Zustand, danach Neustart | einfachster Weg zu konsistenten Defaults |
 | *neu:* Abbruch des RCM-Selbsttests nach dem Testimpuls | Zustand "Abbruch laeuft" bis 3,4 s nach Teststart: SWITCH_1/2 ausgeblendet, ERR_OUT wirksam; kein neuer Test, kein Weg zum Schuetz in dieser Zeit | der Sensor faehrt seinen Trip-Test zu Ende; dessen Ausloesungen wurden sonst als echter Fehlerstrom gewertet |
 
 ## Parameter: Festlegungen
@@ -58,6 +67,24 @@ Die Festlegung "Entriegeln klemmt" hat der Nutzer am 2026-10-19 ebenfalls bestae
 - `lock_state` (465) loest beim Schreiben einen echten Zyklus aus und ist nur in S1 erlaubt;
   `dip_override` (802) nur in S1; `hardware_limit_override` (801) nur absenken, 0 hebt auf.
 
+## Parameterspeicher: Format und Ausfallverhalten
+
+Format in [nvm.h](../include/wallfree/nvm/nvm.h). Eintrag = Kopf (Kennung, Laenge, CRC-8) +
+Daten + CRC-32; ein Wert mit 4 Byte belegt 12 Byte. Bereichskopf: Kennung direkt nach dem
+Loeschen, Abschluss (Version) zuletzt. Getestetes Verhalten bei Stromausfall:
+
+| Ausfall waehrend | Ergebnis beim naechsten Start |
+| --- | --- |
+| Anhaengen (jedes Byte) | alter oder neuer Wert, nie ein Mischwert; zerstoerter Kopf -> Rest gesperrt bis zum Verdichten, Werte davor bleiben |
+| Loeschen beim Verdichten | Bereich ungueltig -> Werkseinstellungen, Meldung |
+| Schreiben beim Verdichten | Bereich ungueltig (Kennung ohne Abschluss) -> Werkseinstellungen, Meldung; keine Teilergebnisse |
+| genau zwischen Loeschende und erstem Byte | wie Erststart: Werkseinstellungen **ohne** Meldung (einziges unerkanntes Fenster) |
+| erstes Schreiben auf leeren Bereich (Kopf ohne Abschluss) | "ungueltig" gemeldet, obwohl nichts verloren ist |
+
+Gefundener Fehler im Entwurf: Ohne fruehe Kennung sah jedes unterbrochene Verdichten nach dem
+Loeschen wie ein Erststart aus (Werkseinstellungen ohne Meldung). Behoben durch die Aufteilung des
+Bereichskopfs.
+
 ## Durch Tests gefundene und behobene Fehler (2026-10-19)
 
 1. S7 mit Ziel "nicht verfuegbar": Die Vorrangliste meldete jeden Zyklus "behandelt", das
@@ -69,8 +96,8 @@ Die Festlegung "Entriegeln klemmt" hat der Nutzer am 2026-10-19 ebenfalls bestae
 
 ## Anwendung und Hardwareschicht (`app/`, nur gebaut)
 
-Stand 2026-10-19. Baut fuer `ev_cc_ac1` ohne Warnung: **225 508 B Flash** (von 320 KB),
-**83 324 B RAM**, noch ohne HTTP-Server. **Nicht auf Hardware ausgefuehrt** (Sicherheitsgrenzen).
+Stand 2026-10-19. Baut fuer `ev_cc_ac1` ohne Warnung: **233 728 B Flash** (von 320 KB),
+**88 444 B RAM**, noch ohne HTTP-Server (Parameterspeicher: +8,2 KB Flash, +5,1 KB RAM). **Nicht auf Hardware ausgefuehrt** (Sicherheitsgrenzen).
 
 ```sh
 cd ~/zephyrproject && . .venv/bin/activate && cd zephyr
@@ -81,9 +108,10 @@ west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d ~/zephyrproject/build
 | --- | --- | --- |
 | [hw_stm32.c](../app/src/hw_stm32.c) | TIM1 CH1/PE9 (PSC 49, center-aligned Modus 1, ARR 1000, 1 kHz), ADC1 10 Raenge in zwei 5er-Gruppen, Start im TIM1-Update-Interrupt bei CNT < 50 bzw. > 950, DMA2 Stream0 zirkular 80 Worte, Skalierung wie Original; MCO1 = HSE an PA8; PA15-Resetimpuls 11 ms; fruehe sichere Pinpegel; sicherer Zustand per Register | SOLL-RT-01..03, SOLL-IO-02, SOLL-BOOT-02/09, SOLL-RT-20 |
 | [hw_gpio.c](../app/src/hw_gpio.c) | alle Ein-/Ausgaenge aus `zephyr,user`; RCM-Flankeninterrupt schaltet PE2 per Register ab und setzt einen Schutz-Latch, der Ein-Befehle sperrt; PE0-Flankenzeitstempel; PB2 erst nach der ersten Ausgabe | SOLL-PROT-01/05, SOLL-IO-01/21 |
-| [evse_task.c](../app/src/evse_task.c) | Schutzthread (Prio 0, 1 ms): RCM-Pegel zyklisch, Ueberwachung Automat (100 ms) und Messbloecke (50 ms), IWDG 250 ms; Automatenthread (Prio 2, 10 ms und je Messblock); Fault-Handler: sicherer Zustand, Neustart | SOLL-RT-04/05/10..12/21 |
-| [main.c](../app/src/main.c) | Startablauf: GPIO, Reset-Taster 5 s, DIP/Drehschalter, Messung, Threads | SOLL-BOOT-01..10/20 |
-| [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `evse param list/get/set`, `evse ack` ueber die Parametertabelle (Telnet) | SOLL-SH-01/02/06, SOLL-SH-19/20 |
+| [evse_task.c](../app/src/evse_task.c) | Schutzthread (Prio 0, 1 ms): RCM-Pegel zyklisch, Ueberwachung Automat (100 ms) und Messbloecke (50 ms), IWDG 250 ms, Wartungsmodus fuer Flash-Loeschen; Automatenthread (Prio 2, 10 ms und je Messblock), meldet Aenderungen des Verriegelungszustands an den Speicher-Thread; Fault-Handler: sicherer Zustand, Neustart | SOLL-RT-04/05/10..12/21 |
+| [storage.c](../app/src/storage.c) | Flash-Adapter auf die Partitionen (Sektor 7 lesen/schreiben/loeschen, Sektor 3 nur lesen, Lage beim Bauen geprueft); Speicher-Thread (Prio 12): Verriegelungszustand speichern, Verdichten im sicheren Zustand; Werksreset, Import | SOLL-NVM-01..05/10, SOLL-RT-13, SOLL-BOOT-04/20/21 |
+| [main.c](../app/src/main.c) | Startablauf: GPIO, Parameterspeicher (ungueltig -> neu anlegen), Reset-Taster 5 s -> Bereich loeschen, gespeicherte Werte laden, DIP/Drehschalter, Messung, Threads | SOLL-BOOT-01..10/20 |
+| [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `evse param list/get/set` (persistente Werte werden gespeichert), `evse ack`, `evse nvm`, `evse factory-reset confirm`, `evse import-original` (Telnet) | SOLL-SH-01/02/06/08/09, SOLL-SH-19/20 |
 
 Pruefung am Build (2026-10-19): Systemtakt 100 MHz (`CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC`),
 Ladeadresse `0x08010000`, Interrupttabelle: TIM1_UP -> `tim1_up_isr`, DMA2_Stream0 ->
@@ -102,18 +130,23 @@ Anwendung sie direkt steuert; der Groessentest bringt sie per `spike-size/app.ov
 - Reaktionszeit RCM-Flanke -> PE2 Low ueber den Zephyr-GPIO-Callback: Ziel <= 1 ms
   (SOLL-PROT-05), am Oszilloskop zu messen.
 - MCO1 an PA8 und Reset an PA15 fuer den PHY sind Hypothesen.
+- IWDG-Umprogrammierung im Betrieb (direkt ueber die Register, weil der Zephyr-Treiber das Limit
+  nach dem Start nicht aendern kann) und Loeschzeit Sektor 7 <= 4000 ms (Zephyr-Devicetree, nicht
+  Datenblatt). Ob der Bootloader Sektor 7 loescht, klaert H0.
 
 ### Noch offen in der Hardwareschicht
 
 - Resetgrund ueber den Neustart sichern (SOLL-RT-14), Neustart nur ohne Ladung bei haengenden
-  Netz-Threads (SOLL-RT-11), IWDG-Verlaengerung fuer Flash-Loeschen (SOLL-RT-13).
-- Werksreset und Verriegelungszustand persistent (mit dem Parameterspeicher).
+  Netz-Threads (SOLL-RT-11).
+- IWDG schon vor dem Werksreset-Warten starten (SOLL-BOOT-03); bisher startet der Schutzthread
+  ihn erst nach dem Laden der Parameter.
+- Power-LED 5 Hz nach dem Werksreset bis zum Loslassen (SOLL-BOOT-20).
 
 ## Noch nicht umgesetzt
 
-- Parameterspeicher (SOLL-NVM; Kennungen und `evse_param_restore()` sind vorbereitet),
-  Werksreset, Startablauf auf der Hardware (SOLL-BOOT).
+- Startablauf auf der Hardware (SOLL-BOOT, H1).
 - System- und Netzparameter (Hostname, IP, Zugangsdaten, Telnet) gehoeren nicht zur Ladelogik
-  und kommen in eine eigene Tabelle der Anwendung.
+  und kommen in eine eigene Tabelle der Anwendung (Speicherkennungen ab 3000); danach Import
+  der Netzwerkfelder 315..326.
 - HTTP/WebSocket-API, Weboberflaeche, Zugangsschutz, Shell (Abschnitt 12).
 - Fehlerhistorie mit Zeitstempeln (SOLL-ERR-01, bisher nur Sammelwert `errors_seen`).

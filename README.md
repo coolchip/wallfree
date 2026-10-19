@@ -17,6 +17,7 @@ koennen Menschen gefaehrden. Software-Tests belegen keine elektrische Sicherheit
 | [app/](app/) | Anwendung fuer die Steuerung: Hardwareschicht, Threads, Shell (nur bauen) |
 | [spike-size/](spike-size/) | Groessentest (nur bauen) |
 | [include/wallfree/evse/](include/wallfree/evse/), [lib/evse/](lib/evse/) | Ladelogik als Zephyr-Modul, reines C ohne Hardwarebezug |
+| [include/wallfree/nvm/](include/wallfree/nvm/), [lib/nvm/](lib/nvm/) | Parameterspeicher (Log-Format in Sektor 7) und Leser fuer den Originalbereich, reines C |
 | [docs/implementierung.md](docs/implementierung.md) | Implementierungsstand, Zuordnung Modul -> SOLL, offene Punkte |
 | [tests/](tests/) | PC-Tests (ztest auf `native_sim/native/64`), Aufruf `scripts/run-tests.sh` |
 

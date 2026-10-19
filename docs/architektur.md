@@ -69,6 +69,14 @@ Format, das stromausfallsicher ist, obwohl nur ein Sektor zur Verfuegung steht (
 Haelften mit Gueltigkeitskennung und CRC, Verdichten nur im sicheren Zustand). Zu klaeren:
 loescht der Bootloader beim Update auch Sektor 7?
 
+**Umsetzung (2026-10-19):** P1 mit eigenem Log-Format in einer Loescheinheit
+([nvm.h](../include/wallfree/nvm/nvm.h)): Eintraege mit CRC-8 im Kopf und CRC-32 ueber den
+Eintrag; Bereichskopf aus Kennung (direkt nach dem Loeschen) und Abschluss (zuletzt), sodass
+ein unterbrochenes Verdichten beim Start als ungueltig erkannt wird. ZMS scheidet aus (mindestens
+zwei Loescheinheiten, loescht selbststaendig). Ohne zweite Loescheinheit bleibt das Fenster
+"geloescht, noch nicht neu geschrieben" bestehen; dann gelten Werkseinstellungen mit Meldung
+(SOLL-NVM-05), wie im Original.
+
 ## 4. Rahmenwerk
 
 Kriterien: Flash-/RAM-Bedarf, Treiber fuer STM32F2 (ETH, ADC+DMA, TIM1, IWDG, RTC-Backup),

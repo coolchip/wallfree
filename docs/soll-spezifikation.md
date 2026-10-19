@@ -864,7 +864,7 @@ auf der Steuerung (ohne Last), Update-Uebergabe erst nach H0.
 | Kennung | Anforderung | Quelle |
 | --- | --- | --- |
 | SOLL-NVM-01 | Eigene Parameter liegen ausschliesslich in **Sektor 7** (`0x08060000..0x0807FFFF`, 128 KB). Sektoren 0..3 werden nie beschrieben oder geloescht (Treiber-/Partitionssperre). | Arch §3 (P1) |
-| SOLL-NVM-02 | Format: Anhaengen von Eintraegen (Schluessel, Laenge, Wert, Pruefsumme); der juengste gueltige Eintrag gilt; Formatkennung und Version am Bereichsanfang. Ungueltige Eintraege werden ignoriert. Ob Zephyr ZMS mit nur einer Loescheinheit sicher betrieben werden kann, ist zu pruefen; sonst eigenes Log-Format. | Arch §7, [ANN] |
+| SOLL-NVM-02 | Format: Anhaengen von Eintraegen (Schluessel, Laenge, Wert, Pruefsumme); der juengste gueltige Eintrag gilt; Formatkennung und Version am Bereichsanfang. Ungueltige Eintraege werden ignoriert. **Geprueft 2026-10-19:** Zephyr ZMS scheidet aus (verlangt mindestens zwei Loescheinheiten, `zms.c` Zeile 1525, und loescht selbststaendig beim Start und bei der Speicherbereinigung, unvereinbar mit SOLL-NVM-03/04) -> eigenes Log-Format, beschrieben in `include/wallfree/nvm/nvm.h`. | Arch §7, [ANN] |
 | SOLL-NVM-03 | Persistente Schreibzugriffe im Betrieb erzeugen nur Anhaengevorgaenge (kein Loeschen). Laufzeitwerte (10.2), insbesondere `external_current`, werden nie gespeichert. | Arch §8 |
 | SOLL-NVM-04 | Verdichten (RAM-Kopie, Sektor loeschen, neu schreiben) nur im sicheren Zustand: S1 bzw. S0, CP A, Schuetz aus, IWDG verlaengert (SOLL-RT-13). Ist der Bereich im Betrieb voll, bleiben neue Werte bis zum naechsten sicheren Zustand nur im RAM (Status "Speichern ausstehend"). | Arch §2, SOLL-RT-13 |
 | SOLL-NVM-05 | Stromausfall waehrend des Verdichtens: Beim naechsten Start ist der Bereich ungueltig -> Werkseinstellungen und Meldung (wie Original); einmalige Uebernahme nach SOLL-NVM-10 erneut moeglich. | Parameterspeicher (Ausfallverhalten) |
@@ -969,7 +969,7 @@ Lizenz Apache-2.0, Systemtakt 100 MHz, Weboberflaeche Preact + htm
 | Reset-Taster: PD2 und/oder NRST (HB: einfache Betaetigung = Neustart) | offen | H1 |
 | "Automatische Entriegelung bei Stromausfall" (HB S. 9): Hardwarefunktion? | in der Firmware nicht gefunden | H1 |
 | Bootloader: Pruefungen, Nutzung von BKP-Registern, loescht er Sektor 7, Start-SP | unbekannt | H0 |
-| ZMS mit einer 128-KB-Loescheinheit; IWDG-Umprogrammierung im Betrieb; Loeschzeit Sektor 7 | ungeprueft (DS6329, PM0059 fehlen) | Datenblatt, Test auf `native_sim`/H1 |
+| IWDG-Umprogrammierung im Betrieb; Loeschzeit Sektor 7 | ZMS entfaellt (SOLL-NVM-02). Loeschzeit hoechstens 4000 ms laut Zephyr-Devicetree (`stm32f2.dtsi`, `max-erase-time`), nicht am Datenblatt geprueft (DS6329 fehlt); IWDG-Umprogrammierung ueber Register umgesetzt, auf Hardware ungeprueft | Datenblatt, H1 |
 | Normzeiten IEC 61851-1 (Abschaltung nach C->B, Reaktionszeit des Fahrzeugs) | Norm nicht im Projekt; 5-s-Frist durch HB S. 38 gestuetzt | Normtext |
 | WARP: Rahmenformat WebSocket, Codes `error_state`/`contactor_state`, Authentifizierungsverfahren der evcc-Vorlage (Basic/Digest) | nicht im Detail geprueft | WARP-Referenz, `warp-ws.go` |
 | Diodenpruefung: Vorgabe der IEC 61851-1 zur Ausgabe nach Fehlschlag | Norm nicht im Projekt | Normtext |

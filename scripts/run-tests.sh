@@ -1,5 +1,5 @@
 #!/bin/sh
-# Alle PC-Tests der Ladelogik auf native_sim/native/64 ausfuehren.
+# Alle PC-Tests (Ladelogik, Parameterspeicher) auf native_sim/native/64 ausfuehren.
 # Voraussetzung: Zephyr-Umgebung unter ~/zephyrproject (siehe README).
 #   scripts/run-tests.sh            twister (Standard)
 #   scripts/run-tests.sh --simple   ohne twister: jede Suite mit west build
@@ -35,8 +35,8 @@ case "$1" in
 	done
 	if [ "$1" = "--coverage" ]; then
 		cd "$REPO"
-		gcovr -r . --filter 'lib/evse/' $dirs
-		gcovr -r . --filter 'lib/evse/' --txt-metric branch $dirs | tail -n 14
+		gcovr -r . --filter 'lib/' $dirs
+		gcovr -r . --filter 'lib/' --txt-metric branch $dirs | tail -n 14
 	fi
 	exit $fail
 	;;

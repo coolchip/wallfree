@@ -4,4 +4,6 @@ list(APPEND ZEPHYR_EXTRA_MODULES ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(evse_charger_test)
 FILE(GLOB app_sources src/*.c)
-target_sources(app PRIVATE ${app_sources})
+# simulierter Flash und Sektor-3-Abbild aus den Speichertests
+target_sources(app PRIVATE ${app_sources} ../../nvm/src/flash_sim.c)
+target_include_directories(app PRIVATE ../../nvm/src)

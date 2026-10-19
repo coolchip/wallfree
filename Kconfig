@@ -4,3 +4,11 @@ config WALLFREE_EVSE
 	help
 	  Ladelogik nach docs/soll-spezifikation.md. Reines C ohne
 	  Zephyr-Abhaengigkeit, auf dem PC testbar.
+
+config WALLFREE_NVM
+	bool "Wallfree Parameterspeicher (hardwareunabhaengig)"
+	help
+	  Anhaengendes Log-Format in einer Loescheinheit (SOLL-NVM-01..05)
+	  und Leser fuer den Parameterbereich der Originalfirmware
+	  (SOLL-NVM-10). Reines C, auf dem PC testbar. Mit
+	  WALLFREE_EVSE kommt die Persistenz der Ladelogik dazu.

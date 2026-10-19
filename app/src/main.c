@@ -9,6 +9,7 @@
 #include <wallfree/evse/charger.h>
 #include "evse_task.h"
 #include "hw.h"
+#include "storage.h"
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
@@ -34,6 +35,7 @@ static bool check_factory_reset(void)
 int main(void)
 {
 	struct evse_config cfg;
+	enum evse_lock_state lock = EVSE_LOCK_UNLOCKED;
 	evse_dip_t dip;
 	uint8_t rotary;
 
@@ -43,12 +45,15 @@ int main(void)
 		return -1;
 	}
 
-	evse_config_defaults(&cfg);
+	/* SOLL-BOOT-04/05: Parameterspeicher; Loeschen ist hier erlaubt (Ladelogik
+	 * noch nicht gestartet, Ausgaenge im sicheren Startpegel) */
+	(void)storage_init();
 	if (check_factory_reset()) {
-		/* Parameterspeicher folgt (SOLL-NVM); bis dahin gelten ohnehin Defaults */
-		LOG_WRN("Werksreset angefordert");
+		LOG_WRN("Werksreset: Parameterbereich wird geloescht");
+		(void)storage_factory_reset_boot();
 	}
-	/* TODO SOLL-BOOT-04: gespeicherte Parameter mit evse_param_restore() laden */
+	evse_config_defaults(&cfg);
+	(void)storage_load(&cfg, &lock);
 
 	/* SOLL-BOOT-06: DIP und Drehschalter nur beim Start lesen */
 	hw_gpio_read_switches(&dip, &rotary);
@@ -56,6 +61,9 @@ int main(void)
 	cfg.rotary = rotary;
 	LOG_INF("DIP 0x%03x, Drehschalter %u", dip, rotary);
 
-	hw_analog_init();            /* SOLL-BOOT-07 */
-	return evse_task_start(&cfg); /* SOLL-BOOT-08..10 */
+	hw_analog_init();                  /* SOLL-BOOT-07 */
+	int r = evse_task_start(&cfg, lock); /* SOLL-BOOT-08..10 */
+
+	storage_start();
+	return r;
 }

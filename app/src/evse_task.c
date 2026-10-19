@@ -19,6 +19,7 @@
 #include <zephyr/sys/reboot.h>
 #include "evse_task.h"
 #include "hw.h"
+#include "storage.h"
 
 LOG_MODULE_REGISTER(evse_task, LOG_LEVEL_INF);
 
@@ -39,6 +40,7 @@ static K_MUTEX_DEFINE(ev_mtx);
 static atomic_t charger_beat;   /* Zeitstempel ms (untere 32 Bit) */
 static atomic_t block_beat;
 static atomic_t started;
+static atomic_t maint;          /* Ueberwachung ausgesetzt (Flash-Loeschen) */
 
 K_THREAD_STACK_DEFINE(prot_stack, PROT_STACK);
 K_THREAD_STACK_DEFINE(charger_stack, CHARGER_STACK);
@@ -54,6 +56,20 @@ struct evse *evse_acquire(void)
 void evse_release(void)
 {
 	k_mutex_unlock(&ev_mtx);
+}
+
+void evse_task_maint_begin(void)
+{
+	atomic_set(&maint, 1);
+}
+
+void evse_task_maint_end(void)
+{
+	int64_t now = k_uptime_get();
+
+	atomic_set(&charger_beat, (atomic_val_t)now);
+	atomic_set(&block_beat, (atomic_val_t)now);
+	atomic_set(&maint, 0);
 }
 
 /* ------------------------------------------------ sicherer Zustand und Neustart */
@@ -85,6 +101,7 @@ static void charger_entry(void *p1, void *p2, void *p3)
 	ARG_UNUSED(p2);
 	ARG_UNUSED(p3);
 	uint32_t last_seq = 0;
+	enum evse_lock_state last_lock = EVSE_LOCK_INIT;
 
 	for (;;) {
 		struct evse_inputs in = {0};
@@ -114,7 +131,14 @@ static void charger_entry(void *p1, void *p2, void *p3)
 		evse_step(&ev, &in, now);
 		out = ev.out;
 		bool p_errors = (ev.errors & EVSE_ERR_CLASS_P) != 0;
+		enum evse_lock_state lock = ev.lock.state;
 		k_mutex_unlock(&ev_mtx);
+
+		/* Feld 465: Endzustand speichern lassen (Speicher-Thread, SOLL-PAR-40) */
+		if (lock != last_lock) {
+			last_lock = lock;
+			storage_lock_changed(lock);
+		}
 
 		/* Schutz-Latch des ISR-Pfads erst loesen, wenn die Ladelogik den
 		 * Fehler uebernommen hat bzw. keine Ausloesung mehr ansteht */
@@ -166,7 +190,7 @@ static void prot_entry(void *p1, void *p2, void *p3)
 		}
 
 		/* SOLL-RT-10: Thread- und Messueberwachung */
-		if (now - t0 > STARTUP_GRACE_MS) {
+		if (now - t0 > STARTUP_GRACE_MS && !atomic_get(&maint)) {
 			if (now32 - (uint32_t)atomic_get(&charger_beat) > LIMIT_CHARGER_MS) {
 				fail_safe_and_reboot("Automatenthread haengt");
 			}
@@ -180,14 +204,14 @@ static void prot_entry(void *p1, void *p2, void *p3)
 	}
 }
 
-int evse_task_start(const struct evse_config *cfg)
+int evse_task_start(const struct evse_config *cfg, enum evse_lock_state stored_lock)
 {
 	if (atomic_cas(&started, 0, 1) == false) {
 		return -EALREADY;
 	}
 	int64_t now = k_uptime_get();
 
-	evse_init(&ev, cfg, EVSE_LOCK_UNLOCKED /* NVM folgt (SOLL-NVM) */, now);
+	evse_init(&ev, cfg, stored_lock, now);
 	atomic_set(&charger_beat, (atomic_val_t)now);
 	atomic_set(&block_beat, (atomic_val_t)now);
 

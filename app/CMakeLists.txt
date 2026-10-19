@@ -11,4 +11,5 @@ target_sources(app PRIVATE
   src/hw_gpio.c
   src/evse_task.c
   src/shell_evse.c
+  src/storage.c
 )
