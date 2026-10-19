@@ -12,4 +12,5 @@ zephyr_library_sources(
   ctm.c
   charger.c
   outputs.c
+  param.c
 )

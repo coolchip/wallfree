@@ -32,6 +32,8 @@ void evse_config_defaults(struct evse_config *cfg)
 	cfg->reject_state_d = true;
 	cfg->wakeup_delay_ms = 30000;
 	cfg->wakeup_mode = 0;
+	cfg->external_current_default_ma = EVSE_CURRENT_MAX_MA;
+	cfg->enable_register_default = false;
 }
 
 static bool dip(const struct evse *e, int n)
@@ -52,13 +54,11 @@ static bool duty_is_pwm(uint16_t d)
 void evse_init(struct evse *e, const struct evse_config *cfg, enum evse_lock_state stored_lock,
 	       evse_ms_t now)
 {
-	int ch;
-
 	memset(e, 0, sizeof(*e));
 	e->cfg = *cfg;
 
-	e->rt.external_ma = EVSE_CURRENT_MAX_MA; /* F12: Default keine Einschraenkung */
-	e->rt.enable_register = false;           /* F19: Default 0 */
+	e->rt.external_ma = cfg->external_current_default_ma; /* F12 */
+	e->rt.enable_register = cfg->enable_register_default; /* F19 */
 	e->rt.available_register = true;         /* SOLL-EN-11 */
 
 	evse_cp_init(&e->cp);
@@ -68,28 +68,7 @@ void evse_init(struct evse *e, const struct evse_config *cfg, enum evse_lock_sta
 	evse_rcm_init(&e->rcm);
 	evse_ctm_init(&e->ctm);
 
-	e->rotary = evse_rotary_decode(cfg->rotary);
-	e->ld_mode = evse_din_ld_source(&cfg->din, &ch);
-	e->lock_cfg = (struct evse_lock_config){
-		.d4 = evse_dip(cfg->dip, 4),
-		.d6 = evse_dip(cfg->dip, 6),
-		.ld_mode = e->ld_mode,
-		.lock_pulse_ms = cfg->lock_pulse_ms,
-		.unlock_pulse_ms = cfg->unlock_pulse_ms,
-		.cycle_gap_ms = cfg->lock_cycle_gap_ms,
-		.unlock_check = cfg->unlock_check,
-	};
-
-	/* SOLL-BOOT-06: Konfigurationspruefung */
-	if (!e->rotary.valid) {
-		e->errors |= EVSE_ERR_SWITCH; /* E11 */
-	}
-	if (e->lock_cfg.d4 && e->lock_cfg.d6 && e->ld_mode == EVSE_LD_NONE) {
-		e->errors |= EVSE_ERR_CONFIG; /* F17 */
-	}
-	if (!evse_ctm_mode_valid(cfg->contactor_monitor, cfg->meter_available)) {
-		e->errors |= EVSE_ERR_CONFIG;
-	}
+	evse_apply_config(e);
 
 	e->state = EVSE_S0_INIT;
 	e->state_since = now;
@@ -111,6 +90,36 @@ void evse_init(struct evse *e, const struct evse_config *cfg, enum evse_lock_sta
 	e->charge_start = EVSE_MS_NONE;
 	evse_debounce_init(&e->status_deb, EVSE_CP_A);
 	e->status = EVSE_CP_A;
+}
+
+void evse_apply_config(struct evse *e)
+{
+	const struct evse_config *cfg = &e->cfg;
+	int ch;
+
+	e->rotary = evse_rotary_decode(cfg->rotary);
+	e->ld_mode = evse_din_ld_source(&cfg->din, &ch);
+	e->lock_cfg = (struct evse_lock_config){
+		.d4 = evse_dip(cfg->dip, 4),
+		.d6 = evse_dip(cfg->dip, 6),
+		.ld_mode = e->ld_mode,
+		.lock_pulse_ms = cfg->lock_pulse_ms,
+		.unlock_pulse_ms = cfg->unlock_pulse_ms,
+		.cycle_gap_ms = cfg->lock_cycle_gap_ms,
+		.unlock_check = cfg->unlock_check,
+	};
+
+	/* SOLL-BOOT-06: Konfigurationspruefung */
+	e->errors &= ~EVSE_ERR_CLASS_K;
+	if (!e->rotary.valid) {
+		e->errors |= EVSE_ERR_SWITCH; /* E11 */
+	}
+	if (e->lock_cfg.d4 && e->lock_cfg.d6 && e->ld_mode == EVSE_LD_NONE) {
+		e->errors |= EVSE_ERR_CONFIG; /* F17 */
+	}
+	if (!evse_ctm_mode_valid(cfg->contactor_monitor, cfg->meter_available)) {
+		e->errors |= EVSE_ERR_CONFIG;
+	}
 }
 
 /* ---------------------------------------------------------------- Hilfen */
@@ -1098,6 +1107,14 @@ void evse_safe_state(struct evse *e, evse_ms_t now)
 	e->out.unlock_pulse = false;
 	e->out.rcm_test = false;
 	e->safe = true;
+}
+
+bool evse_lock_command(struct evse *e, bool lock, evse_ms_t now)
+{
+	if (e->state != EVSE_S1_IDLE || e->contactor) {
+		return false;
+	}
+	return lock_req(e, lock, now);
 }
 
 bool evse_ack_contactor_fault(struct evse *e)

@@ -18,14 +18,16 @@ keine elektrische Sicherheit.
 | [ctm.c](../lib/evse/ctm.c) | Schuetzueberwachung Modi 0..4 | SOLL-PROT-20..23 | evse_ctm |
 | [charger.c](../lib/evse/charger.c) | Automat S0..S10, Vorrangliste, Weckfolge, Freigabe, Fehlermodell, LEDs, sicherer Zustand | 5, 9.2, 11, SOLL-PROT-01/41, SOLL-LOCK-20..41, SOLL-RT-20 | `tests/evse/charger` (evse_charger, evse_charger2: 45 Szenarien mit Simulationsmodell) |
 | [outputs.c](../lib/evse/outputs.c) | Ausgangsfunktionen 0..42 | 9.3 | evse_outputs (Wahrheitstabelle aller Codes) |
+| [param.c](../lib/evse/param.c) | Parametertabelle (Konfiguration, Laufzeit, Status) mit Name, Kennung, Herkunftsfeld, Einheit, Bereich, Default; Schreiben mit Grenz-/Zustandspruefung und Fehlercode; Wiederherstellen gespeicherter Werte | 10, SOLL-PAR-01..03/40, E14, SOLL-API-20/30 | evse_param (Konsistenz, Grenzen jedes Parameters, Sonderregeln) |
 
 Aufruf: `scripts/run-tests.sh` (twister; `--simple` ohne twister, `--coverage` mit gcovr).
-Stand 2026-10-19: **107 Tests, alle bestanden**; Abdeckung `lib/evse` **95 % Zeilen, 88 %
+Stand 2026-10-19: **120 Tests, alle bestanden**; Abdeckung `lib/evse` **96 % Zeilen, 90 %
 Verzweigungen** (gcovr, alle drei Suiten). Twister-/Testabhaengigkeiten wurden am 2026-10-19 mit
 Freigabe des Nutzers in `~/zephyrproject/.venv` installiert (`requirements-run-test.txt`,
 `requirements-build-test.txt`); `twister --coverage` bricht in dieser Version ab, daher ruft das
 Skript gcovr direkt auf. Groesse fuer Cortex-M3 (`arm-zephyr-eabi-gcc` 14.3.0, `-Os`, ohne
-Linker-GC): ca. **8,8 KB** Code, keine statischen Daten.
+Linker-GC): ca. **15,7 KB** Code und Konstanten (davon die Parametertabelle mit Namen und
+Hilfetexten fuer Web/Shell), keine veraenderlichen statischen Daten.
 
 ## Bei der Implementierung festgelegte Details
 
@@ -46,6 +48,16 @@ Die Festlegung "Entriegeln klemmt" hat der Nutzer am 2026-10-19 ebenfalls bestae
 | *neu:* D9 ohne Verriegelungswunsch | S1 geht mit D9 nur bei ML = 1 nach S2 | vorher Pendeln S1<->S2 in jedem Zyklus |
 | *neu:* Abbruch des RCM-Selbsttests nach dem Testimpuls | Zustand "Abbruch laeuft" bis 3,4 s nach Teststart: SWITCH_1/2 ausgeblendet, ERR_OUT wirksam; kein neuer Test, kein Weg zum Schuetz in dieser Zeit | der Sensor faehrt seinen Trip-Test zu Ende; dessen Ausloesungen wurden sonst als echter Fehlerstrom gewertet |
 
+## Parameter: Festlegungen
+
+- Kennungen fuer den Speicher: Feldnummer des Originals, wo vorhanden (z. B. 525), sonst
+  1001.. (Konfiguration) bzw. 2000.. (Status). Gespeichert werden nur Konfigurationswerte.
+- Konfigurationsaenderungen wirken sofort (`evse_apply_config()`); eine Aenderung, die die
+  Konfiguration widerspruechlich macht (z. B. LD-Funktion entfernt bei D4+D6), setzt sofort
+  ERR-CONFIG und beendet damit ein laufendes Laden.
+- `lock_state` (465) loest beim Schreiben einen echten Zyklus aus und ist nur in S1 erlaubt;
+  `dip_override` (802) nur in S1; `hardware_limit_override` (801) nur absenken, 0 hebt auf.
+
 ## Durch Tests gefundene und behobene Fehler (2026-10-19)
 
 1. S7 mit Ziel "nicht verfuegbar": Die Vorrangliste meldete jeden Zyklus "behandelt", das
@@ -59,7 +71,9 @@ Die Festlegung "Entriegeln klemmt" hat der Nutzer am 2026-10-19 ebenfalls bestae
 
 - Hardwareschicht (ADC/DMA, TIM1, GPIO, EXTI-Schutzpfad mit direktem PE2-Abschalten,
   IWDG und Thread-Watchdog, Fault-Handler) - SOLL-RT, SOLL-IO, SOLL-PROT-05.
-- Parameterverwaltung mit Grenzpruefung und Schreibregeln (SOLL-PAR), Parameterspeicher
-  (SOLL-NVM), Werksreset, Startablauf auf der Hardware (SOLL-BOOT).
+- Parameterspeicher (SOLL-NVM; Kennungen und `evse_param_restore()` sind vorbereitet),
+  Werksreset, Startablauf auf der Hardware (SOLL-BOOT).
+- System- und Netzparameter (Hostname, IP, Zugangsdaten, Telnet) gehoeren nicht zur Ladelogik
+  und kommen in eine eigene Tabelle der Anwendung.
 - HTTP/WebSocket-API, Weboberflaeche, Zugangsschutz, Shell (Abschnitt 12).
 - Fehlerhistorie mit Zeitstempeln (SOLL-ERR-01, bisher nur Sammelwert `errors_seen`).

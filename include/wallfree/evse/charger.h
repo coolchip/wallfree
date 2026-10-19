@@ -98,6 +98,8 @@ struct evse_config {
 	uint32_t wakeup_delay_ms;   /**< 0 = keine Weckfolge */
 	uint8_t wakeup_mode;        /**< 0 einmal je Steckvorgang, 1 auch nach Sperre */
 	bool meter_available;       /**< Messquelle vorhanden (F1), derzeit false */
+	int32_t external_current_default_ma; /**< Startwert Slot external (F12) */
+	bool enable_register_default;        /**< Startwert Freigabe 400 (F19) */
 };
 
 /** Werkseinstellungen (E20, Abschnitt 10.1). */
@@ -233,8 +235,20 @@ void evse_step(struct evse *e, const struct evse_inputs *in, evse_ms_t now);
 /** Sicherer Zustand (SOLL-RT-20), z. B. vor einem Watchdog-Reset. */
 void evse_safe_state(struct evse *e, evse_ms_t now);
 
+/**
+ * Ver-/Entriegelungszyklus von aussen (Original Feld 465, SOLL-PAR-40):
+ * nur in S1 bei Schuetz aus. @return false, wenn nicht erlaubt oder busy.
+ */
+bool evse_lock_command(struct evse *e, bool lock, evse_ms_t now);
+
 /** Schuetzfehler quittieren (F14, SOLL-ERR-03). @return true bei Erfolg. */
 bool evse_ack_contactor_fault(struct evse *e);
+
+/**
+ * Abgeleitete Werte nach einer Konfigurationsaenderung neu bestimmen
+ * (Verriegelung, LD-Quelle, Drehschalter, Konfigurationsfehler).
+ */
+void evse_apply_config(struct evse *e);
 
 /** Ausgangsfunktion @p code fuer den aktuellen Zustand (Tabelle 9.3). */
 bool evse_dout_eval(const struct evse *e, uint8_t code, evse_ms_t now);
