@@ -15,6 +15,8 @@ koennen Menschen gefaehrden. Software-Tests belegen keine elektrische Sicherheit
 | [docs/architektur.md](docs/architektur.md) | Rahmen: Zephyr, Speicheraufteilung, Bootloader, Parameterspeicher, WARP-/evcc-Schnittstelle |
 | [boards/phoenix/ev_cc_ac1/](boards/phoenix/ev_cc_ac1/) | vorlaeufige Zephyr-Board-Beschreibung |
 | [spike-size/](spike-size/) | Groessentest (nur bauen) |
+| [include/wallfree/evse/](include/wallfree/evse/), [lib/evse/](lib/evse/) | Ladelogik als Zephyr-Modul, reines C ohne Hardwarebezug |
+| [tests/](tests/) | PC-Tests (ztest auf `native_sim/native/64`), Aufruf `scripts/run-tests.sh` |
 
 ## Bauen
 

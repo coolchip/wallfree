@@ -1,0 +1,4 @@
+name: wallfree
+build:
+  cmake: .
+  kconfig: Kconfig

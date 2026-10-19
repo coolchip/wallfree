@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+config WALLFREE_EVSE
+	bool "Wallfree Ladelogik (hardwareunabhaengig)"
+	help
+	  Ladelogik nach docs/soll-spezifikation.md. Reines C ohne
+	  Zephyr-Abhaengigkeit, auf dem PC testbar.
