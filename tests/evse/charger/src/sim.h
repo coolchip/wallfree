@@ -46,6 +46,11 @@ struct sim {
 	bool welded;
 	evse_ms_t last_edge;
 
+	/* Versorgung, Messquelle */
+	int32_t supply_mv;
+	bool meter_valid;
+	int32_t phase_ma[3];
+
 	/* Beobachtung */
 	int contactor_on_count;
 	bool contactor_prev;

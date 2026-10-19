@@ -148,8 +148,26 @@ ZTEST(evse_rcm, test_selftest_abort)
 	zassert_true(rcm.out_test);
 	evse_rcm_selftest_abort(&rcm);
 	zassert_false(rcm.out_test);
+	zassert_equal(rcm.test, EVSE_RCM_TEST_ABORTING, "Sensor laeuft noch");
+	/* erwartete Ausloesungen des Sensors sind kein Fehler */
+	lv.sw2 = true;
+	zassert_false(evse_rcm_monitor(&rcm, &lv));
+	lv.err = true;
+	zassert_true(evse_rcm_monitor(&rcm, &lv), "ERR_OUT bleibt wirksam");
+	lv = (struct evse_rcm_levels){0};
+	rcm.faults = 0;
+	now += 3200;
+	evse_rcm_selftest_update(&rcm, &lv, now);
 	zassert_equal(rcm.test, EVSE_RCM_TEST_IDLE);
 	zassert_equal(rcm.faults, 0);
+
+	/* Abbruch vor dem Impuls: sofort beendet */
+	before(NULL);
+	evse_rcm_selftest_start(&rcm, &lv, now);
+	now += 50;
+	evse_rcm_selftest_update(&rcm, &lv, now);
+	evse_rcm_selftest_abort(&rcm);
+	zassert_equal(rcm.test, EVSE_RCM_TEST_IDLE);
 }
 
 ZTEST(evse_rcm, test_monitor_silent_during_test)

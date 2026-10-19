@@ -39,6 +39,9 @@ enum evse_rcm_test {
 	EVSE_RCM_TEST_RUNNING,
 	EVSE_RCM_TEST_PASSED,
 	EVSE_RCM_TEST_FAILED,
+	/** Test nach dem Impuls abgebrochen: Sensor laeuft noch, SWITCH_1/2 bis
+	 *  EVSE_RCM_T_RELEASED ausgeblendet, ERR_OUT weiter ausgewertet */
+	EVSE_RCM_TEST_ABORTING,
 };
 
 struct evse_rcm {
@@ -70,7 +73,8 @@ bool evse_rcm_selftest_start(struct evse_rcm *r, const struct evse_rcm_levels *l
 /** Selbsttest fortschreiben (mindestens alle 10 ms aufrufen). */
 void evse_rcm_selftest_update(struct evse_rcm *r, const struct evse_rcm_levels *lv, evse_ms_t now);
 
-/** Selbsttest abbrechen (SOLL-SM-42): gilt als nicht bestanden, kein Fehler. */
+/** Selbsttest abbrechen (SOLL-SM-42): gilt als nicht bestanden, kein Fehler.
+ *  Nach dem Testimpuls folgt EVSE_RCM_TEST_ABORTING bis zum Ende des Sensorablaufs. */
 void evse_rcm_selftest_abort(struct evse_rcm *r);
 
 #ifdef __cplusplus

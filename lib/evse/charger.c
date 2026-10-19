@@ -138,7 +138,8 @@ static void plug_reset(struct evse *e)
 	e->wake_done = false;
 	e->wake_phase = 0;
 	e->lock_attempts = 0;
-	e->unlock_attempts = 0;
+	/* unlock_attempts bleibt: erschoepfte Entriegelungsversuche gelten bis
+	 * zum naechsten Fahrzeug bzw. Neustart (kein Dauerversuch am Motor) */
 	e->lock_fail_unlocking = false;
 	e->unlock_fail_relocking = false;
 	e->relock_mode = false;
@@ -273,9 +274,10 @@ static void protect(struct evse *e, const struct evse_inputs *in, evse_ms_t now)
 {
 	/* SOLL-PROT-04: Fehlerstrom in jedem Zustand */
 	e->rcm_lv = in->rcm;
-	if (e->rcm.test == EVSE_RCM_TEST_RUNNING) {
+	if (e->rcm.test == EVSE_RCM_TEST_RUNNING || e->rcm.test == EVSE_RCM_TEST_ABORTING) {
 		evse_rcm_selftest_update(&e->rcm, &in->rcm, now);
-	} else if (evse_rcm_monitor(&e->rcm, &in->rcm)) {
+	}
+	if (e->rcm.test != EVSE_RCM_TEST_RUNNING && evse_rcm_monitor(&e->rcm, &in->rcm)) {
 		contactor_off(e, now);
 	}
 
@@ -470,7 +472,7 @@ static void rcm_retest(struct evse *e, enum evse_cp_state raw, evse_ms_t now)
 {
 	/* SOLL-PROT-11 (3), F13 */
 	if (!(e->errors & EVSE_ERR_RCM_ANY) || raw != EVSE_CP_A || e->contactor ||
-	    e->rcm.test == EVSE_RCM_TEST_RUNNING) {
+	    e->rcm.test == EVSE_RCM_TEST_RUNNING || e->rcm.test == EVSE_RCM_TEST_ABORTING) {
 		return;
 	}
 	if (e->rcm_retest_last != EVSE_MS_NONE &&
@@ -484,6 +486,9 @@ static void rcm_retest(struct evse *e, enum evse_cp_state raw, evse_ms_t now)
 static void clear_at_a(struct evse *e)
 {
 	e->errors &= ~EVSE_ERR_RESET_AT_A;
+	if (e->unlock_attempts >= EVSE_UNLOCK_ATTEMPTS) {
+		e->errors |= EVSE_ERR_UNLOCK; /* Schloss klemmt weiterhin */
+	}
 	evse_cp_clear_diode(&e->cp);
 	e->rt.unlock_request = false;
 	plug_reset(e);
@@ -515,7 +520,7 @@ static bool prelude(struct evse *e, enum evse_cp_state raw, evse_ms_t now)
 		return true;
 	}
 	/* Rang 4 */
-	if (raw == EVSE_CP_A && pwm_states) {
+	if (raw == EVSE_CP_A && (pwm_states || s == EVSE_S4_SELFTEST)) {
 		contactor_off(e, now);
 		after_unplug(e, now);
 		return true;
@@ -585,6 +590,7 @@ static void st_init(struct evse *e, enum evse_lock_result res, evse_ms_t now)
 	}
 	if (res == EVSE_LOCK_RES_FAIL) {
 		e->errors |= EVSE_ERR_UNLOCK;
+		e->unlock_attempts++;
 	}
 	if (evse_elapsed_ge(now, e->start_ms, EVSE_STARTUP_MS) &&
 	    e->rcm.test != EVSE_RCM_TEST_RUNNING && !evse_lock_busy(&e->lock)) {
@@ -614,12 +620,17 @@ static void st_idle(struct evse *e, enum evse_cp_state raw, evse_ms_t now)
 		goto_state(e, EVSE_S10_UNAVAILABLE, now);
 		return;
 	}
-	if (raw == EVSE_CP_A && e->lock_cfg.d4 && !dip(e, 9) && locked(e)) {
+	if (raw == EVSE_CP_A && e->lock_cfg.d4 && !dip(e, 9) && locked(e) &&
+	    e->unlock_attempts < EVSE_UNLOCK_ATTEMPTS) {
 		goto_state(e, EVSE_S8_UNLOCKING, now); /* SOLL-SM-11 */
 		return;
 	}
-	if ((dip(e, 9) && e->rt.lock_request) || cp_is_bcd(raw)) {
-		goto_state(e, EVSE_S2_LOCKING, now); /* SOLL-SM-12/13 */
+	if (cp_is_bcd(raw)) {
+		e->unlock_attempts = 0; /* neues Fahrzeug */
+	}
+	/* SOLL-SM-12/13; mit D9 nur bei Verriegelungswunsch (sonst S1<->S2-Pendeln) */
+	if (dip(e, 9) ? e->rt.lock_request : cp_is_bcd(raw)) {
+		goto_state(e, EVSE_S2_LOCKING, now);
 	}
 }
 
@@ -706,7 +717,8 @@ static void st_wait(struct evse *e, enum evse_cp_state raw, evse_ms_t now)
 		return;
 	}
 	/* SOLL-SM-30 */
-	if (e->release && !e->cur.blocked && !e->avail_missing && cp_is_bcd(raw)) {
+	if (e->release && !e->cur.blocked && !e->avail_missing && cp_is_bcd(raw) &&
+	    e->rcm.test != EVSE_RCM_TEST_ABORTING) {
 		goto_state(e, e->selftest_passed ? EVSE_S5_PWM_ON : EVSE_S4_SELFTEST, now);
 	}
 }

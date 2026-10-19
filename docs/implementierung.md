@@ -19,14 +19,18 @@ keine elektrische Sicherheit.
 | [charger.c](../lib/evse/charger.c) | Automat S0..S10, Vorrangliste, Weckfolge, Freigabe, Fehlermodell, LEDs, sicherer Zustand | 5, 9.2, 11, SOLL-PROT-01/41, SOLL-LOCK-20..41, SOLL-RT-20 | `tests/evse/charger` (25 Szenarien mit Simulationsmodell) |
 | [outputs.c](../lib/evse/outputs.c) | Ausgangsfunktionen 0..42 | 9.3 | evse_charger (Auszug) |
 
-Aufruf: `scripts/run-tests.sh` (82 Tests, alle bestanden am 2026-10-19). Groesse fuer
-Cortex-M3 (`arm-zephyr-eabi-gcc` 14.3.0, `-Os`, ohne Linker-GC): **8 828 B** Code, keine
-statischen Daten.
+Aufruf: `scripts/run-tests.sh` (twister; `--simple` ohne twister, `--coverage` mit gcovr).
+Stand 2026-10-19: **107 Tests, alle bestanden**; Abdeckung `lib/evse` **95 % Zeilen, 88 %
+Verzweigungen** (gcovr, alle drei Suiten). Twister-/Testabhaengigkeiten wurden am 2026-10-19 mit
+Freigabe des Nutzers in `~/zephyrproject/.venv` installiert (`requirements-run-test.txt`,
+`requirements-build-test.txt`); `twister --coverage` bricht in dieser Version ab, daher ruft das
+Skript gcovr direkt auf. Groesse fuer Cortex-M3 (`arm-zephyr-eabi-gcc` 14.3.0, `-Os`, ohne
+Linker-GC): ca. **8,8 KB** Code, keine statischen Daten.
 
-## Bei der Implementierung festgelegte Details (zur Abstimmung)
+## Bei der Implementierung festgelegte Details
 
-Diese Punkte waren in der Spezifikation nicht eindeutig; die gewaehlte Loesung ist
-vorlaeufig und kann geaendert werden.
+Diese Punkte waren in der Spezifikation nicht eindeutig. Die ersten sieben hat der Nutzer am
+2026-10-19 bestaetigt ("in Ordnung"); die folgenden sind danach hinzugekommen.
 
 | Punkt | Umsetzung | Grund |
 | --- | --- | --- |
@@ -37,6 +41,18 @@ vorlaeufig und kann geaendert werden.
 | Code 38 Nachlauf | aktiv bei Code-19-Eingang und Status A/B oder < 1 s nach Schuetz-Aus | Ist-Spez. §12 |
 | S9 bei CP A mit Schutzfehler | Entriegeln ist trotzdem erlaubt (Schuetz aus), bis 4 Versuche | sonst bliebe der Stecker bei z. B. RCM-Sensorfehler verriegelt |
 | Ladeerlaubnis/Freigabe | Freigabe verlangt **keinen** aktiven Fehler (strenger als Original, das nur einzelne Fehler prueft) | SOLL-EN-02 |
+| *neu:* Entriegeln klemmt | nach 4 Fehlversuchen bleiben Zaehler und ERR-UNLOCK bis zum naechsten Fahrzeug bzw. Neustart; keine weiteren Impulse. Der misslungene Start-Entriegelungsversuch zaehlt mit | sonst Dauerversuche am blockierten Motor alle paar Sekunden (auch das Original versucht es endlos) |
+| *neu:* D9 ohne Verriegelungswunsch | S1 geht mit D9 nur bei ML = 1 nach S2 | vorher Pendeln S1<->S2 in jedem Zyklus |
+| *neu:* Abbruch des RCM-Selbsttests nach dem Testimpuls | Zustand "Abbruch laeuft" bis 3,4 s nach Teststart: SWITCH_1/2 ausgeblendet, ERR_OUT wirksam; kein neuer Test, kein Weg zum Schuetz in dieser Zeit | der Sensor faehrt seinen Trip-Test zu Ende; dessen Ausloesungen wurden sonst als echter Fehlerstrom gewertet |
+
+## Durch Tests gefundene und behobene Fehler (2026-10-19)
+
+1. S7 mit Ziel "nicht verfuegbar": Die Vorrangliste meldete jeden Zyklus "behandelt", das
+   geordnete Ende lief nie weiter; bei nicht reagierendem Fahrzeug waere das Schuetz an
+   geblieben. Regressionstest `test_availability_lost_vehicle_ignores`.
+2. Abstecken waehrend des RCM-Selbsttests (S4) wurde erst nach Testende behandelt (Rang 4 jetzt
+   S4..S7, Spezifikation angepasst).
+3. Abbruch des Selbsttests erzeugte einen falschen, verriegelnden Fehlerstromfehler (siehe oben).
 
 ## Noch nicht umgesetzt
 

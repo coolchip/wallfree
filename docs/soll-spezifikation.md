@@ -307,7 +307,7 @@ bestimmt die Reaktion. **[ABW]** Im Original ueberschreiben spaetere Zuweisungen
 | 1 | Schutzfehler (Klasse P, Abschnitt 7/11) aktiv | Schuetz ist bereits durch den Schutzpfad aus; -> S9 bzw. S10 (Schuetzfehler) | E1, E2, E7a |
 | 2 | Konfigurationsfehler (Drehschalter A..F, SOLL-LOCK-03) | -> S9, kein Laden bis Neustart | E11 |
 | 3 | CP-Rohzustand E oder F, ERR-CP-INVALID, ERR-DIODE | Schuetz **sofort** aus -> S9 bzw. S10 | Ist §6 (Aus(0) bei CP-Roh A/B/F) |
-| 4 | CP-Rohzustand A in S5..S7 | Schuetz **sofort** aus -> S8 (bzw. S1 ohne Verriegelung) | Ist Z7 |
+| 4 | CP-Rohzustand A in S4..S7 | Schuetz **sofort** aus (Selbsttest abbrechen) -> S8 (bzw. S1 ohne Verriegelung) | Ist Z7, SOLL-SM-42 |
 | 5 | Fehler der Klasse V mit Sofortabschaltung (Tabelle 11.1) | Schuetz sofort aus -> S9 | F8 |
 | 6 | Verfuegbarkeit entzogen | geordnetes Ende (S7) -> S10 | E7b |
 | 7 | uebrige Fehler der Klasse V | geordnetes Ende (S7) -> S9 | F8 |

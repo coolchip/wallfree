@@ -41,6 +41,42 @@ ZTEST(evse_current, test_duty_never_exceeds)
 	}
 }
 
+ZTEST(evse_current, test_ma_from_duty_ranges)
+{
+	/* HB S. 39 Tab. 6-3 */
+	zassert_equal(evse_ma_from_duty(0), 0);
+	zassert_equal(evse_ma_from_duty(50), 0, "5 %: digitale Kommunikation");
+	zassert_equal(evse_ma_from_duty(79), 0);
+	zassert_equal(evse_ma_from_duty(80), 6000);
+	zassert_equal(evse_ma_from_duty(99), 6000);
+	zassert_equal(evse_ma_from_duty(100), 6000);
+	zassert_equal(evse_ma_from_duty(850), 51000);
+	zassert_equal(evse_ma_from_duty(851), 52750);
+	zassert_equal(evse_ma_from_duty(960), 80000);
+	zassert_equal(evse_ma_from_duty(965), 80000);
+	zassert_equal(evse_ma_from_duty(970), 80000);
+	zassert_equal(evse_ma_from_duty(980), 85000);
+	zassert_equal(evse_ma_from_duty(1000), 0, "100 %: keine PWM");
+	zassert_equal(evse_duty_from_ma(100000), 960, "auf 80 A begrenzt");
+	zassert_equal(evse_duty_from_ma(-5), EVSE_DUTY_OFF);
+}
+
+ZTEST(evse_current, test_implausible)
+{
+	/* SOLL-CUR-13: Slot ueber hardware kann nur durch Fehler entstehen */
+	in.hardware_ma = 90000;
+	in.external_ma = 90000;
+	evse_current_eval(&in, &out);
+	zassert_true(out.implausible);
+	zassert_true(out.blocked);
+	zassert_equal(out.duty, EVSE_DUTY_OFF);
+	in.hardware_ma = 16000;
+	in.external_ma = -1;
+	evse_current_eval(&in, &out);
+	zassert_equal(out.i_ma, 0);
+	zassert_true(out.blocked);
+}
+
 ZTEST(evse_current, test_minimum_of_slots)
 {
 	evse_current_eval(&in, &out);

@@ -15,6 +15,7 @@ void sim_init(struct sim *s, const struct evse_config *cfg)
 	s->ld_model = LD_MODEL_KUESTER;
 	s->pulse_start = EVSE_MS_NONE;
 	s->last_edge = EVSE_MS_NONE;
+	s->supply_mv = 12000;
 }
 
 void sim_start(struct sim *s)
@@ -53,7 +54,12 @@ static void model(struct sim *s, struct evse_inputs *in)
 	for (int i = 0; i < EVSE_DIN_COUNT; i++) {
 		in->din_mv[i] = s->din_mv[i];
 	}
-	in->supply_mv = 12000;
+	in->supply_mv = s->supply_mv;
+	in->meter_valid = s->meter_valid;
+	for (int i = 0; i < 3; i++) {
+		in->phase_ma[i] = s->phase_ma[i];
+		in->phase_v[i] = 230;
+	}
 
 	/* Bender: SWITCH_2 330 ms, SWITCH_1 770 ms nach Testbeginn, Reclose 1,9 s */
 	if (o->rcm_test && s->test_pulse_at == EVSE_MS_NONE) {

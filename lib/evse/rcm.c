@@ -34,6 +34,14 @@ bool evse_rcm_monitor(struct evse_rcm *r, const struct evse_rcm_levels *lv)
 		/* erwartete Ausloesungen bewertet der Selbsttest */
 		return false;
 	}
+	if (r->test == EVSE_RCM_TEST_ABORTING) {
+		/* Sensor fuehrt den Trip-Test noch aus; nur ERR_OUT ist ein Fehler */
+		if (lv->err) {
+			r->faults |= EVSE_RCM_F_SENSOR;
+			return true;
+		}
+		return false;
+	}
 	uint8_t f = evse_rcm_check(lv);
 
 	r->faults |= f;
@@ -63,10 +71,17 @@ static void fail(struct evse_rcm *r, uint8_t bits)
 
 void evse_rcm_selftest_update(struct evse_rcm *r, const struct evse_rcm_levels *lv, evse_ms_t now)
 {
+	evse_ms_t t = now - r->test_since;
+
+	if (r->test == EVSE_RCM_TEST_ABORTING) {
+		if (t >= EVSE_RCM_T_RELEASED) {
+			r->test = EVSE_RCM_TEST_IDLE;
+		}
+		return;
+	}
 	if (r->test != EVSE_RCM_TEST_RUNNING) {
 		return;
 	}
-	evse_ms_t t = now - r->test_since;
 
 	/* ERR_OUT ist waehrend des ganzen Tests ein Fehler (jede Abweichung, SOLL-PROT-10) */
 	if (lv->err) {
@@ -141,6 +156,7 @@ void evse_rcm_selftest_abort(struct evse_rcm *r)
 {
 	if (r->test == EVSE_RCM_TEST_RUNNING) {
 		r->out_test = false;
-		r->test = EVSE_RCM_TEST_IDLE;
+		/* vor dem Impuls sofort beendet, danach Sensorablauf abwarten */
+		r->test = r->test_step >= 2 ? EVSE_RCM_TEST_ABORTING : EVSE_RCM_TEST_IDLE;
 	}
 }
