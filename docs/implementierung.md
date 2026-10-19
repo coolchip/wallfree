@@ -67,10 +67,50 @@ Die Festlegung "Entriegeln klemmt" hat der Nutzer am 2026-10-19 ebenfalls bestae
    S4..S7, Spezifikation angepasst).
 3. Abbruch des Selbsttests erzeugte einen falschen, verriegelnden Fehlerstromfehler (siehe oben).
 
+## Anwendung und Hardwareschicht (`app/`, nur gebaut)
+
+Stand 2026-10-19. Baut fuer `ev_cc_ac1` ohne Warnung: **225 508 B Flash** (von 320 KB),
+**83 324 B RAM**, noch ohne HTTP-Server. **Nicht auf Hardware ausgefuehrt** (Sicherheitsgrenzen).
+
+```sh
+cd ~/zephyrproject && . .venv/bin/activate && cd zephyr
+west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d ~/zephyrproject/build-wallfree
+```
+
+| Datei | Inhalt | Anforderungen |
+| --- | --- | --- |
+| [hw_stm32.c](../app/src/hw_stm32.c) | TIM1 CH1/PE9 (PSC 49, center-aligned Modus 1, ARR 1000, 1 kHz), ADC1 10 Raenge in zwei 5er-Gruppen, Start im TIM1-Update-Interrupt bei CNT < 50 bzw. > 950, DMA2 Stream0 zirkular 80 Worte, Skalierung wie Original; MCO1 = HSE an PA8; PA15-Resetimpuls 11 ms; fruehe sichere Pinpegel; sicherer Zustand per Register | SOLL-RT-01..03, SOLL-IO-02, SOLL-BOOT-02/09, SOLL-RT-20 |
+| [hw_gpio.c](../app/src/hw_gpio.c) | alle Ein-/Ausgaenge aus `zephyr,user`; RCM-Flankeninterrupt schaltet PE2 per Register ab und setzt einen Schutz-Latch, der Ein-Befehle sperrt; PE0-Flankenzeitstempel; PB2 erst nach der ersten Ausgabe | SOLL-PROT-01/05, SOLL-IO-01/21 |
+| [evse_task.c](../app/src/evse_task.c) | Schutzthread (Prio 0, 1 ms): RCM-Pegel zyklisch, Ueberwachung Automat (100 ms) und Messbloecke (50 ms), IWDG 250 ms; Automatenthread (Prio 2, 10 ms und je Messblock); Fault-Handler: sicherer Zustand, Neustart | SOLL-RT-04/05/10..12/21 |
+| [main.c](../app/src/main.c) | Startablauf: GPIO, Reset-Taster 5 s, DIP/Drehschalter, Messung, Threads | SOLL-BOOT-01..10/20 |
+| [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `evse param list/get/set`, `evse ack` ueber die Parametertabelle (Telnet) | SOLL-SH-01/02/06, SOLL-SH-19/20 |
+
+Pruefung am Build (2026-10-19): Systemtakt 100 MHz (`CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC`),
+Ladeadresse `0x08010000`, Interrupttabelle: TIM1_UP -> `tim1_up_isr`, DMA2_Stream0 ->
+`dma2_s0_isr`, EXTI0/3/4/9_5 -> Zephyr-GPIO-Treiber, ETH -> Ethernet-Treiber. RM0033 Abb. 98:
+CCR = ARR haelt den Ausgang im Center-aligned-Modus dauerhaft auf 1 (CP +12 V DC).
+
+Korrigiert: Die Board-Beschreibung stellte noch 120 MHz ein (aus dem Groessentest); jetzt 100 MHz
+(PLLN 200) wie entschieden. TIM1/ADC1 sind aus der Board-Beschreibung entfernt, weil die
+Anwendung sie direkt steuert; der Groessentest bringt sie per `spike-size/app.overlay` wieder mit.
+
+### Annahmen der Hardwareschicht (in H1 zu pruefen)
+
+- Pinbelegung, aktive Pegel und ADC-Skalierung stammen aus dem Original (Firmwarebefunde,
+  keine Schaltplanbestaetigung), insbesondere RCM "High = ausgeloest" (Inversion zum Bender-
+  Ausgang) und PE2 High = Schuetz ein.
+- Reaktionszeit RCM-Flanke -> PE2 Low ueber den Zephyr-GPIO-Callback: Ziel <= 1 ms
+  (SOLL-PROT-05), am Oszilloskop zu messen.
+- MCO1 an PA8 und Reset an PA15 fuer den PHY sind Hypothesen.
+
+### Noch offen in der Hardwareschicht
+
+- Resetgrund ueber den Neustart sichern (SOLL-RT-14), Neustart nur ohne Ladung bei haengenden
+  Netz-Threads (SOLL-RT-11), IWDG-Verlaengerung fuer Flash-Loeschen (SOLL-RT-13).
+- Werksreset und Verriegelungszustand persistent (mit dem Parameterspeicher).
+
 ## Noch nicht umgesetzt
 
-- Hardwareschicht (ADC/DMA, TIM1, GPIO, EXTI-Schutzpfad mit direktem PE2-Abschalten,
-  IWDG und Thread-Watchdog, Fault-Handler) - SOLL-RT, SOLL-IO, SOLL-PROT-05.
 - Parameterspeicher (SOLL-NVM; Kennungen und `evse_param_restore()` sind vorbereitet),
   Werksreset, Startablauf auf der Hardware (SOLL-BOOT).
 - System- und Netzparameter (Hostname, IP, Zugangsdaten, Telnet) gehoeren nicht zur Ladelogik

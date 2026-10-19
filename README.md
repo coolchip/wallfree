@@ -14,6 +14,7 @@ koennen Menschen gefaehrden. Software-Tests belegen keine elektrische Sicherheit
 | [docs/soll-spezifikation.md](docs/soll-spezifikation.md) | Soll-Verhalten der Firmware (Kennungen `SOLL-*`) |
 | [docs/architektur.md](docs/architektur.md) | Rahmen: Zephyr, Speicheraufteilung, Bootloader, Parameterspeicher, WARP-/evcc-Schnittstelle |
 | [boards/phoenix/ev_cc_ac1/](boards/phoenix/ev_cc_ac1/) | vorlaeufige Zephyr-Board-Beschreibung |
+| [app/](app/) | Anwendung fuer die Steuerung: Hardwareschicht, Threads, Shell (nur bauen) |
 | [spike-size/](spike-size/) | Groessentest (nur bauen) |
 | [include/wallfree/evse/](include/wallfree/evse/), [lib/evse/](lib/evse/) | Ladelogik als Zephyr-Modul, reines C ohne Hardwarebezug |
 | [docs/implementierung.md](docs/implementierung.md) | Implementierungsstand, Zuordnung Modul -> SOLL, offene Punkte |
@@ -25,7 +26,7 @@ Zephyr v4.4.2, Zephyr-SDK 1.0.1:
 
 ```sh
 cd ~/zephyrproject && . .venv/bin/activate && cd zephyr
-west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/spike-size -d ~/zephyrproject/build-wallfree-spike
+west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d ~/zephyrproject/build-wallfree
 ```
 
 ## Herkunft der Befunde

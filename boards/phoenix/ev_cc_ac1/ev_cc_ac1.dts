@@ -8,6 +8,7 @@
 /dts-v1/;
 #include <st/f2/stm32f207Xe.dtsi>
 #include <st/f2/stm32f207v(c-e-f-g)tx-pinctrl.dtsi>
+#include <zephyr/dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Phoenix Contact EV-CC-AC1-M3-CBC-RCM-ETH";
@@ -19,9 +20,56 @@
 		zephyr,code-partition = &app_partition;
 		zephyr,entropy = &rng;
 	};
+
+	/*
+	 * Pins der Ladelogik (Firmwarebefunde des Originals, keine Schaltplanbestaetigung;
+	 * Soll-Spezifikation Abschnitt 2). TIM1 (PE9), ADC1 und DMA2 Stream0 konfiguriert
+	 * die Anwendung direkt (LL), daher hier ohne Zephyr-Treiberknoten.
+	 */
+	zephyr,user {
+		contactor-gpios = <&gpioe 2 GPIO_ACTIVE_HIGH>;        /* PE2 Schuetz (C1/C2) */
+		d5-out-gpios = <&gpioe 1 GPIO_ACTIVE_HIGH>;           /* PE1, Ziel offen */
+		ct-sense-gpios = <&gpioe 0 GPIO_ACTIVE_HIGH>;         /* PE0 Klemme CT [HYP] */
+		rcm-sw1-gpios = <&gpioe 3 GPIO_ACTIVE_HIGH>;          /* SWITCH_1, High = ausgeloest [HYP] */
+		rcm-sw2-gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>;          /* SWITCH_2 */
+		rcm-err-gpios = <&gpioe 6 GPIO_ACTIVE_HIGH>;          /* ERR_OUT */
+		rcm-test-gpios = <&gpioe 5 (GPIO_OPEN_DRAIN | GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* TEST_IN */
+		lock-gpios = <&gpioa 9 GPIO_ACTIVE_LOW>;              /* R1/R2 Verriegeln, Low-Impuls */
+		unlock-gpios = <&gpioa 10 GPIO_ACTIVE_LOW>;           /* Entriegeln */
+		dout-gpios = <&gpiob 4 GPIO_ACTIVE_HIGH>,             /* ER */
+			     <&gpiob 5 GPIO_ACTIVE_HIGH>,             /* LR */
+			     <&gpiob 6 GPIO_ACTIVE_HIGH>,             /* VR */
+			     <&gpiob 7 GPIO_ACTIVE_HIGH>;             /* CR */
+		dout-enable-gpios = <&gpiob 2 GPIO_ACTIVE_HIGH>;      /* DRV8844 nSLEEP [HYP] */
+		led-gpios = <&gpioe 15 GPIO_ACTIVE_LOW>,              /* Power */
+			    <&gpioe 14 GPIO_ACTIVE_LOW>,              /* Error */
+			    <&gpioe 12 GPIO_ACTIVE_LOW>,              /* Connect */
+			    <&gpioe 13 GPIO_ACTIVE_LOW>;              /* Ready */
+		led-aux-gpios = <&gpioe 10 GPIO_ACTIVE_LOW>,          /* Modem, aus */
+				<&gpioe 11 GPIO_ACTIVE_LOW>,
+				<&gpioc 2 GPIO_ACTIVE_LOW>;           /* Netzwerk [HYP] */
+		dip-gpios = <&gpiod 15 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>, /* D1 */
+			    <&gpiod 14 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>,
+			    <&gpiod 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>,
+			    <&gpiod 12 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>,
+			    <&gpiod 11 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>,
+			    <&gpiod 10 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>,
+			    <&gpioa 12 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>,
+			    <&gpioa 11 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>,
+			    <&gpiob 15 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>,
+			    <&gpiob 14 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* D10 */
+		rotary-gpios = <&gpioc 9 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>, /* Bit 0 */
+			       <&gpioc 8 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>,
+			       <&gpioc 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>,
+			       <&gpioc 7 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* Bit 3 */
+		reset-button-gpios = <&gpiod 2 GPIO_ACTIVE_LOW>;      /* [HYP] */
+		phy-reset-gpios = <&gpioa 15 GPIO_ACTIVE_LOW>;        /* [HYP] PHY RST# */
+		rs485-de-gpios = <&gpioc 12 GPIO_ACTIVE_HIGH>,        /* nicht genutzt, Low */
+				 <&gpiod 7 GPIO_ACTIVE_HIGH>;
+	};
 };
 
-/* HSE 25 MHz (Quarz laut Nutzer); 25/25*240/2 = 120 MHz (Original: 100 MHz) */
+/* HSE 25 MHz (Quarz laut Nutzer); 25/25*200/2 = 100 MHz wie Original (Nutzer 2026-10-19) */
 &clk_hse {
 	clock-frequency = <DT_FREQ_M(25)>;
 	status = "okay";
@@ -29,7 +77,7 @@
 
 &pll {
 	div-m = <25>;
-	mul-n = <240>;
+	mul-n = <200>;
 	div-p = <2>;
 	div-q = <5>;
 	clocks = <&clk_hse>;
@@ -38,7 +86,7 @@
 
 &rcc {
 	clocks = <&pll>;
-	clock-frequency = <DT_FREQ_M(120)>;
+	clock-frequency = <DT_FREQ_M(100)>;
 	ahb-prescaler = <1>;
 	apb1-prescaler = <4>;
 	apb2-prescaler = <2>;
@@ -67,26 +115,7 @@
 	};
 };
 
-/* CP-PWM: TIM1 CH1 auf PE9 */
-&timers1 {
-	status = "okay";
-	st,prescaler = <59>;
-
-	pwm1: pwm {
-		status = "okay";
-		pinctrl-0 = <&tim1_ch1_pe9>;
-		pinctrl-names = "default";
-	};
-};
-
-/* CP+ PA0 (IN0), CP- PB1 (IN9); weitere Kanaele siehe docs/takt-adc-gpio.md */
-&adc1 {
-	status = "okay";
-	pinctrl-0 = <&adc1_in0_pa0 &adc1_in9_pb1>;
-	pinctrl-names = "default";
-	st,adc-clock-source = "SYNC";
-	st,adc-prescaler = <4>;
-};
+/* CP-PWM (TIM1 CH1, PE9) und ADC1/DMA2: direkt in der Anwendung, siehe app/src/hw_stm32.c */
 
 &iwdg {
 	status = "okay";
@@ -128,7 +157,7 @@
 			reg = <0x00010000 DT_SIZE_K(320)>;
 		};
 
-		/* Sektor 7: eigene Parameter (Option P1, nicht entschieden) */
+		/* Sektor 7: eigene Parameter (Option P1, vorbereiten) */
 		storage_partition: partition@60000 {
 			label = "storage";
 			reg = <0x00060000 DT_SIZE_K(128)>;

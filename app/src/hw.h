@@ -1,0 +1,68 @@
+/* SPDX-License-Identifier: Apache-2.0 */
+/*
+ * Hardwareschicht der Steuerung EV-CC-AC1-M3-CBC-RCM-ETH.
+ * Pinbelegung und Skalierung: Firmwarebefunde des Originals (wallbe2,
+ * docs/takt-adc-gpio.md), keine Schaltplanbestaetigung. Nur gebaut, auf
+ * Hardware nicht ausgefuehrt und nicht freigegeben.
+ */
+#ifndef WALLFREE_APP_HW_H_
+#define WALLFREE_APP_HW_H_
+
+#include <zephyr/kernel.h>
+#include <wallfree/evse/charger.h>
+
+/** Ein Messblock: Mittel ueber 8 PWM-Perioden, Skalierung wie Original ("mV"). */
+struct hw_block {
+	int32_t cp_pos;
+	int32_t cp_neg;
+	int32_t pp;
+	int32_t din[EVSE_DIN_COUNT];
+	int32_t supply;
+	int32_t temp_raw;
+	uint32_t seq;
+	int64_t at_ms;
+};
+
+/* ---- hw_stm32.c: TIM1, ADC1, DMA2, MCO1, sicherer Zustand ---- */
+
+/** CP-PWM und Messung starten (SOLL-RT-01..03). */
+int hw_analog_init(void);
+
+/** Tastgrad in Promille (0 = -12 V, 1000 = +12 V). */
+void hw_cp_set_duty(uint16_t permille);
+
+/** Letzten Messblock kopieren. @return false, wenn noch keiner vorliegt. */
+bool hw_get_block(struct hw_block *out);
+
+/** Wird bei jedem neuen Messblock gegeben. */
+extern struct k_sem hw_block_sem;
+
+/**
+ * Sicherer Zustand ueber direkte Registerzugriffe, auch aus Fault-Handlern
+ * (SOLL-RT-20/21): Schuetz aus, CP -12 V, Aktor in Ruhe, kein RCM-Test.
+ */
+void hw_safe_state_regs(void);
+
+/** Schuetz sofort aus (Registerzugriff, ISR-tauglich). */
+void hw_contactor_off_regs(void);
+
+/* ---- hw_gpio.c: digitale Ein-/Ausgaenge, Schutz-Interrupts ---- */
+
+int hw_gpio_init(void);
+void hw_gpio_read_switches(evse_dip_t *dip, uint8_t *rotary);
+bool hw_gpio_reset_button(void);
+void hw_gpio_read_rcm(struct evse_rcm_levels *lv);
+int64_t hw_gpio_last_sense_edge(void);
+
+/**
+ * Ausgaenge setzen. Das Schuetz wird nur eingeschaltet, wenn kein
+ * Schutz-Latch des ISR-Pfads ansteht (SOLL-PROT-01).
+ */
+void hw_gpio_apply(const struct evse_outputs *o);
+
+/** Schutz-Latch: gesetzt durch RCM-Interrupt bzw. Schutzthread. */
+bool hw_protect_latched(void);
+void hw_protect_trip(void);
+void hw_protect_clear(void);
+
+#endif /* WALLFREE_APP_HW_H_ */
