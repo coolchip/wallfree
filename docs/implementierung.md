@@ -30,7 +30,8 @@ Linker-GC): ca. **8,8 KB** Code, keine statischen Daten.
 ## Bei der Implementierung festgelegte Details
 
 Diese Punkte waren in der Spezifikation nicht eindeutig. Die ersten sieben hat der Nutzer am
-2026-10-19 bestaetigt ("in Ordnung"); die folgenden sind danach hinzugekommen.
+2026-10-19 bestaetigt ("in Ordnung"); die mit *neu* markierten sind danach hinzugekommen.
+Die Festlegung "Entriegeln klemmt" hat der Nutzer am 2026-10-19 ebenfalls bestaetigt.
 
 | Punkt | Umsetzung | Grund |
 | --- | --- | --- |
@@ -41,7 +42,7 @@ Diese Punkte waren in der Spezifikation nicht eindeutig. Die ersten sieben hat d
 | Code 38 Nachlauf | aktiv bei Code-19-Eingang und Status A/B oder < 1 s nach Schuetz-Aus | Ist-Spez. §12 |
 | S9 bei CP A mit Schutzfehler | Entriegeln ist trotzdem erlaubt (Schuetz aus), bis 4 Versuche | sonst bliebe der Stecker bei z. B. RCM-Sensorfehler verriegelt |
 | Ladeerlaubnis/Freigabe | Freigabe verlangt **keinen** aktiven Fehler (strenger als Original, das nur einzelne Fehler prueft) | SOLL-EN-02 |
-| *neu:* Entriegeln klemmt | nach 4 Fehlversuchen bleiben Zaehler und ERR-UNLOCK bis zum naechsten Fahrzeug bzw. Neustart; keine weiteren Impulse. Der misslungene Start-Entriegelungsversuch zaehlt mit | sonst Dauerversuche am blockierten Motor alle paar Sekunden (auch das Original versucht es endlos) |
+| *neu, bestaetigt:* Entriegeln klemmt | nach 4 Fehlversuchen bleiben Zaehler und ERR-UNLOCK bis zum naechsten Fahrzeug bzw. Neustart; keine weiteren Impulse. Der misslungene Start-Entriegelungsversuch zaehlt mit | sonst Dauerversuche am blockierten Motor alle paar Sekunden (auch das Original versucht es endlos) |
 | *neu:* D9 ohne Verriegelungswunsch | S1 geht mit D9 nur bei ML = 1 nach S2 | vorher Pendeln S1<->S2 in jedem Zyklus |
 | *neu:* Abbruch des RCM-Selbsttests nach dem Testimpuls | Zustand "Abbruch laeuft" bis 3,4 s nach Teststart: SWITCH_1/2 ausgeblendet, ERR_OUT wirksam; kein neuer Test, kein Weg zum Schuetz in dieser Zeit | der Sensor faehrt seinen Trip-Test zu Ende; dessen Ausloesungen wurden sonst als echter Fehlerstrom gewertet |
 
