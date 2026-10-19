@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# Wallfree-Anwendung fuer die Steuerung (nur bauen, nicht flashen)
+# Wallfree-Anwendung fuer die Steuerung (nur bauen, nicht flashen) und fuer
+# native_sim (Ende-zu-Ende-Test auf dem PC, docs/implementierung.md)
 cmake_minimum_required(VERSION 3.20.0)
 list(APPEND BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 list(APPEND ZEPHYR_EXTRA_MODULES ${CMAKE_CURRENT_SOURCE_DIR}/..)
@@ -7,8 +8,6 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(wallfree)
 target_sources(app PRIVATE
   src/main.c
-  src/hw_stm32.c
-  src/hw_gpio.c
   src/evse_task.c
   src/shell_evse.c
   src/storage.c
@@ -17,6 +16,14 @@ target_sources(app PRIVATE
   src/netcfg.c
   src/sysinfo.c
 )
+if(CONFIG_ARCH_POSIX)
+  # PC-Simulation (native_sim): Modell statt TIM1/ADC/GPIO, Neustart per execv
+  target_sources(app PRIVATE src/hw_sim.c)
+  target_sources(native_simulator INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src/sim_host.c)
+  target_include_directories(native_simulator INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+else()
+  target_sources(app PRIVATE src/hw_stm32.c src/hw_gpio.c)
+endif()
 # Ressourcenliste des HTTP-Servers (HTTP_RESOURCE_DEFINE)
 zephyr_linker_sources(SECTIONS sections-rom.ld)
 zephyr_linker_section(NAME http_resource_desc_wallfree_http KVMA RAM_REGION GROUP RODATA_REGION)

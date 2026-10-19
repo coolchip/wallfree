@@ -40,7 +40,7 @@
 
 LOG_MODULE_REGISTER(http_api, LOG_LEVEL_INF);
 
-#define HTTP_PORT      80
+#define HTTP_PORT      CONFIG_WALLFREE_HTTP_PORT
 #define BODY_MAX       1024
 #define OUT_MAX        1536
 #define WS_MAX         3     /* SOLL-API-07: mindestens 2 */
@@ -48,6 +48,7 @@ LOG_MODULE_REGISTER(http_api, LOG_LEVEL_INF);
 #define WS_STACK       2048
 #define WS_PRIO        11
 #define WS_SEND_MS     200
+#define WS_DRAIN_MS    2
 
 HTTP_SERVER_REGISTER_HEADER_CAPTURE(capture_auth, "Authorization");
 
@@ -702,31 +703,32 @@ static void ws_close(int i)
 	ws[i].sock = -1;
 }
 
-/* Eingehende Rahmen lesen und verwerfen; Abbau erkennen */
+/*
+ * Eingehende Rahmen lesen und verwerfen; Abbau erkennen. Ohne zsock_poll auf
+ * dem WebSocket-Deskriptor: websocket_recv_msg prueft den TCP-Socket selbst.
+ * Kurzer Timeout statt 0: Die Host-Sockets der PC-Simulation melden
+ * Ereignisse erst nach ihrem epoll-Intervall (1 ms); mit 0 blieben dort
+ * geschlossene Verbindungen dauerhaft belegt. Auf der Steuerung kostet das
+ * hoechstens WS_DRAIN_MS je Client und Zyklus.
+ */
 static void ws_drain(int i)
 {
-	struct zsock_pollfd pfd = {.fd = ws[i].sock, .events = ZSOCK_POLLIN};
 	uint8_t buf[64];
 
-	while (zsock_poll(&pfd, 1, 0) > 0) {
-		uint32_t type;
+	for (;;) {
+		uint32_t type = 0;
 		uint64_t remaining;
+		int n = websocket_recv_msg(ws[i].sock, buf, sizeof(buf), &type, &remaining,
+					   WS_DRAIN_MS);
 
-		if (pfd.revents & (ZSOCK_POLLERR | ZSOCK_POLLHUP | ZSOCK_POLLNVAL)) {
+		if (n == -EAGAIN) {
+			return;
+		}
+		if (n < 0 || (type & WEBSOCKET_FLAG_CLOSE)) {
 			ws_close(i);
 			return;
 		}
-		int n = websocket_recv_msg(ws[i].sock, buf, sizeof(buf), &type, &remaining, 0);
-
-		if (n < 0 && n != -EAGAIN) {
-			ws_close(i);
-			return;
-		}
-		if (n == 0 && (type & WEBSOCKET_FLAG_CLOSE)) {
-			ws_close(i);
-			return;
-		}
-		if (n <= 0) {
+		if (n == 0) {
 			return;
 		}
 	}
@@ -811,10 +813,15 @@ int http_api_start(void)
 	k_thread_create(&ws_thread, ws_stack, K_THREAD_STACK_SIZEOF(ws_stack), ws_entry, NULL,
 			NULL, NULL, WS_PRIO, 0, K_NO_WAIT);
 	k_thread_name_set(&ws_thread, "ws_push");
+#if defined(CONFIG_ARCH_POSIX)
+	http_port = hw_sim_http_port();
+#endif
 	int r = http_server_start();
 
 	if (r != 0) {
 		LOG_ERR("HTTP-Server: %d", r);
+	} else {
+		LOG_INF("HTTP-Server auf Port %u", http_port);
 	}
 	return r;
 }

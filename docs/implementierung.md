@@ -1,8 +1,9 @@
 # Implementierungsstand Ladelogik
 
 Stand: 2026-10-19. Hardwareunabhaengige Ladelogik, Parameterspeicher und API-Abbildung als Zephyr-Modul (reines C99), getestet
-auf dem PC (`native_sim/native/64`, ztest). **Nicht** auf Hardware ausgefuehrt; Tests belegen
-keine elektrische Sicherheit.
+auf dem PC (`native_sim/native/64`, ztest). Die ganze Anwendung laeuft zusaetzlich als
+PC-Simulation mit Ende-zu-Ende-Tests (Abschnitt "Ende-zu-Ende-Test auf dem PC"). **Nicht** auf
+Hardware ausgefuehrt; Tests belegen keine elektrische Sicherheit.
 
 ## Module und Anforderungen
 
@@ -86,6 +87,8 @@ Neue Festlegungen werden weiter mit *neu* markiert, bis sie bestaetigt sind.
 | *(Web):* Anmeldung | Oberflaeche hinter Digest wie die API (Anmeldedialog des Browsers); im Werkszugang nur Zugangsdaten-Seite; nach der Aenderung fragt der Browser neu | SOLL-API-07 |
 | *(Web):* Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickt beim WebSocket-Aufbau evtl. keine Anmeldung, auf Hardware ungeprueft), Abfrage alle 2 s | |
 | *(Web):* Sollstrom-Schieber | 6..32 A in 1-A-Schritten, dazu "Laden aus" (0) | evcc ueberschreibt den Wert, wenn verbunden |
+| *neu (API):* Erkennen geschlossener WebSockets | `websocket_recv_msg` mit 2 ms Timeout je Client und Zyklus statt `zsock_poll` auf dem WebSocket-Deskriptor | mit Timeout 0 bzw. Poll sahen die Host-Sockets der Simulation den Abbau nie; auf der Steuerung hoechstens 6 ms je 100 ms |
+| *neu (Bedienung):* Log vor Neustart | geordneter Neustart: Meldung, dann 200 ms fuer den Log-Thread, dann Reset (bei Fristablauf Schuetz sofort per Register aus); kein `LOG_PANIC` in Thread-Neustartpfaden, Meldungen der Ueberwachung koennen verloren gehen (Grund steht in BKP19) | `LOG_PANIC` blockierte mit verbundenem Telnet-Client die Systemworkqueue (siehe unten) |
 | Abbruch des RCM-Selbsttests nach dem Testimpuls | Zustand "Abbruch laeuft" bis 3,4 s nach Teststart: SWITCH_1/2 ausgeblendet, ERR_OUT wirksam; kein neuer Test, kein Weg zum Schuetz in dieser Zeit | der Sensor faehrt seinen Trip-Test zu Ende; dessen Ausloesungen wurden sonst als echter Fehlerstrom gewertet |
 
 ## Parameter: Festlegungen
@@ -127,8 +130,8 @@ Bereichskopfs.
 
 ## Anwendung und Hardwareschicht (`app/`, nur gebaut)
 
-Stand 2026-10-19. Baut fuer `ev_cc_ac1` ohne Warnung: **295 232 B Flash** (von 320 KB, 90 %),
-**113 916 B RAM** (87 %); Netz-/Systemparameter und Bremse +5,7 KB Flash, Weboberflaeche +12 KB,
+Stand 2026-10-19. Baut fuer `ev_cc_ac1` ohne Warnung: **295 388 B Flash** (von 320 KB, 90 %),
+**114 172 B RAM** (87 %); Korrekturen aus dem Ende-zu-Ende-Test +0,2 KB Flash/RAM; Netz-/Systemparameter und Bremse +5,7 KB Flash, Weboberflaeche +12 KB,
 Shell-Kommandos/Resetgrund/Fehlerhistorie +6 KB. Parameterspeicher: +8,2 KB Flash, +5,1 KB RAM. HTTP-/WebSocket-API:
 +37,8 KB Flash (HTTP-Server 13,5 KB, WebSocket 2,6 KB, PSA-SHA-1 aus tf-psa-crypto 5,9 KB),
 +22 KB RAM (vor allem 4 Client-Kontexte des HTTP-Servers, 9,7 KB). `tf-psa-crypto` wurde am
@@ -153,6 +156,7 @@ west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d ~/zephyrproject/build
 | [main.c](../app/src/main.c) | Startablauf: GPIO, Parameterspeicher (ungueltig -> neu anlegen), Reset-Taster 5 s -> Bereich loeschen, gespeicherte Werte laden, DIP/Drehschalter, Messung, Threads | SOLL-BOOT-01..10/20 |
 | [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `param list/get/set`, `current`, `enable`, `avail`, `pause`, `pwm5`, `lock`, `unlock`, `errors [clear]`, `selftest`, `reboot`, `ack`, `nvm`, `sys list/set`, `factory-reset confirm`, `import-original` (Telnet) | SOLL-SH-01..09/11, SOLL-SH-19/20 |
 | [sysinfo.c](../app/src/sysinfo.c) | Resetgrund beim Start, Firmwarestand (`git describe` beim Bauen), Laufzeit; `GET /system/info` | SOLL-RT-14 |
+| [hw_sim.c](../app/src/hw_sim.c), [sim_host.c](../app/src/sim_host.c) | nur `native_sim`: Hardwaremodell statt `hw_stm32.c`/`hw_gpio.c`, Neustart per `execv` (siehe unten) | – |
 
 Pruefung am Build (2026-10-19): Systemtakt 100 MHz (`CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC`),
 Ladeadresse `0x08010000`, Interrupttabelle: TIM1_UP -> `tim1_up_isr`, DMA2_Stream0 ->
@@ -202,6 +206,84 @@ Assert-Texte, LTO, Shell-Hilfe (zusammen ~100 KB).
   (SOLL-BOOT-31: Bootloader zuerst auslesen).
 - Zugriff auf RTC-Backup-Register ohne RTC-Takt (nur PWR-Takt und DBP) ist eine Annahme (H1).
 
+## Ende-zu-Ende-Test auf dem PC (native_sim, 2026-10-19)
+
+Dieselbe Anwendung (`app/`) baut auch fuer `native_sim/native/64` als Linux-Programm. Nur die
+Hardwareschicht ist ersetzt; Threads, Ladelogik, Parameterspeicher, HTTP/Digest/WebSocket,
+Weboberflaeche und Telnet-Shell sind der Code der Steuerung. Die Tests belegen nichts ueber die
+reale Hardware (Pegel, Zeiten, Interrupts, elektrische Sicherheit).
+
+```sh
+scripts/run-e2e.sh                # bauen (build/sim) und alle Tests (Python, nur Standardbibliothek)
+scripts/run-e2e.sh -k Faults      # Auswahl (unittest -k)
+scripts/sim-run.sh [--build] [--dip=0x109] [--rotary=5] [--http-port=8081] [--reset-button=6000]
+```
+
+`sim-run.sh` startet die Simulation zum Ausprobieren: Web/API `http://127.0.0.1:8081/`
+(Werkszugang `admin`/`wallfree`), Telnet-Shell `127.0.0.1:2323`, Flash in `build/sim-flash.bin`
+(loeschen = fabrikneu). Ports unter 1024 braeuchten Root-Rechte, daher 8081 und 2323.
+
+| Teil | Umsetzung |
+| --- | --- |
+| Messung | [hw_sim.c](../app/src/hw_sim.c): Zeitgeber 1 ms, Messblock alle 8 ms; Pegel wie das Szenario-Modell der Ladelogik-Tests (Fahrzeug A..E, Diode, PP-Kabel 13/20/32/63 A, Eingaenge, Versorgung) |
+| RCM | Bender-Ablauf beim Testimpuls (SWITCH_2 330 ms, SWITCH_1 770 ms, Ende 1,9 s), Fehlerstrom, ERR_OUT, Sensor ohne Reaktion; Signalflanke setzt den Schutz-Latch sofort (wie der Interrupt) |
+| Aktor, Schuetz | Fahrt 200 ms, LD gepulst/permanent/keine, Klemmen; Sense 50 Hz bei Schuetz ein oder verschweisst |
+| IWDG | Software-Zeitgeber in simulierter Zeit (250 ms, beim Flash-Loeschen 32 s) |
+| Reset | Prozess startet sich per `execv` neu ([sim_host.c](../app/src/sim_host.c), Host-Seite); Flags/BKP19 und der physische Modellzustand (Fahrzeug bleibt angesteckt, Aktorstellung) gehen ueber Umgebungsvariablen mit; neuer Prozess = Einschalten |
+| Flash | Zephyr-Flash-Simulator mit Datei (`--flash=`), Partitionen an den Stellen von Sektor 3 und 7 ([Overlay](../app/boards/native_sim_native_64.overlay)) |
+| Netz | Host-Sockets (`NET_NATIVE_OFFLOADED_SOCKETS`), keine Adress-/DHCP-Konfiguration; `bind` setzt dort `SO_REUSEADDR`, weil das Telnet-Backend es nicht tut und TIME_WAIT nach einem Neustart den Port blockiert |
+| Bedienung | Shell-Kommando `sim` (`status`, `car`, `diode`, `cable`, `din`, `ld`, `rcm`, `actuator`, `weld`, `supply`, `hang`); DIP/Drehschalter/Reset-Taster per Kommandozeile |
+| Logging | verzoegert mit Log-Thread wie auf der Steuerung (native_sim waehlt sonst den Sofortmodus); `NET_LOG` an |
+
+Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](../tests/e2e/wfsim.py)):
+
+| Klasse | Inhalt | Anforderungen |
+| --- | --- | --- |
+| T1Api | 401 mit Challenge; Werkszugang nur `/credentials` und Oberflaeche (403 sonst); Passwortregeln; Aenderung; `/info/*`, `/system/*`, alle Webdateien gzip; Ruhezustand; Parameter lesen/Beschreibung/Grenzen/Syntaxfehler/Schreiben; Laden B -> PWM -> C -> Schuetz; Sollstrom 10 A (Tastgrad 166, 9960 mA), Ablehnung 3 A, 0 = aus, wieder ein; WebSocket Erstsynchronisation und Push < 1 s; 3 WebSockets gleichzeitig und Wiederverwendung der Plaetze, Abbruch ohne Close-Rahmen; WebSocket ohne bzw. mit falscher Anmeldung geschlossen; Abstecken; Neustart mit Persistenz (Zugangsdaten, Parameter, Hostname) und Resetgrund `user_restart`, Sollstrom wieder Startwert; Neustart waehrend des Ladens geordnet und danach wieder Laden; Bremse 5 x 401, dann 429 mit `Retry-After` | SOLL-API-01..07/30/31, SOLL-CUR-21, SOLL-NVM-03, SOLL-PAR-03, SOLL-RT-14/22 |
+| T2Faults | Fehlerstrom beim Laden: Schuetz aus, `error_state` 3, RCM-Fehler aktiv; Messbloecke stehen -> Reset `supervision_limit`; Reset-Taster 6 s beim Start -> Werkszugang wieder aktiv | SOLL-PROT-01/05, SOLL-RT-10/14, SOLL-BOOT-20 |
+| T3ZephyrTelnet | harter Telnet-Abbruch: HTTP, WebSocket, neue Telnet-Sitzung und geordneter Neustart laufen weiter | SOLL-RT-11 |
+
+Stand 2026-10-19: **20 Tests, alle bestanden** (zweimal hintereinander), Laufzeit ca. 1 min.
+
+### Durch den Ende-zu-Ende-Test gefundene Fehler (behoben)
+
+Alle vier betreffen auch die Steuerung; im Hardware-Build mitkorrigiert.
+
+1. **HTTP-Server startete nie:** `CONFIG_ZVFS_EVENTFD_MAX` stand auf 1, den Platz belegt der
+   Socket-Service; der HTTP-Server scheiterte an `eventfd` (-ENOMEM) und versuchte es jede
+   Sekunde neu. Ohne `CONFIG_NET_LOG` erscheint diese Meldung **nicht** im Log. Jetzt 2.
+2. **Nur ein WebSocket moeglich:** `CONFIG_WEBSOCKET_MAX_CONTEXTS` stand auf 1 (vorgesehen 3,
+   SOLL-API-07 verlangt mindestens 2). Jetzt 3. Ein vierter Client wird von Zephyr vor dem
+   Anwendungs-Callback abgewiesen (Log "HTTP request handling error (-2)").
+3. **Geschlossene WebSockets blieben belegt** (in der Simulation sicher, auf der Steuerung
+   unklar): Abbau wurde ueber `zsock_poll` auf dem WebSocket-Deskriptor gesucht; umgestellt
+   (Festlegung oben).
+4. **Geordneter Neustart konnte haengen:** `LOG_PANIC()` im Neustart (Systemworkqueue) schaltet
+   das Telnet-Log-Backend synchron; dieses bricht seine Sende-Arbeit auf der Systemworkqueue mit
+   `k_work_cancel_delayable_sync()` ab -> Selbstblockade, sobald ein Telnet-Client verbunden ist
+   und Ausgabe ansteht. Erst die Schnittstellen-Ueberwachung bzw. der IWDG setzten zurueck, mit
+   falschem Resetgrund. `LOG_PANIC` aus den Thread-Pfaden entfernt (Festlegung oben).
+
+### Beobachtung in Zephyr 4.4.2 (offen)
+
+Bricht ein Telnet-Client hart ab (RST), waehrend Shell- oder Logausgabe ansteht, stand danach in
+einem Teil der Laeufe die **Logausgabe dauerhaft** (Log-Thread haengt im Telnet-Backend); HTTP,
+WebSocket, neue Telnet-Sitzungen und Neustart liefen weiter (Test T3). Ursache vermutlich im
+Telnet-Backend (`shell_telnet.c`: `telnet_end_client_connection()` ruft
+`k_work_cancel_delayable_sync()` auch aus der eigenen Sende-Arbeit auf; Schreibpfad bricht die
+Sende-Arbeit synchron ab). Auf der Steuerung ist Telnet das einzige Log-Ziel. Moegliche Wege:
+Zephyr-Fehlerbericht/Patch, Telnet-Backend ohne Log (`CONFIG_SHELL_TELNET_INIT_LOG_LEVEL_NONE`),
+oder Telnet ohnehin spaeter entfernen (F20). **Entscheidung des Nutzers offen.**
+
+### Abweichungen der Simulation von der Steuerung
+
+- Messwerte unabhaengig vom Tastgrad (wie das Testmodell); kein ADC-Rauschen, keine Zeitfehler.
+- Thread-Prioritaeten wirken, aber native_sim laeuft nicht praeemptiv in Echtzeit: eine
+  Endlosschleife ohne Warten haelt die simulierte Zeit an (Schutzthread und IWDG eingeschlossen).
+- Netzparameter (feste Adresse, DHCP) werden nicht angewandt; `/info/name` liefert `uid` 000000
+  (keine MAC).
+- Sektor 3 ist leer (Import aus dem Original nicht pruefbar ohne Abbild).
+
 ## Noch nicht umgesetzt
 
 - Startablauf auf der Hardware (SOLL-BOOT, H1).
@@ -210,16 +292,17 @@ Assert-Texte, LTO, Shell-Hilfe (zusammen ~100 KB).
   WebSocket-Meldungen; bisher nur `evse/state` und `evse/external_current`.
 - Zugriffsprotokoll fehlt (nur Log-Warnung bei Fehlversuchen).
 - RAM-Reserve ~14 KB: Heap (16 KB) und Client-Kontexte bei Bedarf verkleinern.
-- Weboberflaeche und HTTP-Ablauf nur mit Attrappen bzw. als Bausteine getestet (siehe unten).
+- Weboberflaeche im Browser gegen die Simulation noch nicht durchgeklickt (Dateien werden im
+  Ende-zu-Ende-Test nur abgerufen und entpackt); evcc gegen die Simulation spaeter (Nutzer).
+- Zephyr-Fehler im Telnet-Backend (Log-Stillstand nach Telnet-Abbruch, siehe unten): Umgang
+  entscheiden.
 
 ## Naechste Schritte (Stand 2026-10-19)
 
 1. ~~Festlegungen bestaetigen~~ – erledigt, Nutzer 2026-10-19 (alle bestaetigt).
-2. **Ende-zu-Ende-Test auf dem PC vorbereiten:** Anwendung zusaetzlich fuer `native_sim` mit
-   simulierter Hardwareschicht (Simulationsmodell statt TIM1/ADC/GPIO, Flash-Simulator, Netz
-   ueber Zephyrs native Sockets). Damit HTTP, Digest, WebSocket, Weboberflaeche und Persistenz
-   gegen die echte Firmware pruefen (curl/Python, Browser); spaeter evcc (Nutzer: Test mit evcc
-   spaeter).
+2. ~~Ende-zu-Ende-Test auf dem PC vorbereiten~~ – erledigt 2026-10-19 (`scripts/run-e2e.sh`,
+   20 Tests; vier Fehler der Anwendung gefunden und behoben, siehe unten). Offen: Browser-
+   Durchlauf der Oberflaeche, evcc (Nutzer: spaeter).
 3. Kleinere offene Anforderungen: SOLL-ERR-10 (Ereignisse), SOLL-LED-06, Zugriffsprotokoll.
 4. **H0 (Freigabe noetig):** Bootloader auslesen; danach SOLL-SH-10/SOLL-BOOT-30 (Update-Uebergabe),
    Pruefung Start-SP, loescht der Bootloader Sektor 7.

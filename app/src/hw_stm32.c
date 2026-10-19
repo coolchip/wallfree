@@ -13,6 +13,7 @@
  *
  * Nur gebaut, nicht auf Hardware ausgefuehrt.
  */
+#include <zephyr/drivers/watchdog.h>
 #include <zephyr/init.h>
 #include <zephyr/irq.h>
 #include <zephyr/kernel.h>
@@ -295,6 +296,36 @@ int hw_analog_init(void)
 	LL_TIM_EnableCounter(TIM1);
 	LOG_INF("CP-PWM 1 kHz und ADC-Abtastung gestartet");
 	return 0;
+}
+
+/* ------------------------------------------------ IWDG (SOLL-BOOT-03, SOLL-RT-12) */
+
+static const struct device *const wdt_dev = DEVICE_DT_GET(DT_NODELABEL(iwdg));
+static int wdt_ch = -1;
+
+int hw_wdt_start(uint32_t timeout_ms)
+{
+	struct wdt_timeout_cfg wcfg = {
+		.window = {.min = 0, .max = timeout_ms},
+		.flags = WDT_FLAG_RESET_SOC,
+	};
+
+	if (!device_is_ready(wdt_dev)) {
+		return -ENODEV;
+	}
+	wdt_ch = wdt_install_timeout(wdt_dev, &wcfg);
+	if (wdt_ch < 0 || wdt_setup(wdt_dev, WDT_OPT_PAUSE_HALTED_BY_DBG) != 0) {
+		wdt_ch = -1;
+		return -EIO;
+	}
+	return 0;
+}
+
+void hw_wdt_feed(void)
+{
+	if (wdt_ch >= 0) {
+		(void)wdt_feed(wdt_dev, wdt_ch);
+	}
 }
 
 /* ------------------------------------------------ IWDG fuer Flash-Loeschen */

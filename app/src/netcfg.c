@@ -73,6 +73,12 @@ static void apply(const struct wf_sysconf *c)
 	}
 	(void)net_hostname_set(host, strlen(host));
 
+#if defined(CONFIG_NET_NATIVE_OFFLOADED_SOCKETS)
+	/* PC-Simulation: Host-Sockets, Adresse und DHCP macht der Host */
+	ARG_UNUSED(in4);
+	LOG_INF("Simulation: Host-Sockets, gespeicherte Adresse (%s) nicht angewandt",
+		c->dhcp ? "DHCP" : "fest");
+#else
 	if (iface != NULL) {
 		if (c->dhcp) {
 			net_dhcpv4_start(iface);
@@ -90,6 +96,7 @@ static void apply(const struct wf_sysconf *c)
 			}
 		}
 	}
+#endif
 	if (!c->telnet) {
 		(void)shell_stop(shell_backend_telnet_get_ptr());
 		LOG_INF("Telnet-Shell gestoppt (telnet_enable = 0)");

@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0
+# Optionen der Wallfree-Anwendung
+
+config WALLFREE_HTTP_PORT
+	int "TCP-Port des HTTP-Servers"
+	default 8081 if ARCH_POSIX
+	default 80
+	help
+	  Auf der Steuerung 80. In der PC-Simulation (native_sim, Host-Sockets)
+	  8081 (mit --http-port aenderbar), weil Ports unter 1024 dort Root-Rechte braeuchten.
+
+source "Kconfig.zephyr"

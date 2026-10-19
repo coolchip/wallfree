@@ -10,7 +10,6 @@
  *
  * Nur gebaut, auf Hardware nicht ausgefuehrt.
  */
-#include <zephyr/drivers/watchdog.h>
 #include <zephyr/fatal.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -68,17 +67,36 @@ static enum wf_reset reboot_code;
 static void reboot_work_fn(struct k_work *w);
 static K_WORK_DELAYABLE_DEFINE(reboot_work, reboot_work_fn);
 
+/*
+ * Kein LOG_PANIC: das Telnet-Log-Backend bricht dabei seine Sende-Arbeit mit
+ * k_work_cancel_delayable_sync() auf der Systemworkqueue ab, in der dieser
+ * Ablauf selbst laeuft (Selbstblockade bei verbundenem Telnet-Client, erst
+ * der IWDG beendete sie; gefunden im PC-Test). Stattdessen bekommt der
+ * Log-Thread nach der Meldung REBOOT_LOG_MS zum Ausgeben.
+ */
+#define REBOOT_LOG_MS 200
+
+static bool reboot_logged;
+
 static void reboot_work_fn(struct k_work *w)
 {
 	ARG_UNUSED(w);
+	if (reboot_logged) {
+		hw_reset_with(reboot_code); /* zuerst sicherer Zustand */
+	}
 	struct evse *e = evse_acquire();
 	bool off = evse_contactor_is_off(e);
 
 	evse_release();
 	if (off || k_uptime_get() >= reboot_deadline) {
-		LOG_WRN("Neustart%s", off ? "" : " nach Fristablauf (Schuetz wird hart abgeschaltet)");
-		LOG_PANIC();
-		hw_reset_with(reboot_code); /* zuerst sicherer Zustand */
+		if (!off) {
+			/* Schuetz sofort aus, nicht erst nach der Log-Wartezeit */
+			hw_safe_state_regs();
+		}
+		LOG_WRN("Neustart%s", off ? "" : " nach Fristablauf (Schuetz hart abgeschaltet)");
+		reboot_logged = true;
+		k_work_schedule(&reboot_work, K_MSEC(REBOOT_LOG_MS));
+		return;
 	}
 	k_work_schedule(&reboot_work, K_MSEC(100));
 }
@@ -116,8 +134,9 @@ void evse_task_maint_end(void)
 static void fail_safe_and_reboot(const char *why)
 {
 	hw_safe_state_regs();
+	/* ohne LOG_PANIC (siehe reboot_work_fn); die Meldung geht evtl. verloren,
+	 * der Grund steht im Backup-Register (SOLL-RT-14) */
 	LOG_ERR("sicherer Zustand: %s", why);
-	LOG_PANIC();
 	hw_reset_with(WF_RST_LIMIT);
 }
 
@@ -193,32 +212,21 @@ static void charger_entry(void *p1, void *p2, void *p3)
 
 /* ------------------------------------------------ IWDG (SOLL-BOOT-03, SOLL-RT-12) */
 
-static const struct device *const wdt_dev = DEVICE_DT_GET(DT_NODELABEL(iwdg));
-static int wdt_ch = -1;
+static atomic_t wdt_ok;
 
 int evse_task_wdt_start(void)
 {
-	struct wdt_timeout_cfg wcfg = {
-		.window = {.min = 0, .max = IWDG_TIMEOUT_MS},
-		.flags = WDT_FLAG_RESET_SOC,
-	};
+	int r = hw_wdt_start(IWDG_TIMEOUT_MS);
 
-	if (!device_is_ready(wdt_dev)) {
-		return -ENODEV;
-	}
-	wdt_ch = wdt_install_timeout(wdt_dev, &wcfg);
-	if (wdt_ch < 0 || wdt_setup(wdt_dev, WDT_OPT_PAUSE_HALTED_BY_DBG) != 0) {
-		wdt_ch = -1;
-		return -EIO;
-	}
-	return 0;
+	atomic_set(&wdt_ok, r == 0);
+	return r;
 }
 
 void evse_task_wdt_feed(void)
 {
 	/* nur bis der Schutzthread laeuft; danach bedient ausschliesslich er */
-	if (wdt_ch >= 0 && !atomic_get(&started)) {
-		(void)wdt_feed(wdt_dev, wdt_ch);
+	if (atomic_get(&wdt_ok) && !atomic_get(&started)) {
+		hw_wdt_feed();
 	}
 }
 
@@ -276,7 +284,6 @@ static void check_ifaces(uint32_t now32)
 
 	k_mutex_unlock(&ev_mtx);
 	if (idle) {
-		LOG_PANIC();
 		hw_reset_with(WF_RST_NET_HANG);
 	}
 }
@@ -288,7 +295,7 @@ static void prot_entry(void *p1, void *p2, void *p3)
 	ARG_UNUSED(p1);
 	ARG_UNUSED(p2);
 	ARG_UNUSED(p3);
-	if (wdt_ch < 0) {
+	if (!atomic_get(&wdt_ok)) {
 		fail_safe_and_reboot("IWDG nicht verfuegbar");
 	}
 	int64_t t0 = k_uptime_get();
@@ -320,7 +327,7 @@ static void prot_entry(void *p1, void *p2, void *p3)
 			check_ifaces(now32);
 		}
 		/* SOLL-RT-12: IWDG nur bei eingehaltenen Limits */
-		(void)wdt_feed(wdt_dev, wdt_ch);
+		hw_wdt_feed();
 		k_sleep(K_MSEC(1));
 	}
 }

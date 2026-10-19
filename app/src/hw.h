@@ -59,6 +59,12 @@ FUNC_NORETURN void hw_reset_with(enum wf_reset code);
  */
 void hw_reset_take(uint32_t *flags, uint32_t *bkp);
 
+/** IWDG starten (SOLL-BOOT-03). @return 0 oder Fehler */
+int hw_wdt_start(uint32_t timeout_ms);
+
+/** IWDG bedienen. */
+void hw_wdt_feed(void);
+
 /**
  * IWDG-Limit fuer Flash-Loeschen auf das Maximum setzen (true) bzw. den
  * vorherigen Wert wiederherstellen (false), SOLL-RT-13.
@@ -85,5 +91,10 @@ void hw_gpio_apply(const struct evse_outputs *o);
 bool hw_protect_latched(void);
 void hw_protect_trip(void);
 void hw_protect_clear(void);
+
+#if defined(CONFIG_ARCH_POSIX)
+/** PC-Simulation: HTTP-Port aus der Kommandozeile (--http-port). */
+uint16_t hw_sim_http_port(void);
+#endif
 
 #endif /* WALLFREE_APP_HW_H_ */

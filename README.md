@@ -14,14 +14,14 @@ koennen Menschen gefaehrden. Software-Tests belegen keine elektrische Sicherheit
 | [docs/soll-spezifikation.md](docs/soll-spezifikation.md) | Soll-Verhalten der Firmware (Kennungen `SOLL-*`) |
 | [docs/architektur.md](docs/architektur.md) | Rahmen: Zephyr, Speicheraufteilung, Bootloader, Parameterspeicher, WARP-/evcc-Schnittstelle |
 | [boards/phoenix/ev_cc_ac1/](boards/phoenix/ev_cc_ac1/) | vorlaeufige Zephyr-Board-Beschreibung |
-| [app/](app/) | Anwendung fuer die Steuerung: Hardwareschicht, Threads, Shell (nur bauen) |
+| [app/](app/) | Anwendung fuer die Steuerung: Hardwareschicht, Threads, Shell (nur bauen); zusaetzlich als PC-Simulation |
 | [spike-size/](spike-size/) | Groessentest (nur bauen) |
 | [include/wallfree/evse/](include/wallfree/evse/), [lib/evse/](lib/evse/) | Ladelogik als Zephyr-Modul, reines C ohne Hardwarebezug |
 | [include/wallfree/nvm/](include/wallfree/nvm/), [lib/nvm/](lib/nvm/) | Parameterspeicher (Log-Format in Sektor 7) und Leser fuer den Originalbereich, reines C |
 | [include/wallfree/api/](include/wallfree/api/), [lib/api/](lib/api/) | Digest-Anmeldung, JSON, Abbildung der Ladelogik auf die WARP-angelehnte API, reines C |
 | [web/](web/) | Weboberflaeche (Preact + htm, gzip im Flash); Fremdcode unter [web/vendor/](web/vendor/) mit eigenen Lizenzen |
 | [docs/implementierung.md](docs/implementierung.md) | Implementierungsstand, Zuordnung Modul -> SOLL, offene Punkte |
-| [tests/](tests/) | PC-Tests (ztest auf `native_sim/native/64`), Aufruf `scripts/run-tests.sh` |
+| [tests/](tests/) | PC-Tests (ztest auf `native_sim/native/64`), Aufruf `scripts/run-tests.sh`; Ende-zu-Ende-Tests in [tests/e2e/](tests/e2e/), Aufruf `scripts/run-e2e.sh` |
 
 ## Bauen
 
@@ -51,8 +51,16 @@ scripts/run-tests.sh --coverage   # zusaetzlich Abdeckung von lib/ (gcovr)
 | `tests/nvm` | Speicherformat mit simuliertem Flash und Stromausfall nach jedem Byte, Sektor-3-Leser |
 | `tests/api` | MD5, Digest, JSON, Systemparameter, Bremse |
 
-Nicht abgedeckt: Hardwareschicht, HTTP-Server, Netz (die App wird nur gebaut). Bestandene Tests
-belegen keine elektrische Sicherheit.
+Ende-zu-Ende: die ganze Anwendung als PC-Simulation (`native_sim`, Hardwaremodell statt
+TIM1/ADC/GPIO, Host-Sockets, Flash-Datei) gegen HTTP, Digest, WebSocket, Shell und Neustarts:
+
+```sh
+scripts/run-e2e.sh                # bauen und tests/e2e ausfuehren
+scripts/sim-run.sh                # zum Ausprobieren: http://127.0.0.1:8081/, Telnet 127.0.0.1:2323
+```
+
+Nicht abgedeckt: die echte Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) und das Ethernet.
+Bestandene Tests belegen keine elektrische Sicherheit.
 
 ## Herkunft der Befunde
 
