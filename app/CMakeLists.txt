@@ -14,6 +14,7 @@ target_sources(app PRIVATE
   src/storage.c
   src/auth.c
   src/http_api.c
+  src/netcfg.c
 )
 # Ressourcenliste des HTTP-Servers (HTTP_RESOURCE_DEFINE)
 zephyr_linker_sources(SECTIONS sections-rom.ld)

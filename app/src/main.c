@@ -10,6 +10,7 @@
 #include "evse_task.h"
 #include "http_api.h"
 #include "hw.h"
+#include "netcfg.h"
 #include "storage.h"
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
@@ -66,6 +67,7 @@ int main(void)
 	int r = evse_task_start(&cfg, lock); /* SOLL-BOOT-08..10 */
 
 	storage_start();
+	netcfg_init();          /* Hostname, DHCP bzw. feste Adresse, Telnet */
 	(void)http_api_start(); /* SOLL-BOOT-09: Netz verzoegert den Ladeablauf nicht */
 	return r;
 }

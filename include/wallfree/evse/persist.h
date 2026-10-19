@@ -58,7 +58,6 @@ enum evse_import_result {
 	EVSE_IMP_DONE = 0,     /**< uebernommen und gespeichert */
 	EVSE_IMP_MISSING,      /**< im Original nicht gespeichert (Default dort) */
 	EVSE_IMP_REJECTED,     /**< Wert nicht zulaessig, @p err sagt warum */
-	EVSE_IMP_UNSUPPORTED,  /**< Feld in Wallfree noch ohne Parameter (Netzwerk) */
 	EVSE_IMP_NOT_SAVED,    /**< uebernommen, aber Speichern fehlgeschlagen */
 };
 
@@ -71,7 +70,8 @@ typedef void (*evse_import_report_t)(void *ctx, uint16_t field, const char *name
 /**
  * Einmalige Uebernahme aus dem Originalbereich (SOLL-NVM-10, SOLL-SH-09):
  * Felder 327..330, 390, 409, 412, 519..527 ueber evse_param_set (Grenz- und
- * Zustandspruefung) und speichern; Netzwerkfelder 315..326 werden gemeldet.
+ * Zustandspruefung) und speichern. Netzwerkfelder uebernimmt die Anwendung
+ * (wf_sys_import_orig).
  * Nur wenn evse_flash_erase_allowed().
  * @return Anzahl uebernommener Werte, EVSE_IMP_E_UNSAFE, EVSE_IMP_E_ORIG
  *         (Originalbereich ungueltig) oder NVM_E_IO

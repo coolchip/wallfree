@@ -167,8 +167,7 @@ ZTEST(evse_persist, test_import)
 	orig_image_add(fo.mem, 520, 22);
 	orig_image_add(fo.mem, 527, 50);     /* ausserhalb 500..10000 */
 	orig_image_add(fo.mem, 327, 43);     /* Code > 42 */
-	orig_image_add(fo.mem, 315, 192);    /* Netz */
-	orig_image_add(fo.mem, 316, 168);
+	orig_image_add(fo.mem, 315, 192);    /* Netz: nicht Sache der Ladelogik */
 
 	sim_boot(&s);
 	int r = evse_import_orig(&s.e, &fo.fl, &n, s.now, report, NULL);
@@ -180,7 +179,6 @@ ZTEST(evse_persist, test_import)
 	zassert_equal(last_err[527], EVSE_PARAM_E_RANGE);
 	zassert_equal(last_err[327], EVSE_PARAM_E_RANGE);
 	zassert_equal(counts[EVSE_IMP_MISSING], 16 - 7);
-	zassert_equal(counts[EVSE_IMP_UNSUPPORTED], 2);
 
 	zassert_equal(s.e.cfg.lock_pulse_ms, 1500);
 	zassert_equal(s.e.cfg.contactor_monitor, 0);

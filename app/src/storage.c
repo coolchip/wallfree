@@ -21,6 +21,7 @@
 #include "evse_task.h"
 #include "hw.h"
 #include "storage.h"
+#include <wallfree/nvm/orig.h>
 
 LOG_MODULE_REGISTER(storage, LOG_LEVEL_INF);
 
@@ -317,4 +318,13 @@ int storage_save_raw(uint16_t id, const void *data, size_t len)
 		k_sem_give(&storage_sem);
 	}
 	return r;
+}
+
+int storage_orig_lookup(void *ctx, uint16_t field, uint16_t *value)
+{
+	ARG_UNUSED(ctx);
+	if (fa_orig == NULL) {
+		return -1;
+	}
+	return nvm_orig_read(&fl_orig, field, value) == NVM_OK ? 0 : -1;
 }

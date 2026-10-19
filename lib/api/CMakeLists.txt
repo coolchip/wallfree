@@ -5,4 +5,6 @@ zephyr_library_sources(
   digest.c
   json.c
   evse_api.c
+  sysconf.c
+  ratelimit.c
 )

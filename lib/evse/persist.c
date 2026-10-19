@@ -105,8 +105,6 @@ bool evse_flash_erase_allowed(const struct evse *e)
 static const uint16_t import_fields[] = {
 	327, 328, 329, 330, 390, 409, 412, 519, 520, 521, 522, 523, 524, 525, 526, 527,
 };
-#define NET_FIRST 315 /* IP, Netzmaske, Gateway je Byte (Halbwort) */
-#define NET_LAST  326
 
 static const struct evse_param *param_by_field(uint16_t field)
 {
@@ -164,12 +162,6 @@ int evse_import_orig(struct evse *e, const struct nvm_flash *orig, struct nvm *n
 			report(ctx, f, p->name, v, EVSE_IMP_DONE, err);
 		}
 		done++;
-	}
-	for (uint16_t f = NET_FIRST; f <= NET_LAST; f++) {
-		r = nvm_orig_read(orig, f, &raw);
-		if (r == NVM_OK) {
-			report(ctx, f, "net", raw, EVSE_IMP_UNSUPPORTED, 0);
-		}
 	}
 	return done;
 }

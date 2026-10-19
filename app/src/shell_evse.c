@@ -10,6 +10,7 @@
 #include <zephyr/sys/reboot.h>
 #include <wallfree/evse/param.h>
 #include "evse_task.h"
+#include "netcfg.h"
 #include "storage.h"
 
 static const char *const state_names[] = {
@@ -181,8 +182,7 @@ static int cmd_factory_reset(const struct shell *sh, size_t argc, char **argv)
 }
 
 static const char *const import_names[] = {"uebernommen", "nicht gespeichert im Original",
-					   "abgelehnt", "noch nicht unterstuetzt",
-					   "uebernommen, Speichern fehlgeschlagen"};
+					   "abgelehnt", "uebernommen, Speichern fehlgeschlagen"};
 
 static void import_report(void *ctx, uint16_t field, const char *name, int32_t value,
 			  enum evse_import_result res, int err)
@@ -218,9 +218,60 @@ static int cmd_import(const struct shell *sh, size_t argc, char **argv)
 		shell_error(sh, "fehlgeschlagen: %d", r);
 		return -EIO;
 	}
-	shell_print(sh, "%d Werte uebernommen", r);
+	shell_print(sh, "%d Werte der Ladelogik uebernommen", r);
+
+	/* Netzwerk: Feld 404 DHCP, 315..326 Adressen (wirkt nach Neustart) */
+	const char *err;
+	int n = netcfg_import_orig(storage_orig_lookup, NULL, &err);
+
+	if (n < 0) {
+		shell_warn(sh, "Netzwerkwerte nicht uebernommen: %s", err);
+	} else {
+		shell_print(sh, "%d Netzwerkwerte uebernommen (wirken nach Neustart)", n);
+	}
 	return 0;
 }
+
+/* ------------------------------------------------ Systemparameter */
+
+static int cmd_sys_list(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	static char buf[384];
+	struct wf_sysconf a, sv;
+	struct wf_jbuf b;
+
+	netcfg_get(&a, &sv);
+	wf_jb_init(&b, buf, sizeof(buf));
+	wf_sys_json(&a, &b);
+	shell_print(sh, "aktiv:       %s", buf);
+	wf_jb_init(&b, buf, sizeof(buf));
+	wf_sys_json(&sv, &b);
+	shell_print(sh, "gespeichert: %s", buf);
+	if (netcfg_restart_required()) {
+		shell_warn(sh, "Neustart noetig, damit die gespeicherten Werte wirken");
+	}
+	return 0;
+}
+
+static int cmd_sys_set(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	const char *err = netcfg_set_text(argv[1], argv[2]);
+
+	if (err != NULL) {
+		shell_error(sh, "abgelehnt: %s", err);
+		return -EINVAL;
+	}
+	shell_print(sh, "gespeichert, wirkt nach Neustart");
+	return 0;
+}
+
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_sys,
+	SHELL_CMD_ARG(list, NULL, "Netz- und Systemparameter", cmd_sys_list, 1, 0),
+	SHELL_CMD_ARG(set, NULL, "<name> <wert> (wirkt nach Neustart)", cmd_sys_set, 3, 0),
+	SHELL_SUBCMD_SET_END);
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_param,
 	SHELL_CMD_ARG(list, NULL, "alle Parameter", cmd_param_list, 1, 0),
@@ -232,6 +283,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_evse,
 	SHELL_CMD_ARG(status, NULL, "Zustand der Ladelogik", cmd_status, 1, 0),
 	SHELL_CMD(param, &sub_param, "Parameter", NULL),
 	SHELL_CMD_ARG(ack, NULL, "Schuetzfehler quittieren", cmd_ack, 1, 0),
+	SHELL_CMD(sys, &sub_sys, "Netz- und Systemparameter", NULL),
 	SHELL_CMD_ARG(nvm, NULL, "Zustand des Parameterspeichers", cmd_nvm, 1, 0),
 	SHELL_CMD_ARG(factory-reset, NULL, "confirm: Werkseinstellungen und Neustart",
 		      cmd_factory_reset, 1, 1),

@@ -27,10 +27,14 @@
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/net/websocket.h>
+#include <zephyr/sys/reboot.h>
 #include <wallfree/api/evse_api.h>
+#include <wallfree/api/ratelimit.h>
 #include <wallfree/evse/persist.h>
 #include "auth.h"
 #include "evse_task.h"
+#include "hw.h"
+#include "netcfg.h"
 #include "http_api.h"
 #include "storage.h"
 
@@ -50,6 +54,48 @@ HTTP_SERVER_REGISTER_HEADER_CAPTURE(capture_auth, "Authorization");
 static char out[OUT_MAX];          /* Antwortpuffer (nur Server-Thread) */
 static char challenge[160];
 static struct http_header hdr_auth = {.name = "WWW-Authenticate", .value = challenge};
+static char retry_after[12];
+static struct http_header hdr_retry = {.name = "Retry-After", .value = retry_after};
+static struct wf_rl rl; /* Bremse je Absender (nur Server-Thread) */
+
+/* IPv4-Absender eines Sockets, 0 wenn unbekannt */
+static uint32_t peer_addr(int fd)
+{
+	struct net_sockaddr_storage ss;
+	net_socklen_t len = sizeof(ss);
+
+	if (zsock_getpeername(fd, (struct net_sockaddr *)&ss, &len) != 0 ||
+	    ss.ss_family != NET_AF_INET) {
+		return 0;
+	}
+	return net_ntohl(net_sin((struct net_sockaddr *)&ss)->sin_addr.s_addr);
+}
+
+/*
+ * Anmeldung pruefen mit Bremse: gesperrte Absender werden auch mit
+ * richtigem Passwort abgewiesen (sonst bremst die Sperre nichts).
+ * @return Ergebnis; *wait_ms > 0, wenn gesperrt
+ */
+static enum wf_auth checked_auth(uint32_t addr, const char *hdr, const char *method,
+				 const char *uri, int64_t *wait_ms)
+{
+	int64_t now = k_uptime_get();
+
+	*wait_ms = wf_rl_blocked(&rl, addr, now);
+	if (*wait_ms > 0) {
+		return WF_AUTH_BAD;
+	}
+	enum wf_auth a = auth_check(hdr, method, uri);
+
+	if (a == WF_AUTH_BAD) {
+		wf_rl_fail(&rl, addr, now);
+		LOG_WRN("Anmeldung fehlgeschlagen von %u.%u.%u.%u", addr >> 24, (addr >> 16) & 255,
+			(addr >> 8) & 255, addr & 255);
+	} else if (a == WF_AUTH_OK) {
+		wf_rl_ok(&rl, addr);
+	}
+	return a;
+}
 
 /* ------------------------------------------------ gemeinsamer Ablauf */
 
@@ -114,8 +160,18 @@ static bool gate(struct http_client_ctx *client, struct res *r,
 		 const struct http_request_ctx *req, struct http_response_ctx *rsp)
 {
 	const char *method = http_method_str(client->method);
-	enum wf_auth a = auth_check(find_header(req, "Authorization"), method,
-				    (const char *)client->url_buffer);
+	int64_t wait_ms;
+	enum wf_auth a = checked_auth(peer_addr(client->fd), find_header(req, "Authorization"),
+				      method, (const char *)client->url_buffer, &wait_ms);
+
+	if (wait_ms > 0) {
+		snprintf(retry_after, sizeof(retry_after), "%u", (unsigned int)(wait_ms / 1000 + 1));
+		rsp->headers = &hdr_retry;
+		rsp->header_count = 1;
+		respond_error(rsp, HTTP_429_TOO_MANY_REQUESTS,
+			      "zu viele Fehlversuche, spaeter erneut versuchen");
+		return false;
+	}
 
 	if (req->headers_status == HTTP_HEADER_STATUS_DROPPED && a != WF_AUTH_OK) {
 		LOG_WRN("Authorization-Kopfzeile zu lang");
@@ -416,6 +472,78 @@ static void credentials(struct http_client_ctx *client, struct res *r,
 
 JSON_RESOURCE(credentials_r, "/credentials", BIT(HTTP_GET) | BIT(HTTP_POST), credentials, true, 256);
 
+/* ------------------------------------------------ /system (10.1 net_*, telnet_enable) */
+
+static void system_config(struct http_client_ctx *client, struct res *r,
+			  struct http_response_ctx *rsp)
+{
+	struct wf_jbuf b;
+
+	wf_jb_init(&b, out, sizeof(out));
+	if (client->method == HTTP_POST) {
+		/* alle Werte gueltig oder keiner; wirkt nach Neustart */
+		int st = netcfg_set_json(r->body, r->body_len, &b);
+
+		respond_json(rsp, st == 200 ? HTTP_200_OK : HTTP_400_BAD_REQUEST, &b);
+		return;
+	}
+	struct wf_sysconf a, sv;
+
+	netcfg_get(&a, &sv);
+	wf_jb_raw(&b, "{\"active\":");
+	wf_sys_json(&a, &b);
+	wf_jb_raw(&b, ",\"saved\":");
+	wf_sys_json(&sv, &b);
+	wf_jb_raw(&b, netcfg_restart_required() ? ",\"restart_required\":true}"
+						 : ",\"restart_required\":false}");
+	respond_json(rsp, HTTP_200_OK, &b);
+}
+
+static void system_config_info(struct http_client_ctx *client, struct res *r,
+			       struct http_response_ctx *rsp)
+{
+	ARG_UNUSED(client);
+	ARG_UNUSED(r);
+	struct wf_jbuf b;
+
+	wf_jb_init(&b, out, sizeof(out));
+	wf_sys_info_json(&b);
+	respond_json(rsp, HTTP_200_OK, &b);
+}
+
+static void reboot_work_fn(struct k_work *w)
+{
+	ARG_UNUSED(w);
+	/* SOLL-RT-20: sicherer Zustand vor dem Neustart */
+	hw_safe_state_regs();
+	sys_reboot(SYS_REBOOT_COLD);
+}
+static K_WORK_DELAYABLE_DEFINE(reboot_work, reboot_work_fn);
+
+static void system_restart(struct http_client_ctx *client, struct res *r,
+			   struct http_response_ctx *rsp)
+{
+	ARG_UNUSED(client);
+	ARG_UNUSED(r);
+	bool ok = evse_flash_erase_allowed(evse_acquire());
+
+	evse_release();
+	if (!ok) {
+		respond_error(rsp, HTTP_409_CONFLICT, "Neustart nur ohne Fahrzeug in S1");
+		return;
+	}
+	/* Antwort noch senden lassen, dann neu starten */
+	k_work_schedule(&reboot_work, K_MSEC(500));
+	strcpy(out, "{}");
+	respond(rsp, HTTP_200_OK, 2);
+}
+
+JSON_RESOURCE(system_config_r, "/system/config", BIT(HTTP_GET) | BIT(HTTP_POST), system_config,
+	      false, 512);
+JSON_RESOURCE(system_config_info_r, "/system/config_info", BIT(HTTP_GET), system_config_info,
+	      false, 0);
+JSON_RESOURCE(system_restart_r, "/system/restart", BIT(HTTP_POST), system_restart, false, 16);
+
 /* ------------------------------------------------ WebSocket /ws (SOLL-API-06) */
 
 static struct {
@@ -425,10 +553,30 @@ static struct {
 static K_MUTEX_DEFINE(ws_mtx);
 static uint8_t ws_hs_buf[256];
 
+/*
+ * Absender beim WebSocket-Aufbau: Zephyr uebergibt nur den WebSocket-Socket
+ * (ohne getpeername). request_ctx->headers zeigt auf das Kopfzeilenfeld des
+ * Client-Kontexts (http_server_ws.c, populate_request_ctx, Zephyr 4.4.2),
+ * daraus der TCP-Socket. Abhaengigkeit von Zephyr-Interna, bei Updates pruefen.
+ */
+static uint32_t ws_peer(const struct http_request_ctx *req)
+{
+	if (req->header_count == 0) {
+		return 0;
+	}
+	const struct http_client_ctx *c = (const struct http_client_ctx *)(
+		(const char *)req->headers -
+		offsetof(struct http_client_ctx, header_capture_ctx.headers));
+
+	return peer_addr(c->fd);
+}
+
 static int ws_setup(int sock, struct http_request_ctx *req, void *user_data)
 {
 	ARG_UNUSED(user_data);
-	enum wf_auth a = auth_check(find_header(req, "Authorization"), "GET", "/ws");
+	int64_t wait_ms;
+	enum wf_auth a = checked_auth(ws_peer(req), find_header(req, "Authorization"), "GET", "/ws",
+				      &wait_ms);
 
 	if (a != WF_AUTH_OK || auth_must_change()) {
 		LOG_WRN("WebSocket ohne gueltige Anmeldung geschlossen");
@@ -567,6 +715,7 @@ int http_api_start(void)
 	for (int i = 0; i < WS_MAX; i++) {
 		ws[i].sock = -1;
 	}
+	wf_rl_init(&rl);
 	auth_init();
 	k_thread_create(&ws_thread, ws_stack, K_THREAD_STACK_SIZEOF(ws_stack), ws_entry, NULL,
 			NULL, NULL, WS_PRIO, 0, K_NO_WAIT);

@@ -43,6 +43,9 @@ void storage_lock_changed(enum evse_lock_state st);
  */
 int storage_factory_reset(void);
 
+/** Lesezugriff auf Sektor 3 je Feld (wf_orig_lookup_t). @return 0 gefunden */
+int storage_orig_lookup(void *ctx, uint16_t field, uint16_t *value);
+
 /** Import aus Sektor 3 (SOLL-SH-09). Rueckgabe wie evse_import_orig(). */
 int storage_import_orig(evse_import_report_t report, void *ctx);
 
