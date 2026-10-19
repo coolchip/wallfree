@@ -179,9 +179,9 @@ Jede Variante einzeln gebaut (west build mit zusaetzlicher Kconfig-Option), alle
 | LTO + Assert-Texte weg | 247 284 | 48 KB | |
 | LTO + `ASSERT=n` | 240 340 | 55 KB | |
 
-Nutzerentscheidung (2026-10-19): Netz-Shell bleibt fuer den ersten Probelauf (Netzleistung
-ansehen) und wird als Erstes entfernt, wenn es knapp wird. Weitere Hebel in dieser Reihenfolge
-vorgeschlagen: Assert-Texte, LTO, Shell-Hilfe; zusammen mit der Netz-Shell ~100 KB.
+**Nutzerentscheidung (2026-10-19):** Vorerst nichts abschalten. Die Netz-Shell bleibt fuer den
+ersten Probelauf (Netzleistung ansehen). Wird es knapp, in dieser Reihenfolge: Netz-Shell,
+Assert-Texte, LTO, Shell-Hilfe (zusammen ~100 KB).
 
 ### Annahmen der Hardwareschicht (in H1 zu pruefen)
 
@@ -204,16 +204,26 @@ vorgeschlagen: Assert-Texte, LTO, Shell-Hilfe; zusammen mit der Netz-Shell ~100 
 ## Noch nicht umgesetzt
 
 - Startablauf auf der Hardware (SOLL-BOOT, H1).
-- System- und Netzparameter (Hostname, IP, Zugangsdaten, Telnet) gehoeren nicht zur Ladelogik
-  und kommen in eine eigene Tabelle der Anwendung (Speicherkennungen ab 3000); danach Import
-  der Netzwerkfelder 315..326.
-- **Flash-Reserve nur noch ~25 KB** (295 KB von 320 KB). Groesster abschaltbarer Posten: Netz-
-  Shell-Kommandos (`CONFIG_NET_SHELL`, ~17 KB, Groessentest). Vor OCPP/TLS Speicherfrage neu
-  bewerten (Architektur §7).
-- Weboberflaeche: Darstellung nur mit `scripts/web-preview.py` (Attrappen der API, ohne Digest und
-  WebSocket) in Chrome geprueft; gegen die echte Firmware erst mit Netz (native_sim oder H1).
-- Test der API mit evcc gegen einen `native_sim`-Build mit Netz (Spezifikation 12: nur nach
-  Absprache); bisher sind Digest und JSON nur als Bausteine getestet, der HTTP-Ablauf nur gebaut.
+- SOLL-LED-06: Netzwerk-LED an PC2 [HYP] (an bei Link und Adresse, sonst 1 Hz).
+- SOLL-ERR-10: Ereignisse (Fehler, Zustandswechsel, Verriegelung, Schuetz) als eigene
+  WebSocket-Meldungen; bisher nur `evse/state` und `evse/external_current`.
 - Zugriffsprotokoll fehlt (nur Log-Warnung bei Fehlversuchen).
-- RAM-Reserve ~17 KB: Heap (16 KB) und Client-Kontexte bei Bedarf verkleinern.
-- Fehlerhistorie mit Zeitstempeln (SOLL-ERR-01, bisher nur Sammelwert `errors_seen`).
+- RAM-Reserve ~14 KB: Heap (16 KB) und Client-Kontexte bei Bedarf verkleinern.
+- Weboberflaeche und HTTP-Ablauf nur mit Attrappen bzw. als Bausteine getestet (siehe unten).
+
+## Naechste Schritte (Stand 2026-10-19)
+
+1. **Festlegungen bestaetigen:** alle mit *neu* markierten Zeilen in "Bei der Implementierung
+   festgelegte Details" (Speicher, API, System, Web, Bedienung, HW).
+2. **Ende-zu-Ende-Test auf dem PC vorbereiten:** Anwendung zusaetzlich fuer `native_sim` mit
+   simulierter Hardwareschicht (Simulationsmodell statt TIM1/ADC/GPIO, Flash-Simulator, Netz
+   ueber Zephyrs native Sockets). Damit HTTP, Digest, WebSocket, Weboberflaeche und Persistenz
+   gegen die echte Firmware pruefen (curl/Python, Browser); spaeter evcc (Nutzer: Test mit evcc
+   spaeter).
+3. Kleinere offene Anforderungen: SOLL-ERR-10 (Ereignisse), SOLL-LED-06, Zugriffsprotokoll.
+4. **H0 (Freigabe noetig):** Bootloader auslesen; danach SOLL-SH-10/SOLL-BOOT-30 (Update-Uebergabe),
+   Pruefung Start-SP, loescht der Bootloader Sektor 7.
+5. **H1 (Freigabe noetig):** Pruefplan fuer den ersten Probelauf ohne Last: Pinpegel, LEDs, IWDG,
+   Reaktionszeit RCM -> PE2, Backup-Register, Netzleistung (Netz-Shell bleibt dafuer im Build).
+6. Speicherreserve: bei Bedarf in der beschlossenen Reihenfolge Netz-Shell, Assert-Texte, LTO,
+   Shell-Hilfe abschalten (Nutzer 2026-10-19).
