@@ -7,4 +7,7 @@ zephyr_library_sources(
   din.c
   current.c
   switches.c
+  lock.c
+  rcm.c
+  ctm.c
 )
