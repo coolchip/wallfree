@@ -8,6 +8,7 @@
 #include <zephyr/logging/log.h>
 #include <wallfree/evse/charger.h>
 #include "evse_task.h"
+#include "http_api.h"
 #include "hw.h"
 #include "storage.h"
 
@@ -65,5 +66,6 @@ int main(void)
 	int r = evse_task_start(&cfg, lock); /* SOLL-BOOT-08..10 */
 
 	storage_start();
+	(void)http_api_start(); /* SOLL-BOOT-09: Netz verzoegert den Ladeablauf nicht */
 	return r;
 }

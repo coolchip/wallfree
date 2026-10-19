@@ -799,10 +799,10 @@ Zusatzfunktionen, `/info/name` den Typ (bei `warp3`/`warp4` schaltet evcc
 | SOLL-API-02 | `GET /info/features` | `[]` (kein Zaehler, kein NFC, keine Phasenumschaltung) |
 | SOLL-API-03 | `GET /evse/state` | `{"iec61851_state": 0..4, "charger_state": 0..4, "contactor_state": .., "contactor_error": .., "allowed_charging_current": mA, "error_state": .., "lock_state": 0..5}` |
 | SOLL-API-04 | `GET /evse/external_current` | `{"current": mA}` |
-| SOLL-API-05 | `POST /evse/external_current` mit `{"current": mA}` | setzt Slot `external` (nur RAM); 0 = Laden aus (Stromsperre); erlaubt 0 und 6000..80000, sonst HTTP 400 mit Fehlertext (E14) |
+| SOLL-API-05 | `POST /evse/external_current` mit `{"current": mA}` (auch WARP-Kurzform: nur die Zahl) | setzt Slot `external` (nur RAM); 0 = Laden aus (Stromsperre); erlaubt 0 und 6000..80000, sonst HTTP 400 mit Fehlertext (E14) |
 | SOLL-API-06 | WebSocket `GET /ws` | Textrahmen mit `{"topic": <name>, "payload": <wie GET>}`; beim Verbinden alle Topics einmal, danach bei jeder Aenderung; Topics `evse/state`, `evse/external_current` (optional spaeter `evse/user_current`, `evse/user_enabled`) |
-| SOLL-API-07 | alle | **Zugriffsschutz von Anfang an (F20):** Weboberflaeche und HTTP-/WebSocket-API nur mit Benutzername/Passwort (`web_user`/`web_password`, konfigurierbar). Werkszustand: Default-Zugangsdaten, beim ersten Zugriff muss das Passwort geaendert werden; bis dahin beantwortet die API nur die Passwortaenderung (sonst HTTP 403). Verfahren (Basic oder Digest) so waehlen, dass die evcc-Vorlage `tinkerforge-warp-ws` mit Benutzer/Passwort funktioniert (gegen `warp-ws.go` pruefen). Ohne TLS sind die Zugangsdaten im LAN mitlesbar (Hinweis in der Doku). Mindestens 2 gleichzeitige WebSocket-Clients. |
-| SOLL-API-30 | alle | **Nutzervorgabe 2026-10-19:** Alle Parameter (10.1, 10.2) und alle Mess- und Statuswerte (10.3) sind ueber HTTP lesbar, schreibbare Werte ueber HTTP schreibbar, mit denselben Grenzpruefungen und Fehlermeldungen wie die Shell (E14). Pfadschema WARP-angelehnt (z. B. `/evse/low_level_state`, `/evse/config`), Details bei der Implementierung |
+| SOLL-API-07 | alle | **Zugriffsschutz von Anfang an (F20):** Weboberflaeche und HTTP-/WebSocket-API nur mit Benutzername/Passwort (`web_user`/`web_password`, konfigurierbar). Werkszustand: Default-Zugangsdaten, beim ersten Zugriff muss das Passwort geaendert werden; bis dahin beantwortet die API nur die Passwortaenderung (sonst HTTP 403). **Verfahren (geprueft 2026-10-19): HTTP-Digest, MD5, `qop=auth`** – evcc `charger/warp/connection.go` nutzt `transport.Digest` (`icholy/digest`, Challenge je Host zwischengespeichert, danach Anmeldung vorab, auch beim WebSocket-Aufbau). Gespeichert wird nur HA1. Passwortaenderung ueber `POST /credentials` `{"user", "password"}`; `GET /credentials` meldet `must_change`. Ohne TLS kann Mitlesen im LAN Anfragen wiederholbar machen (Hinweis in der Doku). Mindestens 2 gleichzeitige WebSocket-Clients. |
+| SOLL-API-30 | `GET /evse/params`, `POST /evse/params`, `GET /evse/param_info` | **Nutzervorgabe 2026-10-19:** Alle Parameter (10.1, 10.2) und alle Mess- und Statuswerte (10.3) sind ueber HTTP lesbar, schreibbare Werte ueber HTTP schreibbar, mit denselben Grenzpruefungen und Fehlermeldungen wie die Shell (E14). Umsetzung: `GET /evse/params` = `{"name": Wert, ...}`; `POST /evse/params` mit `{"name": Wert, ...}` prueft und schreibt jeden Wert einzeln (abgelehnte mit Klartext in `{"errors": {...}}`, HTTP 400; bei Syntaxfehler wird nichts geschrieben); persistente Werte werden gespeichert; `GET /evse/param_info` = Name, Art, Einheit, Bereich, Default, Feld des Originals, Hilfetext |
 | SOLL-API-31 | Weboberflaeche | statische, gzip-komprimierte Dateien, die nur die API nutzen; Ansicht "Einfach" und "Experte"; Rahmenwerk Preact + htm mit eigenem CSS (Nutzer 2026-10-19, [Architektur 10.4](architektur.md#104-weboberflaeche-rahmenwerk-entschieden-preact--htm)) |
 
 Abbildungen fuer `evse/state` (WARP-Semantik, Werte beim Implementieren gegen die
@@ -811,14 +811,16 @@ Abbildungen fuer `evse/state` (WARP-Semantik, Werte beim Implementieren gegen di
 | Feld | Soll-Abbildung |
 | --- | --- |
 | `iec61851_state` | CP-Status A = 0, B = 1, C = 2, D = 3, E/F = 4 (F23 entschieden; evcc meldet bei 3/4 einen Fehler) |
-| `charger_state` | 0 kein Fahrzeug (S1); 1 wartet auf Freigabe/Strom (S2, S3); 2 bereit, PWM an (S4, S5); 3 laedt (S6, S7); 4 Fehler (S9, S10) |
-| `allowed_charging_current` | Strom des ausgegebenen Tastgrads (SOLL-CUR-21), 0 ohne PWM |
+| `charger_state` | 0 kein Fahrzeug (S0, S1; S8 ohne Fahrzeug); 1 wartet auf Freigabe/Strom (S2, S3; S8 mit Fahrzeug); 2 bereit, PWM an (S4, S5); 3 laedt (S6, S7); 4 Fehler (S9, S10) |
+| `allowed_charging_current` | Strom des ausgegebenen Tastgrads (SOLL-CUR-21), 0 ohne PWM (CP +12 V oder -12 V); gilt ebenso fuer den Statuswert gleichen Namens |
 | `lock_state` | 0 INIT, 1 UNLOCKED, 2 LOCKING, 3 LOCKED, 4 UNLOCKING, 5 ERROR |
-| `error_state` | 0 kein Fehler; 2 Konfigurationsfehler (ERR-SWITCH, ERR-CONFIG); 3 Fehlerstrom/RCM; 4 ERR-CONTACTOR; sonst Code fuer "sonstiger Fehler" nach WARP-Referenz |
-| `contactor_state`, `contactor_error` | aus Schuetz-Soll und Schuetzueberwachung nach WARP-Referenz |
+| `error_state` | WARP: 0 OK, 2 Schalterfehler, 3 DC-Fehlerstromueberwachung, 4 Schuetzfehler, 5 Kommunikationsfehler. Abbildung: 0 kein Fehler; 3 RCM (Vorrang); 4 ERR-CONTACTOR; 2 ERR-SWITCH/ERR-CONFIG; **1 = sonstiger Fehler** (bei WARP unbelegt, eigene Erweiterung) |
+| `contactor_state` | WARP meint Spannung vor/nach dem Schuetz; die Steuerung misst das nicht, daher aus dem Schuetz-Soll: 3 ein, 0 aus |
+| `contactor_error` | 0 ohne ERR-CONTACTOR; sonst 2 (sollte geschlossen sein) bei Soll ein, 6 (sollte offen sein, Spannung danach) bei Soll aus |
 
-Offen fuer die Implementierung: Rahmenformat (ein Objekt je Rahmen oder mehrere
-zeilengetrennt) gegen `warp-ws.go` pruefen.
+Quelle WARP-Semantik: docs.warp-charger.com, API-Referenz EVSE (gelesen 2026-10-19).
+Rahmenformat (geprueft 2026-10-19): evcc liest je Rahmen beliebig viele JSON-Objekte
+nacheinander; gesendet wird ein Objekt je Rahmen (auch fuer Browser einfach).
 
 ### 12.2 Interne Schnittstelle der Ladelogik
 

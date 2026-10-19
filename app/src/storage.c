@@ -296,3 +296,25 @@ void storage_get_status(struct storage_status *st)
 	st->last_error = last_error;
 	k_mutex_unlock(&nvm_mtx);
 }
+
+int storage_read_raw(uint16_t id, void *buf, size_t max)
+{
+	k_mutex_lock(&nvm_mtx, K_FOREVER);
+	int r = nvm.state == NVM_ST_UNMOUNTED ? NVM_E_STATE : nvm_read(&nvm, id, buf, max);
+
+	k_mutex_unlock(&nvm_mtx);
+	return r;
+}
+
+int storage_save_raw(uint16_t id, const void *data, size_t len)
+{
+	k_mutex_lock(&nvm_mtx, K_FOREVER);
+	int r = nvm.state == NVM_ST_UNMOUNTED ? NVM_E_STATE : nvm_write(&nvm, id, data, len);
+
+	note(r);
+	k_mutex_unlock(&nvm_mtx);
+	if (r == NVM_PENDING) {
+		k_sem_give(&storage_sem);
+	}
+	return r;
+}

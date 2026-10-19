@@ -1,6 +1,6 @@
 # Implementierungsstand Ladelogik
 
-Stand: 2026-10-19. Hardwareunabhaengige Ladelogik und Parameterspeicher als Zephyr-Modul (reines C99), getestet
+Stand: 2026-10-19. Hardwareunabhaengige Ladelogik, Parameterspeicher und API-Abbildung als Zephyr-Modul (reines C99), getestet
 auf dem PC (`native_sim/native/64`, ztest). **Nicht** auf Hardware ausgefuehrt; Tests belegen
 keine elektrische Sicherheit.
 
@@ -21,10 +21,13 @@ keine elektrische Sicherheit.
 | [persist.c](../lib/evse/persist.c) | Laden/Speichern der Konfiguration und des Verriegelungs-Endzustands (465), Loeschbedingung, Import aus Sektor 3 | SOLL-BOOT-04, SOLL-NVM-03/04/10, SOLL-PAR-03/40 | evse_persist (mit Simulationsmodell und simuliertem Flash) |
 | [nvm.c](../lib/nvm/nvm.c) | Log-Format in einer Loescheinheit: Anhaengen, RAM-Puffer bei vollem Bereich, Verdichten, Formatieren, Erkennung unterbrochener Vorgaenge | SOLL-NVM-01..05 | `tests/nvm` (nvm: Stromausfall nach jedem Byte beim Anhaengen und Verdichten, Ausfall beim Loeschen, Pruefsummenfehler, voller Bereich) |
 | [orig.c](../lib/nvm/orig.c) | Nur-Lese-Zugriff auf das Originalformat in Sektor 3 | SOLL-NVM-10 | nvm_orig (synthetisches Abbild) |
+| [md5.c](../lib/api/md5.c), [digest.c](../lib/api/digest.c) | MD5 (RFC 1321), HTTP-Digest mit `qop=auth`: Challenge, Pruefung, zustandslose Nonces | SOLL-API-07 | `tests/api` (api_md5: RFC-1321-Vektoren; api_digest: RFC-2617-Beispiel, Rundlauf wie evcc, Fehlformen) |
+| [json.c](../lib/api/json.c) | JSON-Ausgabe mit Maskierung, Lesen flacher Objekte | 12.1 | api_json |
+| [evse_api.c](../lib/api/evse_api.c) | `evse/state` (WARP-Abbildung), `external_current`, alle Parameter lesen/schreiben, Parameterbeschreibung in Teilen | SOLL-API-03..05/30 | evse_api (mit Simulationsmodell) |
 | [param.c](../lib/evse/param.c) | Parametertabelle (Konfiguration, Laufzeit, Status) mit Name, Kennung, Herkunftsfeld, Einheit, Bereich, Default; Schreiben mit Grenz-/Zustandspruefung und Fehlercode; Wiederherstellen gespeicherter Werte | 10, SOLL-PAR-01..03/40, E14, SOLL-API-20/30 | evse_param (Konsistenz, Grenzen jedes Parameters, Sonderregeln) |
 
 Aufruf: `scripts/run-tests.sh` (twister; `--simple` ohne twister, `--coverage` mit gcovr).
-Stand 2026-10-19: **146 Tests in vier Suiten, alle bestanden**; Abdeckung `lib/` **95 % Zeilen,
+Stand 2026-10-19: **163 Tests in fuenf Suiten, alle bestanden**; Abdeckung `lib/` **95 % Zeilen,
 88 % Verzweigungen** (gcovr; nicht abgedeckt sind vor allem Lesefehler des Flashs). Twister-/Testabhaengigkeiten wurden am 2026-10-19 mit
 Freigabe des Nutzers in `~/zephyrproject/.venv` installiert (`requirements-run-test.txt`,
 `requirements-build-test.txt`); `twister --coverage` bricht in dieser Version ab, daher ruft das
@@ -55,6 +58,14 @@ Die Festlegung "Entriegeln klemmt" hat der Nutzer am 2026-10-19 ebenfalls bestae
 | *neu (Speicher):* ungueltiger Bereich beim Start | sofort neu angelegt, Werkseinstellungen, Meldung im Log und in `evse nvm`; kein Fehlerbit der Ladelogik | SOLL-NVM-05 sagt nur "Meldung" |
 | *neu (Speicher):* Import | 409/412 aus dem unteren Byte (im Original 1-Byte-Felder); jede Uebernahme ueber `evse_param_set`; Netzwerkfelder 315..326 werden nur angezeigt, weil Wallfree noch keine Netzparameter hat | SOLL-NVM-10 |
 | *neu (Speicher):* Werksreset per Shell | `evse factory-reset confirm`, nur im sicheren Zustand, danach Neustart | einfachster Weg zu konsistenten Defaults |
+| *neu (API):* Werkszugang | Benutzer `admin`, Passwort `wallfree`; bis zur Aenderung beantworten alle Ressourcen ausser `/credentials` mit 403 (auch evcc) | SOLL-API-07 nennt kein Passwort |
+| *neu (API):* Nonces | gelten bis zum Neustart (Geheimnis je Start), keine Ablaufzeit, keine Pruefung von `nc`; Nonce eines frueheren Starts -> 401 mit `stale=true` | evcc erneuert die Challenge nur nach einem 401; eine Ablaufzeit liesse den WebSocket-Aufbau (kein 401 moeglich) dauerhaft scheitern. Folge: mitgeschnittene Anfragen sind bis zum Neustart wiederholbar (ohne TLS ohnehin mitlesbar) |
+| *neu (API):* WebSocket-Anmeldung | Zephyr sendet 101 vor dem Anwendungs-Callback; ohne gueltige vorab gesendete Anmeldung wird die Verbindung ohne Daten geschlossen. Ein Browser muss vorher eine HTTP-Ressource abgerufen haben | Zephyr-Server bietet keinen Haken vor dem Upgrade |
+| *neu (API):* `error_state` 1 | sonstige Fehler (z. B. ERR-LOCK, CP ungueltig) -> 1, bei WARP unbelegt; Vorrang RCM > Schuetz > Schalter/Konfiguration | WARP kennt keinen allgemeinen Fehlercode |
+| *neu (API):* `contactor_state` | aus dem Schuetz-Soll (3/0), `contactor_error` 2 bzw. 6 bei ERR-CONTACTOR | keine Spannungsmessung vor/nach dem Schuetz |
+| *neu (API):* `allowed_charging_current` | 0 ohne PWM, auch im Statuswert gleichen Namens (vorher Rechenwert auch ohne PWM) | Spezifikation 12.1 |
+| *neu (API):* `POST /evse/params` | jeder Wert einzeln (nicht atomar); Syntaxfehler -> nichts geschrieben | Zustandsregeln stecken in den Schreibfunktionen |
+| *neu (API):* Zugangsdaten speichern | ein Eintrag (HA1 + Benutzer, Kennung 3001), damit ein Stromausfall nie Benutzer und HA1 trennt | |
 | *neu:* Abbruch des RCM-Selbsttests nach dem Testimpuls | Zustand "Abbruch laeuft" bis 3,4 s nach Teststart: SWITCH_1/2 ausgeblendet, ERR_OUT wirksam; kein neuer Test, kein Weg zum Schuetz in dieser Zeit | der Sensor faehrt seinen Trip-Test zu Ende; dessen Ausloesungen wurden sonst als echter Fehlerstrom gewertet |
 
 ## Parameter: Festlegungen
@@ -96,8 +107,12 @@ Bereichskopfs.
 
 ## Anwendung und Hardwareschicht (`app/`, nur gebaut)
 
-Stand 2026-10-19. Baut fuer `ev_cc_ac1` ohne Warnung: **233 728 B Flash** (von 320 KB),
-**88 444 B RAM**, noch ohne HTTP-Server (Parameterspeicher: +8,2 KB Flash, +5,1 KB RAM). **Nicht auf Hardware ausgefuehrt** (Sicherheitsgrenzen).
+Stand 2026-10-19. Baut fuer `ev_cc_ac1` ohne Warnung: **271 504 B Flash** (von 320 KB, 83 %),
+**110 396 B RAM** (84 %). Parameterspeicher: +8,2 KB Flash, +5,1 KB RAM. HTTP-/WebSocket-API:
++37,8 KB Flash (HTTP-Server 13,5 KB, WebSocket 2,6 KB, PSA-SHA-1 aus tf-psa-crypto 5,9 KB),
++22 KB RAM (vor allem 4 Client-Kontexte des HTTP-Servers, 9,7 KB). `tf-psa-crypto` wurde am
+2026-10-19 mit Freigabe des Nutzers als west-Modul nachgeladen (`manifest.project-filter` um
+`+tf-psa-crypto` ergaenzt); Zephyrs WebSocket-Handshake braucht SHA-1 ueber PSA. **Nicht auf Hardware ausgefuehrt** (Sicherheitsgrenzen).
 
 ```sh
 cd ~/zephyrproject && . .venv/bin/activate && cd zephyr
@@ -110,6 +125,8 @@ west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d ~/zephyrproject/build
 | [hw_gpio.c](../app/src/hw_gpio.c) | alle Ein-/Ausgaenge aus `zephyr,user`; RCM-Flankeninterrupt schaltet PE2 per Register ab und setzt einen Schutz-Latch, der Ein-Befehle sperrt; PE0-Flankenzeitstempel; PB2 erst nach der ersten Ausgabe | SOLL-PROT-01/05, SOLL-IO-01/21 |
 | [evse_task.c](../app/src/evse_task.c) | Schutzthread (Prio 0, 1 ms): RCM-Pegel zyklisch, Ueberwachung Automat (100 ms) und Messbloecke (50 ms), IWDG 250 ms, Wartungsmodus fuer Flash-Loeschen; Automatenthread (Prio 2, 10 ms und je Messblock), meldet Aenderungen des Verriegelungszustands an den Speicher-Thread; Fault-Handler: sicherer Zustand, Neustart | SOLL-RT-04/05/10..12/21 |
 | [storage.c](../app/src/storage.c) | Flash-Adapter auf die Partitionen (Sektor 7 lesen/schreiben/loeschen, Sektor 3 nur lesen, Lage beim Bauen geprueft); Speicher-Thread (Prio 12): Verriegelungszustand speichern, Verdichten im sicheren Zustand; Werksreset, Import | SOLL-NVM-01..05/10, SOLL-RT-13, SOLL-BOOT-04/20/21 |
+| [http_api.c](../app/src/http_api.c) | HTTP-Server Port 80: `/info/name`, `/info/features`, `/evse/state`, `/evse/external_current`, `/evse/params`, `/evse/param_info`, `/credentials`, WebSocket `/ws` (bis 3 Clients, Push-Thread alle 100 ms bzw. sofort nach Schreibzugriffen, ein Topic je Rahmen); Digest-Pruefung je Anfrage | SOLL-API-01..07/30 |
+| [auth.c](../app/src/auth.c) | Zugangsdaten (HA1), Werkszugang, Passwortaenderung, Nonce-Geheimnis je Start | SOLL-API-07 |
 | [main.c](../app/src/main.c) | Startablauf: GPIO, Parameterspeicher (ungueltig -> neu anlegen), Reset-Taster 5 s -> Bereich loeschen, gespeicherte Werte laden, DIP/Drehschalter, Messung, Threads | SOLL-BOOT-01..10/20 |
 | [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `evse param list/get/set` (persistente Werte werden gespeichert), `evse ack`, `evse nvm`, `evse factory-reset confirm`, `evse import-original` (Telnet) | SOLL-SH-01/02/06/08/09, SOLL-SH-19/20 |
 
@@ -148,5 +165,9 @@ Anwendung sie direkt steuert; der Groessentest bringt sie per `spike-size/app.ov
 - System- und Netzparameter (Hostname, IP, Zugangsdaten, Telnet) gehoeren nicht zur Ladelogik
   und kommen in eine eigene Tabelle der Anwendung (Speicherkennungen ab 3000); danach Import
   der Netzwerkfelder 315..326.
-- HTTP/WebSocket-API, Weboberflaeche, Zugangsschutz, Shell (Abschnitt 12).
+- Weboberflaeche (SOLL-API-31), restliche Shell-Kommandos (12.3).
+- Test der API mit evcc gegen einen `native_sim`-Build mit Netz (Spezifikation 12: nur nach
+  Absprache); bisher sind Digest und JSON nur als Bausteine getestet, der HTTP-Ablauf nur gebaut.
+- Keine Bremse gegen Passwort-Durchprobieren; Zugriffsprotokoll fehlt.
+- RAM-Reserve ~17 KB: Heap (16 KB) und Client-Kontexte bei Bedarf verkleinern.
 - Fehlerhistorie mit Zeitstempeln (SOLL-ERR-01, bisher nur Sammelwert `errors_seen`).

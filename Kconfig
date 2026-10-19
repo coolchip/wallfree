@@ -12,3 +12,11 @@ config WALLFREE_NVM
 	  und Leser fuer den Parameterbereich der Originalfirmware
 	  (SOLL-NVM-10). Reines C, auf dem PC testbar. Mit
 	  WALLFREE_EVSE kommt die Persistenz der Ladelogik dazu.
+
+config WALLFREE_API
+	bool "Wallfree HTTP-API ohne Netzwerk (hardwareunabhaengig)"
+	depends on WALLFREE_EVSE
+	help
+	  Digest-Authentifizierung (MD5), minimales JSON und Abbildung der
+	  Ladelogik auf die WARP-angelehnte API (Soll-Spezifikation 12.1).
+	  Reines C, auf dem PC testbar.

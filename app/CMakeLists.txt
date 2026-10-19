@@ -12,4 +12,9 @@ target_sources(app PRIVATE
   src/evse_task.c
   src/shell_evse.c
   src/storage.c
+  src/auth.c
+  src/http_api.c
 )
+# Ressourcenliste des HTTP-Servers (HTTP_RESOURCE_DEFINE)
+zephyr_linker_sources(SECTIONS sections-rom.ld)
+zephyr_linker_section(NAME http_resource_desc_wallfree_http KVMA RAM_REGION GROUP RODATA_REGION)

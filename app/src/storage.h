@@ -48,4 +48,14 @@ int storage_import_orig(evse_import_report_t report, void *ctx);
 
 void storage_get_status(struct storage_status *st);
 
+/* Anwendungsparameter (Kennungen ab EVSE_NVM_ID_APP) */
+/* Zugangsdaten in einem Eintrag (atomar): 16 Byte HA1 = MD5(Benutzer:Realm:Passwort),
+ * danach der Benutzername (1..32 Byte, ohne NUL) */
+#define STORAGE_ID_WEB_CRED 3001
+
+/** Gespeicherten Wert lesen. @return Laenge oder NVM-Fehler (NVM_E_NOENT) */
+int storage_read_raw(uint16_t id, void *buf, size_t max);
+/** Wert speichern. @return NVM_OK, NVM_PENDING oder Fehler */
+int storage_save_raw(uint16_t id, const void *data, size_t len);
+
 #endif

@@ -186,7 +186,7 @@ Bewertung:
 
 Umgebung: Zephyr **v4.4.2**, Zephyr-SDK **1.0.1** (`arm-zephyr-eabi-gcc` 14.3.0), west 1.5.0
 in `~/zephyrproject/.venv`, Module per `manifest.project-filter` auf cmsis, cmsis_6,
-hal_stm32, mbedtls begrenzt (ausserhalb des Repos).
+hal_stm32, mbedtls und (seit 2026-10-19, fuer WebSocket) tf-psa-crypto begrenzt (ausserhalb des Repos).
 
 ```sh
 cd ~/zephyrproject && . .venv/bin/activate && cd zephyr

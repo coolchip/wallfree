@@ -250,6 +250,16 @@ bool evse_ack_contactor_fault(struct evse *e);
  */
 void evse_apply_config(struct evse *e);
 
+/**
+ * Strom, den das Fahrzeug laut ausgegebenem Tastgrad ziehen darf (SOLL-CUR-21);
+ * 0 ohne PWM (CP +12 V oder -12 V), Soll-Spezifikation 12.1.
+ */
+static inline int32_t evse_allowed_current(const struct evse *e)
+{
+	return (e->out.cp_duty == EVSE_DUTY_OFF || e->out.cp_duty == EVSE_DUTY_F) ? 0
+										   : e->cur.allowed_ma;
+}
+
 /** Ausgangsfunktion @p code fuer den aktuellen Zustand (Tabelle 9.3). */
 bool evse_dout_eval(const struct evse *e, uint8_t code, evse_ms_t now);
 

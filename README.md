@@ -18,6 +18,7 @@ koennen Menschen gefaehrden. Software-Tests belegen keine elektrische Sicherheit
 | [spike-size/](spike-size/) | Groessentest (nur bauen) |
 | [include/wallfree/evse/](include/wallfree/evse/), [lib/evse/](lib/evse/) | Ladelogik als Zephyr-Modul, reines C ohne Hardwarebezug |
 | [include/wallfree/nvm/](include/wallfree/nvm/), [lib/nvm/](lib/nvm/) | Parameterspeicher (Log-Format in Sektor 7) und Leser fuer den Originalbereich, reines C |
+| [include/wallfree/api/](include/wallfree/api/), [lib/api/](lib/api/) | Digest-Anmeldung, JSON, Abbildung der Ladelogik auf die WARP-angelehnte API, reines C |
 | [docs/implementierung.md](docs/implementierung.md) | Implementierungsstand, Zuordnung Modul -> SOLL, offene Punkte |
 | [tests/](tests/) | PC-Tests (ztest auf `native_sim/native/64`), Aufruf `scripts/run-tests.sh` |
 
@@ -36,6 +37,17 @@ Die Spezifikation stuetzt sich auf eine statische Analyse der Originalfirmware. 
 Analysebelege liegen in einem separaten, nicht veroeffentlichten Repository (`wallbe2`), weil
 es urheberrechtlich geschuetzte Originaldateien enthaelt. Verweise der Form
 `../../wallbe2/...` funktionieren nur, wenn beide Repositories nebeneinander liegen.
+
+## Zugriff ueber das Netz
+
+- HTTP-API auf Port 80 mit HTTP-Digest (MD5). Werkszugang `admin` / `wallfree`; bis zur
+  Aenderung ueber `POST /credentials` (`{"user": ..., "password": ...}`) ist nur diese
+  Ressource erreichbar.
+- evcc: Vorlage `tinkerforge-warp-ws` mit Adresse, Benutzer und Passwort.
+- **Keine Verschluesselung (kein TLS):** Wer im LAN mitliest, sieht alle Daten und kann
+  mitgeschnittene Anfragen bis zum naechsten Neustart wiederholen. Das Passwort selbst wird
+  nicht uebertragen. Die Wallbox nur in einem vertrauenswuerdigen Netz betreiben.
+- Telnet-Shell ohne Anmeldung (vorlaeufig, F20).
 
 ## Lizenz
 
