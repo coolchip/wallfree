@@ -19,6 +19,7 @@ koennen Menschen gefaehrden. Software-Tests belegen keine elektrische Sicherheit
 | [include/wallfree/evse/](include/wallfree/evse/), [lib/evse/](lib/evse/) | Ladelogik als Zephyr-Modul, reines C ohne Hardwarebezug |
 | [include/wallfree/nvm/](include/wallfree/nvm/), [lib/nvm/](lib/nvm/) | Parameterspeicher (Log-Format in Sektor 7) und Leser fuer den Originalbereich, reines C |
 | [include/wallfree/api/](include/wallfree/api/), [lib/api/](lib/api/) | Digest-Anmeldung, JSON, Abbildung der Ladelogik auf die WARP-angelehnte API, reines C |
+| [web/](web/) | Weboberflaeche (Preact + htm, gzip im Flash); Fremdcode unter [web/vendor/](web/vendor/) mit eigenen Lizenzen |
 | [docs/implementierung.md](docs/implementierung.md) | Implementierungsstand, Zuordnung Modul -> SOLL, offene Punkte |
 | [tests/](tests/) | PC-Tests (ztest auf `native_sim/native/64`), Aufruf `scripts/run-tests.sh` |
 
@@ -43,6 +44,8 @@ es urheberrechtlich geschuetzte Originaldateien enthaelt. Verweise der Form
 - HTTP-API auf Port 80 mit HTTP-Digest (MD5). Werkszugang `admin` / `wallfree`; bis zur
   Aenderung ueber `POST /credentials` (`{"user": ..., "password": ...}`) ist nur diese
   Ressource erreichbar.
+- Weboberflaeche unter `http://<Adresse>/` mit denselben Zugangsdaten. Vorschau ohne Hardware:
+  `scripts/web-preview.py` (Attrappen der API, nur lokal), dann `http://127.0.0.1:8080/`.
 - evcc: Vorlage `tinkerforge-warp-ws` mit Adresse, Benutzer und Passwort.
 - **Keine Verschluesselung (kein TLS):** Wer im LAN mitliest, sieht alle Daten und kann
   mitgeschnittene Anfragen bis zum naechsten Neustart wiederholen. Das Passwort selbst wird
@@ -51,4 +54,4 @@ es urheberrechtlich geschuetzte Originaldateien enthaelt. Verweise der Form
 
 ## Lizenz
 
-Apache-2.0, siehe [LICENSE](LICENSE).
+Apache-2.0, siehe [LICENSE](LICENSE). Ausnahme: Fremdcode unter [web/vendor/](web/vendor/) (htm: Apache-2.0, Preact: MIT, siehe dortige README).

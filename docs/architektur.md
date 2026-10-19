@@ -309,6 +309,11 @@ Oberflaeche.
 
 **Entschieden (Nutzer, 2026-10-19):** **Preact + htm** mit eigenem kleinem CSS.
 
+**Umsetzung (2026-10-19):** [web/](../web/), htm 3.1.1 `preact/standalone.module.js` unveraendert
+unter [web/vendor/](../web/vendor/) (htm Apache-2.0, enthaltenes Preact MIT). Gemessen (gzip -9):
+Bibliothek 5,3 KB, `app.js` 4,8 KB, CSS 1,2 KB, HTML 0,3 KB, **zusammen 11,7 KB**; im Firmware-
+Abbild +12 KB Flash. gzip erzeugt Zephyrs CMake beim Bauen (`generate_inc_file_for_target`).
+
 ### 10.5 Projektname und Ort
 
 **Entschieden (Nutzer, 2026-10-19):** Projektname **Wallfree**. Die Ersatzfirmware kommt in ein

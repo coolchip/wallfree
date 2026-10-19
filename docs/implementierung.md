@@ -74,6 +74,9 @@ Die Festlegung "Entriegeln klemmt" hat der Nutzer am 2026-10-19 ebenfalls bestae
 | *neu (System):* Import Netz | Felder 404 (DHCP), 315..326 (IP/Maske/Gateway) nach Original-Webseite; alles oder nichts; Geraetename 310 wird nicht uebernommen | Belegung aus `wallbe2/analysis/web/lan.html` |
 | *neu (API):* Bremse | 5 freie Fehlversuche je Adresse, dann 10 s, verdoppelt bis 5 min, 429 mit `Retry-After`; nur falsches Passwort zaehlt (fehlende Anmeldung und veraltete Nonce nicht) | |
 | *neu (API):* Absender beim WebSocket | aus Zephyr-Interna ermittelt (Kopfzeilenfeld des Client-Kontexts, Zephyr 4.4.2); bei Zephyr-Updates pruefen | der WebSocket-Callback liefert keinen TCP-Socket |
+| *neu (Web):* Anmeldung | Oberflaeche hinter Digest wie die API (Anmeldedialog des Browsers); im Werkszugang nur Zugangsdaten-Seite; nach der Aenderung fragt der Browser neu | SOLL-API-07 |
+| *neu (Web):* Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickt beim WebSocket-Aufbau evtl. keine Anmeldung, auf Hardware ungeprueft), Abfrage alle 2 s | |
+| *neu (Web):* Sollstrom-Schieber | 6..32 A in 1-A-Schritten, dazu "Laden aus" (0) | evcc ueberschreibt den Wert, wenn verbunden |
 | *neu:* Abbruch des RCM-Selbsttests nach dem Testimpuls | Zustand "Abbruch laeuft" bis 3,4 s nach Teststart: SWITCH_1/2 ausgeblendet, ERR_OUT wirksam; kein neuer Test, kein Weg zum Schuetz in dieser Zeit | der Sensor faehrt seinen Trip-Test zu Ende; dessen Ausloesungen wurden sonst als echter Fehlerstrom gewertet |
 
 ## Parameter: Festlegungen
@@ -115,8 +118,8 @@ Bereichskopfs.
 
 ## Anwendung und Hardwareschicht (`app/`, nur gebaut)
 
-Stand 2026-10-19. Baut fuer `ev_cc_ac1` ohne Warnung: **277 180 B Flash** (von 320 KB, 85 %),
-**111 804 B RAM** (85 %); Netz-/Systemparameter und Bremse +5,7 KB Flash. Parameterspeicher: +8,2 KB Flash, +5,1 KB RAM. HTTP-/WebSocket-API:
+Stand 2026-10-19. Baut fuer `ev_cc_ac1` ohne Warnung: **289 284 B Flash** (von 320 KB, 88 %),
+**112 060 B RAM** (85 %); Netz-/Systemparameter und Bremse +5,7 KB Flash, Weboberflaeche +12 KB. Parameterspeicher: +8,2 KB Flash, +5,1 KB RAM. HTTP-/WebSocket-API:
 +37,8 KB Flash (HTTP-Server 13,5 KB, WebSocket 2,6 KB, PSA-SHA-1 aus tf-psa-crypto 5,9 KB),
 +22 KB RAM (vor allem 4 Client-Kontexte des HTTP-Servers, 9,7 KB). `tf-psa-crypto` wurde am
 2026-10-19 mit Freigabe des Nutzers als west-Modul nachgeladen (`manifest.project-filter` um
@@ -136,6 +139,7 @@ west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d ~/zephyrproject/build
 | [http_api.c](../app/src/http_api.c) | HTTP-Server Port 80: `/info/name`, `/info/features`, `/evse/state`, `/evse/external_current`, `/evse/params`, `/evse/param_info`, `/credentials`, `/system/config`, `/system/config_info`, `/system/restart`, WebSocket `/ws` (bis 3 Clients, Push-Thread alle 100 ms bzw. sofort nach Schreibzugriffen, ein Topic je Rahmen); Digest-Pruefung je Anfrage | SOLL-API-01..07/30 |
 | [netcfg.c](../app/src/netcfg.c) | Netz-/Systemparameter laden, Hostname, DHCP oder feste Adresse, Telnet; Aendern (atomar), Import | 10.1, F20, F25 |
 | [auth.c](../app/src/auth.c) | Zugangsdaten (HA1), Werkszugang, Passwortaenderung, Nonce-Geheimnis je Start | SOLL-API-07 |
+| [web/](../web/) | Weboberflaeche: Werkszugang -> Zugangsdaten festlegen; "Einfach": Zustand, Fahrzeug, erlaubter Strom, Fehler, Sollstrom setzen; "Experte": alle Parameter mit Bereich, Default, Feld, Hilfetext und Schreiben, Netz/System mit Neustart, Zugangsdaten | SOLL-API-31 |
 | [main.c](../app/src/main.c) | Startablauf: GPIO, Parameterspeicher (ungueltig -> neu anlegen), Reset-Taster 5 s -> Bereich loeschen, gespeicherte Werte laden, DIP/Drehschalter, Messung, Threads | SOLL-BOOT-01..10/20 |
 | [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `evse param list/get/set` (persistente Werte werden gespeichert), `evse ack`, `evse nvm`, `evse factory-reset confirm`, `evse import-original` (Telnet) | SOLL-SH-01/02/06/08/09, SOLL-SH-19/20 |
 
@@ -174,7 +178,9 @@ Anwendung sie direkt steuert; der Groessentest bringt sie per `spike-size/app.ov
 - System- und Netzparameter (Hostname, IP, Zugangsdaten, Telnet) gehoeren nicht zur Ladelogik
   und kommen in eine eigene Tabelle der Anwendung (Speicherkennungen ab 3000); danach Import
   der Netzwerkfelder 315..326.
-- Weboberflaeche (SOLL-API-31), restliche Shell-Kommandos (12.3).
+- Restliche Shell-Kommandos (12.3).
+- Weboberflaeche: Darstellung nur mit `scripts/web-preview.py` (Attrappen der API, ohne Digest und
+  WebSocket) in Chrome geprueft; gegen die echte Firmware erst mit Netz (native_sim oder H1).
 - Test der API mit evcc gegen einen `native_sim`-Build mit Netz (Spezifikation 12: nur nach
   Absprache); bisher sind Digest und JSON nur als Bausteine getestet, der HTTP-Ablauf nur gebaut.
 - Zugriffsprotokoll fehlt (nur Log-Warnung bei Fehlversuchen).

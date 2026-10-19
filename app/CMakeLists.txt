@@ -19,3 +19,10 @@ target_sources(app PRIVATE
 # Ressourcenliste des HTTP-Servers (HTTP_RESOURCE_DEFINE)
 zephyr_linker_sources(SECTIONS sections-rom.ld)
 zephyr_linker_section(NAME http_resource_desc_wallfree_http KVMA RAM_REGION GROUP RODATA_REGION)
+# Weboberflaeche (SOLL-API-31): gzip-komprimiert im Flash
+set(gen_dir ${ZEPHYR_BINARY_DIR}/include/generated/web)
+foreach(f index.html app.js style.css vendor/preact-htm.js)
+  get_filename_component(n ${f} NAME)
+  generate_inc_file_for_target(app ${CMAKE_CURRENT_SOURCE_DIR}/../web/${f} ${gen_dir}/${n}.gz.inc --gzip)
+endforeach()
+zephyr_include_directories(${ZEPHYR_BINARY_DIR}/include/generated)

@@ -100,6 +100,10 @@ static enum wf_auth checked_auth(uint32_t addr, const char *hdr, const char *met
 /* ------------------------------------------------ gemeinsamer Ablauf */
 
 struct res;
+struct web_file {
+	const uint8_t *data;
+	size_t len;
+};
 typedef void (*res_fn_t)(struct http_client_ctx *client, struct res *r,
 			 struct http_response_ctx *rsp);
 
@@ -114,6 +118,7 @@ struct res {
 	size_t cursor;       /* fuer Antworten in Teilen */
 	char *body;          /* nur POST-Ressourcen, mit Platz fuer NUL */
 	size_t body_size;
+	const struct web_file *file; /* nur Dateien der Oberflaeche */
 };
 
 static const char *find_header(const struct http_request_ctx *req, const char *name)
@@ -258,6 +263,57 @@ static int dyn_cb(struct http_client_ctx *client, enum http_transaction_status s
 static uint16_t http_port = HTTP_PORT;
 HTTP_SERVICE_DEFINE(wallfree_http, NULL, &http_port, CONFIG_HTTP_SERVER_MAX_CLIENTS, 4, NULL, NULL,
 		    NULL);
+
+/* ------------------------------------------------ Weboberflaeche (SOLL-API-31) */
+
+static const uint8_t index_gz[] = {
+#include "web/index.html.gz.inc"
+};
+static const uint8_t app_gz[] = {
+#include "web/app.js.gz.inc"
+};
+static const uint8_t style_gz[] = {
+#include "web/style.css.gz.inc"
+};
+static const uint8_t vendor_gz[] = {
+#include "web/preact-htm.js.gz.inc"
+};
+
+static const struct http_header web_headers[] = {
+	{.name = "Content-Encoding", .value = "gzip"},
+	{.name = "Cache-Control", .value = "no-cache"},
+};
+
+static void web_file(struct http_client_ctx *client, struct res *r, struct http_response_ctx *rsp)
+{
+	ARG_UNUSED(client);
+	rsp->status = HTTP_200_OK;
+	rsp->headers = web_headers;
+	rsp->header_count = ARRAY_SIZE(web_headers);
+	rsp->body = r->file->data;
+	rsp->body_len = r->file->len;
+	rsp->final_chunk = true;
+}
+
+/* hinter derselben Anmeldung; auch im Werkszugang (Passwortaenderung) */
+#define WEB_RESOURCE(_id, _path, _data, _type)                                                     \
+	static const struct web_file _id##_file = {.data = _data, .len = sizeof(_data)};           \
+	static char _id##_body[1];                                                                 \
+	static struct res _id##_res = {.fn = web_file, .allow_factory = true,                      \
+				       .body = _id##_body, .body_size = 1, .file = &_id##_file};  \
+	static struct http_resource_detail_dynamic _id##_detail = {                                \
+		.common = {.type = HTTP_RESOURCE_TYPE_DYNAMIC,                                     \
+			   .bitmask_of_supported_http_methods = BIT(HTTP_GET),                     \
+			   .content_type = _type},                                                 \
+		.cb = dyn_cb,                                                                      \
+		.user_data = &_id##_res,                                                           \
+	};                                                                                         \
+	HTTP_RESOURCE_DEFINE(_id, wallfree_http, _path, &_id##_detail)
+
+WEB_RESOURCE(web_index, "/", index_gz, "text/html; charset=utf-8");
+WEB_RESOURCE(web_app, "/app.js", app_gz, "text/javascript");
+WEB_RESOURCE(web_style, "/style.css", style_gz, "text/css");
+WEB_RESOURCE(web_vendor, "/vendor.js", vendor_gz, "text/javascript");
 
 /* ------------------------------------------------ /info (SOLL-API-01/02) */
 
