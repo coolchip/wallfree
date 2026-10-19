@@ -162,6 +162,27 @@ Korrigiert: Die Board-Beschreibung stellte noch 120 MHz ein (aus dem Groessentes
 (PLLN 200) wie entschieden. TIM1/ADC1 sind aus der Board-Beschreibung entfernt, weil die
 Anwendung sie direkt steuert; der Groessentest bringt sie per `spike-size/app.overlay` wieder mit.
 
+### Speicherreserven (gemessen 2026-10-19)
+
+Basis: 295 228 B Flash, 113 916 B RAM; gebaut mit `-Os` (`CONFIG_SIZE_OPTIMIZATIONS`) und `-g`.
+Die Debug-Abschnitte (~6 MB in der ELF-Datei) liegen auf Adresse 0 und kommen nicht in den Flash.
+Jede Variante einzeln gebaut (west build mit zusaetzlicher Kconfig-Option), alle ohne Warnung:
+
+| Variante | Flash | Ersparnis | Bemerkung |
+| --- | --- | --- | --- |
+| `CONFIG_SIZE_OPTIMIZATIONS_AGGRESSIVE` (`-Oz`) | 295 228 | 0 | GCC 14 erzeugt fuer Cortex-M3 denselben Code wie `-Os` (Funktionsgroessen identisch) |
+| `CONFIG_SHELL_HELP=n` | 287 216 | 8 KB | Hilfetexte der Shell entfallen |
+| `CONFIG_LTO=y` (+ `ISR_TABLES_LOCAL_DECLARATION`) | 270 916 | 24 KB | geprueft: Interrupts TIM1_UP/DMA2_S0 richtig eingetragen, alle 9 HTTP-Ressourcen da, eigener Fault-Handler in `z_arm_fatal_error` eingebettet (ruft sicheren Zustand und Reset); Fehlersuche mit Debugger schwerer |
+| Assert-Texte weg (`ASSERT_VERBOSE=n`, `ASSERT_NO_FILE_INFO/COND_INFO/MSG_INFO=y`) | 263 224 | 32 KB | Pruefungen bleiben, nur Datei/Bedingung/Meldung fehlen in der Ausgabe |
+| `CONFIG_ASSERT=n` | 255 196 | 40 KB | Pruefungen entfallen, nicht empfohlen |
+| `CONFIG_NET_SHELL=n` | 251 380 | 43 KB | mehr als die 17 KB aus dem Groessentest |
+| LTO + Assert-Texte weg | 247 284 | 48 KB | |
+| LTO + `ASSERT=n` | 240 340 | 55 KB | |
+
+Nutzerentscheidung (2026-10-19): Netz-Shell bleibt fuer den ersten Probelauf (Netzleistung
+ansehen) und wird als Erstes entfernt, wenn es knapp wird. Weitere Hebel in dieser Reihenfolge
+vorgeschlagen: Assert-Texte, LTO, Shell-Hilfe; zusammen mit der Netz-Shell ~100 KB.
+
 ### Annahmen der Hardwareschicht (in H1 zu pruefen)
 
 - Pinbelegung, aktive Pegel und ADC-Skalierung stammen aus dem Original (Firmwarebefunde,
