@@ -481,6 +481,21 @@ static void evse_errors(struct http_client_ctx *client, struct res *r,
 	respond_json(rsp, HTTP_200_OK, &b);
 }
 
+/* Sollwert, Grenzen, wirksamer Strom (eigene Erweiterung) */
+static void evse_limits(struct http_client_ctx *client, struct res *r,
+			struct http_response_ctx *rsp)
+{
+	ARG_UNUSED(client);
+	ARG_UNUSED(r);
+	struct wf_jbuf b;
+
+	wf_jb_init(&b, out, sizeof(out));
+	api_json_limits(evse_acquire(), &b);
+	evse_release();
+	respond_json(rsp, HTTP_200_OK, &b);
+}
+
+JSON_RESOURCE(evse_limits_r, "/evse/limits", BIT(HTTP_GET), evse_limits, false, 0);
 JSON_RESOURCE(evse_errors_r, "/evse/errors", BIT(HTTP_GET), evse_errors, false, 0);
 
 /* SOLL-ERR-03: nur der Schuetzfehler wird quittiert; andere loeschen sich selbst */
@@ -766,11 +781,12 @@ static void ws_drain(int i)
 	}
 }
 
-#define WS_TOPICS 2
-static char ws_last[WS_TOPICS][160];
-static char ws_cur[WS_TOPICS][160];
-static char ws_frame[256];
-static const char *const ws_topic[WS_TOPICS] = {"evse/state", "evse/external_current"};
+#define WS_TOPICS 3
+static char ws_last[WS_TOPICS][224];
+static char ws_cur[WS_TOPICS][224];
+static char ws_frame[288];
+static const char *const ws_topic[WS_TOPICS] = {"evse/state", "evse/external_current",
+						 "evse/limits"};
 
 static void ws_render(void)
 {
@@ -783,6 +799,7 @@ static void ws_render(void)
 	e = evse_acquire();
 	api_json_state(e, &b[0]);
 	api_json_external_current(e, &b[1]);
+	api_json_limits(e, &b[2]);
 	evse_release();
 }
 

@@ -12,7 +12,6 @@ static void before(void *f)
 {
 	ARG_UNUSED(f);
 	evse_config_defaults(&cfg);
-	cfg.external_current_default_ma = EVSE_CURRENT_MAX_MA; /* Szenarien ohne Vorgabe der Schnittstelle */
 	cfg.dip = 0;
 	cfg.contactor_monitor = EVSE_CTM_SENSE;
 	sim_init(&s, &cfg);
@@ -492,22 +491,19 @@ ZTEST(evse_charger, test_external_current_slot)
 	zassert_equal(s.e.out.cp_duty, 100);
 }
 
-/* F12 (2026-10-20): Werkswert 0 -> nach dem Start kein PWM, bis die Schnittstelle einen Strom setzt */
-ZTEST(evse_charger, test_external_default_zero)
+/* F12: Werkswert ohne Einschraenkung; der Drehschalter (Default Stellung 4 = 16 A) begrenzt */
+ZTEST(evse_charger, test_external_default_unlimited)
 {
 	evse_config_defaults(&cfg);
 	cfg.dip = 0;
-	zassert_equal(cfg.external_current_default_ma, 0);
+	zassert_equal(cfg.external_current_default_ma, EVSE_CURRENT_MAX_MA);
 	reinit();
 	sim_boot(&s);
 	s.car = EVSE_CP_C;
-	sim_run(&s, 8000);
-	zassert_equal(s.e.state, EVSE_S3_WAIT, "Zustand %d", s.e.state);
-	zassert_equal(s.e.out.cp_duty, EVSE_DUTY_OFF);
-	zassert_false(s.e.out.contactor);
-	s.e.rt.external_ma = 16000; /* wie evcc */
 	zassert_true(sim_until_state(&s, EVSE_S6_CHARGING, 10000) >= 0, "Zustand %d", s.e.state);
-	zassert_equal(s.e.out.cp_duty, 266);
+	zassert_equal(s.e.out.cp_duty, 266, "16 A Drehschalter");
+	zassert_equal(s.e.cur_in.external_ma, EVSE_CURRENT_MAX_MA);
+	zassert_equal(s.e.cur_in.hardware_ma, 16000);
 }
 
 ZTEST(evse_charger, test_safe_state)

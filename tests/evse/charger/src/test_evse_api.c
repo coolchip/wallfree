@@ -14,7 +14,6 @@ static void before(void *f)
 {
 	ARG_UNUSED(f);
 	evse_config_defaults(&cfg);
-	cfg.external_current_default_ma = EVSE_CURRENT_MAX_MA; /* Szenarien ohne Vorgabe der Schnittstelle */
 	cfg.dip = 0;
 	sim_init(&s, &cfg);
 	wf_jb_init(&jb, buf, sizeof(buf));
@@ -194,4 +193,34 @@ ZTEST(evse_api, test_params_and_info)
 	zassert_not_null(strstr(big, "{\"name\":\"lock_pulse\",\"kind\":\"config\",\"unit\":\"ms\","
 				     "\"min\":100,\"max\":3000,\"default\":500,\"field\":525,"));
 	zassert_not_null(strstr(big, "{\"name\":\"state\",\"kind\":\"status\""));
+}
+
+/* GET /evse/limits: Sollwert, Grenzen und welche Grenze wirkt (Drehschalter Default 16 A) */
+ZTEST(evse_api, test_limits)
+{
+	sim_boot(&s);
+	s.car = EVSE_CP_C;
+	zassert_true(sim_until_state(&s, EVSE_S6_CHARGING, 10000) >= 0);
+	api_json_limits(&s.e, &jb);
+	zassert_str_equal(buf, "{\"external\":80000,\"external_ignored\":false,\"hardware\":16000,"
+			       "\"cable\":0,\"input\":0,\"effective\":16000,\"allowed\":15960,"
+			       "\"limited_by\":\"hardware\"}", "%s", buf);
+
+	s.e.rt.external_ma = 10000;
+	sim_run(&s, 20);
+	zassert_str_equal(api_limited_by(&s.e), "external");
+	s.e.rt.external_ma = 16000; /* Gleichstand: Sollwert wirkt */
+	sim_run(&s, 20);
+	zassert_str_equal(api_limited_by(&s.e), "external");
+	s.e.rt.external_ma = 32000;
+	s.e.rt.hardware_limit_ma = 8000; /* 801 absenken */
+	sim_run(&s, 20);
+	zassert_str_equal(api_limited_by(&s.e), "hardware");
+	zassert_equal(s.e.cur_in.hardware_ma, 8000);
+	s.e.rt.external_ma = 0;
+	sim_run(&s, 20);
+	zassert_str_equal(api_limited_by(&s.e), "blocked");
+	wf_jb_init(&jb, buf, sizeof(buf));
+	api_json_limits(&s.e, &jb);
+	zassert_not_null(strstr(buf, "\"effective\":0,"), "%s", buf);
 }

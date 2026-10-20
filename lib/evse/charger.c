@@ -32,7 +32,7 @@ void evse_config_defaults(struct evse_config *cfg)
 	cfg->reject_state_d = true;
 	cfg->wakeup_delay_ms = 30000;
 	cfg->wakeup_mode = 0;
-	cfg->external_current_default_ma = 0; /* F12 (2026-10-20): kein Laden bis zur ersten Vorgabe */
+	cfg->external_current_default_ma = EVSE_CURRENT_MAX_MA; /* F12: keine Einschraenkung */
 	cfg->enable_register_default = false;
 }
 
@@ -492,6 +492,7 @@ static void update_release_and_current(struct evse *e)
 		.pause_request = e->rt.pause_request,
 	};
 	evse_current_eval(&ci, &e->cur);
+	e->cur_in = ci;
 	if (e->cur.implausible) {
 		e->errors |= EVSE_ERR_INTERNAL; /* SOLL-CUR-13 */
 	}

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* Abbildung Ladelogik -> API, siehe include/wallfree/api/evse_api.h */
+#include <stdint.h>
 #include <string.h>
 #include <wallfree/api/evse_api.h>
 
@@ -92,6 +93,51 @@ void api_json_state(const struct evse *e, struct wf_jbuf *b)
 	kv(b, "allowed_charging_current", evse_allowed_current(e), false);
 	kv(b, "error_state", api_error_state(e), false);
 	kv(b, "lock_state", e->lock.state, false);
+	wf_jb_raw(b, "}");
+}
+
+const char *api_limited_by(const struct evse *e)
+{
+	const struct evse_current_in *in = &e->cur_in;
+
+	if (e->cur.pwm5_mode) {
+		return "pwm5";
+	}
+	if (e->cur.blocked) {
+		return "blocked";
+	}
+	/* kleinste aktive Grenze; bei Gleichstand wirkt der Sollwert (nichts begrenzt ihn) */
+	const char *by = "external";
+	int32_t min = in->external_ignored ? INT32_MAX : in->external_ma;
+	const struct {
+		const char *name;
+		int32_t ma;
+	} lim[] = {{"hardware", in->hardware_ma}, {"cable", in->cable_ma}, {"input", in->input_ma}};
+
+	for (size_t i = 0; i < sizeof(lim) / sizeof(lim[0]); i++) {
+		if (lim[i].ma > 0 && lim[i].ma < min) {
+			min = lim[i].ma;
+			by = lim[i].name;
+		}
+	}
+	return by;
+}
+
+void api_json_limits(const struct evse *e, struct wf_jbuf *b)
+{
+	const struct evse_current_in *in = &e->cur_in;
+
+	wf_jb_raw(b, "{");
+	kv(b, "external", e->rt.external_ma, true);
+	wf_jb_key(b, "external_ignored", false);
+	wf_jb_raw(b, in->external_ignored ? "true" : "false");
+	kv(b, "hardware", in->hardware_ma, false);
+	kv(b, "cable", in->cable_ma, false);
+	kv(b, "input", in->input_ma, false);
+	kv(b, "effective", e->cur.blocked ? 0 : e->cur.i_ma, false);
+	kv(b, "allowed", evse_allowed_current(e), false);
+	wf_jb_key(b, "limited_by", false);
+	wf_jb_str(b, api_limited_by(e));
 	wf_jb_raw(b, "}");
 }
 

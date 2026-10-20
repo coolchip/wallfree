@@ -16,7 +16,6 @@ static void before(void *f)
 {
 	ARG_UNUSED(f);
 	evse_config_defaults(&cfg);
-	cfg.external_current_default_ma = EVSE_CURRENT_MAX_MA; /* Szenarien ohne Vorgabe der Schnittstelle */
 	cfg.dip = 0;
 	cfg.contactor_monitor = EVSE_CTM_SENSE;
 	sim_init(&s, &cfg);

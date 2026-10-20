@@ -64,12 +64,6 @@ class SimCase(unittest.TestCase):
         self.assertEqual(r.status, 200, r)
         return Digest(USER, PASSWORD)
 
-    def set_current(self, ma, auth=None):
-        """Sollstrom wie evcc; Werkswert nach jedem Start ist 0 (F12, 2026-10-20)."""
-        r = self.sim.request("POST", "/evse/external_current", {"current": ma},
-                             auth=auth or self.auth)
-        self.assertEqual(r.status, 200, r)
-
 
 class T1Api(SimCase):
     """Anmeldung, Ressourcen, Laden, WebSocket, Persistenz, Neustart, Bremse."""
@@ -151,13 +145,7 @@ class T1Api(SimCase):
         self.assertEqual(self.sim.get_json("/evse/params", self.auth)["lock_pulse"], new)
 
     def test_08_ladevorgang(self):
-        # Werkswert 0: ohne Vorgabe kein PWM (F12, 2026-10-20)
         self.shell("sim car B")
-        st = self.sim.wait_state(self.auth, lambda s: s["charger_state"] == 1, what="wartet")
-        time.sleep(1)
-        st = self.sim.state(self.auth)
-        self.assertEqual((st["charger_state"], st["allowed_charging_current"]), (1, 0))
-        self.set_current(32000)
         # S4 (Selbsttest) meldet ebenfalls 2, aber ohne PWM
         st = self.sim.wait_state(self.auth, lambda s: s["charger_state"] == 2 and
                                  s["allowed_charging_current"] > 0, what="PWM an")
@@ -168,6 +156,10 @@ class T1Api(SimCase):
         st = self.sim.wait_state(self.auth, lambda s: s["charger_state"] == 3, what="Laden")
         self.assertEqual(st["contactor_state"], 3)
         self.assertIn("contactor=1", self.shell("sim status"))
+        # Sollwert 80 A (F12, keine Einschraenkung), Drehschalter 6 = 32 A begrenzt
+        lim = self.sim.get_json("/evse/limits", self.auth)
+        self.assertEqual((lim["external"], lim["hardware"], lim["allowed"], lim["limited_by"]),
+                         (80000, 32000, 31980, "hardware"))
 
     def test_09_sollstrom(self):
         r = self.sim.request("POST", "/evse/external_current", {"current": 10000},
@@ -177,6 +169,7 @@ class T1Api(SimCase):
         # 10 A -> Tastgrad 166 Promille -> 9960 mA (SOLL-CUR-21)
         self.sim.wait_state(self.auth, lambda s: s["allowed_charging_current"] == 9960)
         self.assertIn("duty=166 ", self.shell("sim status"))
+        self.assertEqual(self.sim.get_json("/evse/limits", self.auth)["limited_by"], "external")
         r = self.sim.request("POST", "/evse/external_current", 3000, auth=self.auth)
         self.assertEqual(r.status, 400, r)  # unter 6 A und nicht 0
         r = self.sim.request("POST", "/evse/external_current", 0, auth=self.auth)
@@ -317,11 +310,11 @@ class T1Api(SimCase):
                          self.lock_pulse)
         self.assertEqual(self.sim.get_json("/info/name", self.auth)["name"], "e2e-box")
         self.assertFalse(self.sim.get_json("/system/config", self.auth)["restart_required"])
-        # Sollstrom liegt nur im RAM (SOLL-NVM-03): wieder Startwert 0 (F12)
-        self.assertEqual(self.sim.get_json("/evse/external_current", self.auth)["current"], 0)
+        # Sollstrom liegt nur im RAM (SOLL-NVM-03): wieder Startwert
+        self.assertEqual(self.sim.get_json("/evse/external_current", self.auth)["current"],
+                         80000)
 
     def test_14_neustart_waehrend_laden(self):
-        self.set_current(16000)
         self.shell("sim car C")
         self.sim.wait_state(self.auth, lambda s: s["charger_state"] == 3, what="Laden")
         boots = self.sim.boots()
@@ -330,16 +323,9 @@ class T1Api(SimCase):
         # geordnetes Ende (SOLL-RT-22): Schuetz aus vor dem Reset, nicht erst nach der Frist
         self.sim.wait_restart(boots)
         self.assertNotIn("nach Fristablauf", self.sim.log_text())
-        # Fahrzeug bleibt angesteckt: nach dem Start kein Laden ohne Vorgabe (F12, Werkswert 0),
-        # mit neuer Vorgabe (wie evcc nach "out of sync") wieder Laden
-        self.sim.wait_state(self.auth, lambda s: s["charger_state"] == 1, timeout=20,
-                            what="wartet nach Neustart")
-        time.sleep(1)
-        st = self.sim.state(self.auth)
-        self.assertEqual((st["charger_state"], st["contactor_state"]), (1, 0))
-        self.set_current(16000)
+        # Fahrzeug bleibt angesteckt: nach dem Start wieder Laden
         self.sim.wait_state(self.auth, lambda s: s["charger_state"] == 3, timeout=20,
-                            what="Laden nach Vorgabe")
+                            what="Laden nach Neustart")
         self.shell("sim car A")
         self.sim.wait_state(self.auth, lambda s: s["charger_state"] == 0, what="frei")
 
@@ -359,7 +345,6 @@ class T2Faults(SimCase):
 
     def test_01_fehlerstrom_beim_laden(self):
         T2Faults.auth = self.set_credentials()
-        self.set_current(16000)
         self.shell("sim car C")
         self.sim.wait_state(self.auth, lambda s: s["charger_state"] == 3, what="Laden")
         ws = self.sim.ws_connect(self.auth)

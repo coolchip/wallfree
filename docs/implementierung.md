@@ -24,7 +24,7 @@ Hardware ausgefuehrt; Tests belegen keine elektrische Sicherheit.
 | [orig.c](../lib/nvm/orig.c) | Nur-Lese-Zugriff auf das Originalformat in Sektor 3 | SOLL-NVM-10 | nvm_orig (synthetisches Abbild) |
 | [md5.c](../lib/api/md5.c), [digest.c](../lib/api/digest.c) | MD5 (RFC 1321), HTTP-Digest mit `qop=auth`: Challenge, Pruefung, zustandslose Nonces | SOLL-API-07 | `tests/api` (api_md5: RFC-1321-Vektoren; api_digest: RFC-2617-Beispiel, Rundlauf wie evcc, Fehlformen) |
 | [json.c](../lib/api/json.c) | JSON-Ausgabe mit Maskierung, Lesen flacher Objekte | 12.1 | api_json |
-| [evse_api.c](../lib/api/evse_api.c) | `evse/state` (WARP-Abbildung), `external_current`, alle Parameter lesen/schreiben, Parameterbeschreibung in Teilen | SOLL-API-03..05/30 | evse_api (mit Simulationsmodell) |
+| [evse_api.c](../lib/api/evse_api.c) | `evse/state` (WARP-Abbildung), `external_current`, `limits` (Sollwert, Grenzen, wirksame Grenze), alle Parameter lesen/schreiben, Parameterbeschreibung in Teilen | SOLL-API-03..05/30/32 | evse_api (mit Simulationsmodell) |
 | [sysconf.c](../lib/api/sysconf.c) | Netz- und Systemparameter: Pruefung, JSON, Speicherkodierung (Kennungen 3010..3015), Import der Originalfelder 404/315..326 | 10.1, F20, F25, SOLL-NVM-10 | api_sysconf |
 | [reset.c](../lib/api/reset.c) | Resetgrund aus Flags und Backup-Code | SOLL-RT-14 | api_reset |
 | [ratelimit.c](../lib/api/ratelimit.c) | Bremse gegen Passwort-Durchprobieren je Absenderadresse | SOLL-API-07 | api_ratelimit |
@@ -33,7 +33,7 @@ Hardware ausgefuehrt; Tests belegen keine elektrische Sicherheit.
 | [param.c](../lib/evse/param.c) | Parametertabelle (Konfiguration, Laufzeit, Status) mit Name, Kennung, Herkunftsfeld, Einheit, Bereich, Default; Schreiben mit Grenz-/Zustandspruefung und Fehlercode; Wiederherstellen gespeicherter Werte | 10, SOLL-PAR-01..03/40, E14, SOLL-API-20/30 | evse_param (Konsistenz, Grenzen jedes Parameters, Sonderregeln) |
 
 Aufruf: `scripts/run-tests.sh` (twister; `--simple` ohne twister, `--coverage` mit gcovr).
-Stand 2026-10-20: **194 Tests in fuenf Testprogrammen, alle bestanden**; Abdeckung `lib/` **96 % Zeilen,
+Stand 2026-10-20: **195 Tests in fuenf Testprogrammen, alle bestanden**; Abdeckung `lib/` **96 % Zeilen,
 88 % Verzweigungen** (gcovr; nicht abgedeckt sind vor allem Lesefehler des Flashs). Twister-/Testabhaengigkeiten wurden am 2026-10-19 mit
 Freigabe des Nutzers in `~/zephyrproject/.venv` installiert (`requirements-run-test.txt`,
 `requirements-build-test.txt`); `twister --coverage` bricht in dieser Version ab, daher ruft das
@@ -91,6 +91,7 @@ Neue Festlegungen werden weiter mit *neu* markiert, bis sie bestaetigt sind.
 | *(HW):* Schnittstellen-Ueberwachung | Speicher-, WebSocket-Thread, System-Workqueue (10 s); HTTP-Server/Telnet von Zephyr nicht ueberwachbar | SOLL-RT-11 |
 | *(Web):* Anmeldung | Oberflaeche hinter Digest wie die API (Anmeldedialog des Browsers); im Werkszugang nur Zugangsdaten-Seite; nach der Aenderung fragt der Browser neu | SOLL-API-07 |
 | *(Web):* Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickt beim WebSocket-Aufbau evtl. keine Anmeldung), Abfrage alle 2 s. Chrome sendet die Digest-Anmeldung beim WebSocket-Aufbau mit (Browser-Durchlauf 2026-10-20, Simulation); andere Browser ungeprueft | |
+| *neu (Web):* Ladestrom-Anzeige | Balken je Groesse, Massstab mindestens 32 A; wirkende Grenze orange mit "begrenzt", wirksamer Wert blau; Kabel/Eingang nur, wenn aktiv; Hinweis "kein Istwert (kein Zaehler)". Der Schieber bleibt 6..32 A | Nutzer 2026-10-20: Sollwert, Istwert und Maximum trennen, Maximum sichtbar |
 | *(Web):* Ereignisse | "Einfach": letzte 8 Ereignisse; "Experte": ganzes Zugriffsprotokoll mit Fehlversuchen. Vorgeschichte aus `GET /system/log` beim Oeffnen, danach live ueber `evse/event` (ohne WebSocket alle 5 s neu); Uhrzeit = Browserzeit - Laufzeit der Steuerung (ungefaehr) | Steuerung hat keine gestellte Uhr |
 | *(Web):* Sollstrom-Schieber | 6..32 A in 1-A-Schritten, dazu "Laden aus" (0) | evcc ueberschreibt den Wert, wenn verbunden |
 | *(API):* Ereignisformat (SOLL-ERR-10) | WebSocket-Topic `evse/event`, je Ereignis ein Rahmen, Payload `{"seq", "t_ms", "type", ...}`: `state` (`from`/`to` = S0..S10), `error` (`set`/`cleared` als Namen wie `/evse/errors`), `lock` (`lock_state` 1/3/5, nur Endzustaende), `contactor` (`on`, Schuetz-Soll); `seq` fortlaufend ab 1 je Start, Luecke = verloren (Ringpuffer 16); kein Nachsenden beim Verbinden; jedes Ereignis zusaetzlich als Logzeile `Ereignis {...}` | Spezifikation nennt kein Format; evcc ignoriert unbekannte Topics |
@@ -106,11 +107,10 @@ Neue Festlegungen werden weiter mit *neu* markiert, bis sie bestaetigt sind.
 
 ## Parameter: Festlegungen
 
-- `external_current_default` (Startwert des Slots `external`) ist ab Werk **0** (Nutzer
-  2026-10-20, F12 geaendert): nach jedem Start wird erst geladen, wenn evcc oder der Nutzer einen
-  Strom setzt. Die Szenariotests der Ladelogik setzen 80000 ausdruecklich (Laden ohne Vorgabe der
-  Schnittstelle); `test_external_default_zero` prueft den Werkswert, die Ende-zu-Ende-Tests setzen
-  den Strom wie evcc.
+- `external_current_default` (Startwert des Slots `external`) bleibt ab Werk 80000 = keine
+  Einschraenkung (F12). Der Wechsel auf 0 am 2026-10-20 wurde vom Nutzer noch am selben Tag
+  zurueckgenommen ("ohne Zutun wuerde die Box nicht laden"). Stattdessen sind Sollwert, Grenzen und
+  wirksamer Strom getrennt sichtbar (`/evse/limits`, SOLL-API-32); `test_external_default_unlimited`.
 - Kennungen fuer den Speicher: Feldnummer des Originals, wo vorhanden (z. B. 525), sonst
   1001.. (Konfiguration) bzw. 2000.. (Status). Gespeichert werden nur Konfigurationswerte.
 - Konfigurationsaenderungen wirken sofort (`evse_apply_config()`); eine Aenderung, die die
@@ -153,8 +153,8 @@ Bereichskopfs.
 
 ## Anwendung und Hardwareschicht (`app/`, nur gebaut)
 
-Stand 2026-10-20. Baut fuer `ev_cc_ac1` ohne Warnung: **299 004 B Flash** (von 320 KB, 91,3 %),
-**117 308 B RAM** (89,5 %); nach Startwert 0 (F12) 299 048 B; Ereignisse in der Oberflaeche +0,9 KB Flash; Zugriffsprotokoll +1,1 KB Flash, +1,8 KB RAM (Puffer 1 800 B); Ereignisse und Netzwerk-LED +1,6 KB Flash, +1,3 KB RAM; Korrekturen
+Stand 2026-10-20. Baut fuer `ev_cc_ac1` ohne Warnung: **300 524 B Flash** (von 320 KB, 91,7 %),
+**118 140 B RAM** (90,1 %); `/evse/limits` mit Topic und Anzeige +1,5 KB Flash, +0,8 KB RAM; Ereignisse in der Oberflaeche +0,9 KB Flash; Zugriffsprotokoll +1,1 KB Flash, +1,8 KB RAM (Puffer 1 800 B); Ereignisse und Netzwerk-LED +1,6 KB Flash, +1,3 KB RAM; Korrekturen
 aus dem Ende-zu-Ende-Test +0,2 KB Flash/RAM; Netz-/Systemparameter und Bremse +5,7 KB Flash, Weboberflaeche +12 KB,
 Shell-Kommandos/Resetgrund/Fehlerhistorie +6 KB. Parameterspeicher: +8,2 KB Flash, +5,1 KB RAM. HTTP-/WebSocket-API:
 +37,8 KB Flash (HTTP-Server 13,5 KB, WebSocket 2,6 KB, PSA-SHA-1 aus tf-psa-crypto 5,9 KB),
@@ -173,10 +173,10 @@ west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d ~/zephyrproject/build
 | [hw_gpio.c](../app/src/hw_gpio.c) | alle Ein-/Ausgaenge aus `zephyr,user`; RCM-Flankeninterrupt schaltet PE2 per Register ab und setzt einen Schutz-Latch, der Ein-Befehle sperrt; PE0-Flankenzeitstempel; PB2 erst nach der ersten Ausgabe | SOLL-PROT-01/05, SOLL-IO-01/21 |
 | [evse_task.c](../app/src/evse_task.c) | Ereigniserkennung im Automatenthread (Momentaufnahme vor/nach `evse_step`, Ringpuffer mit Spinlock, Ausgabe im WebSocket-Thread); Schutzthread (Prio 0, 1 ms): RCM-Pegel zyklisch, Ueberwachung Automat (100 ms) und Messbloecke (50 ms), IWDG 250 ms, Wartungsmodus fuer Flash-Loeschen; Automatenthread (Prio 2, 10 ms und je Messblock), meldet Aenderungen des Verriegelungszustands an den Speicher-Thread; Fault-Handler: sicherer Zustand, Neustart | SOLL-RT-04/05/10..12/21 |
 | [storage.c](../app/src/storage.c) | Flash-Adapter auf die Partitionen (Sektor 7 lesen/schreiben/loeschen, Sektor 3 nur lesen, Lage beim Bauen geprueft); Speicher-Thread (Prio 12): Verriegelungszustand speichern, Verdichten im sicheren Zustand; Werksreset, Import | SOLL-NVM-01..05/10, SOLL-RT-13, SOLL-BOOT-04/20/21 |
-| [http_api.c](../app/src/http_api.c) | Ereignisse als Topic `evse/event` an alle WebSocket-Clients, ins Log und ins Zugriffsprotokoll (SOLL-ERR-10); Zugriffsprotokoll mit Fehlversuchen aus `checked_auth`, `GET /system/log` in Teilen (SOLL-ERR-11). HTTP-Server Port 80: `/info/name`, `/info/features`, `/evse/state`, `/evse/external_current`, `/evse/params`, `/evse/param_info`, `/credentials`, `/system/config`, `/system/config_info`, `/system/restart`, WebSocket `/ws` (bis 3 Clients, Push-Thread alle 100 ms bzw. sofort nach Schreibzugriffen, ein Topic je Rahmen); Digest-Pruefung je Anfrage | SOLL-API-01..07/30 |
+| [http_api.c](../app/src/http_api.c) | `GET /evse/limits` und Topic `evse/limits` (SOLL-API-32). Ereignisse als Topic `evse/event` an alle WebSocket-Clients, ins Log und ins Zugriffsprotokoll (SOLL-ERR-10); Zugriffsprotokoll mit Fehlversuchen aus `checked_auth`, `GET /system/log` in Teilen (SOLL-ERR-11). HTTP-Server Port 80: `/info/name`, `/info/features`, `/evse/state`, `/evse/external_current`, `/evse/params`, `/evse/param_info`, `/credentials`, `/system/config`, `/system/config_info`, `/system/restart`, WebSocket `/ws` (bis 3 Clients, Push-Thread alle 100 ms bzw. sofort nach Schreibzugriffen, ein Topic je Rahmen); Digest-Pruefung je Anfrage | SOLL-API-01..07/30 |
 | [netcfg.c](../app/src/netcfg.c) | Netz-/Systemparameter laden, Hostname, DHCP oder feste Adresse, Telnet; Aendern (atomar), Import; Netzwerk-LED PC2 (Systemworkqueue, 500 ms): an bei Link und IPv4-Adresse, sonst 1 Hz | 10.1, F20, F25, SOLL-LED-06 |
 | [auth.c](../app/src/auth.c) | Zugangsdaten (HA1), Werkszugang, Passwortaenderung, Nonce-Geheimnis je Start | SOLL-API-07 |
-| [web/](../web/) | Weboberflaeche: Werkszugang -> Zugangsdaten festlegen; "Einfach": Zustand, Fahrzeug, erlaubter Strom, Fehler, Sollstrom setzen; "Experte": alle Parameter mit Bereich, Default, Feld, Hilfetext und Schreiben, Netz/System mit Neustart, Zugangsdaten; Ereignisse ("Einfach" letzte 8, "Experte" Zugriffsprotokoll) | SOLL-API-31, SOLL-ERR-10/11 |
+| [web/](../web/) | Weboberflaeche: Werkszugang -> Zugangsdaten festlegen; "Einfach": Zustand, Fahrzeug, erlaubter Strom, Fehler, Sollstrom setzen; "Experte": alle Parameter mit Bereich, Default, Feld, Hilfetext und Schreiben, Netz/System mit Neustart, Zugangsdaten; Ladestrom als Balken (Sollwert, Drehschalter, Kabel, Eingang, wirksam) mit hervorgehobener wirkender Grenze; Ereignisse ("Einfach" letzte 8, "Experte" Zugriffsprotokoll) | SOLL-API-31, SOLL-ERR-10/11 |
 | [main.c](../app/src/main.c) | Startablauf: GPIO, Parameterspeicher (ungueltig -> neu anlegen), Reset-Taster 5 s -> Bereich loeschen, gespeicherte Werte laden, DIP/Drehschalter, Messung, Threads | SOLL-BOOT-01..10/20 |
 | [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `param list/get/set`, `current`, `enable`, `avail`, `pause`, `pwm5`, `lock`, `unlock`, `errors [clear]`, `selftest`, `reboot`, `ack`, `nvm`, `sys list/set`, `factory-reset confirm`, `import-original` (Telnet) | SOLL-SH-01..09/11, SOLL-SH-19/20 |
 | [sysinfo.c](../app/src/sysinfo.c) | Resetgrund beim Start, Firmwarestand (`git describe` beim Bauen), Laufzeit; `GET /system/info` | SOLL-RT-14 |
@@ -348,9 +348,9 @@ Befunde:
    auf `external_current_default` (80 000 mA, F12). evcc sendet seinen Wert (16 A) nicht erneut,
    weil er sich aus evccs Sicht nicht geaendert hat; das Fahrzeug laedt mit dem Hoechstwert von
    Kabel/Drehschalter (hier 32 A), bis evcc den Strom aendert oder neu angesteckt wird (dann setzt
-   evcc wieder 16 A, geprueft). **Nutzerentscheidung 2026-10-20: Werkswert 0** (F12 geaendert,
-   SOLL-CUR-15), umgesetzt: gilt fuer Erststart und jeden Neustart. Ohne evcc den Parameter
-   `external_current_default` einmal setzen (z. B. 80000) oder den Strom in der Oberflaeche waehlen.
+   evcc wieder 16 A, geprueft). **Nutzerentscheidung 2026-10-20:** Werkswert bleibt 80000 (F12);
+   ein Startwert 0 war kurz umgesetzt und wurde zurueckgenommen. Wer evccs Wert nach einem Neustart
+   streng einhalten will, setzt `external_current_default` = 0 (Versuch unten).
    Versuch vor der Entscheidung mit `external_current_default` = 0 (nur Parameter, 2026-10-20): Nach dem Neustart steht
    der Slot auf 0, kein Laden. Solange das Modellfahrzeug in C bleibt, meldet evcc nur
    `disabled but charging` und steuert nicht nach. Wechselt das Fahrzeug wie ein echtes nach B,
@@ -388,8 +388,8 @@ Befunde:
 2. ~~Ende-zu-Ende-Test auf dem PC vorbereiten~~ – erledigt 2026-10-19 (`scripts/run-e2e.sh`,
    20 Tests; vier Fehler der Anwendung gefunden und behoben, siehe unten). Browser-Durchlauf
    erledigt 2026-10-20 (`scripts/web-browser-check.mjs`); evcc gegen die Simulation erledigt
-   2026-10-20 (`scripts/evcc-sim.sh`, evcc 0.317.2); Startwert `external_current` danach auf 0
-   geaendert (Nutzer 2026-10-20, F12).
+   2026-10-20 (`scripts/evcc-sim.sh`, evcc 0.317.2); Startwert `external_current` bleibt 80000,
+   dafuer Sollwert/Grenzen/wirksamer Strom getrennt in API und Oberflaeche (SOLL-API-32).
 3. ~~Kleinere offene Anforderungen~~: SOLL-ERR-10 und SOLL-LED-06 umgesetzt (2026-10-19, vom
    Nutzer bestaetigt 2026-10-20); Zugriffsprotokoll als SOLL-ERR-11 spezifiziert und umgesetzt
    (2026-10-20, `GET /system/log`); Festlegungen dazu und die Anzeige in der Oberflaeche vom Nutzer

@@ -43,6 +43,7 @@ const amps = (ma) => (ma / 1000).toLocaleString('de-DE', { maximumFractionDigits
 function useLive() {
 	const [state, setState] = useState(null);
 	const [ext, setExt] = useState(null);
+	const [limits, setLimits] = useState(null); // Topic evse/limits
 	const [mode, setMode] = useState('…');
 	const [events, setEvents] = useState([]); // Topic evse/event (SOLL-ERR-10), juengste zuletzt
 
@@ -52,6 +53,7 @@ function useLive() {
 			try {
 				setState(await api('/evse/state'));
 				setExt(await api('/evse/external_current'));
+				setLimits(await api('/evse/limits'));
 			} catch (e) { /* naechster Versuch */ }
 		};
 		const startPoll = () => {
@@ -72,6 +74,7 @@ function useLive() {
 					const m = JSON.parse(line);
 					if (m.topic === 'evse/state') setState(m.payload);
 					if (m.topic === 'evse/external_current') setExt(m.payload);
+					if (m.topic === 'evse/limits') setLimits(m.payload);
 					if (m.topic === 'evse/event') setEvents((l) => l.concat([m.payload]).slice(-40));
 				}
 			};
@@ -84,7 +87,7 @@ function useLive() {
 		connect();
 		return () => { stop = true; if (ws) ws.close(); clearInterval(timer); };
 	}, []);
-	return { state, ext, mode, setExt, events };
+	return { state, ext, mode, setExt, events, limits };
 }
 
 // ------------------------------------------------------------ Bausteine
@@ -154,7 +157,41 @@ function EventLog({ live, all }) {
 
 // ------------------------------------------------------------ Einfach
 
-function CurrentControl({ ext, setExt }) {
+// Sollwert der Schnittstelle, Grenzen und wirksamer Strom getrennt; die Grenze,
+// die gerade wirkt, ist hervorgehoben. Gemessen wird der Strom nicht (kein Zaehler).
+const LIMIT_TEXT = { external: 'Sollwert', hardware: 'Maximum Drehschalter', cable: 'Kabel',
+	input: 'Eingang', blocked: 'Sollwert 0 (Laden aus)', pwm5: '5-%-Modus' };
+
+function Limits({ l }) {
+	if (!l) return null;
+	const rows = [
+		['external', 'Sollwert (evcc/Schnittstelle)', l.external_ignored ? 0 : l.external,
+			l.external_ignored ? 'ignoriert (Eingang)' : null],
+		['hardware', 'Maximum Drehschalter', l.hardware, null],
+		['cable', 'Kabel', l.cable, null],
+		['input', 'Eingang', l.input, null],
+	].filter((r) => r[0] === 'external' || r[0] === 'hardware' || r[2] > 0);
+	const scale = Math.max(32000, ...rows.map((r) => r[2]));
+	const pct = (ma) => Math.min(100, (ma / scale) * 100) + '%';
+	const by = l.limited_by;
+	return html`<div class="limits">
+		${rows.map(([k, label, ma, note]) => html`<div class=${'lrow' + (by === k && k !== 'external' ? ' act' : '')}>
+			<span>${label}</span>
+			<span class="num">${note || (ma ? amps(ma) : k === 'external' ? 'aus' : '–')}
+				${by === k && k !== 'external' ? html` <b class="warn">begrenzt</b>` : ''}</span>
+			<div class="bar"><i style=${'width:' + pct(ma)}></i></div>
+		</div>`)}
+		<div class="lrow eff">
+			<span>Wirksam (Fahrzeug darf, PWM)</span>
+			<span class="num">${l.allowed ? amps(l.allowed) : '–'}</span>
+			<div class="bar"><i style=${'width:' + pct(l.allowed)}></i></div>
+		</div>
+		<p class="muted msg">${by === 'external' ? 'Der Sollwert wirkt.'
+			: 'Es wirkt: ' + (LIMIT_TEXT[by] || by) + '.'} Ein Istwert wird nicht gemessen (kein Zähler).</p>
+	</div>`;
+}
+
+function CurrentControl({ ext, setExt, limits }) {
 	const [val, setVal] = useState(null);
 	const [msg, setMsg] = useState(null);
 	const cur = ext ? ext.current : 0;
@@ -167,8 +204,8 @@ function CurrentControl({ ext, setExt }) {
 			setVal(null);
 		} catch (e) { setMsg({ ok: false, text: e.message }); }
 	};
-	return html`<${Card} title="Ladestrom (Schnittstelle)">
-		<div class="big">${ext ? (cur ? amps(cur) : 'aus') : '–'}</div>
+	return html`<section class="card wide"><h2>Ladestrom</h2>
+		<${Limits} l=${limits} />
 		<div class="row">
 			<input type="range" min="6" max="32" step="1" value=${shown}
 				onInput=${(e) => setVal(+e.target.value)} />
@@ -179,8 +216,8 @@ function CurrentControl({ ext, setExt }) {
 			<button onClick=${() => send(0)}>Laden aus</button>
 		</div>
 		<${Msg} m=${msg} />
-		<p class="muted msg">Ist evcc verbunden, überschreibt evcc diesen Wert.</p>
-	<//>`;
+		<p class="muted msg">Setzt den Sollwert. Ist evcc verbunden, überschreibt evcc diesen Wert.</p>
+	</section>`;
 }
 
 function Simple({ live }) {
@@ -200,7 +237,7 @@ function Simple({ live }) {
 			<div class="big ${s.error_state ? 'bad' : 'ok'}">${ERRSTATE[s.error_state] || s.error_state}</div>
 			<div class="muted">Verriegelung: ${LOCK[s.lock_state] || '?'}</div>
 		<//>
-		<${CurrentControl} ext=${live.ext} setExt=${live.setExt} />
+		<${CurrentControl} ext=${live.ext} setExt=${live.setExt} limits=${live.limits} />
 	</div><${EventLog} live=${live} />`;
 }
 

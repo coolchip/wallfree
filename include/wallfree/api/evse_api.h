@@ -32,6 +32,16 @@ int api_contactor_error(const struct evse *e);
 
 /** GET /evse/state */
 void api_json_state(const struct evse *e, struct wf_jbuf *b);
+/**
+ * GET /evse/limits, Topic evse/limits (eigene Erweiterung, nicht WARP): Sollwert
+ * der Schnittstelle, die uebrigen Grenzen, wirksamer Strom und welche Grenze
+ * wirkt, z. B. {"external":80000,"hardware":16000,"cable":32000,"input":0,
+ * "effective":16000,"allowed":15960,"limited_by":"hardware"}. 0 = Grenze nicht
+ * aktiv; limited_by: external, hardware, cable, input, blocked (Stromsperre),
+ * pwm5 (5-%-Modus).
+ */
+void api_json_limits(const struct evse *e, struct wf_jbuf *b);
+const char *api_limited_by(const struct evse *e);
 /** GET /evse/external_current */
 void api_json_external_current(const struct evse *e, struct wf_jbuf *b);
 

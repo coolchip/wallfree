@@ -49,3 +49,12 @@ form { display: grid; gap: 10px; max-width: 420px; }
 label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
 label.check { display: flex; align-items: center; gap: 8px; }
 @media (max-width: 600px) { .hide-s { display: none; } }
+
+.card.wide { grid-column: 1 / -1; }
+.limits { display: grid; gap: 8px; margin-bottom: 12px; }
+.lrow { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; font-size: 14px; }
+.lrow .bar { grid-column: 1 / -1; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.lrow .bar i { display: block; height: 100%; background: var(--muted); opacity: .55; }
+.lrow.act .bar i { background: var(--warn); opacity: 1; }
+.lrow.eff { font-weight: 600; }
+.lrow.eff .bar i { background: var(--accent); opacity: 1; }

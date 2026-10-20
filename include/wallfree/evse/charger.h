@@ -170,6 +170,7 @@ struct evse {
 	struct evse_lock_config lock_cfg;
 	struct evse_rotary rotary;
 	struct evse_current_out cur;
+	struct evse_current_in cur_in; /**< Eingaenge der letzten Strombewertung (Anzeige) */
 	enum evse_ld_mode ld_mode;
 
 	/* Automat */
