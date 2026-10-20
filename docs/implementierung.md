@@ -361,7 +361,12 @@ Befunde:
 2. `charger logic error: disabled but charging` (evcc-Warnung): solange nach "aus" der CP-Zustand
    C bleibt. Das Modellfahrzeug wechselt ohne PWM nicht nach B; ein echtes Fahrzeug tut das. Mit
    echtem Fahrzeug hoechstens kurz zu erwarten (WARP meldet dasselbe).
-3. Kein Fehler der Firmware gefunden; evcc kommt mit Digest einschliesslich neuer Nonces nach dem
+3. evcc schreibt `external_current` nur, wenn sich sein eigenes Ziel aendert (Anstecken,
+   Moduswechsel, PV-Regelung); von unserem Wert prueft es nur `> 0`. Ein Wert aus der Oberflaeche
+   (gleicher Slot) bleibt daher bis zur naechsten evcc-Aenderung stehen. Ohne Zaehler schaetzt evcc
+   die Ladeleistung aus seinem eigenen Sollwert (16 A x 3 x 230 V = 11 040 W), auch wenn wirksam
+   weniger gilt. Nutzer 2026-10-20: so belassen (kein eigener Benutzer-Slot wie WARP `user_current`).
+4. Kein Fehler der Firmware gefunden; evcc kommt mit Digest einschliesslich neuer Nonces nach dem
    Neustart zurecht.
 
 ### Abweichungen der Simulation von der Steuerung
