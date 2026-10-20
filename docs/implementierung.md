@@ -316,6 +316,40 @@ dort nie frei. Auf der Steuerung (Zephyr-TCP mit `shutdown`) sollte der Zeitgebe
 pruefen (Browser offen lassen, parallel evcc). Ein Browser, der alle 2 s abfragt, kann bis zu 4
 Plaetze dauerhaft aktiv halten; reicht das nicht, Plaetze erhoehen oder Abfragen buendeln.
 
+### evcc gegen die Simulation (2026-10-20)
+
+Mit Freigabe des Nutzers (2026-10-20) evcc **0.317.2** im Docker-Container (`evcc/evcc`, Netz
+`host`), Vorlage `tinkerforge-warp-ws`, Konfiguration [tools/evcc/evcc.yaml](../tools/evcc/evcc.yaml)
+(Netz-Zaehler konstant 0 W, Modus "sofort"):
+
+```sh
+scripts/sim-run.sh --http-port=8091   # Terminal 1
+scripts/evcc-sim.sh                   # Terminal 2, setzt Testzugangsdaten, evcc auf :7070
+```
+
+| Ablauf | Ergebnis |
+| --- | --- |
+| Start, kein Fahrzeug | evcc verbindet (Digest, `/info/*`, WebSocket), "car disconnected" |
+| Fahrzeug B, dann C | "car connected", evcc setzt 16 000 mA, Laden (S6, Tastgrad 266 = 15 960 mA) |
+| Modus "aus" | `external_current` 0, geordnetes Ende, Schuetz aus nach 5 s (Modellfahrzeug bleibt in C) |
+| Modus "sofort" | 16 000 mA, PWM, nach C wieder Laden |
+| Abstecken | "stop charging", "car disconnected" binnen eines evcc-Intervalls |
+| `POST /system/restart` beim Laden | geordnetes Ende; evcc meldet waehrenddessen `unknown evse status: 4` (S10 -> F -> 4, F23), danach WebSocket neu aufgebaut, keine abgewiesene Anmeldung |
+
+Befunde:
+
+1. **Strom nach Neustart waehrend des Ladens:** `external_current` steht nach dem Neustart wieder
+   auf `external_current_default` (80 000 mA, F12). evcc sendet seinen Wert (16 A) nicht erneut,
+   weil er sich aus evccs Sicht nicht geaendert hat; das Fahrzeug laedt mit dem Hoechstwert von
+   Kabel/Drehschalter (hier 32 A), bis evcc den Strom aendert oder neu angesteckt wird (dann setzt
+   evcc wieder 16 A, geprueft). **Nutzerentscheidung noetig** (F12 ueberdenken):
+   `external_current_default` fuer evcc-Betrieb auf 0 oder 6000 setzen bzw. den Default aendern.
+2. `charger logic error: disabled but charging` (evcc-Warnung): solange nach "aus" der CP-Zustand
+   C bleibt. Das Modellfahrzeug wechselt ohne PWM nicht nach B; ein echtes Fahrzeug tut das. Mit
+   echtem Fahrzeug hoechstens kurz zu erwarten (WARP meldet dasselbe).
+3. Kein Fehler der Firmware gefunden; evcc kommt mit Digest einschliesslich neuer Nonces nach dem
+   Neustart zurecht.
+
 ### Abweichungen der Simulation von der Steuerung
 
 - Messwerte unabhaengig vom Tastgrad (wie das Testmodell); kein ADC-Rauschen, keine Zeitfehler.
@@ -325,6 +359,7 @@ Plaetze dauerhaft aktiv halten; reicht das nicht, Plaetze erhoehen oder Abfragen
   (keine MAC).
 - Sektor 3 ist leer (Import aus dem Original nicht pruefbar ohne Abbild).
 - Ruhende HTTP-Verbindungen werden nie nach 10 s getrennt (kein `shutdown` in NSOS, siehe oben).
+- Das Modellfahrzeug bleibt in C, wenn die PWM endet (echtes Fahrzeug: B).
 
 ## Noch nicht umgesetzt
 
@@ -338,8 +373,9 @@ Plaetze dauerhaft aktiv halten; reicht das nicht, Plaetze erhoehen oder Abfragen
 1. ~~Festlegungen bestaetigen~~ – erledigt, Nutzer 2026-10-19 (alle bestaetigt).
 2. ~~Ende-zu-Ende-Test auf dem PC vorbereiten~~ – erledigt 2026-10-19 (`scripts/run-e2e.sh`,
    20 Tests; vier Fehler der Anwendung gefunden und behoben, siehe unten). Browser-Durchlauf
-   erledigt 2026-10-20 (`scripts/web-browser-check.mjs`); evcc gegen die Simulation offen
-   (Docker, Freigabe 2026-10-20).
+   erledigt 2026-10-20 (`scripts/web-browser-check.mjs`); evcc gegen die Simulation erledigt
+   2026-10-20 (`scripts/evcc-sim.sh`, evcc 0.317.2); offen: Startwert `external_current` nach
+   Neustart (Befund 1 dort).
 3. ~~Kleinere offene Anforderungen~~: SOLL-ERR-10 und SOLL-LED-06 umgesetzt (2026-10-19, vom
    Nutzer bestaetigt 2026-10-20); Zugriffsprotokoll als SOLL-ERR-11 spezifiziert und umgesetzt
    (2026-10-20, `GET /system/log`); fuenf Festlegungen dazu und die Anzeige der Ereignisse in der

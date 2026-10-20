@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: Apache-2.0
+# evcc gegen die Wallfree-Simulation (scripts/evcc-sim.sh). Nur fuer den PC-Test:
+# Zugangsdaten sind Testwerte der Simulation, nicht fuer eine echte Steuerung verwenden.
+# Netz-Zaehler ist eine Konstante (0 W), damit evcc ohne Hardware startet.
+
+network:
+  port: 7070
+
+interval: 5s
+
+log: info
+levels:
+  charger: debug
+
+site:
+  title: Wallfree-Simulation
+  meters:
+    grid: grid
+
+meters:
+  - name: grid
+    type: custom
+    power:
+      source: const
+      value: 0
+
+chargers:
+  - name: wallfree
+    type: template
+    template: tinkerforge-warp-ws
+    uri: http://127.0.0.1:8091
+    user: evcc
+    password: evcc-sim-test
+
+loadpoints:
+  - title: Wallfree
+    charger: wallfree
+    mode: now  # Strom, Phasen: Vorgaben von evcc (16 A), in der evcc-Oberflaeche aenderbar
