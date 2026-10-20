@@ -1,323 +1,183 @@
-# Ersatzfirmware: Architektur (Diskussionsgrundlage)
+# Architektur und Rahmenentscheidungen
 
-Stand: 2026-10-19. Entscheidungen des Nutzers sind markiert, alles andere ist Vorschlag.
-Grundlage fuer die Diskussion mit dem Nutzer vor der Soll-Spezifikation. Bezug:
-[AGENTS.md](../../wallbe2/AGENTS.md) (Grundsatz Steuerung/Beschaltung, Umfang),
-[Spezifikation](../../wallbe2/docs/ladeautomat-spezifikation.md) (Entscheidungen 1..22),
-[Parameterspeicher](../../wallbe2/docs/parameterspeicher.md), [Bootloader](../../wallbe2/docs/bootloader.md).
+Stand: 2026-10-20. Rahmen der Ersatzfirmware mit Begruendungen. Das Soll-Verhalten steht in
+der [Soll-Spezifikation](soll-spezifikation.md), der Umsetzungsstand in
+[Implementierung](implementierung.md), Tests und Simulation in
+[Test und Simulation](test-und-simulation.md). Belege zur Originalfirmware liegen in
+[wallbe2](../../wallbe2/docs/analysestand.md).
 
-## 1. Vorgaben des Nutzers (2026-10-19)
+## 1. Vorgaben des Nutzers
 
-- Rahmenwerk offen, **Praeferenz Zephyr** (Vorerfahrung). Wichtiger: **moeglichst
-  schmaler Ansatz**, damit spaeter Platz fuer Erweiterungen bleibt.
-- Ethernet: voraussichtlich der Stack des Rahmenwerks, lwIP nur bei guten Gruenden.
-- **Rueckruestung auf die Originalfirmware ist sehr wichtig.** Idee des Nutzers:
-  Originalparameter unangetastet lassen, Ersatzfirmware mit eigenem Speicheransatz.
-- **Bootloader moeglichst beibehalten** (vereinfacht den Wechsel zur Originalfirmware).
-- **OCPP perspektivisch**, allgemeine Implementierung, nicht aus der wallbe-Firmware.
-- **Entschieden (2026-10-19):** Rahmenwerk **Zephyr**. Shell-Zugriff gewuenscht,
-  moeglichst auch ueber das Netz (**Telnet**). **TLS und OCPP vorerst ausgeklammert.**
-  Installation der Zephyr-Umgebung freigegeben.
-- Referenz: Open-Source-Wallbox **Tinkerforge WARP** (OCPP 1.6J); deren HTTP-Schnittstelle
-  koennte uebernommen werden - **vorher abstimmen** (Abschnitt 8).
-- Hardwaretests sind erwuenscht, sobald die Hardware auf dem Tisch liegt, mit einem
-  Zwischenschritt zur Pruefung der Hardwareansteuerung (Pruefsignale, Messung mit
-  Oszilloskop durch den Nutzer); eventuell EV-Simulator bauen oder kaufen.
+- **Schmal bleiben**, damit Platz fuer Erweiterungen bleibt.
+- **Rueckkehr zur Originalfirmware ist sehr wichtig:** Bootloader und Originalparameter
+  bleiben unangetastet; die Ersatzfirmware hat einen eigenen Parameterbereich.
+- **evcc-Anbindung ist sehr wichtig**, ueber die vorhandene evcc-Vorlage
+  `tinkerforge-warp-ws`, ohne neuen Wallbox-Typ in evcc. Die WARP-Schnittstelle wird
+  schrittweise nach Bedarf nachgebaut, nicht vollstaendig uebernommen.
+- **Alles ueber HTTP:** alle Messwerte, Statuswerte und Parameter lesbar, schreibbare Werte
+  schreibbar. Zielgruppe sind versierte Anwender; die Weboberflaeche hat zusaetzlich eine
+  einfache Ansicht.
+- Shell auch ueber das Netz (Telnet, ohne Anmeldung; spaeter entfernen oder Default aus).
+- **OCPP perspektivisch** als allgemeine Implementierung, nicht aus der wallbe-Firmware
+  abgeleitet. **TLS vorerst nicht. Modbus (TCP und RTU) entfaellt ganz**; die evcc-Vorlage
+  fuer die Phoenix-Steuerung (Modbus TCP) wird wegen frueherer Probleme bewusst nicht genutzt.
+- Hardwaretests erst nach ausdruecklicher Freigabe, in Stufen (Abschnitt 7).
 
-## 2. Harte Randbedingungen (belegt)
+## 2. Entscheidungen
 
-| Punkt | Wert | Beleg |
+| Thema | Entscheidung | Begruendung |
 | --- | --- | --- |
-| MCU | STM32F207VET6: 512 KB Flash, 128 KB SRAM (+4 KB Backup-SRAM) | Nutzer (Chipaufdruck); RM0033 PDF-Seite 55 Tab. 2, Abschnitt Backup-SRAM |
-| Flash-Sektoren | 0..3 je 16 KB, 4 = 64 KB, 5..7 je 128 KB (VET6 endet bei `0x0807FFFF`) | RM0033 Tab. 2 |
-| Bootloader | Sektoren 0..2 (`0x08000000..0x0800BFFF`), Hypothese, nicht im Abbild | [Bootloader](../../wallbe2/docs/bootloader.md) |
-| Originalparameter | Sektor 3 (`0x0800C000`, 16 KB) | [Parameterspeicher](../../wallbe2/docs/parameterspeicher.md) |
-| Anwendung | ab `0x08010000` (Sektor 4), Vektortabelle dort, VTOR gesetzt | [Ladeadresse](../../wallbe2/docs/firmware-ladeadresse.md) |
-| Originalabbild | bis `0x0805F677` (SL) bzw. `0x0805FA3F` (1.27): Sektoren 4..6; **Sektor 7 ungenutzt** | Dateigroessen |
-| Bootloader-Uebergabe | RTC-Backup-Register 10/11/15/13/14, dann Systemreset | [Bootloader](../../wallbe2/docs/bootloader.md) |
-| RAM-Bedarf Original | `.data`+BSS bis `0x2001FA44` (fast die vollen 128 KB inkl. Heap/Stacks) | Startup |
+| Rahmenwerk | **Zephyr v4.4.2** | Vorerfahrung des Nutzers; Treiber fuer STM32F2, STM32-Ethernet und KSZ8081 vorhanden; IP-Stack, HTTP-Server mit WebSocket, Shell mit Telnet, Watchdog/ADC/Flash-APIs; per Kconfig schmal konfigurierbar; `native_sim` erlaubt PC-Tests der ganzen Anwendung. Der Groessentest (Abschnitt 5) zeigte, dass es passt. Verworfen: FreeRTOS + STM32Cube-HAL + lwIP (wie Original, aber mehr Eigenbau bei HTTP/Settings/Treiberintegration) und Bare-Metal (am meisten Eigenarbeit im Netzwerkteil) |
+| IP-Stack | Zephyr-eigener Stack | lwIP waere nur ohne Zephyr sinnvoll |
+| Systemtakt | **100 MHz** wie Original (HSE 25 MHz, PLL M 25/N 200/P 2) | 120 MHz waeren ohne zusaetzliche Wartezyklen moeglich (RM0033 Tab. 3: 3 WS fuer 90..120 MHz bei 2,7..3,6 V), bringen der Ladelogik aber nichts und weichen von der vom Hersteller erprobten Konfiguration (EMV) ab. Spaetere Option, falls TLS/OCPP Rechenzeit brauchen |
+| Ethernet | RMII, Autonegotiation (10/100 Mbit/s) | wie Original; der Zephyr-Treiber verhandelt ebenfalls, an einem 100-Mbit-Switch also 100 Mbit/s Vollduplex |
+| Ladeadresse | Rohabbild ab `0x08010000` (Sektoren 4..6, max. 320 KB) | Platz und Startvertrag der Originalanwendung; Bootloader bleibt nutzbar (Abschnitt 4) |
+| Parameterspeicher | **P1: Sektor 7 mit eigenem Log-Format**, Sektor 3 nur lesen | siehe Abschnitt 3 |
+| HTTP-Schnittstelle | an WARP angelehnt, Stroeme in **mA**, Typ `warp2`, erster Umfang = evcc-Mindestumfang, danach alle Parameter ueber eigene Ressourcen | evcc-Treiber `warp-ws.go` bestimmt Mindestumfang und Verhalten; mA wie WARP (16000 = 16 A) |
+| Zugriffsschutz | HTTP-Digest (MD5, `qop=auth`) fuer Web und API, Werkszugang mit Aenderungszwang | evcc spricht WARP mit Digest (`charger/warp/connection.go`); Passwort wird nie uebertragen. Ohne TLS bleibt Mitlesen im LAN moeglich |
+| Weboberflaeche | **Preact + htm** mit eigenem kleinem CSS, gzip im Flash | Komponenten wie React ohne Build-Schritt, ~5 KB; WARP nutzt ebenfalls Preact. Verglichen mit Vanilla JS (kleiner, mehr Handarbeit), petite-vue (~7 KB), Alpine.js (~15 KB). Gemessen: 11,7 KB gzip fuer die ganze Oberflaeche |
+| Projekt | Name **Wallfree**, eigenes veroeffentlichbares Repository, **Apache-2.0** | wallbe2 enthaelt Originalfirmware und Handbuecher und bleibt privat; Befunde werden hier nur in eigenen Worten mit Verweis genutzt |
 
-Damit stehen der Anwendung bei unangetastetem Sektor 3 hoechstens die Sektoren 4..7 zur
-Verfuegung: **448 KB**, davon 64 KB + 3 x 128 KB. Wird ein eigener Parameterbereich in
-einen 128-KB-Sektor gelegt, bleiben 320 KB (Sektoren 4..6, so viel wie das Original).
+## 3. Speicheraufteilung und Parameterspeicher
 
-**Sicherheitsrelevant:** Der Flash hat nur eine Bank; nach PM0059 (nicht im Projekt,
-Belegung ausstehend) blockiert ein Lese-/Befehlszugriff waehrend Loeschen/Programmieren
-den Bus. Das Loeschen eines 128-KB-Sektors dauert in der Groessenordnung von Sekunden
-(Datenblatt DS6329 fehlt). Code, der in dieser Zeit laufen muss (Schutzabschaltung),
-muesste aus dem RAM laufen, oder Loeschvorgaenge sind nur in einem sicheren Zustand
-erlaubt (Schuetz aus, kein Fahrzeug). Das Original hat dieselbe Eigenschaft bei Sektor 3.
-
-## 3. Parameterspeicher: Optionen
-
-Alle Optionen lassen Sektor 3 so, dass die Originalfirmware ihre Werte wiederfindet.
-
-| Option | Beschreibung | Vorteile | Nachteile |
+| Bereich | Sektoren | Inhalt | Beleg |
 | --- | --- | --- | --- |
-| **P1** Sektor 3 nur lesen, eigener Speicher in **Sektor 7** | Einmalige Uebernahme alter Werte als Startwerte moeglich; eigenes Format (z. B. Zephyr NVS/ZMS oder eigenes Log) in Sektor 7 | Original voellig unangetastet; Sektor 7 vom Original nicht belegt | Ein Sektor -> beim Verdichten Loesch-Fenster ohne Zweitkopie (wie Original); 128 KB fuer wenige KB Daten; Anwendung max. 320 KB; ob Bootloader/Originalupdate Sektor 7 loescht, unbekannt |
-| **P2** Sektoren 6+7 als Zwei-Seiten-Speicher | Zephyr NVS/ZMS mit zwei 128-KB-Sektoren, stromausfallsicher | robust, Standardbaustein | Anwendung nur 192 KB (Sektoren 4+5) - fuer Netzwerk + spaeter OCPP voraussichtlich zu knapp |
-| **P3** Sektor 3 mitbenutzen, eigene Kennungen | Eintraege im Originalformat mit eigenem Kennungsbereich; beim Verdichten alle Originaleintraege mitkopieren | kein Flash fuer Anwendung verloren | Sektor 3 wird geloescht/neu geschrieben (nicht "unangetastet"); Risiko fuer Originalwerte bei Stromausfall |
-| **P4** Backup-SRAM (4 KB) + Flash-Sicherung | haeufige Werte im batteriegepufferten SRAM | kein Flashverschleiss | nur mit VBAT-Batterie dauerhaft; Vorhandensein unbekannt |
+| `0x08000000..0x0800BFFF` | 0..2 (je 16 KB) | Bootloader (nicht im Abbild, Hypothese) | [Bootloader](../../wallbe2/docs/bootloader.md) |
+| `0x0800C000..0x0800FFFF` | 3 (16 KB) | Originalparameter, **nur lesen** | [Parameterspeicher](../../wallbe2/docs/parameterspeicher.md) |
+| `0x08010000..0x0805FFFF` | 4 (64 KB), 5..6 (je 128 KB) | Anwendung, max. 320 KB (Original belegt bis `0x0805F677`) | [Ladeadresse](../../wallbe2/docs/firmware-ladeadresse.md) |
+| `0x08060000..0x0807FFFF` | 7 (128 KB) | **Wallfree-Parameter** (vom Original nicht belegt) | |
 
-**Nutzerentscheidung (2026-10-19):** P4 entfaellt (keine Batterie in der Steuerung
-vorgesehen). **P1 vorbereiten** und nach dem Auslesen des Bootloaders validieren; P3
-bleibt denkbar. Im ungünstigsten Fall wird die Rueckkehr zur Originalfirmware neu
-bewertet und der Flash vollstaendig genutzt.
+MCU STM32F207VET6: 512 KB Flash, 128 KB SRAM (RM0033 Tab. 2). Der Flash hat nur eine Bank:
+Waehrend eines Loeschvorgangs steht der Bus (Sektor 7 laut Zephyr-Devicetree bis 4 s, nicht am
+Datenblatt geprueft). Deshalb wird nur im sicheren Zustand geloescht (SOLL-NVM-04), mit vorher
+verlaengertem IWDG (SOLL-RT-13). Das Original hat dieselbe Eigenschaft bei Sektor 3.
 
-Urspruengliche Empfehlung: **P1** (entspricht der Nutzeridee), mit eigenem, kleinem
-Format, das stromausfallsicher ist, obwohl nur ein Sektor zur Verfuegung steht (z. B. zwei
-Haelften mit Gueltigkeitskennung und CRC, Verdichten nur im sicheren Zustand). Zu klaeren:
-loescht der Bootloader beim Update auch Sektor 7?
+**Warum P1:** Betrachtet wurden vier Varianten.
 
-**Umsetzung (2026-10-19):** P1 mit eigenem Log-Format in einer Loescheinheit
-([nvm.h](../include/wallfree/nvm/nvm.h)): Eintraege mit CRC-8 im Kopf und CRC-32 ueber den
-Eintrag; Bereichskopf aus Kennung (direkt nach dem Loeschen) und Abschluss (zuletzt), sodass
-ein unterbrochenes Verdichten beim Start als ungueltig erkannt wird. ZMS scheidet aus (mindestens
-zwei Loescheinheiten, loescht selbststaendig). Ohne zweite Loescheinheit bleibt das Fenster
-"geloescht, noch nicht neu geschrieben" bestehen; dann gelten Werkseinstellungen mit Meldung
-(SOLL-NVM-05), wie im Original.
-
-## 4. Rahmenwerk
-
-Kriterien: Flash-/RAM-Bedarf, Treiber fuer STM32F2 (ETH, ADC+DMA, TIM1, IWDG, RTC-Backup),
-KSZ8081, Echtzeitverhalten fuer den Schutzpfad, Erweiterbarkeit (HTTP/REST, spaeter
-OCPP mit WebSocket und ggf. TLS), Testbarkeit auf dem PC.
-
-| Kandidat | Einschaetzung (ohne Messung) |
+| Variante | Ergebnis |
 | --- | --- |
-| **Zephyr** | Nutzerpraeferenz. STM32F2 und STM32-Ethernet werden unterstuetzt, KSZ8081-PHY-Treiber vorhanden (Bestand im aktuellen Zephyr zu pruefen). Eigener IP-Stack, HTTP-Server, Settings/NVS/ZMS, Watchdog-, ADC-, PWM-APIs. Starke Konfigurierbarkeit (Kconfig) erlaubt schmale Builds; Netzwerk + HTTP kostet erfahrungsgemaess einen grossen Teil eines 320-KB-Budgets; **Groesse muss mit einem Test-Build gemessen werden.** Startadresse `0x08010000` ueber `CONFIG_FLASH_LOAD_OFFSET`/Partitionen ohne MCUboot moeglich. Teststrategie: native_sim fuer hardwareunabhaengige Module. |
-| FreeRTOS + STM32Cube-HAL + lwIP | Naechste Verwandtschaft zum Original (gleiche Bausteine), sehr klein und gut bekannt; mehr Eigenbau (Treiberintegration, HTTP, Settings), weniger einheitliche Struktur. |
-| Bare-Metal/libopencm3 + lwIP | Am schmalsten, aber am meisten Eigenarbeit und Risiko im Netzwerkteil. |
+| **P1** Sektor 7, eigenes Format; Sektor 3 nur lesen | **gewaehlt:** Original voellig unangetastet, Sektor 7 vom Original ungenutzt; Anwendung behaelt 320 KB wie das Original. Nachteil: nur eine Loescheinheit, beim Verdichten bleibt ein kurzes Fenster ohne Zweitkopie (wie im Original) |
+| P2 Sektoren 6+7 als Zwei-Seiten-Speicher | verworfen: Anwendung nur 192 KB |
+| P3 Sektor 3 mitbenutzen | Reserve, falls der Flash fuer TLS/OCPP knapp wird; Nachteil: Originalwerte waeren bei Stromausfall waehrend des Verdichtens gefaehrdet |
+| P4 Backup-SRAM | verworfen: keine Batterie in der Steuerung vorgesehen |
 
-Vorschlag: Zephyr als Arbeitshypothese, **Entscheidung nach einem Groessen-Spike**: ein
-minimaler Zephyr-Build fuer den STM32F207 mit Ethernet, DHCP, TCP, HTTP-Server, NVS,
-ADC/PWM/Watchdog, gemessen mit `rom_report`/`ram_report`. Dafuer muss die Zephyr-Umgebung
-lokal installiert werden (west ist vorhanden, aber defekt; kein Zephyr-SDK) - **Installation
-nur nach Rueckfrage** (AGENTS.md).
+Zephyr-Bausteine passen nicht: NVS adressiert innerhalb eines Sektors nur 64 KB und verlangt
+Sektoren als Vielfaches der Loescheinheit; ZMS verlangt mindestens zwei Loescheinheiten und
+loescht selbststaendig beim Start und bei der Speicherbereinigung. Daher ein eigenes Log-Format
+([nvm.h](../include/wallfree/nvm/nvm.h)): Eintraege mit CRC-8 im Kopf und CRC-32, Bereichskopf aus
+Kennung (direkt nach dem Loeschen) und Abschluss (zuletzt), sodass ein unterbrochenes Verdichten
+beim Start erkannt wird. Format und Ausfallverhalten: [Implementierung](implementierung.md#parameterspeicher).
 
-Ethernet: der Zephyr-eigene Stack, wenn Zephyr gewaehlt wird. lwIP waere nur bei
-FreeRTOS/Bare-Metal sinnvoll.
+**Noch zu pruefen (H0):** ob der Bootloader beim Update Sektor 7 loescht. Falls ja, ist der
+Speicherort neu zu bewerten (z. B. P3).
 
-OCPP: OCPP 1.6J braucht WebSocket und JSON, fuer Produktivbetrieb in der Regel TLS.
-TLS (mbedTLS) ist der groesste Posten und kann allein mehrere Dutzend bis ueber 100 KB
-Flash und viel RAM belegen. Bei 320 KB Anwendungsbudget ist das der kritische Punkt fuer
-die Wahl P1/P2 und fuer das Rahmenwerk.
+## 4. Bootloader und Updatepfad
 
-## 5. Bootloader und Updatepfad
+- Die Ersatzfirmware ist ein Rohabbild ab `0x08010000` mit eigener Vektortabelle. Original und
+  Phoenix 1.27 haben denselben Startvertrag; 1.27 liess sich laut Community-Berichten ueber den
+  Bootloader einspielen.
+- Update-Anforderung wie Original (RTC-Backup-Register, Systemreset; SOLL-BOOT-30). Was der
+  Bootloader danach erwartet und prueft, ist unbekannt; deshalb ist die Update-Uebergabe bis
+  zum Auslesen des Bootloaders (H0) zurueckgestellt.
+- Rueckweg zur Originalfirmware ueber denselben Bootloaderpfad; Sektor 3 bleibt erhalten.
+- Start-SP: Zephyr setzt ihn auf das Ende seines Interrupt-Stacks, das Original auf das
+  RAM-Ende `0x20020000`. Beides ist gueltig; nur falls der Bootloader den Wert genau prueft,
+  waere das relevant (H0).
 
-- Ersatzfirmware als Rohabbild ab `0x08010000`, Vektortabelle dort, SP-Startwert wie Original.
-- Update-Anforderung wie Original: RTC-Backup-Register 10/11/13/14/15 setzen, Systemreset.
-  Was der Bootloader danach erwartet (Protokoll, Pruefungen, Abbildgroesse, Anhang
-  `0x55` + Nullen), ist **unbekannt**; dafuer muss der Bootloader ausgelesen werden
-  (Freigabe ausstehend). Bis dahin ist der Wechsel Original -> Ersatz -> Original ueber den
-  Bootloader eine Annahme, gestuetzt durch Community-Berichte (1.27 liess sich einspielen).
-- Rueckweg zur Originalfirmware: ueber denselben Bootloaderpfad; Sektor 3 bleibt erhalten.
+## 5. Speicherbudget
 
-## 6. Ladelogik-Struktur (Skizze)
+Groessentest vor der Entscheidung (`spike-size/`, nur gebaut): Zephyr mit IPv4, DHCP, TCP,
+HTTP-Server, Telnet-Shell mit Netz-Kommandos, Settings, ADC, PWM, Watchdog: **207 KB Flash,
+85 KB RAM**. Zum Vergleich: das Original belegt mit Weboberflaeche, OCPP, Modbus und lwIP
+~318 KB.
 
-- Ladelogik als **hardwareunabhaengiges Modul** (Eingaenge: CP/PP-Messwerte, DIP,
-  Eingangsfunktionen, Parameter, Zeit; Ausgaenge: PWM-Tastgrad, Schuetz, Verriegelung,
-  LED/Ausgangsfunktionen, Status/Fehler), vollstaendig auf dem PC testbar.
-- **Schutzpfad getrennt und ereignisgesteuert** (Entscheidungen 1/2): Fehlerstrom,
-  Schuetzfehler usw. schalten direkt ab, unabhaengig vom Automaten-Thread.
-- Verriegelung nicht blockierend (Entscheidung 10), LD permanent/gepulst (15).
-- Watchdog mit kurzem Limit und sicherem Zustand (3).
+Aktueller Stand der Anwendung und Anteile: [Implementierung](implementierung.md#ressourcen).
+Gemessene Einsparmoeglichkeiten (jeweils einzeln gebaut, Basis 295 KB):
 
-## Hardware-Inbetriebnahme
+| Massnahme | Ersparnis | Bemerkung |
+| --- | --- | --- |
+| `CONFIG_NET_SHELL=n` | 43 KB | Netz-Kommandos der Shell |
+| Assert-Texte weg (`ASSERT_VERBOSE=n`, `ASSERT_NO_*_INFO=y`) | 32 KB | Pruefungen bleiben, nur die Texte fehlen |
+| `CONFIG_LTO=y` | 24 KB | geprueft: Interrupttabelle, HTTP-Ressourcen und Fault-Handler korrekt; Fehlersuche schwerer |
+| `CONFIG_SHELL_HELP=n` | 8 KB | Hilfetexte der Shell |
+| LTO + Assert-Texte | 48 KB | |
+| `CONFIG_ASSERT=n` | 40 KB | nicht empfohlen |
+| `-Oz` statt `-Os` | 0 | GCC 14 erzeugt fuer Cortex-M3 denselben Code |
 
-Vorschlag fuer Stufen (jede Stufe erfordert vorher eine ausdrueckliche Aenderung der
-Sicherheitsgrenzen in AGENTS.md):
+**Entscheidung (Nutzer):** vorerst nichts abschalten; die Netz-Shell bleibt fuer den ersten
+Probelauf (Netzleistung ansehen). Wird es knapp, in dieser Reihenfolge: Netz-Shell,
+Assert-Texte, LTO, Shell-Hilfe (zusammen ~100 KB). TLS (mbedTLS) passt neben P1
+voraussichtlich nicht (nicht gemessen); dann Speicherort und Budget neu bewerten.
+
+## 6. Softwarestruktur
+
+- **Ladelogik** als hardwareunabhaengiges Modul in reinem C (`lib/evse`): Eingaben Messwerte,
+  Schalter, Parameter, Zeit; Ausgaben Tastgrad, Schuetz, Verriegelung, Ausgaenge, Status.
+  Vollstaendig auf dem PC getestet.
+- **Schutzpfad getrennt und ereignisgesteuert:** RCM-Flanke schaltet im Interrupt direkt ab;
+  ein Schutzthread mit hoechster Prioritaet ueberwacht Pegel, Threads und IWDG. Zeitmodell
+  und Prioritaeten: [Soll-Spezifikation Abschnitt 3](soll-spezifikation.md#3-zeitmodell-aufgabenaufteilung-watchdog-sicherer-zustand).
+- **Hardwareschicht** (`app/src/hw_*.c`) direkt ueber Register fuer TIM1/ADC/DMA wie das
+  Original; fuer `native_sim` ersetzt ein Hardwaremodell diese Schicht.
+- **Schnittstellen** (HTTP, WebSocket, Shell) laufen ueber eine gemeinsame Zugriffsschicht mit
+  Grenzpruefung (SOLL-API-20).
+
+## 7. Hardware-Inbetriebnahme
+
+Jede Stufe erfordert vorher eine ausdrueckliche Aenderung der Sicherheitsgrenzen in
+[wallbe2/AGENTS.md](../../wallbe2/AGENTS.md).
 
 | Stufe | Inhalt | Ausstattung |
 | --- | --- | --- |
-| H0 | Lesend: Debug-Anschluss, RDP-Stufe, Bootloader/Flash/OTP auslesen | Debugger (SWD) |
-| H1 | Pruef-Firmware ohne Netzspannung am Lastkreis: CP-PWM mit festen Tastgraden, R1/R2-Impulse, Ausgaenge ER/LR/VR/CR, LEDs, Schuetzspule (nur Ansteuersignal), Eingaenge und ADC-Werte melden | Oszilloskop (vorhanden), Labornetzteil |
+| H0 | Lesend: Debug-Anschluss, RDP-Stufe, Bootloader/Flash/OTP auslesen | ST-LINK V3SET, USB-Isolator (vorhanden) |
+| H1 | Pruef-Firmware ohne Netzspannung am Lastkreis: CP-PWM mit festen Tastgraden, R1/R2-Impulse, Ausgaenge ER/LR/VR/CR, LEDs, Schuetz-Ansteuersignal, Eingaenge und ADC-Werte, IWDG, Reaktionszeit RCM -> PE2, Netzleistung | Oszilloskop (vorhanden), Labornetzteil |
 | H2 | CP/PP mit EV-Simulator: Zustaende A..E, Diode, PP-Widerstaende | EV-Simulator |
 | H3 | RCM-Selbsttest und Fehlerstrompfad mit Pruefstrom | sicherer Pruefaufbau |
-| H4 | Ladelogik komplett, mit Netzspannung, Fahrzeug oder Lastsimulator | Elektrofachkraft, FI in der Hausverteilung |
+| H4 | Ladelogik komplett mit Netzspannung, Fahrzeug oder Lastsimulator | Elektrofachkraft, FI in der Hausverteilung |
 
 EV-Simulator: Fuer H2 genuegt ein selbstgebauter Pruefstecker (Diode, CP-Widerstaende
-2,74 kOhm / 1,3 kOhm / 270 Ohm nach IEC 61851-1 Anhang A, PP-Widerstaende 1,5 kOhm /
-680 / 220 / 100 Ohm, Schalter). Fertige Typ-2-Pruefadapter mit Messbuchsen sind fuer
-Arbeiten mit Netzspannung (H4) sicherer. Widerstandswerte gegen die Norm pruefen
-(nicht lokal vorhanden).
+2,74 kOhm / 1,3 kOhm / 270 Ohm, PP-Widerstaende 1,5 kOhm / 680 / 220 / 100 Ohm, Schalter;
+Werte gegen IEC 61851-1 Anhang A pruefen, Norm nicht lokal). Fuer H4 sind fertige
+Typ-2-Pruefadapter mit Messbuchsen sicherer.
 
-## 7. Groessentest Zephyr (2026-10-19)
+## 8. evcc und WARP
 
-Minimaler Build mit der geplanten Grundausstattung, **nur gebaut, nicht ausgefuehrt**:
-[spike-size](../spike-size/) auf der vorlaeufigen Board-Beschreibung
-[boards/phoenix/ev_cc_ac1](../boards/phoenix/ev_cc_ac1/) (STM32F207VE,
-RMII-Pins und KSZ8081 im 25-MHz-Modus wie im Original, TIM1 CH1 PE9, ADC PA0/PB1, IWDG,
-RNG, Partitionen wie in Abschnitt 2/3). Inhalt: IPv4, DHCP, TCP, Sockets, HTTP-Server mit
-JSON-Ressource `/evse/state`, Shell nur ueber Telnet inkl. Netz- und Kernel-Kommandos,
-Settings ueber ZMS in Sektor 7, ADC, PWM, Watchdog, Logging.
+evcc spricht die WARP ueber `charger/warp-ws.go` (Vorlage `tinkerforge-warp-ws`; gelesen am
+2026-10-19, Zweig master). Daraus folgt der Mindestumfang:
 
-| Ergebnis | Wert |
-| --- | --- |
-| Flash | **206 680 B** von 320 KB (63 %), gelinkt ab `0x08010000` (Vektor SP `0x2000b6c0`, Reset `0x08016b45`) |
-| RAM | **84 732 B** von 128 KB (65 %), davon Heap 16 KB, Ethernet-Puffer ~15 KB |
+| Zugriff | Zweck | Umsetzung |
+| --- | --- | --- |
+| `GET /info/features` | Faehigkeiten | `[]` (kein Zaehler, kein NFC, keine Phasenumschaltung) |
+| `GET /info/name` | Typ | `warp2`; bei `warp3`/`warp4` wuerde evcc zusaetzlich `evse/phase_auto_switch` schalten |
+| WebSocket `/ws` | Ereignisse | Textrahmen `{"topic", "payload"}`; noetig `evse/state` (`iec61851_state` 0/1/2 = A/B/C, >= 3 = Fehler) und `evse/external_current` |
+| `POST /evse/external_current` `{"current": mA}` | Ladestrom; 0 = Laden aus | Slot `external`, nur im RAM (kein Flashschreiben) |
 
-Groesste Flash-Posten (`west build -t rom_report`): Netz gesamt 86 KB (IP-Stack 35 KB,
-davon TCP 11 KB; HTTP-Server 19 KB; Netz-Shell-Kommandos 17 KB; Sockets 7,5 KB; DHCP 3 KB;
-Ethernet-L2 3,6 KB), Shell-Kern 18 KB inkl. Telnet 2,5 KB, Treiber 16 KB (Ethernet 6 KB),
-Kernel 12 KB, libc/os 13 KB, Settings/ZMS ~4 KB.
+Verhalten von evcc, gegen die Simulation geprueft ([Test und Simulation](test-und-simulation.md#evcc-gegen-die-simulation)):
+evcc schreibt `external_current` nur, wenn sich sein eigenes Ziel aendert, und prueft vom
+gelesenen Wert nur `> 0`. Ohne Zaehler schaetzt evcc die Ladeleistung aus seinem eigenen
+Sollwert. Abhaengigkeit: Aenderungen im evcc-Treiber koennen Anpassungen erfordern.
 
-Bewertung:
-- Mit P1 bleiben **~113 KB Flash** fuer Ladelogik, REST-API, Weboberflaeche und
-  Erweiterungen; die Netz-Shell-Kommandos (17 KB) sind optional. Zum Vergleich: das
-  Original belegt mit Weboberflaeche, OCPP, Modbus und lwIP ~318 KB.
-- OCPP ohne TLS (WebSocket-Client + JSON) duerfte hineinpassen; **OCPP mit TLS (mbedTLS)
-  voraussichtlich nicht** neben P1 (Schaetzung, nicht gemessen). Dann waere der
-  Speicherbereich neu zu entscheiden (z. B. Parameter in Sektor 3 mitbenutzen, P3).
-- RAM: 44 KB Reserve; TLS braeuchte erfahrungsgemaess grosse Teile davon.
-- NVS ist fuer die 128-KB-Sektoren des F2 ungeeignet: NVS adressiert innerhalb eines
-  Sektors mit 16 Bit (`ADDR_OFFS_MASK 0x0000FFFF`, `subsys/kvss/nvs/nvs_priv.h`), also
-  hoechstens 64 KB, und verlangt, dass ein NVS-Sektor ein Vielfaches der Loescheinheit
-  ist (`nvs.c` Zeile 1269). Die Sektoren 5..7 sind 128 KB gross und nur ganz loeschbar.
-  ZMS adressiert mit 32 Bit (`zms_priv.h`) und baut mit einem 128-KB-Bereich.
-- mbedTLS wurde nur als Modul heruntergeladen (fuer spaeter), ist im Testbuild aber
-  **nicht** enthalten (`CONFIG_MBEDTLS` nicht gesetzt, kein Eintrag im rom_report).
-- MCO1 (25 MHz auf PA8 fuer den PHY) ist in Zephyrs F2-Devicetree nicht als Knoten
-  vorhanden und muss fuer die Hardware ergaenzt werden.
-- Start-SP: Zephyr legt den Stackzeiger beim Reset auf das Ende seines Interrupt-Stacks
-  (`0x2000b6c0`), das Original auf das RAM-Ende (`0x20020000`). Beides ist gueltig. Nur
-  falls der Bootloader den Wert prueft (z. B. "muss gleich 0x20020000 sein"), waere das
-  relevant; ueblich ist nur "zeigt ins RAM". Klaert sich beim Auslesen des Bootloaders.
+WARP-Referenz: [API-Referenz EVSE](https://docs.warp-charger.com/en/docs/interfaces/mqtt_http/api_reference/evse).
+Das Slot-Modell der WARP (wirksamer Strom = Minimum aller aktiven Grenzen) entspricht der
+Stromkette des Originals und ist Vorbild fuer SOLL-CUR.
 
-Umgebung: Zephyr **v4.4.2**, Zephyr-SDK **1.0.1** (`arm-zephyr-eabi-gcc` 14.3.0), west 1.5.0
-in `~/zephyrproject/.venv`, Module per `manifest.project-filter` auf cmsis, cmsis_6,
-hal_stm32, mbedtls und (seit 2026-10-19, fuer WebSocket) tf-psa-crypto begrenzt (ausserhalb des Repos).
+## 9. Entwicklungsumgebung
+
+Zephyr **v4.4.2**, Zephyr-SDK **1.0.1** (`arm-zephyr-eabi-gcc` 14.3.0), west 1.5.0 in
+`~/zephyrproject/.venv` (ausserhalb des Repos). Module per `manifest.project-filter` auf
+cmsis, cmsis_6, hal_stm32, mbedtls und tf-psa-crypto begrenzt (tf-psa-crypto liefert SHA-1
+fuer den WebSocket-Handshake). Twister-/Testabhaengigkeiten sind in der venv installiert.
 
 ```sh
 cd ~/zephyrproject && . .venv/bin/activate && cd zephyr
-west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/spike-size \
-  -d ~/zephyrproject/build-spike
-west build -d ~/zephyrproject/build-spike -t rom_report   # bzw. ram_report
+west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d ~/zephyrproject/build-wallfree
+west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/spike-size -d ~/zephyrproject/build-spike
+west build -d ~/zephyrproject/build-wallfree -t rom_report   # bzw. ram_report
 ```
 
-## 8. Referenz Tinkerforge WARP (nur Notizen, nicht abgestimmt)
+## 10. Offene Punkte
 
-Quelle: [WARP API-Referenz EVSE](https://docs.warp-charger.com/en/docs/interfaces/mqtt_http/api_reference/evse),
-[esp32-firmware](https://github.com/Tinkerforge/esp32-firmware) (Lizenz noch pruefen).
-Pfade `http://host/evse/<name>` (GET lesen, PUT/POST schreiben) bzw. MQTT; Stroeme in **mA**.
-
-- `evse/state` (IEC-Zustand, Schuetz, `allowed_charging_current`, `error_state`,
-  `lock_state`), `evse/low_level_state` (Rohwerte), `evse/hardware_configuration`.
-- **Ladestrom-Slots:** wirksamer Strom = Minimum aller aktiven Slots (Kabel, Schalter,
-  global, extern, Nutzer, Lastmanagement, OCPP ...). Entspricht der Stromkette der
-  Spezifikation und waere ein gutes Modell dafuer.
-- `evse/global_current` wird im Flash gespeichert; fuer haeufige Aenderungen
-  `evse/external_current` (nur RAM). Gleiches Problem bei uns (Flash-Verschleiss,
-  Loeschpausen) -> Sollstrom fuer Regelung nicht persistent.
-- `start_charging`/`stop_charging`, `external_enabled`, `ev_wakeup`,
-  `control_pilot_disconnect`, `gpio_configuration`.
-
-Einheit: WARP nutzt mA; Entscheidung 21 wurde am 2026-10-19 auf **mA** geaendert.
-Offen: Pfadnamen (WARP) statt Feldnummern; der Nutzer sieht sich die WARP-API zuerst an.
-
-## 8a. Anbindung an evcc (2026-10-19)
-
-Die evcc-Anbindung ist dem Nutzer sehr wichtig. Nutzerentscheidung: WARP-Schnittstelle
-**schrittweise nach Bedarf** nachbauen, nicht blind komplett uebernehmen.
-
-evcc spricht die WARP ueber den Treiber `charger/warp-ws.go` an (Vorlage
-`tinkerforge-warp-ws`; aelter: MQTT, `warp2-mqtt.go`). Quelle gelesen am 2026-10-19
-(github.com/evcc-io/evcc, Zweig master, `charger/warp-ws.go`, `charger/warp/types.go`):
-
-| Zugriff | Zweck | Mindestinhalt fuer uns |
-| --- | --- | --- |
-| `GET /info/features` | Faehigkeiten | JSON-Liste, z. B. `[]` (ohne Zaehler, NFC, Phasenumschaltung) |
-| `GET /info/name` | Typ | `{"name":…, "type":…, "display_type":…, "uid":…}`; bei Typ `warp3`/`warp4` schaltet evcc zusaetzlich `evse/phase_auto_switch` ab |
-| WebSocket `/ws` (bzw. `wss`) | Ereignisse | Textrahmen mit JSON `{"topic": …, "payload": …}`; noetig: `evse/state` (`iec61851_state` 0/1/2 = A/B/C), `evse/external_current` (`current` in mA); optional `evse/user_current`, `evse/user_enabled`, `charge_tracker/current_charge`, `meters/<n>/…` |
-| `POST /evse/external_current` `{"current": mA}` | Ladestrom setzen; 0 = Laden aus | Sollstrom nur im RAM (kein Flashschreiben) |
-
-Damit genuegt fuer eine erste evcc-Anbindung ein kleiner Teil: zwei GET-Ressourcen, ein
-POST und ein WebSocket-Endpunkt mit Statusmeldungen. Zephyrs HTTP-Server kann WebSocket
-(`CONFIG_HTTP_SERVER_WEBSOCKET`, Beispiel `samples/net/sockets/http_server`); im
-Groessentest noch nicht enthalten. Authentifizierung (user/password) ist bei evcc optional.
-
-**Nutzerentscheidung (2026-10-19):** evcc wird ueber die vorhandene Vorlage
-`tinkerforge-warp-ws` angebunden; in evcc soll vorerst kein neuer Wallbox-Typ noetig sein.
-Die evcc-Vorlage fuer die Phoenix-Steuerung (Modbus TCP) wird bewusst nicht genutzt
-(fruehere Probleme), und **Modbus entfaellt** in der Ersatzfirmware ganz (TCP und RTU).
-Folge: Der evcc-Treiber `warp-ws.go` bestimmt den Mindestumfang und das Verhalten der
-Schnittstelle; Aenderungen in evcc koennen Anpassungen erfordern.
-
-## 9. Offene Entscheidungen fuer die Diskussion
-
-1. Parameterspeicher: **P1 vorbereiten**, Validierung nach Bootloader-Auslesen (Nutzer 2026-10-19).
-2. ~~Rahmenwerk~~: Zephyr entschieden, Groessentest erledigt (Abschnitt 7).
-3. ~~OCPP/TLS~~: vorerst ausgeklammert; bei spaeterem TLS Speicherbereich neu bewerten.
-6. HTTP-Schnittstelle: an WARP angelehnt, **schrittweise nach Bedarf** (Nutzer 2026-10-19);
-   erster Zielumfang: evcc-Mindestumfang (Abschnitt 8a).
-4. Auslesen des Bootloaders (H0), sobald die Hardware verfuegbar ist.
-5. Reihenfolge der Inbetriebnahmestufen H0..H4.
-
-## 10. Rahmenfragen vom 2026-10-19 (Nutzer)
-
-### 10.1 Systemtakt: mehr als 100 MHz?
-
-- **Moeglich:** STM32F207 laeuft bis **120 MHz** (RM0033 Rev 10, Text Zeile ~4195: HCLK
-  max. 120 MHz, APB2 max. 60 MHz, APB1 max. 30 MHz). Mit dem 25-MHz-Quarz: PLLM 25,
-  PLLN 240, PLLP 2 -> 120 MHz, PLLQ 5 -> 48 MHz (USB exakt; USB nicht im Umfang), APB1 /4 =
-  30 MHz, APB2 /2 = 60 MHz.
-- **Wartezyklen:** RM0033 Tab. 3: bei 2,7..3,6 V gelten fuer 90..120 MHz **3 WS** - dieselben
-  3 WS, die das Original schon bei 100 MHz nutzt. 120 MHz kosten also keine zusaetzlichen
-  Wartezyklen (Versorgungsspannung 3,3 V angenommen, nicht gemessen).
-- **Nutzen:** ~20 % mehr Rechenleistung. Die Ladelogik braucht das nicht; der Netzwerkdurchsatz
-  haengt kaum am Takt. Nachteile: etwas mehr Leistungsaufnahme/Waerme, Abweichung von der vom
-  Hersteller erprobten Konfiguration (EMV), alle Timer-Teiler aendern sich (TIM1: PSC 59 statt 49).
-- **Entschieden (Nutzer, 2026-10-19): 100 MHz** wie Original; 120 MHz bleibt spaetere Option,
-  falls TLS/OCPP Rechenzeit brauchen (dann messen).
-
-### 10.2 Ethernet 100 Mbit/s
-
-- **Laeuft bereits mit 100 Mbit/s:** Der Originaltreiber nutzt Autonegotiation und stellt den
-  MAC je nach Ergebnis auf 10 oder 100 Mbit/s ([Ethernet-PHY](../../wallbe2/docs/ethernet-phy.md), Schritte 5/6);
-  RMII mit 50-MHz-REF_CLK aus dem KSZ8081RND, HB S. 10 "100Base-TX". An einem 100-Mbit-Switch
-  ergibt sich also 100 Mbit/s Vollduplex.
-- Der Zephyr-Treiber (STM32-ETH + KSZ8081) macht ebenfalls Autonegotiation; keine Aenderung
-  noetig. Fuer eine Wallbox ist die Geschwindigkeit ohnehin unkritisch.
-
-### 10.3 HTTP: moeglichst viel zugaenglich (Nutzervorgabe 2026-10-19)
-
-- **Entschieden:** Alle Messwerte, Statuswerte und Parameter der gesamten Firmware sollen ueber
-  HTTP lesbar und (soweit schreibbar) schreibbar sein. Zielgruppe der Firmware sind versierte
-  Anwender; fuer einfache Anwender kann eine abgespeckte Oberflaeche angeboten werden.
-- Folge fuer die [Soll-Spezifikation](soll-spezifikation.md): Frage F24 (Parameter zunaechst nur
-  per Shell) ist damit entschieden: HTTP von Anfang an (SOLL-API-30 ff.).
-
-### 10.4 Weboberflaeche: Rahmenwerk (entschieden: Preact + htm)
-
-Vorgaben: spartanisch, ressourcenschonend (Flashreserve ~113 KB fuer Ladelogik, API, Oberflaeche
-und Erweiterungen), aber zeitgemaess aussehend. Groessen sind Erfahrungswerte (minifiziert +
-gzip), **nicht gemessen**:
-
-| Option | Groesse (gz, ca.) | Bemerkung |
-| --- | --- | --- |
-| Vanilla JS + eigenes CSS | 0 KB Bibliothek | kleinstes Ergebnis, am meisten Handarbeit |
-| **Preact + htm** | ~5 KB | Komponenten wie React, ohne Build-Schritt nutzbar; WARP nutzt Preact |
-| petite-vue | ~7 KB | Vue-artige Bindungen direkt im HTML |
-| Alpine.js | ~15 KB | deklarativ, groesser |
-| CSS: eigenes Mini-CSS / klassenloses CSS (z. B. Pico.css, ~10 KB gz) | 3..10 KB | dunkles/helles Design moeglich |
-
-Auslieferung in jedem Fall: wenige statische Dateien, gzip-komprimiert im Flash, vom Zephyr-
-HTTP-Server mit `Content-Encoding: gzip` ausgeliefert; die Oberflaeche spricht nur die HTTP-/
-WebSocket-API (kein serverseitiges Rendern). Eine Seite mit Ansicht "Einfach" und "Experte"
-ist billiger als zwei getrennte Oberflaechen. Zielgroesse: <= 30 KB gz fuer die gesamte
-Oberflaeche.
-
-**Entschieden (Nutzer, 2026-10-19):** **Preact + htm** mit eigenem kleinem CSS.
-
-**Umsetzung (2026-10-19):** [web/](../web/), htm 3.1.1 `preact/standalone.module.js` unveraendert
-unter [web/vendor/](../web/vendor/) (htm Apache-2.0, enthaltenes Preact MIT). Gemessen (gzip -9):
-Bibliothek 5,3 KB, `app.js` 4,8 KB, CSS 1,2 KB, HTML 0,3 KB, **zusammen 11,7 KB**; im Firmware-
-Abbild +12 KB Flash. gzip erzeugt Zephyrs CMake beim Bauen (`generate_inc_file_for_target`).
-
-### 10.5 Projektname und Ort
-
-**Entschieden (Nutzer, 2026-10-19):** Projektname **Wallfree**. Die Ersatzfirmware kommt in ein
-**neues, veroeffentlichbares Repository** (Firmware, Soll-Spezifikation, Tests); dieses Repo
-bleibt Analyse-Archiv mit Originalfirmware und Handbuechern (urheberrechtlich geschuetzt, nicht
-veroeffentlichen) und wird von dort verlinkt. Pfad `~/proj/wallfree`, Lizenz **Apache-2.0**
-(Nutzer, 2026-10-19).
+- H0: Bootloader auslesen; danach Update-Uebergabe (SOLL-BOOT-30), Start-SP, loescht der
+  Bootloader Sektor 7.
+- H1: Hardwareannahmen pruefen ([Implementierung](implementierung.md#annahmen-der-hardwareschicht-in-h1-zu-pruefen)).
+- TLS/OCPP: bei Bedarf Speicherort (P3) und Budget neu bewerten.

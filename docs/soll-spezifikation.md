@@ -1,14 +1,14 @@
 # Soll-Spezifikation der Ersatzfirmware "Wallfree"
 
-Stand: 2026-10-20, Entwurf (SOLL-ERR-11 Zugriffsprotokoll ergaenzt). Beschreibt, **was die Ersatzfirmware tun soll**, bezogen auf
+Stand: 2026-10-20. Beschreibt, **was die Ersatzfirmware tun soll**, bezogen auf
 die Klemmen der Steuerung **EV-CC-AC1-M3-CBC-RCM-ETH** (Phoenix Contact). Das
 Originalverhalten steht in der [Ladeautomat-Spezifikation](../../wallbe2/docs/ladeautomat-spezifikation.md)
 (im Folgenden "Ist-Spez."). Diese Datei ist Grundlage fuer Implementierung und Tests.
 Sie ist **kein Sicherheitsnachweis**. Weder bestandene Tests noch diese Spezifikation
 belegen elektrische Sicherheit oder Eignung fuer den Ladebetrieb.
 
-Bearbeitungsstand: alle Abschnitte im Entwurf (Schritte 1..3, 2026-10-19). Die Fragen F1..F27 sind am 2026-10-19 entschieden
-([Abschnitt 15](#15-offene-punkte-annahmen-und-fragen-an-den-nutzer)).
+Die Fragen F1..F27 sind entschieden ([Abschnitt 15](#15-entscheidungen-und-offene-punkte)).
+Umsetzungsstand und Festlegungen im Detail: [Implementierung](implementierung.md).
 
 ## Lesehilfe
 
@@ -17,8 +17,9 @@ Bearbeitungsstand: alle Abschnitte im Entwurf (Schritte 1..3, 2026-10-19). Die F
   LOCK (Verriegelung), FN (Ein-/Ausgangsfunktionen), EN (Freigabe), PAR (Parameter),
   ERR (Fehler/Status), LED, API, SH (Shell), NVM (Parameterspeicher), BOOT (Start).
 - **Quelle** je Anforderung: `E<n>` = Entscheidung n der
-  [Ist-Spez.](../../wallbe2/docs/ladeautomat-spezifikation.md#entscheidungen-des-nutzers-stand-2026-10-18),
-  `Ist §n` = Abschnitt n der Ist-Spez., `HB S. n` = Steuerungshandbuch
+  [Ist-Spez.](../../wallbe2/docs/ladeautomat-spezifikation.md#entscheidungen),
+  `Ist §n` = Abschnitt n der Ist-Spez., `Belege §n` = Abschnitt n der
+  [Ladelogik-Belege](../../wallbe2/docs/ladelogik-belege.md), `HB S. n` = Steuerungshandbuch
   [108191_de_04](../../wallbe2/docs/um_de_ev_cc_ac1_m3_cbc_rcm_eth_108191_de_04.pdf) PDF-Seite n,
   `Arch §n` = [Architektur](architektur.md), `1.27 §n` =
   [Firmwarevergleich](../../wallbe2/docs/firmware-vergleich-1.27.md), `AG` = [AGENTS.md](../../wallbe2/AGENTS.md),
@@ -26,12 +27,12 @@ Bearbeitungsstand: alle Abschnitte im Entwurf (Schritte 1..3, 2026-10-19). Die F
   Handbuch oder sind als ungeprueft markiert).
 - **Abweichung** vom Original (SL-01.04.24) ist mit **[ABW]** markiert, eine Annahme
   ohne Beleg mit **[ANN]**, eine Hardwarezuordnung ohne Leiterbahnbeleg mit **[HYP]**.
-  Offene Nutzerfragen tragen die Kennung `F<n>` (gesammelt in
-  [Abschnitt 15](#15-offene-punkte-annahmen-und-fragen-an-den-nutzer)).
+  Entscheidungen des Nutzers zu Fragen dieser Spezifikation tragen die Kennung `F<n>`
+  ([Abschnitt 15](#15-entscheidungen-und-offene-punkte)).
 - **Pruefung:** Am Ende jedes Abschnitts steht, wie die Anforderungen geprueft werden:
   `PC` = hardwareunabhaengiger Test der Ladelogik auf dem PC (Zephyr `native_sim` oder
   Host-Unit-Test), `H1..H4` = Hardwarestufen aus der
-  [Architektur](architektur.md#hardware-inbetriebnahme) (jede Stufe erst nach
+  [Architektur](architektur.md#7-hardware-inbetriebnahme) (jede Stufe erst nach
   ausdruecklicher Freigabe in AGENTS.md).
 - Feldnummern (z. B. "Feld 520") bezeichnen nur die **Herkunft** im Original. Die
   Ersatzfirmware hat eigene Parameternamen ([Abschnitt 10](#10-parameter)); die
@@ -50,7 +51,7 @@ Bearbeitungsstand: alle Abschnitte im Entwurf (Schritte 1..3, 2026-10-19). Die F
 | SOLL-GEN-05 | Die Ladelogik ist ein **hardwareunabhaengiges Modul** mit definierten Ein-/Ausgaengen (Messwerte, Schalterstellungen, Parameter, Zeit -> CP-Tastgrad, Schuetz, Verriegelung, Ausgangsfunktionen, Status), das vollstaendig auf dem PC getestet werden kann. | Arch §6 |
 | SOLL-GEN-06 | Der Schutzpfad (Fehlerstrom, Schuetzfehler, Versorgung, Watchdog) ist vom Ladeautomaten getrennt und wirkt ereignisgesteuert direkt auf das Schuetz. | E1, E2 |
 
-Beispielkonfiguration der vorhandenen Wallbox: [Geraetekonfiguration](../../wallbe2/docs/geraetekonfiguration.md)
+Beispielkonfiguration der vorhandenen Wallbox: [Hardware, Ist-Einstellungen](../../wallbe2/docs/hardware.md#3-ist-einstellungen-laut-weboberflaeche)
 (keine Vorgabe).
 
 ### 1.2 Plattform (entschieden, nicht Gegenstand dieser Spezifikation)
@@ -119,7 +120,7 @@ wiedergibt [ANN]; Bestaetigung in H1/H2.
 | 4 | ML | Digitaleingang (Default manuelle Verriegelung) | **PA5** (IN5) | wie LD | wie LD | FW |
 | 4 | XR | Digitaleingang (Default Verfuegbarkeit) | **PA6** (IN6) | wie LD | wie LD | FW |
 | 4 | IN | Digitaleingang (Default Ladestrom 16 A) | **PC3** (IN13) | wie LD | wie LD | FW |
-| 4 | A/B | RS-485 (Modbus RTU) | UART, DE an PC12/PD7 | – | **nicht genutzt** (Modbus nicht im Umfang); Treiberfreigaben PC12/PD7 dauerhaft Low (Empfang) | FW [Restumfang §7](../../wallbe2/docs/restumfang.md#7-nicht-zugeordnete-pins-punkt-8) |
+| 4 | A/B | RS-485 (Modbus RTU) | UART, DE an PC12/PD7 | – | **nicht genutzt** (Modbus nicht im Umfang); Treiberfreigaben PC12/PD7 dauerhaft Low (Empfang) | FW [Belege §9](../../wallbe2/docs/ladelogik-belege.md#9-nicht-zugeordnete-pins) |
 | 4 | GND | Systemerde | – | – | – | HB |
 | 4 | ER | Digitalausgang (Default Fehler) | **PB4** | Ausgang, aktiv High, 8..30 V ueber 12a, max. 600 mA | Funktionscode (Abschnitt 9) | FW, Treiber DRV8844 [HYP] |
 | 4 | LR | Digitalausgang (Default Lock Request) | **PB5** | wie ER | wie ER | FW |
@@ -202,7 +203,7 @@ DIP/Drehschalter-Bitfolge. H2 – CP/PX-Skalierung mit EV-Simulator.
 | SOLL-RT-10 | Jeder ueberwachte Thread meldet sich zyklisch beim Schutzthread. Limits: Automatenthread **100 ms**, Messblock-Ereignis (ADC) **50 ms**, Schutzthread selbst ueber den IWDG. Ueberschreitung -> sofort sicherer Zustand (SOLL-RT-20), Ursache sichern, danach Reset. | E3, F4 (Startwerte, nach H1 nachschaerfen) |
 | SOLL-RT-11 | Netz- und Shell-Threads: Limit 10 s. Ueberschreitung -> Fehlermeldung im Protokoll; Neustart nur, wenn das Schuetz aus ist und kein Ladevorgang laeuft (kein Abschalten unter Last nur wegen der Schnittstelle). Umsetzung: ueberwacht werden Speicher-Thread, WebSocket-Thread und System-Workqueue; HTTP-Server- und Telnet-Thread gehoeren zu Zephyr und melden sich nicht (nicht ueberwacht). Neustart nur in S1/S9/S10 mit Schuetz aus. | F4 |
 | SOLL-RT-12 | IWDG wird nur vom Schutzthread nachgeladen, wenn alle Limits eingehalten sind. Zeitlimit **250 ms** im Betrieb. **[ABW]** Original: Task-Limit 60 s + IWDG ~3 s. | E3, F4 |
-| SOLL-RT-13 | Fuer Flash-Loeschvorgaenge (blockieren den Bus fuer Sekunden, Arch §2) wird das IWDG-Limit **vorher** auf den Maximalwert verlaengert und danach zurueckgesetzt; Loeschen nur im sicheren Zustand (SOLL-NVM-05). Laenge der Loeschzeit und Umprogrammierbarkeit des IWDG im Betrieb sind gegen RM0033/DS6329 zu pruefen. | Arch §2, [ANN] |
+| SOLL-RT-13 | Fuer Flash-Loeschvorgaenge (blockieren den Bus fuer Sekunden, Arch §3) wird das IWDG-Limit **vorher** auf den Maximalwert verlaengert und danach zurueckgesetzt; Loeschen nur im sicheren Zustand (SOLL-NVM-05). Laenge der Loeschzeit und Umprogrammierbarkeit des IWDG im Betrieb sind gegen RM0033/DS6329 zu pruefen. | Arch §3, [ANN] |
 | SOLL-RT-14 | Grund des letzten Resets (Watchdog, Fault, Update, Werksreset, Spannungseinbruch) wird ueber den Neustart erhalten (RTC-Backup-Register, nicht BKP10/11/13/14/15, siehe SOLL-BOOT-30) und ist als Status lesbar. Umsetzung: Code "WF"+Grund in **BKP19** vor jedem Software-Reset, beim Start mit den Flags aus RCC_CSR verknuepft (Watchdog vor Software, NRST-Pin zuletzt, weil jede interne Quelle den Pin pulst, RM0033 RCC); lesbar ueber `GET /system/info` und `evse status`. | Original BKP19, [ANN] |
 
 ### 3.3 Sicherer Zustand und Ausnahmen
@@ -210,8 +211,8 @@ DIP/Drehschalter-Bitfolge. H2 – CP/PX-Skalierung mit EV-Simulator.
 | Kennung | Anforderung | Quelle |
 | --- | --- | --- |
 | SOLL-RT-20 | **Sicherer Zustand:** (1) PE2 Low (Schuetz aus) als erste Aktion, (2) CP auf **-12 V DC** (Zustand F, Tastgrad 0 %, F5 entschieden), (3) PA9/PA10 High (kein Aktorimpuls), (4) ER gemaess Funktion, LED Error an. Der Verriegelungszustand wird nicht veraendert. | E3 |
-| SOLL-RT-21 | HardFault, MemManage, BusFault, UsageFault, NMI mit Fehler, Assertion und Stack-Ueberlauf: sicherer Zustand direkt ueber Registerzugriffe (ohne Treiberaufrufe), Ursache sichern, Systemreset. **[ABW]** Original kreist ohne Abschaltung bis IWDG (~3 s). | E3, [Restumfang §6](../../wallbe2/docs/restumfang.md#6-fehler--und-ausnahmepfade-punkt-7) |
-| SOLL-RT-22 | Neustart- und Updateanforderungen werden erst ausgefuehrt, wenn das Schuetz aus ist (geordnetes Ladeende mit Frist SOLL-SM-41); Hoechstwartezeit 15 s wie Original, danach sicherer Zustand und Reset. | [Restumfang §6](../../wallbe2/docs/restumfang.md), [Bootloader](../../wallbe2/docs/bootloader.md) |
+| SOLL-RT-21 | HardFault, MemManage, BusFault, UsageFault, NMI mit Fehler, Assertion und Stack-Ueberlauf: sicherer Zustand direkt ueber Registerzugriffe (ohne Treiberaufrufe), Ursache sichern, Systemreset. **[ABW]** Original kreist ohne Abschaltung bis IWDG (~3 s). | E3, [Belege §8](../../wallbe2/docs/ladelogik-belege.md#8-fehler--und-ausnahmepfade) |
+| SOLL-RT-22 | Neustart- und Updateanforderungen werden erst ausgefuehrt, wenn das Schuetz aus ist (geordnetes Ladeende mit Frist SOLL-SM-41); Hoechstwartezeit 15 s wie Original, danach sicherer Zustand und Reset. | [Belege §8](../../wallbe2/docs/ladelogik-belege.md#8-fehler--und-ausnahmepfade), [Bootloader](../../wallbe2/docs/bootloader.md) |
 | SOLL-RT-23 | Nach jedem Reset gilt bis zum Ende der Initialisierung der Zustand aus SOLL-IO-02. | E3 |
 
 Pruefung Abschnitt 3: PC – Automat mit simulierter Zeit (keine blockierenden Aufrufe,
@@ -222,7 +223,7 @@ Pruef-Firmware) -> sicherer Zustand vor Reset.
 
 ## 4. CP- und PP-Auswertung
 
-Grundlage: [Restumfang §1/§2](../../wallbe2/docs/restumfang.md#1-cp-klassifikator-0x08039fe0-vollstaendig),
+Grundlage: [Belege §1/§2](../../wallbe2/docs/ladelogik-belege.md#1-cp-klassifikator-0x08039fe0),
 Ist §2a, HB S. 37 (Tab. 6-1), S. 41 (Tab. 6-4). Spannungen gelten am CP-Plateau
 (Klemme CP gegen PE). Die Umrechnung ADC -> Volt uebernimmt zunaechst die
 Original-Skalierung (`x*39/100 + 300` bzw. `14050 - x*397/1000` je Summe ueber 8 Werte)
@@ -237,9 +238,9 @@ Original-Skalierung (`x*39/100 + 300` bzw. `14050 - x*397/1000` je Summe ueber 8
 | SOLL-CP-03 | Entprellung: Der Rohzustand uebernimmt einen neuen Kandidaten, wenn dieser **ununterbrochen > 20 ms** vom bisherigen Rohzustand abweicht; uebernommen wird der dann aktuelle Kandidat. | Ist §2a |
 | SOLL-CP-04 | Ausgewertet wird nur ein Plateau, das tatsaechlich ausgegeben wird: bei CP -12 V DC (Tastgrad 0 %) gibt es kein positives Plateau; dann bleibt der Rohzustand unveraendert und "CP ungueltig" wird nicht gemeldet (Original: Sonderfall Weckfolge `c2a` = 5). Bei CP +12 V DC gibt es kein negatives Plateau; die Diodenpruefung entfaellt. | Ist §2a, [ANN] |
 | SOLL-CP-05 | Nach jeder Aenderung der CP-Ausgabe (Tastgrad, DC-Pegel) werden die Messwerte der folgenden 2 Messbloecke (~16 ms) verworfen (Einschwingen von Treiber und Fahrzeugkapazitaet). | [ANN] |
-| SOLL-CP-06 | **CP ungueltig** (Kurzschluss/0 V, Zustand E nach Tab. 6-1): `v` < 1,0 V und seit dem ersten Block mit `v` < 1,0 V mehr als 20 ms vergangen -> Fehler ERR-CP-INVALID, Status **sofort** E (ohne weitere Entprellung). Der Startzeitpunkt wird erst bei `v` >= 1,2 V verworfen; zwischen 1,0 und 1,2 V bleibt er erhalten, der Fehler gilt dort aber nicht (wie Original). Waehrend `v` < 1,0 V bleibt der Rohzustand unveraendert. **[ABW]** Original setzt den Rohzustand dann auf A, was als "Fahrzeug getrennt" missdeutet werden kann. | Ist §2a, Restumfang §1 Schritt 4 |
+| SOLL-CP-06 | **CP ungueltig** (Kurzschluss/0 V, Zustand E nach Tab. 6-1): `v` < 1,0 V und seit dem ersten Block mit `v` < 1,0 V mehr als 20 ms vergangen -> Fehler ERR-CP-INVALID, Status **sofort** E (ohne weitere Entprellung). Der Startzeitpunkt wird erst bei `v` >= 1,2 V verworfen; zwischen 1,0 und 1,2 V bleibt er erhalten, der Fehler gilt dort aber nicht (wie Original). Waehrend `v` < 1,0 V bleibt der Rohzustand unveraendert. **[ABW]** Original setzt den Rohzustand dann auf A, was als "Fahrzeug getrennt" missdeutet werden kann. | Ist §2a, Belege §1 Schritt 4 |
 | SOLL-CP-07 | **Diodenpruefung:** nur bei laufender PWM (Tastgrad 3..97 %) seit > 100 ms und ohne Stromsperre: Ist das negative Plateau weniger negativ als **-10,0 V** (Betrag <= 9,999 V) ununterbrochen > 20 ms -> Fehler ERR-DIODE, Status **sofort** F. Ausgabe (F7): **3 s -12 V DC** (eindeutiges F fuer das Fahrzeug), danach **+12 V DC**, damit das Abstecken (A) erkannt wird; Fehler bleibt bis CP A. **[ABW]** Original bleibt bei -12 V. Normtext zur Diodenpruefung nicht im Projekt (Pruefung offen); Dauer 3 s [ANN]. | Ist §2a, HB S. 37, F7 |
-| SOLL-CP-08 | Der **CP-Status** (nach aussen gemeldet, Ausgangsfunktionen) entsteht aus dem Rohzustand durch Erzwingung (Reihenfolge, erste gilt): (1) Verfuegbarkeit fehlt (SOLL-EN-10) oder ERR-DIODE oder ERR-CONTACTOR -> **F**; (2) ERR-CP-INVALID -> **E** sofort; (3) jeder andere aktive Fehler der Klassen P und V (Abschnitt 11) -> **E**, sofern Rohzustand != A oder Fehler gilt "immer" (Tabelle 11.1); (4) sonst Rohzustand. Der Status wird wie in SOLL-CP-03 entprellt, ausser bei den als "sofort" bezeichneten Faellen. | Ist §2a, Restumfang §1 Schritt 6 |
+| SOLL-CP-08 | Der **CP-Status** (nach aussen gemeldet, Ausgangsfunktionen) entsteht aus dem Rohzustand durch Erzwingung (Reihenfolge, erste gilt): (1) Verfuegbarkeit fehlt (SOLL-EN-10) oder ERR-DIODE oder ERR-CONTACTOR -> **F**; (2) ERR-CP-INVALID -> **E** sofort; (3) jeder andere aktive Fehler der Klassen P und V (Abschnitt 11) -> **E**, sofern Rohzustand != A oder Fehler gilt "immer" (Tabelle 11.1); (4) sonst Rohzustand. Der Status wird wie in SOLL-CP-03 entprellt, ausser bei den als "sofort" bezeichneten Faellen. | Ist §2a, Belege §1 Schritt 6 |
 | SOLL-CP-09 | Fehlerstrom bei Rohzustand A fuehrt **nicht** zu E, sondern startet den RCM-Selbsttest zur Ruecksetzung (SOLL-PROT-11). | Ist §2a (d) |
 
 ### 4.2 CP-Ausgabe je Lage
@@ -258,11 +259,11 @@ Original-Skalierung (`x*39/100 + 300` bzw. `14050 - x*397/1000` je Summe ueber 8
 | Kennung | Anforderung | Quelle |
 | --- | --- | --- |
 | SOLL-PP-01 | PP wird nur mit **D1 an** (Ladefall B, Steckdose) ausgewertet. Ohne D1 (Ladefall C, festes Kabel) gilt als Kabelstrom der Wert des Drehschalters; keine PP-Fehler, keine Kabelabweisung. | HB S. 15, Ist §2a |
-| SOLL-PP-02 | Widerstandsklassen nach HB Tab. 6-4: < 75 Ohm -> ungueltig; 75..150 -> 63 A; 150..330 -> 32 A; 330..1000 -> 20 A; 1000..2200 -> 13 A; > 2200 Ohm -> kein Kabel (0 A). Implementierung zunaechst mit den Original-Schwellen in der Original-Skalierung (821/1521/2821/5331/7401) [ANN], Pruefung der Zuordnung Pegel -> Widerstand in H2. Der Wert 63/70 A wird als **63 A** gemeldet. | HB S. 41, Restumfang §2 |
-| SOLL-PP-03 | Uebernahme eines neuen Kabelwerts erst, wenn derselbe Kandidat **> 1000 ms** ununterbrochen anliegt; danach erneute Bewertung etwa jede Sekunde. Waehrend der Frist gilt der alte Wert. | Restumfang §2 |
-| SOLL-PP-04 | Fehler **ERR-PP-INVALID**: Kandidat "ungueltig" uebernommen, oder Kabelwert 0 uebernommen, waehrend der CP-Rohzustand nicht A und nicht F ist (Fahrzeug erkannt, aber kein Kabel). Ruecksetzung, sobald die Bedingung bei einer Bewertung nicht mehr gilt. | Restumfang §2 |
-| SOLL-PP-05 | **Kabelabweisung** nur mit D1 und D2: Kabelwert 13 A -> ERR-CABLE-REJECT; zusaetzlich bei D3 aus: Kabelwert 20 A -> ERR-CABLE-REJECT. Ruecksetzung bei anderem Kabelwert. | HB S. 15, Restumfang §2 |
-| SOLL-PP-06 | Kabelwert 0 uebernommen (Stecker gezogen) loescht ERR-LOCK (Verriegelungsfehler). | Restumfang §2 |
+| SOLL-PP-02 | Widerstandsklassen nach HB Tab. 6-4: < 75 Ohm -> ungueltig; 75..150 -> 63 A; 150..330 -> 32 A; 330..1000 -> 20 A; 1000..2200 -> 13 A; > 2200 Ohm -> kein Kabel (0 A). Implementierung zunaechst mit den Original-Schwellen in der Original-Skalierung (821/1521/2821/5331/7401) [ANN], Pruefung der Zuordnung Pegel -> Widerstand in H2. Der Wert 63/70 A wird als **63 A** gemeldet. | HB S. 41, Belege §2 |
+| SOLL-PP-03 | Uebernahme eines neuen Kabelwerts erst, wenn derselbe Kandidat **> 1000 ms** ununterbrochen anliegt; danach erneute Bewertung etwa jede Sekunde. Waehrend der Frist gilt der alte Wert. | Belege §2 |
+| SOLL-PP-04 | Fehler **ERR-PP-INVALID**: Kandidat "ungueltig" uebernommen, oder Kabelwert 0 uebernommen, waehrend der CP-Rohzustand nicht A und nicht F ist (Fahrzeug erkannt, aber kein Kabel). Ruecksetzung, sobald die Bedingung bei einer Bewertung nicht mehr gilt. | Belege §2 |
+| SOLL-PP-05 | **Kabelabweisung** nur mit D1 und D2: Kabelwert 13 A -> ERR-CABLE-REJECT; zusaetzlich bei D3 aus: Kabelwert 20 A -> ERR-CABLE-REJECT. Ruecksetzung bei anderem Kabelwert. | HB S. 15, Belege §2 |
+| SOLL-PP-06 | Kabelwert 0 uebernommen (Stecker gezogen) loescht ERR-LOCK (Verriegelungsfehler). | Belege §2 |
 
 Pruefung Abschnitt 4: PC – Bandtabelle mit Grenzwerten (jeder Grenzwert und +-1 mV),
 Hysterese je Richtung, 20-ms-Entprellung mit Bloecken von 8 ms (Uebernahme nach dem 3.
@@ -395,7 +396,7 @@ Das entspricht der Stromkette des Originals (Ist §6) und dem Slot-Modell von WA
 | SOLL-CUR-01 | `hardware` | Drehschalter: Pos. 1..9 = 6000, 10000, 13000, 16000, 20000, 32000, 63000, 70000, 80000 mA; ueber die Schnittstelle absenkbar (Original Feld 801, F3) | immer | HB S. 16, Ist §10 |
 | SOLL-CUR-02 | `cable` | Kabelwert aus PP (13000/20000/32000/63000) bzw. ohne D1 = `hardware` | mit D1 und gueltigem Kabelwert | Ist §6 Schritt 4 |
 | SOLL-CUR-03 | `input` | kleinster Wert aller aktiven Eingaenge mit Code 8..15 (6, 10, 13, 16, 20, 32, 63, 70 A) | Eingang aktiv | Ist §6 Schritt 7 |
-| SOLL-CUR-04 | `external` | Sollstrom der Schnittstelle (WARP `evse/external_current`, Original Feld 528) | immer, ausser Eingang Code 19 aktiv (F10 entschieden: wie HB) | E21, Arch §8a, HB S. 50 |
+| SOLL-CUR-04 | `external` | Sollstrom der Schnittstelle (WARP `evse/external_current`, Original Feld 528) | immer, ausser Eingang Code 19 aktiv (F10 entschieden: wie HB) | E21, Arch §8, HB S. 50 |
 | SOLL-CUR-05 | (Platzhalter) | spaeter OCPP, Lastmanagement | nicht implementiert | AG, Arch §6 |
 
 | Kennung | Anforderung | Quelle |
@@ -405,7 +406,7 @@ Das entspricht der Stromkette des Originals (Ist §6) und dem Slot-Modell von WA
 | SOLL-CUR-12 | **5-%-Modus** (Drehschalter 0, Schnittstellen-Anforderung Original Feld 401, oder Eingang Code 7): ist keine Stromsperre aktiv, wird Tastgrad **50 Promille** ausgegeben; das Schuetz schliesst in diesem Modus nie; Status "digitale Kommunikation nicht verfuegbar". Die Stromslots sind wirkungslos. **[ABW]** Original: unerreichbar, CCR 1000. | E6, HB S. 39 |
 | SOLL-CUR-13 | Plausibilitaet: Ein berechnetes `I` > `hardware` oder > 80000 mA ist ein interner Fehler (Klasse P, ERR-INTERNAL) mit Sofortabschaltung. Konstruktionsbedingt darf das nie auftreten. | E5 |
 | SOLL-CUR-14 | Schreibzugriffe auf Strom-Slots: zulaessig 0 oder 6000..80000 mA; andere Werte werden **mit Fehlermeldung abgelehnt**. Ein Wert ueber dem aktuellen `hardware`-Grenzwert wird angenommen und wirkt ueber das Minimum (kein Fehlerzustand). | E14, F11 entschieden |
-| SOLL-CUR-15 | Startwert von `external` nach jedem Start (Erststart und Neustart): Parameter `external_current_default`, Default 80000 mA = keine Einschraenkung (Original 528 = Drehschalterwert; wirksam ist in beiden Faellen das Drehschaltermaximum). Sollwert, Grenzen und wirksamer Strom bleiben getrennte Groessen (SOLL-API-32). Aenderungen von `external` werden **nicht** gespeichert. Hinweis: Nach einem Neustart waehrend des Ladens sendet evcc seinen Wert erst bei der naechsten Aenderung bzw. beim naechsten Anstecken erneut; bis dahin wirkt das Maximum (in der Simulation geprueft, 2026-10-20). Wer das nicht will, setzt den Parameter auf 0 (dann setzt evcc seinen Strom sofort neu). | Arch §8 (kein Flashschreiben), F12 (bestaetigt 2026-10-20) |
+| SOLL-CUR-15 | Startwert von `external` nach jedem Start (Erststart und Neustart): Parameter `external_current_default`, Default 80000 mA = keine Einschraenkung (Original: 528 = Drehschalterwert; wirksam ist in beiden Faellen das Drehschaltermaximum). Aenderungen von `external` werden **nicht** gespeichert. Grund: Ohne Zutun soll die Box laden; ein Startwert 0 wuerde ohne evcc nie laden. Folge: Nach einem Neustart waehrend des Ladens sendet evcc seinen Wert erst bei der naechsten Aenderung bzw. beim naechsten Anstecken erneut, bis dahin wirkt das Maximum ([Test und Simulation](test-und-simulation.md#evcc-gegen-die-simulation)). Wer das nicht will, setzt den Parameter auf 0 (evcc setzt seinen Strom dann beim naechsten Statuswechsel neu). Sollwert, Grenzen und wirksamer Strom sind getrennt sichtbar (SOLL-API-32). | Arch §8 (kein Flashschreiben), F12 |
 | SOLL-CUR-16 | Aenderungen von `I` waehrend PWM an wirken im selben Automatenzyklus auf den Tastgrad; Wechsel ueber/unter 6 A fuehrt ueber Stromsperre/Neustart der PWM (S7 -> S3 -> S5). | E7d |
 
 ### 6.2 Tastgrad
@@ -426,7 +427,7 @@ durch Fehlerinjektion. H1 – Tastgrad am Oszilloskop fuer 6/10/16/32/63/80 A un
 Grundlage: [RCM/Bender](../../wallbe2/docs/rcm-bender.md), Ist §7, 1.27 §3.4, E1, E2, E4, E12, E16, E22.
 **Sicherheitshinweis:** Die Soll-Reaktionszeiten betreffen nur die Firmware; die
 Abschaltzeit des Gesamtsystems (Relais, Schuetz) und die Frage, ob SWITCH_1/2 zusaetzlich
-direkt auf den Schuetztreiber wirken, sind Hardwarefragen ([Hardwarefragen](../../wallbe2/docs/hardware-offene-fragen.md)).
+direkt auf den Schuetztreiber wirken, sind Hardwarefragen ([Hardwarefragen](../../wallbe2/docs/hardware.md#4-offene-fragen)).
 
 ### 7.1 Schuetz-Schnittstelle
 
@@ -476,7 +477,7 @@ am 2026-10-19 gelesen), Zeitpunkte ab Teststart:
 | SOLL-PROT-21 | Pruefung nur bei ausgeschaltetem Schuetz, beginnend `contactor_check_delay` (Vorschlag 200 ms) nach dem Aus-Befehl. Fehler ERR-CONTACTOR, wenn ununterbrochen >= 250 ms gilt: Modus 1 – letzte steigende Flanke an PE0 juenger als 100 ms; Modus 2 – Eingang Code 5 aktiv; Modus 3 – Eingang Code 6 inaktiv. (Original: Zaehler > 9 bei 25-ms-Zyklus, also ~250 ms.) | Ist §7, [ANN] Verzoegerung |
 | SOLL-PROT-22 | Modus 4: jede Phase einzeln, Fehler wenn **irgendeine** Phase > 50 V. **Nur mit Messquelle** (F1); ohne Messquelle wird das Setzen von Modus 4 abgelehnt. **[ABW]** Original wertet nur alle drei Phasen gemeinsam. | E4 |
 | SOLL-PROT-23 | Wirkung ERR-CONTACTOR: Klasse P, CP-Status F, kein erneutes Einschalten. Ruecksetzung **nur durch Neustart oder ausdrueckliche Quittierung** (Web/Shell), und nur wenn der Fehler nicht mehr erkannt wird (F14). **[ABW]** Original loescht das Bit, sobald die Erkennung entfaellt. | Ist §7, F14 |
-| SOLL-PROT-24 | **D5:** Ist D5 an und ERR-CONTACTOR gesetzt, wird PE1 **200 ms** spaeter auf Low gesetzt. Befund 2026-10-19: Im Original wird PE1 nur Low geschrieben (GPIO-Init und dieser Pfad; kein High-Schreiber in SL und 1.27 gefunden); die Funktion ist damit im Original ohne sichtbare Wirkung. Entschieden (F15): **wie Original** (PE1 bleibt Low, D5 ohne sichtbare Wirkung); nach Klaerung des PE1-Ziels an der Hardware (H1, Kandidat Relais C3/C4) neu entscheiden. | E12, Decompilat SL Zeile 38338, 1.27 Zeile 39145 |
+| SOLL-PROT-24 | **D5:** Ist D5 an und ERR-CONTACTOR gesetzt, wird PE1 **200 ms** spaeter auf Low gesetzt. Befund: Im Original wird PE1 nur Low geschrieben (GPIO-Init und dieser Pfad; kein High-Schreiber in SL und 1.27 gefunden); die Funktion ist damit im Original ohne sichtbare Wirkung. Entschieden (F15): **wie Original** (PE1 bleibt Low, D5 ohne sichtbare Wirkung); nach Klaerung des PE1-Ziels an der Hardware (H1, Kandidat Relais C3/C4) neu entscheiden. | E12, Decompilat SL Zeile 38338, 1.27 Zeile 39145 |
 
 ### 7.5 Ueberstrom (Feld 409), nur mit Messquelle
 
@@ -529,7 +530,7 @@ Zustaende: INIT, UNLOCKED, LOCKING, LOCKED, UNLOCKING, ERROR (entspricht WARP
 | SOLL-LOCK-12 | Ohne D6: Nach dem Impuls gilt der Zielzustand als erreicht. | Ist §9 Schritt 6 |
 | SOLL-LOCK-13 | D6 mit **LD permanent (Code 3):** 500 ms nach Impulsende wird LD gelesen: Verriegeln erfolgreich, wenn LD aktiv; Entriegeln erfolgreich, wenn LD inaktiv. | Ist §9 Schritt 6, E15 |
 | SOLL-LOCK-14 | D6 mit **LD gepulst (Code 22):** Waehrend des Verriegelungsimpulses wird der LD-Rohpegel in jedem Messblock abgetastet. Erfolg, wenn LD mindestens **10 ms** (mindestens zwei aufeinanderfolgende Messbloecke) aktiv war und danach innerhalb des Impulsfensters wieder inaktiv wird. Beim Entriegeln gilt LD nach dem Impuls als inaktiv (keine Auswertung). **Keine** Flankenauswertung ausserhalb der Impulse **[ABW]** gegenueber 1.27 (Flankentoggle), wie SL. | E15, Ist §9 Schritt 4, 1.27 §3.5 |
-| SOLL-LOCK-14a | Hintergrund (Fremdquelle, Hypothese): Beim Kuester-Aktor (02S/03S, Phoenix EV-T2M3S-E-LOCK12V) liegt die Rueckmeldung in beiden Endlagen auf 0 V und waehrend der Fahrt auf +12 V. Code 22 erkennt damit "Motor ist von einer Endlage in die andere gefahren". Das gleiche Kriterium ist beim **Entriegeln** als Option `unlock_check` auswertbar (F27: Default **aus** = wie Original; einschalten erst nach Messung des Signals in H1). | [Hardwarefragen](../../wallbe2/docs/hardware-offene-fragen.md#verriegelung-ld-rueckmeldung-aus-firmwarevergleich-127-2026-10-19) |
+| SOLL-LOCK-14a | Hintergrund (Fremdquelle, Hypothese): Beim Kuester-Aktor (02S/03S, Phoenix EV-T2M3S-E-LOCK12V) liegt die Rueckmeldung in beiden Endlagen auf 0 V und waehrend der Fahrt auf +12 V. Code 22 erkennt damit "Motor ist von einer Endlage in die andere gefahren". Das gleiche Kriterium ist beim **Entriegeln** als Option `unlock_check` auswertbar (F27: Default **aus** = wie Original; einschalten erst nach Messung des Signals in H1). | [Hardwarefragen](../../wallbe2/docs/hardware.md#5-verriegelung-ld-rueckmeldung) |
 | SOLL-LOCK-15 | Abtastrate fuer LD gepulst: Ist die Impulsdauer des Rueckmeldekontakts kuerzer als zwei Messbloecke, wird LD waehrend eines Verriegelungsimpulses mit 1 ms abgetastet (eigene ADC-Abfrage). Entscheidung nach Messung in H1. | [ANN], Hardwareerinnerung LD-Signalform |
 | SOLL-LOCK-16 | Ein Zyklus endet nach dem Ergebnis plus 10 ms; der Zeitpunkt des Endes ist Bezug fuer SOLL-LOCK-10. Waehrend eines Zyklus laufen Schutzpfad, CP-Auswertung und Automat unveraendert weiter. | E10, Ist §9 Schritt 5 |
 | SOLL-LOCK-17 | Ein laufender Impuls wird nur durch den sicheren Zustand abgebrochen (beide Ausgaenge High); der Zyklus gilt dann als fehlgeschlagen. | [ANN] |
@@ -539,7 +540,7 @@ Zustaende: INIT, UNLOCKED, LOCKING, LOCKED, UNLOCKING, ERROR (entspricht WARP
 | Kennung | Anforderung | Quelle |
 | --- | --- | --- |
 | SOLL-LOCK-20 | Beim Start (S0) mit D4: ein Entriegelungszyklus, unabhaengig vom gespeicherten Zustand (wie Original-Lade-Init `FUN_08039cd8`: `Lock(0)` nach dem Selbsttest). Ist das Ergebnis "verriegelt", gilt ERR-UNLOCK. | Decompilat SL `0x08039cd8` (2026-10-19 gelesen) |
-| SOLL-LOCK-21 | Verriegeln in S2: bis zu **5** Versuche; nach jedem Fehlschlag ERR-LOCK setzen und einen Entriegelungszyklus ausfuehren, dann erneut versuchen; nach dem 5. Fehlschlag -> S9 mit ERR-LOCK (bis CP A bzw. Kabelwert 0). Erfolg loescht ERR-LOCK. ERR-LOCK erzwingt E erst ab dem 3. Fehlschlag (bzw. sofort mit D9). | Ist Z1, Restumfang §1 Schritt 6 |
+| SOLL-LOCK-21 | Verriegeln in S2: bis zu **5** Versuche; nach jedem Fehlschlag ERR-LOCK setzen und einen Entriegelungszyklus ausfuehren, dann erneut versuchen; nach dem 5. Fehlschlag -> S9 mit ERR-LOCK (bis CP A bzw. Kabelwert 0). Erfolg loescht ERR-LOCK. ERR-LOCK erzwingt E erst ab dem 3. Fehlschlag (bzw. sofort mit D9). | Ist Z1, Belege §1 Schritt 6 |
 | SOLL-LOCK-22 | Entriegeln (S8) **nur bei ausgeschaltetem Schuetz und CP +12 V DC** (keine PWM). Bis zu **4** Versuche; nach jedem Fehlschlag ERR-UNLOCK setzen und erneut verriegeln; nach dem 4. Fehlschlag -> S9 mit ERR-UNLOCK, Zustand bleibt LOCKED. | E10, Ist Z2 |
 | SOLL-LOCK-23 | **D9 aus** (automatisch): Verriegeln bei Fahrzeug erkannt (CP B/C/D) und gueltigem Kabelwert; Entriegeln bei CP A. | HB S. 15, Ist Z0/Z1 |
 | SOLL-LOCK-24 | **D9 an** (manuell): Verriegelungswunsch = Funktion ML (Eingang Code 4 Pegel bzw. Code 17 Umschalten bei steigender Flanke, Mindestabstand 200 ms) oder Schnittstellenwunsch (Original Feld 403). Wunsch 1 -> verriegeln (auch ohne Fahrzeug); Wunsch 0 -> geordnetes Ladeende, dann entriegeln. | HB S. 15, Ist §10, E7c |
@@ -567,7 +568,7 @@ Impulse beim Entriegeln, Dauer). H2 – Ablauf mit EV-Simulator und Stecker.
 
 Jeder der fuenf Eingaenge hat einen Funktionscode (Parameter `in_function_<klemme>`,
 Original Felder 520..524). Codes und Texte nach `input_list` (`status.html`) und HB
-Tab. 8-2 (S. 49/50); Wirkung nach [Taktbaum §Digitale Eingaenge](../../wallbe2/docs/takt-adc-gpio.md#digitale-eingaenge-0x0803c7d4-korrigiert).
+Tab. 8-2 (S. 49/50); Wirkung nach [Taktbaum §Digitale Eingaenge](../../wallbe2/docs/takt-adc-gpio.md#digitale-eingaenge-0x0803c7d4).
 
 | Code | Funktion | Soll-Wirkung |
 | --- | --- | --- |
@@ -589,7 +590,7 @@ Tab. 8-2 (S. 49/50); Wirkung nach [Taktbaum §Digitale Eingaenge](../../wallbe2/
 
 | Kennung | Anforderung | Quelle |
 | --- | --- | --- |
-| SOLL-FN-01 | Codes ausserhalb {0..22} werden beim Schreiben abgelehnt. | E14, Restumfang §3 |
+| SOLL-FN-01 | Codes ausserhalb {0..22} werden beim Schreiben abgelehnt. | E14, Belege §5 |
 | SOLL-FN-02 | Haben mehrere Eingaenge dieselbe Funktion, gilt fuer Pegelfunktionen ODER (aktiv, wenn irgendeiner aktiv ist), fuer Flankenfunktionen jede Flanke an jedem dieser Eingaenge. **[ABW]** Original: zuletzt ausgewerteter Kanal gewinnt. | F26 entschieden |
 | SOLL-FN-03 | Verriegelungswunsch (ML) kann ausserdem ueber die Schnittstelle gesetzt werden (Original Feld 403); das juengste Ereignis (Flanke oder Schreibzugriff) gilt. | Ist §2 |
 
@@ -602,7 +603,7 @@ Tab. 8-2 (S. 49/50); Wirkung nach [Taktbaum §Digitale Eingaenge](../../wallbe2/
 | SOLL-EN-03 | Startwert `enable_register` nach Neustart = Parameter `enable_register_default` (Default 0 wie Original, `.data` `c86` = 0; F19 entschieden). | Datei `0x4cdf6` = 0 |
 | SOLL-EN-10 | **Verfuegbarkeit** fehlt, wenn (D8 an und XR-Funktion inaktiv) oder (D10 an und `available_register` (Original Feld 402) != 1). Folge: CP-Status F, -12 V DC (nach geordnetem Ende, Rang 6). | Ist §2a, Ist §6, HB S. 15 |
 | SOLL-EN-11 | Startwert `available_register` nach Neustart: 1 (Original: `.data` `c89` = 1, Lade-Init setzt 1). | Datei `0x4cdf9` = 1, Decompilat `0x08039cd8` |
-| SOLL-EN-12 | Die evcc-Anbindung (Slot `external`) ist von der Freigabe unabhaengig: `external` = 0 bewirkt Stromsperre, nicht Entzug der Freigabe. Mit D10 an ist zusaetzlich `enable_register` = 1 noetig. | Arch §8a, [ANN] |
+| SOLL-EN-12 | Die evcc-Anbindung (Slot `external`) ist von der Freigabe unabhaengig: `external` = 0 bewirkt Stromsperre, nicht Entzug der Freigabe. Mit D10 an ist zusaetzlich `enable_register` = 1 noetig. | Arch §8, [ANN] |
 
 ### 9.3 Ausgangsfunktionen (ER, LR, VR, CR)
 
@@ -653,7 +654,7 @@ Labornetzteil (3/9 V), Schluesselschalter an EN (wallbe, Beispielkonfiguration).
 ## 10. Parameter
 
 Spalten: **P** = persistent (Parameterspeicher, Abschnitt 13), **B** = haengt von der
-aeusseren Beschaltung ab (Beispielwerte in [Geraetekonfiguration](../../wallbe2/docs/geraetekonfiguration.md)).
+aeusseren Beschaltung ab (Beispielwerte in [Hardware, Ist-Einstellungen](../../wallbe2/docs/hardware.md#3-ist-einstellungen-laut-weboberflaeche)).
 Alle Schreibzugriffe mit Grenzpruefung; ungueltige Werte werden mit Fehlermeldung
 abgelehnt (E14). Namen sind Vorschlaege (WARP-angelehnt, englisch).
 
@@ -767,10 +768,10 @@ HB Tab. 9-2 (S. 72/74) zur Wiedererkennung, 0-basiert.
 
 | Kennung | Anforderung | Quelle |
 | --- | --- | --- |
-| SOLL-ERR-01 | Jeder Fehler ist einzeln als aktiv/inaktiv lesbar; zusaetzlich eine **Historie** (letzte 32 Ereignisse mit Zeit, Fehler, Zustand, RAM) und ein Sammelwert "seit Start aufgetreten" (Original Fehlerverlauf `0x200138d0`). | Restumfang §5, [ANN] |
+| SOLL-ERR-01 | Jeder Fehler ist einzeln als aktiv/inaktiv lesbar; zusaetzlich eine **Historie** (letzte 32 Ereignisse mit Zeit, Fehler, Zustand, RAM) und ein Sammelwert "seit Start aufgetreten" (Original Fehlerverlauf `0x200138d0`). | Belege §7, [ANN] |
 | SOLL-ERR-02 | "Ruecksetzen bei CP A" bedeutet: Rohzustand A entprellt (Fahrzeug getrennt). | Ist Z0 |
 | SOLL-ERR-03 | Eine Quittierung ueber Shell/Schnittstelle loescht nur Fehler, deren Ursache nicht mehr besteht; Klasse-P-Fehler nur in S1/S9 ohne Fahrzeug. | E14, [ANN] |
-| SOLL-ERR-10 | Fehler, Zustandswechsel, Verriegelungsergebnisse und Schuetzschaltungen werden als Ereignisse an die Schnittstellen gemeldet (WebSocket, Protokoll). | Arch §8a |
+| SOLL-ERR-10 | Fehler, Zustandswechsel, Verriegelungsergebnisse und Schuetzschaltungen werden als Ereignisse an die Schnittstellen gemeldet (WebSocket, Protokoll). | Arch §8 |
 | SOLL-ERR-11 | **Zugriffsprotokoll:** Fehlgeschlagene Anmeldungen (falsches Passwort) mit Absenderadresse und alle Ereignisse nach SOLL-ERR-10 werden protokolliert: als Logzeile und zusaetzlich in einem Ringpuffer im RAM (letzte 32 Eintraege, geht beim Neustart verloren), abrufbar ueber `GET /system/log` mit derselben Anmeldung wie die uebrige API. Nicht protokolliert werden Schreibzugriffe, erfolgreiche Anmeldungen und Shell-Kommandos. | Nutzer 2026-10-20 |
 | SOLL-ERR-30 | Status "digitale Kommunikation nicht verfuegbar": im 5-%-Modus bei CP C/D gesetzt, kein Fehler, LED Error aus, Meldung an der Schnittstelle. | E6 |
 
@@ -795,7 +796,7 @@ Platine. H2/H3 – Fehler durch EV-Simulator bzw. Pruefstrom ausloesen.
 
 ### 12.1 HTTP und WebSocket (erster Umfang: evcc ueber `tinkerforge-warp-ws`)
 
-Grundlage: Arch §8a; evcc `charger/warp-ws.go` (master, gelesen 2026-10-19): `Status()`
+Grundlage: Arch §8; evcc `charger/warp-ws.go` (master, gelesen 2026-10-19): `Status()`
 bildet `iec61851_state` 0/1/2 auf A/B/C ab, Werte >= 3 ergeben einen Fehler;
 `Enabled()` = `external_current.current` > 0; `Enable()` sendet den zuletzt gesetzten
 Strom bzw. 0; `MaxCurrentMillis()` sendet mA; `/info/features` bestimmt die
@@ -809,14 +810,14 @@ Zusatzfunktionen, `/info/name` den Typ (bei `warp3`/`warp4` schaltet evcc
 | SOLL-API-03 | `GET /evse/state` | `{"iec61851_state": 0..4, "charger_state": 0..4, "contactor_state": .., "contactor_error": .., "allowed_charging_current": mA, "error_state": .., "lock_state": 0..5}` |
 | SOLL-API-04 | `GET /evse/external_current` | `{"current": mA}` |
 | SOLL-API-05 | `POST /evse/external_current` mit `{"current": mA}` (auch WARP-Kurzform: nur die Zahl) | setzt Slot `external` (nur RAM); 0 = Laden aus (Stromsperre); erlaubt 0 und 6000..80000, sonst HTTP 400 mit Fehlertext (E14) |
-| SOLL-API-06 | WebSocket `GET /ws` | Textrahmen mit `{"topic": <name>, "payload": <wie GET>}`; beim Verbinden alle Topics einmal, danach bei jeder Aenderung; Topics `evse/state`, `evse/external_current` (optional spaeter `evse/user_current`, `evse/user_enabled`) |
+| SOLL-API-06 | WebSocket `GET /ws` | Textrahmen mit `{"topic": <name>, "payload": <wie GET>}`; beim Verbinden alle Topics einmal, danach bei jeder Aenderung; Topics `evse/state`, `evse/external_current`, `evse/limits` (SOLL-API-32), `evse/event` (SOLL-ERR-10) |
 | SOLL-API-07 | alle | **Zugriffsschutz von Anfang an (F20):** Weboberflaeche und HTTP-/WebSocket-API nur mit Benutzername/Passwort (`web_user`/`web_password`, konfigurierbar). Werkszustand: Default-Zugangsdaten, beim ersten Zugriff muss das Passwort geaendert werden; bis dahin beantwortet die API nur die Passwortaenderung (sonst HTTP 403). **Verfahren (geprueft 2026-10-19): HTTP-Digest, MD5, `qop=auth`** – evcc `charger/warp/connection.go` nutzt `transport.Digest` (`icholy/digest`, Challenge je Host zwischengespeichert, danach Anmeldung vorab, auch beim WebSocket-Aufbau). Gespeichert wird nur HA1. **Bremse:** je Absenderadresse nach 5 Fehlversuchen Sperre 10 s, je weiterer Fehlversuch verdoppelt bis 5 min, Antwort 429 mit `Retry-After`; ein Erfolg setzt zurueck; gesperrt wird auch mit richtigem Passwort, aber nur diese Adresse. Passwortaenderung ueber `POST /credentials` `{"user", "password"}`; `GET /credentials` meldet `must_change`. Ohne TLS kann Mitlesen im LAN Anfragen wiederholbar machen (Hinweis in der Doku). Mindestens 2 gleichzeitige WebSocket-Clients. |
 | SOLL-API-30 | `GET /evse/params`, `POST /evse/params`, `GET /evse/param_info`, `GET/POST /system/config`, `GET /system/config_info`, `POST /system/restart`, `GET /system/info`, `GET /evse/errors`, `GET /system/log` (SOLL-ERR-11) | **Nutzervorgabe 2026-10-19:** Alle Parameter (10.1, 10.2) und alle Mess- und Statuswerte (10.3) sind ueber HTTP lesbar, schreibbare Werte ueber HTTP schreibbar, mit denselben Grenzpruefungen und Fehlermeldungen wie die Shell (E14). Umsetzung: `GET /evse/params` = `{"name": Wert, ...}`; `POST /evse/params` mit `{"name": Wert, ...}` prueft und schreibt jeden Wert einzeln (abgelehnte mit Klartext in `{"errors": {...}}`, HTTP 400; bei Syntaxfehler wird nichts geschrieben); persistente Werte werden gespeichert; `GET /evse/param_info` = Name, Art, Einheit, Bereich, Default, Feld des Originals, Hilfetext |
+| SOLL-API-31 | Weboberflaeche `/`, `/app.js`, `/style.css`, `/vendor.js` | statische, gzip-komprimierte Dateien, die nur die API nutzen; Ansicht "Einfach" und "Experte"; Rahmenwerk Preact + htm mit eigenem CSS (Nutzer 2026-10-19, [Architektur](architektur.md#2-entscheidungen)). Umsetzung: hinter derselben Digest-Anmeldung wie die API (auch im Werkszugang erreichbar, damit die Passwortaenderung moeglich ist); live ueber `/ws`, sonst Abfrage alle 2 s |
 | SOLL-API-32 | `GET /evse/limits`, WebSocket-Topic `evse/limits` (eigene Erweiterung, nicht WARP) | Getrennt: Sollwert der Schnittstelle (`external`, darf das Maximum ueberschreiten, F11), Grenzen (`hardware` = Drehschalter bzw. abgesenkt, `cable`, `input`, 0 = nicht aktiv), wirksamer Strom (`effective`), Strom des Tastgrads (`allowed`) und welche Grenze wirkt (`limited_by`: `external`, `hardware`, `cable`, `input`, `blocked`, `pwm5`). Die Weboberflaeche zeigt Sollwert, Grenzen und wirksamen Wert grafisch und hebt die wirkende Grenze hervor (Nutzer 2026-10-20). Ein Istwert (gemessener Strom) existiert ohne Zaehler nicht. |
-| SOLL-API-31 | Weboberflaeche `/`, `/app.js`, `/style.css`, `/vendor.js` | statische, gzip-komprimierte Dateien, die nur die API nutzen; Ansicht "Einfach" und "Experte"; Rahmenwerk Preact + htm mit eigenem CSS (Nutzer 2026-10-19, [Architektur 10.4](architektur.md#104-weboberflaeche-rahmenwerk-entschieden-preact--htm)). Umsetzung: hinter derselben Digest-Anmeldung wie die API (auch im Werkszugang erreichbar, damit die Passwortaenderung moeglich ist); live ueber `/ws`, sonst Abfrage alle 2 s |
 
-Abbildungen fuer `evse/state` (WARP-Semantik, Werte beim Implementieren gegen die
-[WARP-API-Referenz](https://docs.warp-charger.com/en/docs/interfaces/mqtt_http/api_reference/evse) pruefen):
+Abbildungen fuer `evse/state` (WARP-Semantik nach der
+[WARP-API-Referenz](https://docs.warp-charger.com/en/docs/interfaces/mqtt_http/api_reference/evse), gelesen 2026-10-19):
 
 | Feld | Soll-Abbildung |
 | --- | --- |
@@ -828,7 +829,6 @@ Abbildungen fuer `evse/state` (WARP-Semantik, Werte beim Implementieren gegen di
 | `contactor_state` | WARP meint Spannung vor/nach dem Schuetz; die Steuerung misst das nicht, daher aus dem Schuetz-Soll: 3 ein, 0 aus |
 | `contactor_error` | 0 ohne ERR-CONTACTOR; sonst 2 (sollte geschlossen sein) bei Soll ein, 6 (sollte offen sein, Spannung danach) bei Soll aus |
 
-Quelle WARP-Semantik: docs.warp-charger.com, API-Referenz EVSE (gelesen 2026-10-19).
 Rahmenformat (geprueft 2026-10-19): evcc liest je Rahmen beliebig viele JSON-Objekte
 nacheinander; gesendet wird ein Objekt je Rahmen (auch fuer Browser einfach).
 
@@ -836,7 +836,7 @@ nacheinander; gesendet wird ein Objekt je Rahmen (auch fuer Browser einfach).
 
 | Kennung | Anforderung | Quelle |
 | --- | --- | --- |
-| SOLL-API-20 | Alle Zugriffe von aussen (HTTP, Shell, spaeter OCPP) laufen ueber eine gemeinsame Schicht mit Funktionen: Slot schreiben, Freigabe/Verfuegbarkeit/Pause/5 %/Verriegelungs-/Entriegelungswunsch setzen, Parameter lesen/schreiben (mit Grenzpruefung und Fehlercode), Status lesen, Fehler quittieren, Ereignisse abonnieren. | AG, Restumfang §5 (Zugriffsschicht des Originals als Vorbild) |
+| SOLL-API-20 | Alle Zugriffe von aussen (HTTP, Shell, spaeter OCPP) laufen ueber eine gemeinsame Schicht mit Funktionen: Slot schreiben, Freigabe/Verfuegbarkeit/Pause/5 %/Verriegelungs-/Entriegelungswunsch setzen, Parameter lesen/schreiben (mit Grenzpruefung und Fehlercode), Status lesen, Fehler quittieren, Ereignisse abonnieren. | AG, Belege §7 (Zugriffsschicht des Originals als Vorbild) |
 | SOLL-API-21 | Die Schicht ist nicht blockierend fuer die Ladelogik (Nachrichten oder kurze, begrenzte Sperren). | SOLL-RT-07 |
 
 ### 12.3 Shell (Telnet, ggf. UART)
@@ -862,11 +862,11 @@ nacheinander; gesendet wird ein Objekt je Rahmen (auch fuer Browser einfach).
 | Kennung | Anforderung | Quelle |
 | --- | --- | --- |
 | SOLL-BOOT-30 | Update-Anforderung wie Original: nur im sicheren Zustand (Schuetz aus, kein Ladevorgang; Hoechstwartezeit 15 s nach SOLL-RT-22), dann RTC-Backup-Register entsperren, **BKP10 = 2, BKP11 = 3, BKP15 = 0, BKP13 = aktuelle IP-Adresse, BKP14 = aktuelle Netzmaske**, Interrupts sperren, Systemreset (AIRCR `0x05FA0004`). | [Bootloader](../../wallbe2/docs/bootloader.md), 1.27 §3.9 |
-| SOLL-BOOT-31 | Die Bedeutung dieser Werte fuer den Bootloader ist nicht belegt; vor dem ersten Einsatz Bootloader auslesen und pruefen (H0). | Arch §5 |
+| SOLL-BOOT-31 | Die Bedeutung dieser Werte fuer den Bootloader ist nicht belegt; vor dem ersten Einsatz Bootloader auslesen und pruefen (H0). | Arch §4 |
 
 Pruefung Abschnitt 12: PC/native_sim – HTTP- und WebSocket-Antworten gegen Beispiel-JSON,
-Ablehnung ungueltiger Werte, evcc-Treiber gegen `native_sim` mit Netz (evcc lokal, kein
-Geraetezugriff) – nur nach Absprache; Shell-Kommandos inkl. Ablehnungen. H1 – Netzbetrieb
+Ablehnung ungueltiger Werte, Shell-Kommandos inkl. Ablehnungen; evcc gegen die Simulation
+(erledigt, [Test und Simulation](test-und-simulation.md#evcc-gegen-die-simulation)). H1 – Netzbetrieb
 auf der Steuerung (ohne Last), Update-Uebergabe erst nach H0.
 
 ## 13. Parameterspeicher, Startablauf, Werksreset
@@ -876,9 +876,9 @@ auf der Steuerung (ohne Last), Update-Uebergabe erst nach H0.
 | Kennung | Anforderung | Quelle |
 | --- | --- | --- |
 | SOLL-NVM-01 | Eigene Parameter liegen ausschliesslich in **Sektor 7** (`0x08060000..0x0807FFFF`, 128 KB). Sektoren 0..3 werden nie beschrieben oder geloescht (Treiber-/Partitionssperre). | Arch §3 (P1) |
-| SOLL-NVM-02 | Format: Anhaengen von Eintraegen (Schluessel, Laenge, Wert, Pruefsumme); der juengste gueltige Eintrag gilt; Formatkennung und Version am Bereichsanfang. Ungueltige Eintraege werden ignoriert. **Geprueft 2026-10-19:** Zephyr ZMS scheidet aus (verlangt mindestens zwei Loescheinheiten, `zms.c` Zeile 1525, und loescht selbststaendig beim Start und bei der Speicherbereinigung, unvereinbar mit SOLL-NVM-03/04) -> eigenes Log-Format, beschrieben in `include/wallfree/nvm/nvm.h`. | Arch §7, [ANN] |
+| SOLL-NVM-02 | Format: Anhaengen von Eintraegen (Schluessel, Laenge, Wert, Pruefsumme); der juengste gueltige Eintrag gilt; Formatkennung und Version am Bereichsanfang. Ungueltige Eintraege werden ignoriert. **Geprueft 2026-10-19:** Zephyr ZMS scheidet aus (verlangt mindestens zwei Loescheinheiten, `zms.c` Zeile 1525, und loescht selbststaendig beim Start und bei der Speicherbereinigung, unvereinbar mit SOLL-NVM-03/04) -> eigenes Log-Format, beschrieben in `include/wallfree/nvm/nvm.h`. | Arch §3, [ANN] |
 | SOLL-NVM-03 | Persistente Schreibzugriffe im Betrieb erzeugen nur Anhaengevorgaenge (kein Loeschen). Laufzeitwerte (10.2), insbesondere `external_current`, werden nie gespeichert. | Arch §8 |
-| SOLL-NVM-04 | Verdichten (RAM-Kopie, Sektor loeschen, neu schreiben) nur im sicheren Zustand: S1 bzw. S0, CP A, Schuetz aus, IWDG verlaengert (SOLL-RT-13). Ist der Bereich im Betrieb voll, bleiben neue Werte bis zum naechsten sicheren Zustand nur im RAM (Status "Speichern ausstehend"). | Arch §2, SOLL-RT-13 |
+| SOLL-NVM-04 | Verdichten (RAM-Kopie, Sektor loeschen, neu schreiben) nur im sicheren Zustand: S1 bzw. S0, CP A, Schuetz aus, IWDG verlaengert (SOLL-RT-13). Ist der Bereich im Betrieb voll, bleiben neue Werte bis zum naechsten sicheren Zustand nur im RAM (Status "Speichern ausstehend"). | Arch §3, SOLL-RT-13 |
 | SOLL-NVM-05 | Stromausfall waehrend des Verdichtens: Beim naechsten Start ist der Bereich ungueltig -> Werkseinstellungen und Meldung (wie Original); einmalige Uebernahme nach SOLL-NVM-10 erneut moeglich. | Parameterspeicher (Ausfallverhalten) |
 | SOLL-NVM-10 | Sektor 3 (Originalformat: Kopf `0x0000`, Eintraege Wert/Kennung, juengster gilt) wird nur gelesen. Auf Kommando werden die Felder 327..330, 390, 409, 412, 519..527 und die Netzwerkwerte uebernommen, jeweils mit Grenzpruefung; nicht uebernehmbare Werte werden gemeldet. Keine automatische Uebernahme. | Arch §3, [Parameterspeicher](../../wallbe2/docs/parameterspeicher.md), [ANN] Feldauswahl |
 
@@ -926,54 +926,52 @@ Taster, Persistenz.
 | TLS | – | vorerst nicht; Zugangsdaten daher im LAN mitlesbar |
 | Originalweboberflaeche, Feldnummern-API | `/daten`, Felder | entfaellt (E21) |
 | Feld 485 (OTP) | `0x1FFF7890` | entfaellt (E13) |
-| Felder 404, 800, 803, 469, 470 | | entfallen (800 ersetzt durch Shell-Kommandos) |
+| Felder 800, 803, 469, 470 | | entfallen (800 ersetzt durch Shell-Kommandos; 404 = DHCP lebt als `net_dhcp` weiter) |
 | WARP-Funktionen ueber den evcc-Mindestumfang hinaus | `evse/low_level_state`, `start_charging`, `phase_auto_switch`, Charge-Tracker | schrittweise nach Absprache |
 
-## 15. Offene Punkte, Annahmen und Fragen an den Nutzer
+## 15. Entscheidungen und offene Punkte
 
-### 15.1 Entscheidungen des Nutzers zu F1..F27 (2026-10-19)
+### 15.1 Entscheidungen des Nutzers zu F1..F27
 
-Alle Fragen am 2026-10-19 beantwortet; die betroffenen Anforderungen sind angepasst.
+Alle Fragen am 2026-10-19 entschieden (F12 am 2026-10-20 bestaetigt); die betroffenen
+Anforderungen sind angepasst. Rahmenentscheidungen (Zephyr, Takt, Speicher, Weboberflaeche,
+Projekt): [Architektur](architektur.md#2-entscheidungen).
 
-| Nr. | Thema | Entscheidung | Wirkt in |
-| --- | --- | --- | --- |
-| F1 | Funktionen, die einen Energiezaehler brauchen | "nicht verfuegbar", Schnittstelle fuer spaetere Messquelle vorsehen | 1.4, SOLL-PROT-22/30 |
-| F2 | Zusatz-Entprellung Digitaleingaenge | 2 Messbloecke (~16 ms) | SOLL-IO-12 |
-| F3 | Schreiben 801/802/465 | 801 nur absenken; 802/465 nur in S1, 465 mit echtem Zyklus | SOLL-PAR-40 |
-| F4 | Zeitwerte Watchdog/Reaktion | Startwerte annehmen, nach H1 nachschaerfen | SOLL-RT-05/10..12, SOLL-PROT-05 |
-| F5 | CP im sicheren Zustand | -12 V DC (F) | SOLL-RT-20 |
-| F6 | CP-Hysterese | gegen Pegelzustand | SOLL-CP-02 |
-| F7 | Diode fehlt | 3 s -12 V, dann +12 V, Fehler bis CP A; Normpruefung offen | SOLL-CP-07, 4.2 |
-| F8 | Sofort- vs. geordnete Abschaltung | wie Tabelle 11.1 | 5.2, 11.1 |
-| F9 | LD faellt im Laden weg | sofort aus, 1x neu verriegeln, bei Erfolg weiterladen | SOLL-LOCK-40 |
-| F10 | Eingangscode 19 | ignoriert Slot `external` (wie HB) | SOLL-CUR-04 |
-| F11 | Werte ueber Obergrenze | annehmen und begrenzen; 1..5999/>80000 ablehnen | SOLL-CUR-14 |
-| F12 | Startwert `external` | keine Einschraenkung (80000), parametrierbar (wie WARP `external_defaults`). 2026-10-20 kurz auf 0 geaendert, danach vom Nutzer zurueckgenommen: Sollwert, Grenzen und wirksamer Strom getrennt, in der Oberflaeche sichtbar, welche Grenze wirkt (SOLL-API-32) | SOLL-CUR-15 |
-| F13 | RCM-Wiederholtest in A | alle 30 s | SOLL-PROT-11 |
-| F14 | Schuetzfehler ruecksetzen | nur Neustart oder Quittierung | SOLL-PROT-23 |
-| F15 | D5/PE1 | wie Original (ohne Wirkung), nach H1 neu entscheiden | SOLL-PROT-24 |
-| F16 | Unterspannung | nur Warnung, RCM bleibt aktiv, kein Sprung in den Grundzustand | SOLL-PROT-41 |
-| F17 | D6 ohne LD-Eingang | Konfigurationsfehler | SOLL-LOCK-03 |
-| F18 | Eingangscode 18 | wie Code 1 | 9.1 |
-| F19 | Startwert Freigabe 400 | Parameter `enable_register_default`, Default 0 | SOLL-EN-03 |
-| F20 | Zugriffsschutz | Web/API von Anfang an mit Benutzer/Passwort (konfigurierbar, Default mit Aenderungszwang); Telnet offen, Default an, spaeter entfernen/aus | SOLL-API-07, SOLL-SH-19 |
-| F21 | Pause persistent | nein | 10.2 |
-| F22 | Typ in `/info/name` | `warp2` | SOLL-API-01 |
-| F23 | D/E/F an evcc | ehrlich 3/4 | 12.1 |
-| F24 | Parameter ueber HTTP | ja, alles von Anfang an (Nutzervorgabe) | SOLL-API-30 |
-| F25 | Netz-Default | DHCP an | 10.1 |
-| F26 | Doppelt belegte Eingangsfunktion | ODER | SOLL-FN-02 |
-| F27 | LD-Pruefung beim Entriegeln | Option `unlock_check`, Default aus | SOLL-LOCK-14a |
+| Nr. | Thema | Entscheidung | Grund | Wirkt in |
+| --- | --- | --- | --- | --- |
+| F1 | Funktionen, die einen Energiezaehler brauchen | "nicht verfuegbar", Schnittstelle fuer spaetere Messquelle vorsehen | Zaehler nicht im Umfang; ohne Messwerte waeren die Funktionen wirkungslos | 1.4, SOLL-PROT-22/30 |
+| F2 | Zusatz-Entprellung Digitaleingaenge | 2 Messbloecke (~16 ms) | Stoerfestigkeit; 16 ms Verzoegerung sind unkritisch | SOLL-IO-12 |
+| F3 | Schreiben 801/802/465 | 801 nur absenken; 802/465 nur in S1, 465 mit echtem Zyklus | Schreibzugriffe duerfen Schutz nicht aushebeln: Obergrenze nicht erhoehen, "verriegelt" nicht ohne Mechanik melden, keine Umkonfiguration mit Fahrzeug | SOLL-PAR-40 |
+| F4 | Zeitwerte Watchdog/Reaktion | Startwerte annehmen, nach H1 nachschaerfen | reale Laufzeiten erst auf der Hardware messbar | SOLL-RT-05/10..12, SOLL-PROT-05 |
+| F5 | CP im sicheren Zustand | -12 V DC (F) | fuer das Fahrzeug eindeutig "nicht verfuegbar" | SOLL-RT-20 |
+| F6 | CP-Hysterese | gegen Pegelzustand | die Pegelauswertung soll nicht von Fehlerbits abhaengen (Original vergleicht mit dem erzwungenen Status) | SOLL-CP-02 |
+| F7 | Diode fehlt | 3 s -12 V, dann +12 V, Fehler bis CP A; Normpruefung offen | das Fahrzeug sieht F eindeutig, danach ist das Abstecken (A) messbar; das Original bleibt bei -12 V | SOLL-CP-07, 4.2 |
+| F8 | Sofort- vs. geordnete Abschaltung | wie Tabelle 11.1 | sofort bei Gefahr oder unklarem Fahrzeugzustand, sonst geordnet ueber das Fahrzeug | 5.2, 11.1 |
+| F9 | LD faellt im Laden weg | sofort aus, einmal neu verriegeln, bei Erfolg weiterladen | ohne gesicherte Verriegelung kein Strom; das Original verriegelt blockierend bei moeglicherweise eingeschaltetem Schuetz | SOLL-LOCK-40 |
+| F10 | Eingangscode 19 | ignoriert Slot `external` | wie im Handbuch beschrieben | SOLL-CUR-04 |
+| F11 | Werte ueber der Obergrenze | annehmen und ueber das Minimum begrenzen; 1..5999 und > 80000 ablehnen | evcc oder Nutzer sollen nicht scheitern, wenn Kabel oder Drehschalter weniger erlauben | SOLL-CUR-14 |
+| F12 | Startwert `external` | keine Einschraenkung (80000), parametrierbar wie WARP `external_defaults`; Sollwert, Grenzen und wirksamer Strom getrennt sichtbar (SOLL-API-32) | ohne Zutun soll geladen werden; ein Startwert 0 wurde erprobt und verworfen, weil ohne evcc nie geladen wuerde | SOLL-CUR-15 |
+| F13 | RCM-Wiederholtest in A | alle 30 s | Ruecksetzen moeglich, ohne den Sensor dauernd zu testen | SOLL-PROT-11 |
+| F14 | Schuetzfehler ruecksetzen | nur Neustart oder Quittierung | ein klebendes Schuetz ist gefaehrlich; das Original loescht den Fehler, sobald die Erkennung entfaellt | SOLL-PROT-23 |
+| F15 | D5/PE1 | wie Original (ohne sichtbare Wirkung), nach H1 neu entscheiden | Ziel von PE1 unbekannt | SOLL-PROT-24 |
+| F16 | Unterspannung | nur Warnung, RCM bleibt aktiv, kein Sprung in den Grundzustand | Schutz hat Vorrang; das Original setzt die RCM-Ueberwachung bei Unterspannung aus | SOLL-PROT-41 |
+| F17 | D6 ohne LD-Eingang | Konfigurationsfehler | sichtbarer Fehler statt still fehlschlagender Verriegelung | SOLL-LOCK-03 |
+| F18 | Eingangscode 18 | wie Code 1 | Portal nicht im Umfang | 9.1 |
+| F19 | Startwert Freigabe 400 | Parameter `enable_register_default`, Default 0 | wie Original, aber einstellbar | SOLL-EN-03 |
+| F20 | Zugriffsschutz | Web/API von Anfang an mit Benutzer/Passwort (Default mit Aenderungszwang); Telnet offen, Default an, spaeter entfernen/aus | die API steuert das Laden; Telnet nur fuer die Entwicklung | SOLL-API-07, SOLL-SH-19 |
+| F21 | Pause persistent | nein | wie Original (468 nur im RAM); eine Pause soll keinen Neustart ueberdauern | 10.2 |
+| F22 | Typ in `/info/name` | `warp2` | bei `warp3`/`warp4` wuerde evcc eine nicht vorhandene Phasenumschaltung bedienen | SOLL-API-01 |
+| F23 | D/E/F an evcc | ehrlich 3/4 | evcc soll einen Fehler melden statt eines falschen Zustands | 12.1 |
+| F24 | Parameter ueber HTTP | ja, alles von Anfang an | Nutzervorgabe (Architektur) | SOLL-API-30 |
+| F25 | Netz-Default | DHCP an | Einbindung ins Heimnetz ohne Vorwissen | 10.1 |
+| F26 | Doppelt belegte Eingangsfunktion | ODER | eindeutig; im Original gewinnt zufaellig der zuletzt ausgewertete Kanal | SOLL-FN-02 |
+| F27 | LD-Pruefung beim Entriegeln | Option `unlock_check`, Default aus | Signalform erst in H1 messbar; Default wie Original | SOLL-LOCK-14a |
 
-Weitere Rahmenentscheidungen vom selben Tag: Projektname **Wallfree**, neues Repository,
-Lizenz Apache-2.0, Systemtakt 100 MHz, Weboberflaeche Preact + htm
-([Architektur §10](architektur.md#10-rahmenfragen-vom-2026-10-19-nutzer)).
-
-### 15.2 Annahmen und offene Punkte (ohne Nutzerentscheidung zu klaeren)
+### 15.2 Annahmen und offene Punkte
 
 | Punkt | Stand | Klaerung |
 | --- | --- | --- |
-| PE1-Ziel (C3/C4?), PA15-Ziel (PHY-RST#?), PA8 -> PHY-XI | [HYP] | H1, [Erinnerung](../../wallbe2/docs/hardware-offene-fragen.md#erinnerung-sobald-die-hardware-auf-dem-tisch-liegt-nutzerwunsch-2026-10-19) |
+| PE1-Ziel (C3/C4?), PA15-Ziel (PHY-RST#?), PA8 -> PHY-XI | [HYP] | H1, [Erinnerung](../../wallbe2/docs/hardware.md#erinnerung-sobald-die-hardware-auf-dem-tisch-liegt) |
 | LD-Signalform der Steckdose (Impulsdauer, Impulse beim Entriegeln) | unbekannt; bestimmt SOLL-LOCK-14/15 | H1 |
 | CP-Treiber (Polaritaet, Pegel), ADC-Skalierung CP/PP/Versorgung | Original-Skalierung uebernommen [ANN] | H1/H2 |
 | RCM: Inversionsstufe, direkter Pfad SWITCH_1/2 -> Schuetztreiber, Konfigurationspins | [HYP] | H1/H3 |
@@ -981,9 +979,8 @@ Lizenz Apache-2.0, Systemtakt 100 MHz, Weboberflaeche Preact + htm
 | Reset-Taster: PD2 und/oder NRST (HB: einfache Betaetigung = Neustart) | offen | H1 |
 | "Automatische Entriegelung bei Stromausfall" (HB S. 9): Hardwarefunktion? | in der Firmware nicht gefunden | H1 |
 | Bootloader: Pruefungen, Nutzung von BKP-Registern, loescht er Sektor 7, Start-SP | unbekannt | H0 |
-| IWDG-Umprogrammierung im Betrieb; Loeschzeit Sektor 7 | ZMS entfaellt (SOLL-NVM-02). Loeschzeit hoechstens 4000 ms laut Zephyr-Devicetree (`stm32f2.dtsi`, `max-erase-time`), nicht am Datenblatt geprueft (DS6329 fehlt); IWDG-Umprogrammierung ueber Register umgesetzt, auf Hardware ungeprueft | Datenblatt, H1 |
+| IWDG-Umprogrammierung im Betrieb; Loeschzeit Sektor 7 | Loeschzeit hoechstens 4000 ms laut Zephyr-Devicetree (`stm32f2.dtsi`, `max-erase-time`), nicht am Datenblatt geprueft (DS6329 fehlt); IWDG-Umprogrammierung ueber Register umgesetzt, auf Hardware ungeprueft | Datenblatt, H1 |
 | Normzeiten IEC 61851-1 (Abschaltung nach C->B, Reaktionszeit des Fahrzeugs) | Norm nicht im Projekt; 5-s-Frist durch HB S. 38 gestuetzt | Normtext |
-| WARP: Rahmenformat WebSocket, Codes `error_state`/`contactor_state`, Authentifizierungsverfahren der evcc-Vorlage (Basic/Digest) | nicht im Detail geprueft | WARP-Referenz, `warp-ws.go` |
 | Diodenpruefung: Vorgabe der IEC 61851-1 zur Ausgabe nach Fehlschlag | Norm nicht im Projekt | Normtext |
 | LD-Signal Kuester 03S (Fremdquelle nennt 02S: 0 V in beiden Endlagen, 12 V waehrend der Fahrt) | Hypothese | H1-Messung |
 | Deutung Feld 519 als Mindestpause vor erneutem Einschalten | [ANN] (Original: Wartezeit nach jedem Schuetz-Aus im Task) | Decompilat bei Bedarf |

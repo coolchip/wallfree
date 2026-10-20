@@ -3,7 +3,9 @@
 Freie Ersatzfirmware fuer die Ladesteuerung **EV-CC-AC1-M3-CBC-RCM-ETH** (STM32F207VET6),
 wie sie u. a. in der wallbe eco 2.0 verbaut ist. Zielgruppe: versierte Anwender.
 
-**Status:** Spezifikation, keine lauffaehige Firmware. Nichts davon ist auf Hardware getestet.
+**Status:** Firmware vollstaendig nach Spezifikation implementiert und auf dem PC getestet
+(Unit-Tests, Ende-zu-Ende-Simulation, Browser, evcc). **Nichts davon ist auf Hardware
+ausgefuehrt**; die Update-Uebergabe an den Bootloader fehlt noch.
 Eine Ladesteuerung schaltet Netzspannung und ueberwacht Fehlerstroeme. Fehler in der Firmware
 koennen Menschen gefaehrden. Software-Tests belegen keine elektrische Sicherheit.
 
@@ -11,16 +13,17 @@ koennen Menschen gefaehrden. Software-Tests belegen keine elektrische Sicherheit
 
 | Pfad | Inhalt |
 | --- | --- |
-| [docs/soll-spezifikation.md](docs/soll-spezifikation.md) | Soll-Verhalten der Firmware (Kennungen `SOLL-*`) |
-| [docs/architektur.md](docs/architektur.md) | Rahmen: Zephyr, Speicheraufteilung, Bootloader, Parameterspeicher, WARP-/evcc-Schnittstelle |
-| [boards/phoenix/ev_cc_ac1/](boards/phoenix/ev_cc_ac1/) | vorlaeufige Zephyr-Board-Beschreibung |
+| [docs/soll-spezifikation.md](docs/soll-spezifikation.md) | Soll-Verhalten der Firmware (Kennungen `SOLL-*`), Entscheidungen F1..F27 |
+| [docs/architektur.md](docs/architektur.md) | Rahmenentscheidungen mit Begruendung: Zephyr, Speicheraufteilung, Bootloader, Parameterspeicher, evcc/WARP, Inbetriebnahmestufen |
+| [docs/implementierung.md](docs/implementierung.md) | Implementierungsstand, Zuordnung Modul -> SOLL, Festlegungen, Ressourcen, Fallstricke |
+| [docs/test-und-simulation.md](docs/test-und-simulation.md) | PC-Tests, Ende-zu-Ende-Simulation, Browser-Durchlauf, evcc-Test |
+| [boards/phoenix/ev_cc_ac1/](boards/phoenix/ev_cc_ac1/) | Zephyr-Board-Beschreibung (Pins aus der Originalfirmware, nicht an Hardware bestaetigt) |
 | [app/](app/) | Anwendung fuer die Steuerung: Hardwareschicht, Threads, Shell (nur bauen); zusaetzlich als PC-Simulation |
 | [spike-size/](spike-size/) | Groessentest (nur bauen) |
 | [include/wallfree/evse/](include/wallfree/evse/), [lib/evse/](lib/evse/) | Ladelogik als Zephyr-Modul, reines C ohne Hardwarebezug |
 | [include/wallfree/nvm/](include/wallfree/nvm/), [lib/nvm/](lib/nvm/) | Parameterspeicher (Log-Format in Sektor 7) und Leser fuer den Originalbereich, reines C |
 | [include/wallfree/api/](include/wallfree/api/), [lib/api/](lib/api/) | Digest-Anmeldung, JSON, Abbildung der Ladelogik auf die WARP-angelehnte API, reines C |
 | [web/](web/) | Weboberflaeche (Preact + htm, gzip im Flash); Fremdcode unter [web/vendor/](web/vendor/) mit eigenen Lizenzen |
-| [docs/implementierung.md](docs/implementierung.md) | Implementierungsstand, Zuordnung Modul -> SOLL, offene Punkte |
 | [tests/](tests/) | PC-Tests (ztest auf `native_sim/native/64`), Aufruf `scripts/run-tests.sh`; Ende-zu-Ende-Tests in [tests/e2e/](tests/e2e/), Aufruf `scripts/run-e2e.sh` |
 
 ## Bauen
@@ -43,14 +46,6 @@ scripts/run-tests.sh --simple     # ohne twister; Logs unter build/tests/<suite>
 scripts/run-tests.sh --coverage   # zusaetzlich Abdeckung von lib/ (gcovr)
 ```
 
-| Suite | Inhalt |
-| --- | --- |
-| `tests/evse/meas` | CP, PP, Eingaenge, Stromvorgabe |
-| `tests/evse/prot` | Verriegelung, RCM-Selbsttest, Schuetzueberwachung |
-| `tests/evse/charger` | Automat mit Simulationsmodell (`sim.c`: Fahrzeug, Kabel, RCM-Sensor, Aktor, Schuetz, 1-ms-Schritte), Ausgaenge, Parameter, Persistenz, API-Abbildung |
-| `tests/nvm` | Speicherformat mit simuliertem Flash und Stromausfall nach jedem Byte, Sektor-3-Leser |
-| `tests/api` | MD5, Digest, JSON, Systemparameter, Bremse |
-
 Ende-zu-Ende: die ganze Anwendung als PC-Simulation (`native_sim`, Hardwaremodell statt
 TIM1/ADC/GPIO, Host-Sockets, Flash-Datei) gegen HTTP, Digest, WebSocket, Shell und Neustarts:
 
@@ -59,7 +54,8 @@ scripts/run-e2e.sh                # bauen und tests/e2e ausfuehren
 scripts/sim-run.sh                # zum Ausprobieren: http://127.0.0.1:8081/, Telnet 127.0.0.1:2323
 ```
 
-Nicht abgedeckt: die echte Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) und das Ethernet.
+Details und Ergebnisse: [docs/test-und-simulation.md](docs/test-und-simulation.md). Nicht
+abgedeckt: die echte Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) und das Ethernet.
 Bestandene Tests belegen keine elektrische Sicherheit.
 
 ## Herkunft der Befunde

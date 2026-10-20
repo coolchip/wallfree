@@ -1,9 +1,9 @@
 /*
  * Vorlaeufige Board-Beschreibung der Steuerung EV-CC-AC1-M3-CBC-RCM-ETH.
- * Belege: docs/takt-adc-gpio.md, docs/ethernet-phy.md, docs/firmware-ladeadresse.md.
+ * Belege: wallbe2/docs/takt-adc-gpio.md, ethernet-phy.md, firmware-ladeadresse.md.
  * Nur fuer statische Builds; auf Hardware nicht erprobt und nicht freigegeben.
- * Flash-Aufteilung: docs/ersatzfirmware-architektur.md (Sektoren 0..2 Bootloader,
- * Sektor 3 Originalparameter, Anwendung ab 0x08010000).
+ * Flash-Aufteilung: docs/architektur.md (Sektoren 0..2 Bootloader,
+ * Sektor 3 Originalparameter, Anwendung ab 0x08010000, Parameter in Sektor 7).
  */
 /dts-v1/;
 #include <st/f2/stm32f207Xe.dtsi>
