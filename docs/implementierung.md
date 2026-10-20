@@ -372,7 +372,10 @@ Befunde:
 - Netzparameter (feste Adresse, DHCP) werden nicht angewandt; `/info/name` liefert `uid` 000000
   (keine MAC).
 - Sektor 3 ist leer (Import aus dem Original nicht pruefbar ohne Abbild).
-- Ruhende HTTP-Verbindungen werden nie nach 10 s getrennt (kein `shutdown` in NSOS, siehe oben).
+- Ruhende HTTP-Verbindungen werden nie nach 10 s getrennt (kein `shutdown` in NSOS, siehe oben);
+  daher hat die Simulation 8 statt 4 HTTP-Client-Plaetze und 24 statt 16 Deskriptoren
+  ([native_sim_native_64.conf](../app/boards/native_sim_native_64.conf)), damit Browser und evcc
+  gleichzeitig erreichbar bleiben.
 - Das Modellfahrzeug bleibt in C, wenn die PWM endet (echtes Fahrzeug: B).
 
 ## Noch nicht umgesetzt
