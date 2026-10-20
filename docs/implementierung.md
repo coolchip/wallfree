@@ -343,8 +343,14 @@ Befunde:
    auf `external_current_default` (80 000 mA, F12). evcc sendet seinen Wert (16 A) nicht erneut,
    weil er sich aus evccs Sicht nicht geaendert hat; das Fahrzeug laedt mit dem Hoechstwert von
    Kabel/Drehschalter (hier 32 A), bis evcc den Strom aendert oder neu angesteckt wird (dann setzt
-   evcc wieder 16 A, geprueft). **Nutzerentscheidung noetig** (F12 ueberdenken):
-   `external_current_default` fuer evcc-Betrieb auf 0 oder 6000 setzen bzw. den Default aendern.
+   evcc wieder 16 A, geprueft). **Nutzerentscheidung noetig** (F12 ueberdenken).
+   Versuch mit `external_current_default` = 0 (nur Parameter, 2026-10-20): Nach dem Neustart steht
+   der Slot auf 0, kein Laden. Solange das Modellfahrzeug in C bleibt, meldet evcc nur
+   `disabled but charging` und steuert nicht nach. Wechselt das Fahrzeug wie ein echtes nach B,
+   meldet evcc `charger out of sync: expected enabled, got disabled`, sendet sofort wieder 16 A, und
+   nach C wird mit 16 A geladen. Vergleich WARP: `evse/external_defaults` (`current`,
+   `clear_on_disconnect`) legt den Slotwert nach einem Neustart fest, konfigurierbar; das Beispiel
+   der Doku zeigt 32 000, der Werkswert ist nicht belegt.
 2. `charger logic error: disabled but charging` (evcc-Warnung): solange nach "aus" der CP-Zustand
    C bleibt. Das Modellfahrzeug wechselt ohne PWM nicht nach B; ein echtes Fahrzeug tut das. Mit
    echtem Fahrzeug hoechstens kurz zu erwarten (WARP meldet dasselbe).
