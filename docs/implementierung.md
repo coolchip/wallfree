@@ -44,7 +44,8 @@ Hilfetexten fuer Web/Shell), keine veraenderlichen statischen Daten.
 
 Diese Punkte waren in der Spezifikation nicht eindeutig. **Alle Festlegungen dieser Tabelle hat
 der Nutzer bestaetigt** (2026-10-19): die ersten sieben ("in Ordnung"), "Entriegeln klemmt"
-einzeln, alle uebrigen (*neu*: Speicher, API, System, Web, Bedienung, HW) gesammelt.
+einzeln, alle uebrigen (*neu*: Speicher, API, System, Web, Bedienung, HW) gesammelt;
+Ereignisformat, Netzwerk-LED, WebSocket-Abbau und Log vor Neustart am 2026-10-20.
 Neue Festlegungen werden weiter mit *neu* markiert, bis sie bestaetigt sind.
 
 | Punkt | Umsetzung | Grund |
@@ -88,10 +89,10 @@ Neue Festlegungen werden weiter mit *neu* markiert, bis sie bestaetigt sind.
 | *(Web):* Anmeldung | Oberflaeche hinter Digest wie die API (Anmeldedialog des Browsers); im Werkszugang nur Zugangsdaten-Seite; nach der Aenderung fragt der Browser neu | SOLL-API-07 |
 | *(Web):* Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickt beim WebSocket-Aufbau evtl. keine Anmeldung, auf Hardware ungeprueft), Abfrage alle 2 s | |
 | *(Web):* Sollstrom-Schieber | 6..32 A in 1-A-Schritten, dazu "Laden aus" (0) | evcc ueberschreibt den Wert, wenn verbunden |
-| *neu (API):* Ereignisformat (SOLL-ERR-10) | WebSocket-Topic `evse/event`, je Ereignis ein Rahmen, Payload `{"seq", "t_ms", "type", ...}`: `state` (`from`/`to` = S0..S10), `error` (`set`/`cleared` als Namen wie `/evse/errors`), `lock` (`lock_state` 1/3/5, nur Endzustaende), `contactor` (`on`, Schuetz-Soll); `seq` fortlaufend ab 1 je Start, Luecke = verloren (Ringpuffer 16); kein Nachsenden beim Verbinden; jedes Ereignis zusaetzlich als Logzeile `Ereignis {...}` | Spezifikation nennt kein Format; evcc ignoriert unbekannte Topics |
-| *neu (HW):* Netzwerk-LED | PC2 aktiv Low [HYP]; "verbunden" = Link (Carrier) und bevorzugte IPv4-Adresse; Takt aus der Systemworkqueue (haengt diese, steht die LED) | SOLL-LED-06 |
-| *neu (API):* Erkennen geschlossener WebSockets | `websocket_recv_msg` mit 2 ms Timeout je Client und Zyklus statt `zsock_poll` auf dem WebSocket-Deskriptor | mit Timeout 0 bzw. Poll sahen die Host-Sockets der Simulation den Abbau nie; auf der Steuerung hoechstens 6 ms je 100 ms |
-| *neu (Bedienung):* Log vor Neustart | geordneter Neustart: Meldung, dann 200 ms fuer den Log-Thread, dann Reset (bei Fristablauf Schuetz sofort per Register aus); kein `LOG_PANIC` in Thread-Neustartpfaden, Meldungen der Ueberwachung koennen verloren gehen (Grund steht in BKP19) | `LOG_PANIC` blockierte mit verbundenem Telnet-Client die Systemworkqueue (siehe unten) |
+| *(API):* Ereignisformat (SOLL-ERR-10) | WebSocket-Topic `evse/event`, je Ereignis ein Rahmen, Payload `{"seq", "t_ms", "type", ...}`: `state` (`from`/`to` = S0..S10), `error` (`set`/`cleared` als Namen wie `/evse/errors`), `lock` (`lock_state` 1/3/5, nur Endzustaende), `contactor` (`on`, Schuetz-Soll); `seq` fortlaufend ab 1 je Start, Luecke = verloren (Ringpuffer 16); kein Nachsenden beim Verbinden; jedes Ereignis zusaetzlich als Logzeile `Ereignis {...}` | Spezifikation nennt kein Format; evcc ignoriert unbekannte Topics |
+| *(HW):* Netzwerk-LED | PC2 aktiv Low [HYP]; "verbunden" = Link (Carrier) und bevorzugte IPv4-Adresse; Takt aus der Systemworkqueue (haengt diese, steht die LED) | SOLL-LED-06 |
+| *(API):* Erkennen geschlossener WebSockets | `websocket_recv_msg` mit 2 ms Timeout je Client und Zyklus statt `zsock_poll` auf dem WebSocket-Deskriptor | mit Timeout 0 bzw. Poll sahen die Host-Sockets der Simulation den Abbau nie; auf der Steuerung hoechstens 6 ms je 100 ms |
+| *(Bedienung):* Log vor Neustart | geordneter Neustart: Meldung, dann 200 ms fuer den Log-Thread, dann Reset (bei Fristablauf Schuetz sofort per Register aus); kein `LOG_PANIC` in Thread-Neustartpfaden, Meldungen der Ueberwachung koennen verloren gehen (Grund steht in BKP19) | `LOG_PANIC` blockierte mit verbundenem Telnet-Client die Systemworkqueue (siehe unten) |
 | Abbruch des RCM-Selbsttests nach dem Testimpuls | Zustand "Abbruch laeuft" bis 3,4 s nach Teststart: SWITCH_1/2 ausgeblendet, ERR_OUT wirksam; kein neuer Test, kein Weg zum Schuetz in dieser Zeit | der Sensor faehrt seinen Trip-Test zu Ende; dessen Ausloesungen wurden sonst als echter Fehlerstrom gewertet |
 
 ## Parameter: Festlegungen
@@ -294,8 +295,10 @@ reproduzierbar auf (Resetgrund `fault` statt `user_restart`).
 ## Noch nicht umgesetzt
 
 - Startablauf auf der Hardware (SOLL-BOOT, H1).
-- Zugriffsprotokoll: in der Spezifikation ohne eigene Anforderung; bisher Log-Warnung bei
-  Fehlversuchen (mit Absender) und Ereignisse im Log. Umfang mit dem Nutzer klaeren.
+- Zugriffsprotokoll (Nutzer 2026-10-20): Inhalt bleibt wie bisher (falsche Anmeldungen mit
+  Absender, Ereignisse); **zusaetzlich abrufbar ueber HTTP** als Ringpuffer im RAM (z. B. letzte
+  32 Eintraege) unter `GET /system/log`. Keine Schreibzugriffe, erfolgreichen Anmeldungen oder
+  Shell-Kommandos. Noch umzusetzen; vorher in die Spezifikation aufnehmen.
 - Ereignisse in der Weboberflaeche noch nicht angezeigt.
 - RAM-Reserve ~14 KB: Heap (16 KB) und Client-Kontexte bei Bedarf verkleinern.
 - Weboberflaeche im Browser gegen die Simulation noch nicht durchgeklickt (Dateien werden im
@@ -307,8 +310,9 @@ reproduzierbar auf (Resetgrund `fault` statt `user_restart`).
 2. ~~Ende-zu-Ende-Test auf dem PC vorbereiten~~ – erledigt 2026-10-19 (`scripts/run-e2e.sh`,
    20 Tests; vier Fehler der Anwendung gefunden und behoben, siehe unten). Offen: Browser-
    Durchlauf der Oberflaeche, evcc (Nutzer: spaeter).
-3. ~~Kleinere offene Anforderungen~~: SOLL-ERR-10 und SOLL-LED-06 umgesetzt (2026-10-19, Format
-   *neu*, zu bestaetigen); Zugriffsprotokoll offen (Umfang klaeren).
+3. ~~Kleinere offene Anforderungen~~: SOLL-ERR-10 und SOLL-LED-06 umgesetzt (2026-10-19, vom
+   Nutzer bestaetigt 2026-10-20); Zugriffsprotokoll entschieden (abrufbar ueber `GET /system/log`),
+   Umsetzung offen.
 4. **H0 (Freigabe noetig):** Bootloader auslesen; danach SOLL-SH-10/SOLL-BOOT-30 (Update-Uebergabe),
    Pruefung Start-SP, loescht der Bootloader Sektor 7.
 5. **H1 (Freigabe noetig):** Pruefplan fuer den ersten Probelauf ohne Last: Pinpegel, LEDs, IWDG,
