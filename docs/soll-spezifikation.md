@@ -405,7 +405,7 @@ Das entspricht der Stromkette des Originals (Ist §6) und dem Slot-Modell von WA
 | SOLL-CUR-12 | **5-%-Modus** (Drehschalter 0, Schnittstellen-Anforderung Original Feld 401, oder Eingang Code 7): ist keine Stromsperre aktiv, wird Tastgrad **50 Promille** ausgegeben; das Schuetz schliesst in diesem Modus nie; Status "digitale Kommunikation nicht verfuegbar". Die Stromslots sind wirkungslos. **[ABW]** Original: unerreichbar, CCR 1000. | E6, HB S. 39 |
 | SOLL-CUR-13 | Plausibilitaet: Ein berechnetes `I` > `hardware` oder > 80000 mA ist ein interner Fehler (Klasse P, ERR-INTERNAL) mit Sofortabschaltung. Konstruktionsbedingt darf das nie auftreten. | E5 |
 | SOLL-CUR-14 | Schreibzugriffe auf Strom-Slots: zulaessig 0 oder 6000..80000 mA; andere Werte werden **mit Fehlermeldung abgelehnt**. Ein Wert ueber dem aktuellen `hardware`-Grenzwert wird angenommen und wirkt ueber das Minimum (kein Fehlerzustand). | E14, F11 entschieden |
-| SOLL-CUR-15 | Startwert von `external` nach Neustart: Parameter `external_current_default` (Default 80000 mA = keine Einschraenkung, wie Original 528 = Drehschalterwert); Aenderungen von `external` werden **nicht** gespeichert. | Arch §8 (kein Flashschreiben), F12 entschieden |
+| SOLL-CUR-15 | Startwert von `external` nach jedem Start (Erststart und Neustart): Parameter `external_current_default`, **Default 0** = kein Laden, bis die Schnittstelle (evcc) oder der Nutzer einen Strom setzt **[ABW]** (Original 528 = Drehschalterwert). Fuer Betrieb ohne Schnittstelle z. B. auf 80000 stellen (dann begrenzt nur Drehschalter/Kabel). Aenderungen von `external` werden **nicht** gespeichert. Grund: Nach einem Neustart waehrend des Ladens sendet evcc seinen Wert nicht erneut, solange es den Slot fuer freigegeben haelt (`external_current` > 0); mit 0 erkennt evcc die Abweichung und setzt seinen Strom neu (in der Simulation geprueft, 2026-10-20). | Arch §8 (kein Flashschreiben), F12 (2026-10-19, geaendert 2026-10-20) |
 | SOLL-CUR-16 | Aenderungen von `I` waehrend PWM an wirken im selben Automatenzyklus auf den Tastgrad; Wechsel ueber/unter 6 A fuehrt ueber Stromsperre/Neustart der PWM (S7 -> S3 -> S5). | E7d |
 
 ### 6.2 Tastgrad
@@ -672,7 +672,7 @@ abgelehnt (E14). Namen sind Vorschlaege (WARP-angelehnt, englisch).
 | `overcurrent_enable` | 0/1 | 0..1 (1 nur mit Messquelle) | 0 | ja | 409 | nein | SOLL-PROT-30 |
 | `wakeup_delay` | ms | 0 (aus), 5000..300000 | 30000 | ja | – | nein | E17 |
 | `wakeup_mode` | Code | 0 einmal je Steckvorgang, 1 auch nach Stromsperre | 0 | ja | – | nein | E17 |
-| `external_current_default` | mA | 0, 6000..80000 | 80000 | ja | – | nein | F12 |
+| `external_current_default` | mA | 0, 6000..80000 | 0 | ja | – | nein | F12 |
 | `enable_register_default` | 0/1 | 0..1 | 0 | ja | – (neu, F19) | nein | F19 |
 | `net_dhcp`, `net_ip`, `net_netmask`, `net_gateway`, `net_hostname` | – | IPv4 / Text | DHCP an (F25), statisch 192.168.0.8/24, 192.168.0.1, `wallfree-<MAC-Ende>` | ja | 404 (DHCP), 315..318 / 319..322 / 323..326 (IP / Maske / Gateway), laut Original-Webseite `lan.html` | nein | F25 |
 | `telnet_enable` | 0/1 | 0..1 | 1 | ja | – | nein | F20 (spaeter Default 0 oder Telnet entfernen) |
@@ -947,7 +947,7 @@ Alle Fragen am 2026-10-19 beantwortet; die betroffenen Anforderungen sind angepa
 | F9 | LD faellt im Laden weg | sofort aus, 1x neu verriegeln, bei Erfolg weiterladen | SOLL-LOCK-40 |
 | F10 | Eingangscode 19 | ignoriert Slot `external` (wie HB) | SOLL-CUR-04 |
 | F11 | Werte ueber Obergrenze | annehmen und begrenzen; 1..5999/>80000 ablehnen | SOLL-CUR-14 |
-| F12 | Startwert `external` | keine Einschraenkung (80000), parametrierbar | SOLL-CUR-15 |
+| F12 | Startwert `external` | ~~keine Einschraenkung (80000)~~; **geaendert 2026-10-20: 0** (Laden erst nach Vorgabe, wie WARP `external_defaults` parametrierbar) | SOLL-CUR-15 |
 | F13 | RCM-Wiederholtest in A | alle 30 s | SOLL-PROT-11 |
 | F14 | Schuetzfehler ruecksetzen | nur Neustart oder Quittierung | SOLL-PROT-23 |
 | F15 | D5/PE1 | wie Original (ohne Wirkung), nach H1 neu entscheiden | SOLL-PROT-24 |

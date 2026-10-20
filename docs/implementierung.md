@@ -33,7 +33,7 @@ Hardware ausgefuehrt; Tests belegen keine elektrische Sicherheit.
 | [param.c](../lib/evse/param.c) | Parametertabelle (Konfiguration, Laufzeit, Status) mit Name, Kennung, Herkunftsfeld, Einheit, Bereich, Default; Schreiben mit Grenz-/Zustandspruefung und Fehlercode; Wiederherstellen gespeicherter Werte | 10, SOLL-PAR-01..03/40, E14, SOLL-API-20/30 | evse_param (Konsistenz, Grenzen jedes Parameters, Sonderregeln) |
 
 Aufruf: `scripts/run-tests.sh` (twister; `--simple` ohne twister, `--coverage` mit gcovr).
-Stand 2026-10-20: **193 Tests in fuenf Testprogrammen, alle bestanden**; Abdeckung `lib/` **96 % Zeilen,
+Stand 2026-10-20: **194 Tests in fuenf Testprogrammen, alle bestanden**; Abdeckung `lib/` **96 % Zeilen,
 88 % Verzweigungen** (gcovr; nicht abgedeckt sind vor allem Lesefehler des Flashs). Twister-/Testabhaengigkeiten wurden am 2026-10-19 mit
 Freigabe des Nutzers in `~/zephyrproject/.venv` installiert (`requirements-run-test.txt`,
 `requirements-build-test.txt`); `twister --coverage` bricht in dieser Version ab, daher ruft das
@@ -106,6 +106,11 @@ Neue Festlegungen werden weiter mit *neu* markiert, bis sie bestaetigt sind.
 
 ## Parameter: Festlegungen
 
+- `external_current_default` (Startwert des Slots `external`) ist ab Werk **0** (Nutzer
+  2026-10-20, F12 geaendert): nach jedem Start wird erst geladen, wenn evcc oder der Nutzer einen
+  Strom setzt. Die Szenariotests der Ladelogik setzen 80000 ausdruecklich (Laden ohne Vorgabe der
+  Schnittstelle); `test_external_default_zero` prueft den Werkswert, die Ende-zu-Ende-Tests setzen
+  den Strom wie evcc.
 - Kennungen fuer den Speicher: Feldnummer des Originals, wo vorhanden (z. B. 525), sonst
   1001.. (Konfiguration) bzw. 2000.. (Status). Gespeichert werden nur Konfigurationswerte.
 - Konfigurationsaenderungen wirken sofort (`evse_apply_config()`); eine Aenderung, die die
@@ -149,7 +154,7 @@ Bereichskopfs.
 ## Anwendung und Hardwareschicht (`app/`, nur gebaut)
 
 Stand 2026-10-20. Baut fuer `ev_cc_ac1` ohne Warnung: **299 004 B Flash** (von 320 KB, 91,3 %),
-**117 308 B RAM** (89,5 %); Ereignisse in der Oberflaeche +0,9 KB Flash; Zugriffsprotokoll +1,1 KB Flash, +1,8 KB RAM (Puffer 1 800 B); Ereignisse und Netzwerk-LED +1,6 KB Flash, +1,3 KB RAM; Korrekturen
+**117 308 B RAM** (89,5 %); nach Startwert 0 (F12) 299 048 B; Ereignisse in der Oberflaeche +0,9 KB Flash; Zugriffsprotokoll +1,1 KB Flash, +1,8 KB RAM (Puffer 1 800 B); Ereignisse und Netzwerk-LED +1,6 KB Flash, +1,3 KB RAM; Korrekturen
 aus dem Ende-zu-Ende-Test +0,2 KB Flash/RAM; Netz-/Systemparameter und Bremse +5,7 KB Flash, Weboberflaeche +12 KB,
 Shell-Kommandos/Resetgrund/Fehlerhistorie +6 KB. Parameterspeicher: +8,2 KB Flash, +5,1 KB RAM. HTTP-/WebSocket-API:
 +37,8 KB Flash (HTTP-Server 13,5 KB, WebSocket 2,6 KB, PSA-SHA-1 aus tf-psa-crypto 5,9 KB),
@@ -343,8 +348,10 @@ Befunde:
    auf `external_current_default` (80 000 mA, F12). evcc sendet seinen Wert (16 A) nicht erneut,
    weil er sich aus evccs Sicht nicht geaendert hat; das Fahrzeug laedt mit dem Hoechstwert von
    Kabel/Drehschalter (hier 32 A), bis evcc den Strom aendert oder neu angesteckt wird (dann setzt
-   evcc wieder 16 A, geprueft). **Nutzerentscheidung noetig** (F12 ueberdenken).
-   Versuch mit `external_current_default` = 0 (nur Parameter, 2026-10-20): Nach dem Neustart steht
+   evcc wieder 16 A, geprueft). **Nutzerentscheidung 2026-10-20: Werkswert 0** (F12 geaendert,
+   SOLL-CUR-15), umgesetzt: gilt fuer Erststart und jeden Neustart. Ohne evcc den Parameter
+   `external_current_default` einmal setzen (z. B. 80000) oder den Strom in der Oberflaeche waehlen.
+   Versuch vor der Entscheidung mit `external_current_default` = 0 (nur Parameter, 2026-10-20): Nach dem Neustart steht
    der Slot auf 0, kein Laden. Solange das Modellfahrzeug in C bleibt, meldet evcc nur
    `disabled but charging` und steuert nicht nach. Wechselt das Fahrzeug wie ein echtes nach B,
    meldet evcc `charger out of sync: expected enabled, got disabled`, sendet sofort wieder 16 A, und
@@ -381,8 +388,8 @@ Befunde:
 2. ~~Ende-zu-Ende-Test auf dem PC vorbereiten~~ – erledigt 2026-10-19 (`scripts/run-e2e.sh`,
    20 Tests; vier Fehler der Anwendung gefunden und behoben, siehe unten). Browser-Durchlauf
    erledigt 2026-10-20 (`scripts/web-browser-check.mjs`); evcc gegen die Simulation erledigt
-   2026-10-20 (`scripts/evcc-sim.sh`, evcc 0.317.2); offen: Startwert `external_current` nach
-   Neustart (Befund 1 dort).
+   2026-10-20 (`scripts/evcc-sim.sh`, evcc 0.317.2); Startwert `external_current` danach auf 0
+   geaendert (Nutzer 2026-10-20, F12).
 3. ~~Kleinere offene Anforderungen~~: SOLL-ERR-10 und SOLL-LED-06 umgesetzt (2026-10-19, vom
    Nutzer bestaetigt 2026-10-20); Zugriffsprotokoll als SOLL-ERR-11 spezifiziert und umgesetzt
    (2026-10-20, `GET /system/log`); Festlegungen dazu und die Anzeige in der Oberflaeche vom Nutzer

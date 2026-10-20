@@ -14,6 +14,7 @@ static void before(void *f)
 {
 	ARG_UNUSED(f);
 	evse_config_defaults(&cfg);
+	cfg.external_current_default_ma = EVSE_CURRENT_MAX_MA; /* Szenarien ohne Vorgabe der Schnittstelle */
 	cfg.dip = 0;
 	sim_init(&s, &cfg);
 }
@@ -54,6 +55,9 @@ ZTEST(evse_param, test_table_consistent)
 ZTEST(evse_param, test_defaults_match_factory)
 {
 	/* Tabelle == evse_config_defaults (E20) und Startwerte der Laufzeitwerte */
+	evse_config_defaults(&cfg);
+	cfg.dip = 0;
+	sim_init(&s, &cfg);
 	sim_start(&s);
 	for (size_t i = 0; i < evse_param_count(); i++) {
 		const struct evse_param *p = evse_param_at(i);

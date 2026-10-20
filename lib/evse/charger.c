@@ -32,7 +32,7 @@ void evse_config_defaults(struct evse_config *cfg)
 	cfg->reject_state_d = true;
 	cfg->wakeup_delay_ms = 30000;
 	cfg->wakeup_mode = 0;
-	cfg->external_current_default_ma = EVSE_CURRENT_MAX_MA;
+	cfg->external_current_default_ma = 0; /* F12 (2026-10-20): kein Laden bis zur ersten Vorgabe */
 	cfg->enable_register_default = false;
 }
 

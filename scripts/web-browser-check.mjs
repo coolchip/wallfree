@@ -77,6 +77,8 @@ out.simple1 = await text();
 out.mode1 = await evalJs("document.querySelector('header .grow').innerText");
 await shot('1-einfach');
 
+out.clickSet = await click('Übernehmen'); // Werkswert 0: Strom setzen (Schieber 16 A)
+await sleep(1000);
 await shell('sim car C');
 await sleep(4000);
 out.simple2 = await text();
@@ -102,7 +104,8 @@ chrome.kill();
 const checks = [
 	['WebSocket live', out.mode1.includes('live')],
 	['Ereignis Start (live nachgereicht)', out.simple2.includes('S0 Start → S1 Bereit')],
-	['Laden', out.simple2.includes('Lädt') && out.simple2.includes('Schütz ein')],
+	['Laden mit 16 A vom Schieber', out.simple2.includes('Lädt') && out.simple2.includes('Schütz ein') &&
+		out.simple2.includes('16 A')],
 	['Laden aus', out.simple3.includes('S7 Beenden → S3 Warten')],
 	['Zugriffsprotokoll', /zugriffsprotokoll/i.test(out.expert2)],
 	['Entriegelt nach Abstecken', out.expert2.includes('Verriegelung: Entriegelt')],

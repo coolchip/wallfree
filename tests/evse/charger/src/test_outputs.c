@@ -16,6 +16,7 @@ static void setup(struct sit x)
 	struct evse_config cfg;
 
 	evse_config_defaults(&cfg);
+	cfg.external_current_default_ma = EVSE_CURRENT_MAX_MA; /* Szenarien ohne Vorgabe der Schnittstelle */
 	evse_init(&e, &cfg, EVSE_LOCK_UNLOCKED, 0);
 	e.state = EVSE_S5_PWM_ON;
 	e.status = x.st;
