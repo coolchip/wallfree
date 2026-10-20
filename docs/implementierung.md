@@ -1,6 +1,6 @@
 # Implementierungsstand Ladelogik
 
-Stand: 2026-10-19. Hardwareunabhaengige Ladelogik, Parameterspeicher und API-Abbildung als Zephyr-Modul (reines C99), getestet
+Stand: 2026-10-20. Hardwareunabhaengige Ladelogik, Parameterspeicher und API-Abbildung als Zephyr-Modul (reines C99), getestet
 auf dem PC (`native_sim/native/64`, ztest). Die ganze Anwendung laeuft zusaetzlich als
 PC-Simulation mit Ende-zu-Ende-Tests (Abschnitt "Ende-zu-Ende-Test auf dem PC"). **Nicht** auf
 Hardware ausgefuehrt; Tests belegen keine elektrische Sicherheit.
@@ -29,10 +29,11 @@ Hardware ausgefuehrt; Tests belegen keine elektrische Sicherheit.
 | [reset.c](../lib/api/reset.c) | Resetgrund aus Flags und Backup-Code | SOLL-RT-14 | api_reset |
 | [ratelimit.c](../lib/api/ratelimit.c) | Bremse gegen Passwort-Durchprobieren je Absenderadresse | SOLL-API-07 | api_ratelimit |
 | [events.c](../lib/api/events.c) | Ereignisse: Vergleich zweier Momentaufnahmen (Fehler, Schuetz, Verriegelungsergebnis, Zustand), Ringpuffer mit fortlaufender Nummer, JSON | SOLL-ERR-10 | evse_charger (api_events: Vergleich, Ueberlauf, JSON, Ladezyklus mit Verriegelung und Fehlerstrom im Simulationsmodell) |
+| [alog.c](../lib/api/alog.c) | Zugriffsprotokoll: Ringpuffer (32) fuer Fehlversuche und Ereignisse, Zusammenfassen wiederholter Fehlversuche einer Adresse, JSON in Teilen | SOLL-ERR-11 | api_alog (Reihenfolge, Zusammenfassen, Ueberlauf, JSON, Teilausgabe = Gesamtausgabe) |
 | [param.c](../lib/evse/param.c) | Parametertabelle (Konfiguration, Laufzeit, Status) mit Name, Kennung, Herkunftsfeld, Einheit, Bereich, Default; Schreiben mit Grenz-/Zustandspruefung und Fehlercode; Wiederherstellen gespeicherter Werte | 10, SOLL-PAR-01..03/40, E14, SOLL-API-20/30 | evse_param (Konsistenz, Grenzen jedes Parameters, Sonderregeln) |
 
 Aufruf: `scripts/run-tests.sh` (twister; `--simple` ohne twister, `--coverage` mit gcovr).
-Stand 2026-10-19: **187 Tests in fuenf Suiten, alle bestanden**; Abdeckung `lib/` **96 % Zeilen,
+Stand 2026-10-20: **193 Tests in fuenf Testprogrammen, alle bestanden**; Abdeckung `lib/` **96 % Zeilen,
 88 % Verzweigungen** (gcovr; nicht abgedeckt sind vor allem Lesefehler des Flashs). Twister-/Testabhaengigkeiten wurden am 2026-10-19 mit
 Freigabe des Nutzers in `~/zephyrproject/.venv` installiert (`requirements-run-test.txt`,
 `requirements-build-test.txt`); `twister --coverage` bricht in dieser Version ab, daher ruft das
@@ -45,7 +46,8 @@ Hilfetexten fuer Web/Shell), keine veraenderlichen statischen Daten.
 Diese Punkte waren in der Spezifikation nicht eindeutig. **Alle Festlegungen dieser Tabelle hat
 der Nutzer bestaetigt** (2026-10-19): die ersten sieben ("in Ordnung"), "Entriegeln klemmt"
 einzeln, alle uebrigen (*neu*: Speicher, API, System, Web, Bedienung, HW) gesammelt;
-Ereignisformat, Netzwerk-LED, WebSocket-Abbau und Log vor Neustart am 2026-10-20.
+Ereignisformat, Netzwerk-LED, WebSocket-Abbau und Log vor Neustart am 2026-10-20. Offen: die fuenf
+Punkte zum Zugriffsprotokoll (*neu*, 2026-10-20).
 Neue Festlegungen werden weiter mit *neu* markiert, bis sie bestaetigt sind.
 
 | Punkt | Umsetzung | Grund |
@@ -93,6 +95,11 @@ Neue Festlegungen werden weiter mit *neu* markiert, bis sie bestaetigt sind.
 | *(HW):* Netzwerk-LED | PC2 aktiv Low [HYP]; "verbunden" = Link (Carrier) und bevorzugte IPv4-Adresse; Takt aus der Systemworkqueue (haengt diese, steht die LED) | SOLL-LED-06 |
 | *(API):* Erkennen geschlossener WebSockets | `websocket_recv_msg` mit 2 ms Timeout je Client und Zyklus statt `zsock_poll` auf dem WebSocket-Deskriptor | mit Timeout 0 bzw. Poll sahen die Host-Sockets der Simulation den Abbau nie; auf der Steuerung hoechstens 6 ms je 100 ms |
 | *(Bedienung):* Log vor Neustart | geordneter Neustart: Meldung, dann 200 ms fuer den Log-Thread, dann Reset (bei Fristablauf Schuetz sofort per Register aus); kein `LOG_PANIC` in Thread-Neustartpfaden, Meldungen der Ueberwachung koennen verloren gehen (Grund steht in BKP19) | `LOG_PANIC` blockierte mit verbundenem Telnet-Client die Systemworkqueue (siehe unten) |
+| *neu (API):* Zugriffsprotokoll, Eintrag | JSON `{"seq", "t_ms", "kind", ...}`; `kind` = `auth_fail` mit `addr` (IPv4 als Text, `0.0.0.0` unbekannt) und `count`, oder `event` mit `event` = Payload wie Topic `evse/event`; `t_ms` = ms seit Start (keine Uhrzeit, die Steuerung hat keine gestellte Uhr); kein Freitext, Benutzername wird nicht aufgezeichnet | Inhalt wie bisher (Nutzer 2026-10-20); maschinenlesbar wie die uebrige API |
+| *neu (API):* Zugriffsprotokoll, Fehlversuche | jede mitgesendete, aber abgelehnte Anmeldung (falsches Passwort, unbekannter Benutzer, fehlerhafte Kopfzeile; dieselbe Pruefung wie fuer die Bremse), auch beim WebSocket-Aufbau; fehlende Anmeldung, veraltete Nonce und waehrend der Sperre abgewiesene Anfragen (429) nicht. Folgen Fehlversuche derselben Adresse direkt aufeinander, zaehlt der juengste Eintrag weiter (`count`, `t_ms` = letzter Versuch) | Durchprobieren soll die Ereignisse nicht aus dem Puffer draengen |
+| *neu (API):* Zugriffsprotokoll, Puffer | 32 Eintraege im RAM (1,8 KB), beim Neustart leer; Fehlversuche und Ereignisse teilen sich den Puffer | Nutzervorgabe "etwa 32" |
+| *neu (API):* Zugriffsprotokoll, Ueberlauf | aeltester Eintrag faellt heraus, Luecke in `seq` zeigt Verlust; `GET /system/log` liefert immer alle vorhandenen Eintraege, aelteste zuerst, in Teilen (kein Abschneiden) | wie Ereignis-Ringpuffer |
+| *neu (API):* Zugriffsprotokoll, Anmeldung | `GET /system/log` mit Digest wie die uebrige API, im Werkszugang 403; der Abruf selbst wird nicht protokolliert | SOLL-API-07 |
 | Abbruch des RCM-Selbsttests nach dem Testimpuls | Zustand "Abbruch laeuft" bis 3,4 s nach Teststart: SWITCH_1/2 ausgeblendet, ERR_OUT wirksam; kein neuer Test, kein Weg zum Schuetz in dieser Zeit | der Sensor faehrt seinen Trip-Test zu Ende; dessen Ausloesungen wurden sonst als echter Fehlerstrom gewertet |
 
 ## Parameter: Festlegungen
@@ -134,8 +141,8 @@ Bereichskopfs.
 
 ## Anwendung und Hardwareschicht (`app/`, nur gebaut)
 
-Stand 2026-10-19. Baut fuer `ev_cc_ac1` ohne Warnung: **297 012 B Flash** (von 320 KB, 91 %),
-**115 452 B RAM** (88 %); Ereignisse und Netzwerk-LED +1,6 KB Flash, +1,3 KB RAM; Korrekturen
+Stand 2026-10-20. Baut fuer `ev_cc_ac1` ohne Warnung: **298 100 B Flash** (von 320 KB, 91,0 %),
+**117 308 B RAM** (89,5 %); Zugriffsprotokoll +1,1 KB Flash, +1,8 KB RAM (Puffer 1 800 B); Ereignisse und Netzwerk-LED +1,6 KB Flash, +1,3 KB RAM; Korrekturen
 aus dem Ende-zu-Ende-Test +0,2 KB Flash/RAM; Netz-/Systemparameter und Bremse +5,7 KB Flash, Weboberflaeche +12 KB,
 Shell-Kommandos/Resetgrund/Fehlerhistorie +6 KB. Parameterspeicher: +8,2 KB Flash, +5,1 KB RAM. HTTP-/WebSocket-API:
 +37,8 KB Flash (HTTP-Server 13,5 KB, WebSocket 2,6 KB, PSA-SHA-1 aus tf-psa-crypto 5,9 KB),
@@ -154,7 +161,7 @@ west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d ~/zephyrproject/build
 | [hw_gpio.c](../app/src/hw_gpio.c) | alle Ein-/Ausgaenge aus `zephyr,user`; RCM-Flankeninterrupt schaltet PE2 per Register ab und setzt einen Schutz-Latch, der Ein-Befehle sperrt; PE0-Flankenzeitstempel; PB2 erst nach der ersten Ausgabe | SOLL-PROT-01/05, SOLL-IO-01/21 |
 | [evse_task.c](../app/src/evse_task.c) | Ereigniserkennung im Automatenthread (Momentaufnahme vor/nach `evse_step`, Ringpuffer mit Spinlock, Ausgabe im WebSocket-Thread); Schutzthread (Prio 0, 1 ms): RCM-Pegel zyklisch, Ueberwachung Automat (100 ms) und Messbloecke (50 ms), IWDG 250 ms, Wartungsmodus fuer Flash-Loeschen; Automatenthread (Prio 2, 10 ms und je Messblock), meldet Aenderungen des Verriegelungszustands an den Speicher-Thread; Fault-Handler: sicherer Zustand, Neustart | SOLL-RT-04/05/10..12/21 |
 | [storage.c](../app/src/storage.c) | Flash-Adapter auf die Partitionen (Sektor 7 lesen/schreiben/loeschen, Sektor 3 nur lesen, Lage beim Bauen geprueft); Speicher-Thread (Prio 12): Verriegelungszustand speichern, Verdichten im sicheren Zustand; Werksreset, Import | SOLL-NVM-01..05/10, SOLL-RT-13, SOLL-BOOT-04/20/21 |
-| [http_api.c](../app/src/http_api.c) | Ereignisse als Topic `evse/event` an alle WebSocket-Clients und ins Log (SOLL-ERR-10). HTTP-Server Port 80: `/info/name`, `/info/features`, `/evse/state`, `/evse/external_current`, `/evse/params`, `/evse/param_info`, `/credentials`, `/system/config`, `/system/config_info`, `/system/restart`, WebSocket `/ws` (bis 3 Clients, Push-Thread alle 100 ms bzw. sofort nach Schreibzugriffen, ein Topic je Rahmen); Digest-Pruefung je Anfrage | SOLL-API-01..07/30 |
+| [http_api.c](../app/src/http_api.c) | Ereignisse als Topic `evse/event` an alle WebSocket-Clients, ins Log und ins Zugriffsprotokoll (SOLL-ERR-10); Zugriffsprotokoll mit Fehlversuchen aus `checked_auth`, `GET /system/log` in Teilen (SOLL-ERR-11). HTTP-Server Port 80: `/info/name`, `/info/features`, `/evse/state`, `/evse/external_current`, `/evse/params`, `/evse/param_info`, `/credentials`, `/system/config`, `/system/config_info`, `/system/restart`, WebSocket `/ws` (bis 3 Clients, Push-Thread alle 100 ms bzw. sofort nach Schreibzugriffen, ein Topic je Rahmen); Digest-Pruefung je Anfrage | SOLL-API-01..07/30 |
 | [netcfg.c](../app/src/netcfg.c) | Netz-/Systemparameter laden, Hostname, DHCP oder feste Adresse, Telnet; Aendern (atomar), Import; Netzwerk-LED PC2 (Systemworkqueue, 500 ms): an bei Link und IPv4-Adresse, sonst 1 Hz | 10.1, F20, F25, SOLL-LED-06 |
 | [auth.c](../app/src/auth.c) | Zugangsdaten (HA1), Werkszugang, Passwortaenderung, Nonce-Geheimnis je Start | SOLL-API-07 |
 | [web/](../web/) | Weboberflaeche: Werkszugang -> Zugangsdaten festlegen; "Einfach": Zustand, Fahrzeug, erlaubter Strom, Fehler, Sollstrom setzen; "Experte": alle Parameter mit Bereich, Default, Feld, Hilfetext und Schreiben, Netz/System mit Neustart, Zugangsdaten | SOLL-API-31 |
@@ -248,10 +255,11 @@ Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](.
 | T1Api | 401 mit Challenge; Werkszugang nur `/credentials` und Oberflaeche (403 sonst); Passwortregeln; Aenderung; `/info/*`, `/system/*`, alle Webdateien gzip; Ruhezustand; Parameter lesen/Beschreibung/Grenzen/Syntaxfehler/Schreiben; Laden B -> PWM -> C -> Schuetz; Sollstrom 10 A (Tastgrad 166, 9960 mA), Ablehnung 3 A, 0 = aus, wieder ein; WebSocket Erstsynchronisation und Push < 1 s; 3 WebSockets gleichzeitig und Wiederverwendung der Plaetze, Abbruch ohne Close-Rahmen; WebSocket ohne bzw. mit falscher Anmeldung geschlossen; Abstecken; Neustart mit Persistenz (Zugangsdaten, Parameter, Hostname) und Resetgrund `user_restart`, Sollstrom wieder Startwert; Neustart waehrend des Ladens geordnet und danach wieder Laden; Bremse 5 x 401, dann 429 mit `Retry-After` | SOLL-API-01..07/30/31, SOLL-CUR-21, SOLL-NVM-03, SOLL-PAR-03, SOLL-RT-14/22 |
 | T2Faults | Fehlerstrom beim Laden: Schuetz aus, `error_state` 3, RCM-Fehler aktiv; Messbloecke stehen -> Reset `supervision_limit`; Reset-Taster 6 s beim Start -> Werkszugang wieder aktiv | SOLL-PROT-01/05, SOLL-RT-10/14, SOLL-BOOT-20 |
 | T1Api (Forts.) | Ereignisse beim Sollstrom 0 und wieder ein (Zustand aus S6, Schuetz aus/ein, `seq`/`t_ms` steigend, Logzeile); Netzwerk-LED an, bei `sim link 0` 1 Hz, danach wieder an | SOLL-ERR-10, SOLL-LED-06 |
+| T1Api (Forts.) | Zugriffsprotokoll: `/system/log` ohne Anmeldung 401; falsche Anmeldung erscheint mit Absender `127.0.0.1`, `count` und Zeit; Ereignisse (Schuetz ein, Zustand) enthalten; Antwort > 1,5 KB (mehrere Teile), `seq` aufsteigend | SOLL-ERR-11 |
 | T2Faults (Forts.) | Ereignisse beim Fehlerstrom: `error` mit RCM, Schuetz aus, Zustand S9 | SOLL-ERR-10 |
 | T3ZephyrTelnet | harter Telnet-Abbruch: HTTP, WebSocket, neue Telnet-Sitzung, geordneter Neustart und Logausgabe laufen weiter | SOLL-RT-11 |
 
-Stand 2026-10-19: **23 Tests, alle bestanden** (zweimal hintereinander), Laufzeit ca. 70 s.
+Stand 2026-10-20: **24 Tests, alle bestanden**, Laufzeit ca. 70 s.
 
 ### Durch den Ende-zu-Ende-Test gefundene Fehler (behoben)
 
@@ -295,10 +303,6 @@ reproduzierbar auf (Resetgrund `fault` statt `user_restart`).
 ## Noch nicht umgesetzt
 
 - Startablauf auf der Hardware (SOLL-BOOT, H1).
-- Zugriffsprotokoll (Nutzer 2026-10-20): Inhalt bleibt wie bisher (falsche Anmeldungen mit
-  Absender, Ereignisse); **zusaetzlich abrufbar ueber HTTP** als Ringpuffer im RAM (z. B. letzte
-  32 Eintraege) unter `GET /system/log`. Keine Schreibzugriffe, erfolgreichen Anmeldungen oder
-  Shell-Kommandos. Noch umzusetzen; vorher in die Spezifikation aufnehmen.
 - Ereignisse in der Weboberflaeche noch nicht angezeigt.
 - RAM-Reserve ~14 KB: Heap (16 KB) und Client-Kontexte bei Bedarf verkleinern.
 - Weboberflaeche im Browser gegen die Simulation noch nicht durchgeklickt (Dateien werden im
@@ -311,8 +315,8 @@ reproduzierbar auf (Resetgrund `fault` statt `user_restart`).
    20 Tests; vier Fehler der Anwendung gefunden und behoben, siehe unten). Offen: Browser-
    Durchlauf der Oberflaeche, evcc (Nutzer: spaeter).
 3. ~~Kleinere offene Anforderungen~~: SOLL-ERR-10 und SOLL-LED-06 umgesetzt (2026-10-19, vom
-   Nutzer bestaetigt 2026-10-20); Zugriffsprotokoll entschieden (abrufbar ueber `GET /system/log`),
-   Umsetzung offen.
+   Nutzer bestaetigt 2026-10-20); Zugriffsprotokoll als SOLL-ERR-11 spezifiziert und umgesetzt
+   (2026-10-20, `GET /system/log`); fuenf Festlegungen dazu zu bestaetigen.
 4. **H0 (Freigabe noetig):** Bootloader auslesen; danach SOLL-SH-10/SOLL-BOOT-30 (Update-Uebergabe),
    Pruefung Start-SP, loescht der Bootloader Sektor 7.
 5. **H1 (Freigabe noetig):** Pruefplan fuer den ersten Probelauf ohne Last: Pinpegel, LEDs, IWDG,

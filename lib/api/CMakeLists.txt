@@ -6,6 +6,7 @@ zephyr_library_sources(
   json.c
   evse_api.c
   events.c
+  alog.c
   sysconf.c
   ratelimit.c
   reset.c

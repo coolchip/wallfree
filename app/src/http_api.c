@@ -27,6 +27,7 @@
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/socket.h>
 #include <zephyr/net/websocket.h>
+#include <wallfree/api/alog.h>
 #include <wallfree/api/events.h>
 #include <wallfree/api/evse_api.h>
 #include <wallfree/api/ratelimit.h>
@@ -59,6 +60,8 @@ static struct http_header hdr_auth = {.name = "WWW-Authenticate", .value = chall
 static char retry_after[12];
 static struct http_header hdr_retry = {.name = "Retry-After", .value = retry_after};
 static struct wf_rl rl; /* Bremse je Absender (nur Server-Thread) */
+static struct wf_alog alog; /* Zugriffsprotokoll (SOLL-ERR-11), Server- und WebSocket-Thread */
+static K_MUTEX_DEFINE(alog_mtx);
 
 /* IPv4-Absender eines Sockets, 0 wenn unbekannt */
 static uint32_t peer_addr(int fd)
@@ -91,6 +94,9 @@ static enum wf_auth checked_auth(uint32_t addr, const char *hdr, const char *met
 
 	if (a == WF_AUTH_BAD) {
 		wf_rl_fail(&rl, addr, now);
+		k_mutex_lock(&alog_mtx, K_FOREVER);
+		wf_alog_auth_fail(&alog, addr, now);
+		k_mutex_unlock(&alog_mtx);
 		LOG_WRN("Anmeldung fehlgeschlagen von %u.%u.%u.%u", addr >> 24, (addr >> 16) & 255,
 			(addr >> 8) & 255, addr & 255);
 	} else if (a == WF_AUTH_OK) {
@@ -634,6 +640,26 @@ static void system_info(struct http_client_ctx *client, struct res *r,
 	respond_json(rsp, HTTP_200_OK, &b);
 }
 
+/* SOLL-ERR-11: in Teilen, der Server ruft erneut auf, bis final_chunk gesetzt ist */
+static void system_log(struct http_client_ctx *client, struct res *r,
+		       struct http_response_ctx *rsp)
+{
+	ARG_UNUSED(client);
+	struct wf_jbuf b;
+
+	wf_jb_init(&b, out, sizeof(out));
+	k_mutex_lock(&alog_mtx, K_FOREVER);
+	uint32_t next = wf_alog_json(&alog, (uint32_t)r->cursor, &b);
+
+	k_mutex_unlock(&alog_mtx);
+	r->cursor = next;
+	rsp->status = HTTP_200_OK;
+	rsp->body = (const uint8_t *)out;
+	rsp->body_len = b.len;
+	rsp->final_chunk = next == WF_ALOG_DONE;
+}
+
+JSON_RESOURCE(system_log_r, "/system/log", BIT(HTTP_GET), system_log, false, 0);
 JSON_RESOURCE(system_info_r, "/system/info", BIT(HTTP_GET), system_info, false, 0);
 JSON_RESOURCE(system_config_r, "/system/config", BIT(HTTP_GET) | BIT(HTTP_POST), system_config,
 	      false, 512);
@@ -774,7 +800,7 @@ static void ws_send(int i, int t)
 
 /*
  * Ereignisse (SOLL-ERR-10): an alle verbundenen Clients als Topic
- * evse/event und ins Log ("Protokoll"). Kein Nachsenden beim Verbinden;
+ * evse/event, ins Log und ins Zugriffsprotokoll (SOLL-ERR-11). Kein Nachsenden beim Verbinden;
  * verlorene Ereignisse (Ringpuffer uebergelaufen) zeigt die Luecke in seq.
  */
 static uint32_t ev_seq = 1;
@@ -799,6 +825,9 @@ static void ws_events(void)
 			continue;
 		}
 		LOG_INF("Ereignis %s", ev_payload);
+		k_mutex_lock(&alog_mtx, K_FOREVER);
+		wf_alog_event(&alog, &ev);
+		k_mutex_unlock(&alog_mtx);
 		int n = snprintf(ev_frame, sizeof(ev_frame), "{\"topic\":\"evse/event\",\"payload\":%s}",
 				 ev_payload);
 
@@ -856,6 +885,7 @@ int http_api_start(void)
 		ws[i].sock = -1;
 	}
 	wf_rl_init(&rl);
+	wf_alog_init(&alog);
 	auth_init();
 	k_thread_create(&ws_thread, ws_stack, K_THREAD_STACK_SIZEOF(ws_stack), ws_entry, NULL,
 			NULL, NULL, WS_PRIO, 0, K_NO_WAIT);

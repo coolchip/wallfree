@@ -245,6 +245,30 @@ class T1Api(SimCase):
         finally:
             ws.close()
 
+    def test_11a_zugriffsprotokoll(self):
+        # SOLL-ERR-11: falsche Anmeldung mit Absender und Ereignisse in GET /system/log
+        self.assertEqual(self.sim.request("GET", "/system/log").status, 401)
+        bad = Digest(USER, "falsch-falsch")
+        bad.nonce = self.auth.nonce
+        t0 = self.sim.get_json("/system/info", self.auth)["uptime_ms"]
+        r = self.sim.request("GET", "/evse/state", auth=bad, retry=False)
+        self.assertEqual(r.status, 401)
+        r = self.sim.request("GET", "/system/log", auth=self.auth)
+        self.assertEqual(r.status, 200, r)
+        entries = r.json()["entries"]
+        self.assertGreater(len(r.body), 1536, "Antwort in mehreren Teilen")
+        seqs = [e["seq"] for e in entries]
+        self.assertEqual(seqs, sorted(seqs))
+        self.assertLessEqual(len(entries), 32)
+        self.assertEqual({e["kind"] for e in entries}, {"auth_fail", "event"})
+        fail = [e for e in entries if e["kind"] == "auth_fail"][-1]
+        self.assertEqual(fail["addr"], "127.0.0.1")
+        self.assertGreaterEqual(fail["count"], 1)
+        self.assertGreaterEqual(fail["t_ms"], t0)
+        ev = [e["event"] for e in entries if e["kind"] == "event"]
+        self.assertTrue(any(e["type"] == "contactor" and e["on"] for e in ev), ev)
+        self.assertTrue(any(e["type"] == "state" for e in ev), ev)
+
     def test_11b_netzwerk_led(self):
         # SOLL-LED-06: an bei Verbindung, sonst 1 Hz
         self.assertIn("N=1", self.shell("sim status"))
