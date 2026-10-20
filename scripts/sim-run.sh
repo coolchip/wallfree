@@ -3,7 +3,7 @@
 #   scripts/sim-run.sh [--build] [Optionen von zephyr.exe]
 # Beispiele: --http-port=8081 --dip=0x109 --rotary=5 --reset-button=6000
 # Web/API: http://127.0.0.1:8081/ (Werkszugang admin/wallfree),
-# Shell: Telnet 127.0.0.1:2323, Hardwaremodell mit "sim ..." (sim help).
+# Shell: Telnet 127.0.0.1:2323, Hardwaremodell mit "sim ..." (docs/simulation-bedienung.md).
 # Die Flash-Datei build/sim-flash.bin bleibt ueber Neustarts erhalten;
 # loeschen = fabrikneues Geraet. Beenden mit Strg+C.
 set -e

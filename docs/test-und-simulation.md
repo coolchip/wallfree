@@ -40,7 +40,7 @@ scripts/run-e2e.sh -k Faults      # Auswahl (unittest -k)
 scripts/sim-run.sh [--build] [--dip=0x109] [--rotary=5] [--http-port=8081] [--reset-button=6000]
 ```
 
-`sim-run.sh` startet die Simulation zum Ausprobieren: Web/API `http://127.0.0.1:8081/`
+`sim-run.sh` startet die Simulation zum Ausprobieren ([Bedienung](simulation-bedienung.md)): Web/API `http://127.0.0.1:8081/`
 (Werkszugang `admin`/`wallfree`), Telnet-Shell `127.0.0.1:2323`, Flash in `build/sim-flash.bin`
 (loeschen = fabrikneu). Ports unter 1024 braeuchten Root-Rechte, daher 8081 und 2323.
 Ohne Simulation zeigt `scripts/web-preview.py` die Oberflaeche mit Attrappen der API

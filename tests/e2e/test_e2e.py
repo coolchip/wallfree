@@ -18,6 +18,7 @@ import tempfile
 import time
 import unittest
 
+import wfsim
 from wfsim import FACTORY, Digest, Sim
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -396,7 +397,7 @@ class T3ZephyrTelnet(SimCase):
     """
 
     def abort_telnet(self):
-        tn = socket.create_connection(("127.0.0.1", 2323))
+        tn = socket.create_connection(("127.0.0.1", wfsim.TELNET_PORT))
         tn.sendall(b"kernel thread list\r\n")  # viel Ausgabe ...
         time.sleep(0.05)
         tn.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, b"\x01\0\0\0\0\0\0\0")

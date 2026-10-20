@@ -129,6 +129,7 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | `POST /evse/params` | jeder Wert einzeln (nicht atomar); Syntaxfehler -> nichts geschrieben | Zustandsregeln stecken in den Schreibfunktionen |
 | Netz-/Systemparameter | wirken erst nach Neustart; `POST /system/restart` nur in S1 ohne Fahrzeug (sonst 409); widerspruechliche gespeicherte Adresse -> Start mit DHCP und Warnung | Adresswechsel im Betrieb wuerde laufende Verbindungen (evcc) kappen; lieber erreichbar als gar kein Netz |
 | Telnet aus | `shell_stop`: Port 23 bleibt offen, Kommandos werden nicht ausgefuehrt | Zephyr kann den Telnet-Port zur Laufzeit nicht schliessen |
+| Telnet-Optionen | `CONFIG_SHELL_TELNET_SUPPORT_COMMAND` (in Zephyr als experimentell markiert): Echo und Zeichenmodus werden auf Anfrage des Clients ausgehandelt; mit `mode character` funktionieren Historie und Zeilenbearbeitung. Der Server bietet den Modus nicht von sich aus an. Kosten 0,3 KB Flash | Nutzerwunsch 2026-10-20 (Pfeil hoch fuer den letzten Befehl) |
 
 ### Ereignisse und Zugriffsprotokoll
 
@@ -182,7 +183,7 @@ unterbrochene Verdichten wie ein Erststart aus. Getestetes Verhalten bei Stromau
 
 ## Ressourcen
 
-Stand 2026-10-20, `-Os`: **300 524 B Flash** (91,7 % von 320 KB), **118 140 B RAM** (90,1 %).
+Stand 2026-10-20, `-Os`: **300 856 B Flash** (91,8 % von 320 KB), **118 140 B RAM** (90,1 %).
 Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudget).
 
 | Anteil (gemessen beim Hinzufuegen) | Flash | RAM |

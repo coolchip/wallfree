@@ -21,7 +21,9 @@ import time
 
 REALM = "wallfree"
 FACTORY = ("admin", "wallfree")
-TELNET_PORT = 2323  # CONFIG_SHELL_TELNET_PORT in app/boards/native_sim_native_64.conf
+# CONFIG_SHELL_TELNET_PORT in app/boards/native_sim_native_64.conf; abweichend z. B. fuer einen
+# zweiten Build, waehrend eine andere Simulation 2323 belegt
+TELNET_PORT = int(os.environ.get("WALLFREE_TELNET_PORT", "2323"))
 
 
 def md5(s):

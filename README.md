@@ -17,6 +17,7 @@ koennen Menschen gefaehrden. Software-Tests belegen keine elektrische Sicherheit
 | [docs/architektur.md](docs/architektur.md) | Rahmenentscheidungen mit Begruendung: Zephyr, Speicheraufteilung, Bootloader, Parameterspeicher, evcc/WARP, Inbetriebnahmestufen |
 | [docs/implementierung.md](docs/implementierung.md) | Implementierungsstand, Zuordnung Modul -> SOLL, Festlegungen, Ressourcen, Fallstricke |
 | [docs/test-und-simulation.md](docs/test-und-simulation.md) | PC-Tests, Ende-zu-Ende-Simulation, Browser-Durchlauf, evcc-Test |
+| [docs/simulation-bedienung.md](docs/simulation-bedienung.md) | Simulation starten und bedienen (Optionen, Shell-Kommando `sim`, Beispielablaeufe) |
 | [boards/phoenix/ev_cc_ac1/](boards/phoenix/ev_cc_ac1/) | Zephyr-Board-Beschreibung (Pins aus der Originalfirmware, nicht an Hardware bestaetigt) |
 | [app/](app/) | Anwendung fuer die Steuerung: Hardwareschicht, Threads, Shell (nur bauen); zusaetzlich als PC-Simulation |
 | [spike-size/](spike-size/) | Groessentest (nur bauen) |
@@ -53,6 +54,8 @@ TIM1/ADC/GPIO, Host-Sockets, Flash-Datei) gegen HTTP, Digest, WebSocket, Shell u
 scripts/run-e2e.sh                # bauen und tests/e2e ausfuehren
 scripts/sim-run.sh                # zum Ausprobieren: http://127.0.0.1:8081/, Telnet 127.0.0.1:2323
 ```
+
+Bedienung der Simulation: [docs/simulation-bedienung.md](docs/simulation-bedienung.md).
 
 Details und Ergebnisse: [docs/test-und-simulation.md](docs/test-und-simulation.md). Nicht
 abgedeckt: die echte Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) und das Ethernet.
