@@ -46,8 +46,9 @@ Hilfetexten fuer Web/Shell), keine veraenderlichen statischen Daten.
 Diese Punkte waren in der Spezifikation nicht eindeutig. **Alle Festlegungen dieser Tabelle hat
 der Nutzer bestaetigt** (2026-10-19): die ersten sieben ("in Ordnung"), "Entriegeln klemmt"
 einzeln, alle uebrigen (*neu*: Speicher, API, System, Web, Bedienung, HW) gesammelt;
-Ereignisformat, Netzwerk-LED, WebSocket-Abbau und Log vor Neustart am 2026-10-20. Offen: die mit *neu*
-markierten Punkte (Zugriffsprotokoll, Ereignisse in der Oberflaeche, 2026-10-20).
+Ereignisformat, Netzwerk-LED, WebSocket-Abbau und Log vor Neustart am 2026-10-20; Zugriffsprotokoll
+(Eintrag, Fehlversuche, Puffer, Ueberlauf, Anmeldung) und Ereignisse in der Oberflaeche ebenfalls am
+2026-10-20.
 Neue Festlegungen werden weiter mit *neu* markiert, bis sie bestaetigt sind.
 
 | Punkt | Umsetzung | Grund |
@@ -90,17 +91,17 @@ Neue Festlegungen werden weiter mit *neu* markiert, bis sie bestaetigt sind.
 | *(HW):* Schnittstellen-Ueberwachung | Speicher-, WebSocket-Thread, System-Workqueue (10 s); HTTP-Server/Telnet von Zephyr nicht ueberwachbar | SOLL-RT-11 |
 | *(Web):* Anmeldung | Oberflaeche hinter Digest wie die API (Anmeldedialog des Browsers); im Werkszugang nur Zugangsdaten-Seite; nach der Aenderung fragt der Browser neu | SOLL-API-07 |
 | *(Web):* Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickt beim WebSocket-Aufbau evtl. keine Anmeldung), Abfrage alle 2 s. Chrome sendet die Digest-Anmeldung beim WebSocket-Aufbau mit (Browser-Durchlauf 2026-10-20, Simulation); andere Browser ungeprueft | |
-| *neu (Web):* Ereignisse | "Einfach": letzte 8 Ereignisse; "Experte": ganzes Zugriffsprotokoll mit Fehlversuchen. Vorgeschichte aus `GET /system/log` beim Oeffnen, danach live ueber `evse/event` (ohne WebSocket alle 5 s neu); Uhrzeit = Browserzeit - Laufzeit der Steuerung (ungefaehr) | Steuerung hat keine gestellte Uhr |
+| *(Web):* Ereignisse | "Einfach": letzte 8 Ereignisse; "Experte": ganzes Zugriffsprotokoll mit Fehlversuchen. Vorgeschichte aus `GET /system/log` beim Oeffnen, danach live ueber `evse/event` (ohne WebSocket alle 5 s neu); Uhrzeit = Browserzeit - Laufzeit der Steuerung (ungefaehr) | Steuerung hat keine gestellte Uhr |
 | *(Web):* Sollstrom-Schieber | 6..32 A in 1-A-Schritten, dazu "Laden aus" (0) | evcc ueberschreibt den Wert, wenn verbunden |
 | *(API):* Ereignisformat (SOLL-ERR-10) | WebSocket-Topic `evse/event`, je Ereignis ein Rahmen, Payload `{"seq", "t_ms", "type", ...}`: `state` (`from`/`to` = S0..S10), `error` (`set`/`cleared` als Namen wie `/evse/errors`), `lock` (`lock_state` 1/3/5, nur Endzustaende), `contactor` (`on`, Schuetz-Soll); `seq` fortlaufend ab 1 je Start, Luecke = verloren (Ringpuffer 16); kein Nachsenden beim Verbinden; jedes Ereignis zusaetzlich als Logzeile `Ereignis {...}` | Spezifikation nennt kein Format; evcc ignoriert unbekannte Topics |
 | *(HW):* Netzwerk-LED | PC2 aktiv Low [HYP]; "verbunden" = Link (Carrier) und bevorzugte IPv4-Adresse; Takt aus der Systemworkqueue (haengt diese, steht die LED) | SOLL-LED-06 |
 | *(API):* Erkennen geschlossener WebSockets | `websocket_recv_msg` mit 2 ms Timeout je Client und Zyklus statt `zsock_poll` auf dem WebSocket-Deskriptor | mit Timeout 0 bzw. Poll sahen die Host-Sockets der Simulation den Abbau nie; auf der Steuerung hoechstens 6 ms je 100 ms |
 | *(Bedienung):* Log vor Neustart | geordneter Neustart: Meldung, dann 200 ms fuer den Log-Thread, dann Reset (bei Fristablauf Schuetz sofort per Register aus); kein `LOG_PANIC` in Thread-Neustartpfaden, Meldungen der Ueberwachung koennen verloren gehen (Grund steht in BKP19) | `LOG_PANIC` blockierte mit verbundenem Telnet-Client die Systemworkqueue (siehe unten) |
-| *neu (API):* Zugriffsprotokoll, Eintrag | JSON `{"seq", "t_ms", "kind", ...}`; `kind` = `auth_fail` mit `addr` (IPv4 als Text, `0.0.0.0` unbekannt) und `count`, oder `event` mit `event` = Payload wie Topic `evse/event`; `t_ms` = ms seit Start (keine Uhrzeit, die Steuerung hat keine gestellte Uhr); kein Freitext, Benutzername wird nicht aufgezeichnet | Inhalt wie bisher (Nutzer 2026-10-20); maschinenlesbar wie die uebrige API |
-| *neu (API):* Zugriffsprotokoll, Fehlversuche | jede mitgesendete, aber abgelehnte Anmeldung (falsches Passwort, unbekannter Benutzer, fehlerhafte Kopfzeile; dieselbe Pruefung wie fuer die Bremse), auch beim WebSocket-Aufbau; fehlende Anmeldung, veraltete Nonce und waehrend der Sperre abgewiesene Anfragen (429) nicht. Folgen Fehlversuche derselben Adresse direkt aufeinander, zaehlt der juengste Eintrag weiter (`count`, `t_ms` = letzter Versuch) | Durchprobieren soll die Ereignisse nicht aus dem Puffer draengen |
-| *neu (API):* Zugriffsprotokoll, Puffer | 32 Eintraege im RAM (1,8 KB), beim Neustart leer; Fehlversuche und Ereignisse teilen sich den Puffer | Nutzervorgabe "etwa 32" |
-| *neu (API):* Zugriffsprotokoll, Ueberlauf | aeltester Eintrag faellt heraus, Luecke in `seq` zeigt Verlust; `GET /system/log` liefert immer alle vorhandenen Eintraege, aelteste zuerst, in Teilen (kein Abschneiden) | wie Ereignis-Ringpuffer |
-| *neu (API):* Zugriffsprotokoll, Anmeldung | `GET /system/log` mit Digest wie die uebrige API, im Werkszugang 403; der Abruf selbst wird nicht protokolliert | SOLL-API-07 |
+| *(API):* Zugriffsprotokoll, Eintrag | JSON `{"seq", "t_ms", "kind", ...}`; `kind` = `auth_fail` mit `addr` (IPv4 als Text, `0.0.0.0` unbekannt) und `count`, oder `event` mit `event` = Payload wie Topic `evse/event`; `t_ms` = ms seit Start (keine Uhrzeit, die Steuerung hat keine gestellte Uhr); kein Freitext, Benutzername wird nicht aufgezeichnet | Inhalt wie bisher (Nutzer 2026-10-20); maschinenlesbar wie die uebrige API |
+| *(API):* Zugriffsprotokoll, Fehlversuche | jede mitgesendete, aber abgelehnte Anmeldung (falsches Passwort, unbekannter Benutzer, fehlerhafte Kopfzeile; dieselbe Pruefung wie fuer die Bremse), auch beim WebSocket-Aufbau; fehlende Anmeldung, veraltete Nonce und waehrend der Sperre abgewiesene Anfragen (429) nicht. Folgen Fehlversuche derselben Adresse direkt aufeinander, zaehlt der juengste Eintrag weiter (`count`, `t_ms` = letzter Versuch) | Durchprobieren soll die Ereignisse nicht aus dem Puffer draengen |
+| *(API):* Zugriffsprotokoll, Puffer | 32 Eintraege im RAM (1,8 KB), beim Neustart leer; Fehlversuche und Ereignisse teilen sich den Puffer | Nutzervorgabe "etwa 32" |
+| *(API):* Zugriffsprotokoll, Ueberlauf | aeltester Eintrag faellt heraus, Luecke in `seq` zeigt Verlust; `GET /system/log` liefert immer alle vorhandenen Eintraege, aelteste zuerst, in Teilen (kein Abschneiden) | wie Ereignis-Ringpuffer |
+| *(API):* Zugriffsprotokoll, Anmeldung | `GET /system/log` mit Digest wie die uebrige API, im Werkszugang 403; der Abruf selbst wird nicht protokolliert | SOLL-API-07 |
 | Abbruch des RCM-Selbsttests nach dem Testimpuls | Zustand "Abbruch laeuft" bis 3,4 s nach Teststart: SWITCH_1/2 ausgeblendet, ERR_OUT wirksam; kein neuer Test, kein Weg zum Schuetz in dieser Zeit | der Sensor faehrt seinen Trip-Test zu Ende; dessen Ausloesungen wurden sonst als echter Fehlerstrom gewertet |
 
 ## Parameter: Festlegungen
@@ -378,8 +379,8 @@ Befunde:
    Neustart (Befund 1 dort).
 3. ~~Kleinere offene Anforderungen~~: SOLL-ERR-10 und SOLL-LED-06 umgesetzt (2026-10-19, vom
    Nutzer bestaetigt 2026-10-20); Zugriffsprotokoll als SOLL-ERR-11 spezifiziert und umgesetzt
-   (2026-10-20, `GET /system/log`); fuenf Festlegungen dazu und die Anzeige der Ereignisse in der
-   Oberflaeche (2026-10-20) zu bestaetigen.
+   (2026-10-20, `GET /system/log`); Festlegungen dazu und die Anzeige in der Oberflaeche vom Nutzer
+   bestaetigt (2026-10-20).
 4. **H0 (Freigabe noetig):** Bootloader auslesen; danach SOLL-SH-10/SOLL-BOOT-30 (Update-Uebergabe),
    Pruefung Start-SP, loescht der Bootloader Sektor 7.
 5. **H1 (Freigabe noetig):** Pruefplan fuer den ersten Probelauf ohne Last: Pinpegel, LEDs, IWDG,
