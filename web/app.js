@@ -44,6 +44,7 @@ function useLive() {
 	const [state, setState] = useState(null);
 	const [ext, setExt] = useState(null);
 	const [mode, setMode] = useState('…');
+	const [events, setEvents] = useState([]); // Topic evse/event (SOLL-ERR-10), juengste zuletzt
 
 	useEffect(() => {
 		let ws = null, timer = null, stop = false;
@@ -71,6 +72,7 @@ function useLive() {
 					const m = JSON.parse(line);
 					if (m.topic === 'evse/state') setState(m.payload);
 					if (m.topic === 'evse/external_current') setExt(m.payload);
+					if (m.topic === 'evse/event') setEvents((l) => l.concat([m.payload]).slice(-40));
 				}
 			};
 			ws.onclose = () => {
@@ -82,7 +84,7 @@ function useLive() {
 		connect();
 		return () => { stop = true; if (ws) ws.close(); clearInterval(timer); };
 	}, []);
-	return { state, ext, mode, setExt };
+	return { state, ext, mode, setExt, events };
 }
 
 // ------------------------------------------------------------ Bausteine
@@ -96,13 +98,67 @@ function Msg({ m }) {
 	return html`<div class="msg ${m.ok ? 'ok' : 'bad'}">${m.text}</div>`;
 }
 
+// ------------------------------------------------------------ Ereignisse, Zugriffsprotokoll
+
+function evText(e) {
+	switch (e.type) {
+	case 'state': return 'Zustand ' + (STATES[e.from] || e.from) + ' → ' + (STATES[e.to] || e.to);
+	case 'error': return [e.set.length && 'Fehler: ' + e.set.join(', '),
+		e.cleared.length && 'behoben: ' + e.cleared.join(', ')].filter(Boolean).join('; ');
+	case 'lock': return 'Verriegelung: ' + (LOCK[e.lock_state] || e.lock_state);
+	case 'contactor': return 'Schütz ' + (e.on ? 'ein' : 'aus');
+	}
+	return e.type;
+}
+
+// Vorgeschichte aus GET /system/log (SOLL-ERR-11), danach live ueber den
+// WebSocket; ohne WebSocket alle 5 s neu abfragen. Zeiten sind ms seit Start
+// der Steuerung, umgerechnet ueber deren Laufzeit beim Abruf (ungefaehr).
+function EventLog({ live, all }) {
+	const [log, setLog] = useState(null);
+	const [off, setOff] = useState(null);
+	const [err, setErr] = useState(null);
+	const load = async () => {
+		try {
+			const [l, i] = [await api('/system/log'), await api('/system/info')];
+			setOff(Date.now() - i.uptime_ms);
+			setLog(l.entries);
+			setErr(null);
+		} catch (e) { setErr(e.message); }
+	};
+	const polling = live.mode !== 'live';
+	useEffect(() => {
+		load();
+		if (!polling) return undefined;
+		const t = setInterval(load, 5000);
+		return () => clearInterval(t);
+	}, [polling]);
+	if (!log) return err ? html`<${Card} title="Ereignisse"><p class="bad">${err}</p><//>` : null;
+	const known = Math.max(0, ...log.filter((x) => x.kind === 'event').map((x) => x.event.seq));
+	let list = log.concat(live.events.filter((e) => e.seq > known)
+		.map((e) => ({ kind: 'event', t_ms: e.t_ms, event: e })));
+	if (!all) list = list.filter((x) => x.kind === 'event').slice(-8);
+	const time = (t) => new Date(off + t).toLocaleTimeString('de-DE');
+	const text = (x) => (x.kind === 'event' ? evText(x.event)
+		: 'Anmeldung fehlgeschlagen von ' + x.addr + (x.count > 1 ? ' (' + x.count + '×)' : ''));
+	return html`<${Card} title=${all ? 'Zugriffsprotokoll' : 'Letzte Ereignisse'}>
+		${list.length === 0 ? html`<p class="muted">Keine seit dem Start.</p>` : html`<table>
+			${list.slice().reverse().map((x) => html`<tr>
+				<td class="num muted">${time(x.t_ms)}</td>
+				<td class=${x.kind === 'event' ? (x.event.type === 'error' && x.event.set.length ? 'bad' : '') : 'warn'}>${text(x)}</td>
+			</tr>`)}
+		</table>`}
+		${all && html`<p class="muted msg">Letzte 32 Einträge seit dem Start der Steuerung; Uhrzeiten ungefähr.</p>`}
+	<//>`;
+}
+
 // ------------------------------------------------------------ Einfach
 
 function CurrentControl({ ext, setExt }) {
 	const [val, setVal] = useState(null);
 	const [msg, setMsg] = useState(null);
 	const cur = ext ? ext.current : 0;
-	const shown = val !== null ? val : Math.max(6, Math.round(cur / 1000) || 16);
+	const shown = val !== null ? val : Math.min(32, Math.max(6, Math.round(cur / 1000) || 16));
 
 	const send = async (ma) => {
 		try {
@@ -145,7 +201,7 @@ function Simple({ live }) {
 			<div class="muted">Verriegelung: ${LOCK[s.lock_state] || '?'}</div>
 		<//>
 		<${CurrentControl} ext=${live.ext} setExt=${live.setExt} />
-	</div>`;
+	</div><${EventLog} live=${live} />`;
 }
 
 // ------------------------------------------------------------ Experte
@@ -341,7 +397,7 @@ function Main() {
 		</header>
 		<main>
 			${view === 'simple' ? html`<${Simple} live=${live} />`
-				: html`<${Errors} /><${Params} /><${System} /><${Credentials} first=${false} />`}
+				: html`<${Errors} /><${EventLog} live=${live} all=${true} /><${Params} /><${System} /><${Credentials} first=${false} />`}
 		</main>`;
 }
 

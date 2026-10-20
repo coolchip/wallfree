@@ -72,9 +72,15 @@ ZTEST(evse_charger, test_basic_charge_cycle)
 	zassert_equal(s.e.out.cp_duty, 266);
 	zassert_equal(s.e.rcm.test, EVSE_RCM_TEST_PASSED, "kein neuer Selbsttest (E18)");
 
+	zassert_equal(s.e.lock.state, EVSE_LOCK_LOCKED, "ohne D4 sofort verriegelt (SOLL-LOCK-01)");
+
 	s.car = EVSE_CP_A;
 	zassert_true(sim_until_state(&s, EVSE_S1_IDLE, 200) >= 0);
 	zassert_equal(s.e.out.cp_duty, EVSE_DUTY_OFF);
+	/* SOLL-LOCK-01/23: ohne D4 bei CP A sofort entriegelt (blieb vorher LOCKED) */
+	sim_run(&s, 100);
+	zassert_equal(s.e.lock.state, EVSE_LOCK_UNLOCKED);
+	zassert_equal(s.e.out.led_mode[EVSE_LED_CONNECT], EVSE_LEDM_OFF, "SOLL-LED-03");
 }
 
 ZTEST(evse_charger, test_selftest_once_per_plug)

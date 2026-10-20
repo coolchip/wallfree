@@ -654,6 +654,9 @@ static void st_idle(struct evse *e, enum evse_cp_state raw, evse_ms_t now)
 		goto_state(e, EVSE_S8_UNLOCKING, now); /* SOLL-SM-11 */
 		return;
 	}
+	if (raw == EVSE_CP_A && !e->lock_cfg.d4 && !dip(e, 9) && locked(e)) {
+		(void)lock_req(e, false, now); /* SOLL-LOCK-01/23: ohne Aktor sofort entriegelt */
+	}
 	if (cp_is_bcd(raw)) {
 		e->unlock_attempts = 0; /* neues Fahrzeug */
 	}

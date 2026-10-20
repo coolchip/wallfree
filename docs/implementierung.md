@@ -46,8 +46,8 @@ Hilfetexten fuer Web/Shell), keine veraenderlichen statischen Daten.
 Diese Punkte waren in der Spezifikation nicht eindeutig. **Alle Festlegungen dieser Tabelle hat
 der Nutzer bestaetigt** (2026-10-19): die ersten sieben ("in Ordnung"), "Entriegeln klemmt"
 einzeln, alle uebrigen (*neu*: Speicher, API, System, Web, Bedienung, HW) gesammelt;
-Ereignisformat, Netzwerk-LED, WebSocket-Abbau und Log vor Neustart am 2026-10-20. Offen: die fuenf
-Punkte zum Zugriffsprotokoll (*neu*, 2026-10-20).
+Ereignisformat, Netzwerk-LED, WebSocket-Abbau und Log vor Neustart am 2026-10-20. Offen: die mit *neu*
+markierten Punkte (Zugriffsprotokoll, Ereignisse in der Oberflaeche, 2026-10-20).
 Neue Festlegungen werden weiter mit *neu* markiert, bis sie bestaetigt sind.
 
 | Punkt | Umsetzung | Grund |
@@ -89,7 +89,8 @@ Neue Festlegungen werden weiter mit *neu* markiert, bis sie bestaetigt sind.
 | *(HW):* Resetgrund | BKP19 = 0x5746xxxx vor Software-Resets; Grund `supervision_limit`, `fault`, `user_restart`, `factory_reset`, `interface_hang` bzw. aus RCC_CSR | SOLL-RT-14 |
 | *(HW):* Schnittstellen-Ueberwachung | Speicher-, WebSocket-Thread, System-Workqueue (10 s); HTTP-Server/Telnet von Zephyr nicht ueberwachbar | SOLL-RT-11 |
 | *(Web):* Anmeldung | Oberflaeche hinter Digest wie die API (Anmeldedialog des Browsers); im Werkszugang nur Zugangsdaten-Seite; nach der Aenderung fragt der Browser neu | SOLL-API-07 |
-| *(Web):* Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickt beim WebSocket-Aufbau evtl. keine Anmeldung, auf Hardware ungeprueft), Abfrage alle 2 s | |
+| *(Web):* Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickt beim WebSocket-Aufbau evtl. keine Anmeldung), Abfrage alle 2 s. Chrome sendet die Digest-Anmeldung beim WebSocket-Aufbau mit (Browser-Durchlauf 2026-10-20, Simulation); andere Browser ungeprueft | |
+| *neu (Web):* Ereignisse | "Einfach": letzte 8 Ereignisse; "Experte": ganzes Zugriffsprotokoll mit Fehlversuchen. Vorgeschichte aus `GET /system/log` beim Oeffnen, danach live ueber `evse/event` (ohne WebSocket alle 5 s neu); Uhrzeit = Browserzeit - Laufzeit der Steuerung (ungefaehr) | Steuerung hat keine gestellte Uhr |
 | *(Web):* Sollstrom-Schieber | 6..32 A in 1-A-Schritten, dazu "Laden aus" (0) | evcc ueberschreibt den Wert, wenn verbunden |
 | *(API):* Ereignisformat (SOLL-ERR-10) | WebSocket-Topic `evse/event`, je Ereignis ein Rahmen, Payload `{"seq", "t_ms", "type", ...}`: `state` (`from`/`to` = S0..S10), `error` (`set`/`cleared` als Namen wie `/evse/errors`), `lock` (`lock_state` 1/3/5, nur Endzustaende), `contactor` (`on`, Schuetz-Soll); `seq` fortlaufend ab 1 je Start, Luecke = verloren (Ringpuffer 16); kein Nachsenden beim Verbinden; jedes Ereignis zusaetzlich als Logzeile `Ereignis {...}` | Spezifikation nennt kein Format; evcc ignoriert unbekannte Topics |
 | *(HW):* Netzwerk-LED | PC2 aktiv Low [HYP]; "verbunden" = Link (Carrier) und bevorzugte IPv4-Adresse; Takt aus der Systemworkqueue (haengt diese, steht die LED) | SOLL-LED-06 |
@@ -138,11 +139,16 @@ Bereichskopfs.
 2. Abstecken waehrend des RCM-Selbsttests (S4) wurde erst nach Testende behandelt (Rang 4 jetzt
    S4..S7, Spezifikation angepasst).
 3. Abbruch des Selbsttests erzeugte einen falschen, verriegelnden Fehlerstromfehler (siehe oben).
+4. *(2026-10-20, Browser-Durchlauf)* **Ohne D4 blieb `lock_state` nach dem Abstecken LOCKED:** S2
+   setzt ohne Aktor sofort LOCKED (SOLL-LOCK-01), das Entriegeln bei CP A (SOLL-LOCK-23) lief nur
+   ueber S8 und damit nur mit D4. Folge: Connect-LED (SOLL-LED-03), `lock_state` an evcc/Oberflaeche
+   und Ausgangscodes zeigten ohne Fahrzeug "verriegelt". Jetzt setzt S1 bei CP A ohne D4 und ohne
+   D9 sofort UNLOCKED. Regression in `test_basic_charge_cycle`.
 
 ## Anwendung und Hardwareschicht (`app/`, nur gebaut)
 
-Stand 2026-10-20. Baut fuer `ev_cc_ac1` ohne Warnung: **298 100 B Flash** (von 320 KB, 91,0 %),
-**117 308 B RAM** (89,5 %); Zugriffsprotokoll +1,1 KB Flash, +1,8 KB RAM (Puffer 1 800 B); Ereignisse und Netzwerk-LED +1,6 KB Flash, +1,3 KB RAM; Korrekturen
+Stand 2026-10-20. Baut fuer `ev_cc_ac1` ohne Warnung: **299 004 B Flash** (von 320 KB, 91,3 %),
+**117 308 B RAM** (89,5 %); Ereignisse in der Oberflaeche +0,9 KB Flash; Zugriffsprotokoll +1,1 KB Flash, +1,8 KB RAM (Puffer 1 800 B); Ereignisse und Netzwerk-LED +1,6 KB Flash, +1,3 KB RAM; Korrekturen
 aus dem Ende-zu-Ende-Test +0,2 KB Flash/RAM; Netz-/Systemparameter und Bremse +5,7 KB Flash, Weboberflaeche +12 KB,
 Shell-Kommandos/Resetgrund/Fehlerhistorie +6 KB. Parameterspeicher: +8,2 KB Flash, +5,1 KB RAM. HTTP-/WebSocket-API:
 +37,8 KB Flash (HTTP-Server 13,5 KB, WebSocket 2,6 KB, PSA-SHA-1 aus tf-psa-crypto 5,9 KB),
@@ -164,7 +170,7 @@ west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d ~/zephyrproject/build
 | [http_api.c](../app/src/http_api.c) | Ereignisse als Topic `evse/event` an alle WebSocket-Clients, ins Log und ins Zugriffsprotokoll (SOLL-ERR-10); Zugriffsprotokoll mit Fehlversuchen aus `checked_auth`, `GET /system/log` in Teilen (SOLL-ERR-11). HTTP-Server Port 80: `/info/name`, `/info/features`, `/evse/state`, `/evse/external_current`, `/evse/params`, `/evse/param_info`, `/credentials`, `/system/config`, `/system/config_info`, `/system/restart`, WebSocket `/ws` (bis 3 Clients, Push-Thread alle 100 ms bzw. sofort nach Schreibzugriffen, ein Topic je Rahmen); Digest-Pruefung je Anfrage | SOLL-API-01..07/30 |
 | [netcfg.c](../app/src/netcfg.c) | Netz-/Systemparameter laden, Hostname, DHCP oder feste Adresse, Telnet; Aendern (atomar), Import; Netzwerk-LED PC2 (Systemworkqueue, 500 ms): an bei Link und IPv4-Adresse, sonst 1 Hz | 10.1, F20, F25, SOLL-LED-06 |
 | [auth.c](../app/src/auth.c) | Zugangsdaten (HA1), Werkszugang, Passwortaenderung, Nonce-Geheimnis je Start | SOLL-API-07 |
-| [web/](../web/) | Weboberflaeche: Werkszugang -> Zugangsdaten festlegen; "Einfach": Zustand, Fahrzeug, erlaubter Strom, Fehler, Sollstrom setzen; "Experte": alle Parameter mit Bereich, Default, Feld, Hilfetext und Schreiben, Netz/System mit Neustart, Zugangsdaten | SOLL-API-31 |
+| [web/](../web/) | Weboberflaeche: Werkszugang -> Zugangsdaten festlegen; "Einfach": Zustand, Fahrzeug, erlaubter Strom, Fehler, Sollstrom setzen; "Experte": alle Parameter mit Bereich, Default, Feld, Hilfetext und Schreiben, Netz/System mit Neustart, Zugangsdaten; Ereignisse ("Einfach" letzte 8, "Experte" Zugriffsprotokoll) | SOLL-API-31, SOLL-ERR-10/11 |
 | [main.c](../app/src/main.c) | Startablauf: GPIO, Parameterspeicher (ungueltig -> neu anlegen), Reset-Taster 5 s -> Bereich loeschen, gespeicherte Werte laden, DIP/Drehschalter, Messung, Threads | SOLL-BOOT-01..10/20 |
 | [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `param list/get/set`, `current`, `enable`, `avail`, `pause`, `pwm5`, `lock`, `unlock`, `errors [clear]`, `selftest`, `reboot`, `ack`, `nvm`, `sys list/set`, `factory-reset confirm`, `import-original` (Telnet) | SOLL-SH-01..09/11, SOLL-SH-19/20 |
 | [sysinfo.c](../app/src/sysinfo.c) | Resetgrund beim Start, Firmwarestand (`git describe` beim Bauen), Laufzeit; `GET /system/info` | SOLL-RT-14 |
@@ -291,6 +297,25 @@ Fehler 4 oben (LOG_PANIC) bleibt ein echter Befund: die Selbstblockade folgt aus
 (`k_work_cancel_delayable_sync()` der Telnet-Sende-Arbeit aus der Systemworkqueue heraus) und trat
 reproduzierbar auf (Resetgrund `fault` statt `user_restart`).
 
+### Browser-Durchlauf (2026-10-20)
+
+`node scripts/web-browser-check.mjs <port> <user> <passwort> <ausgabe>` gegen eine laufende
+Simulation (Zugangsdaten vorher geaendert): headless Chrome ueber das DevTools-Protokoll, Digest
+beantwortet Chrome selbst. Ablauf: Seite laden (WebSocket "live"), `sim car C` (Laden), Knopf
+"Laden aus" (S6 -> S7 -> S3, Schuetz nach 5 s aus), Ansicht "Experte" (Zugriffsprotokoll mit
+Fehlversuch), `sim car A`; Screenshots und Texte im Ausgabeverzeichnis. Alle 7 Pruefungen bestanden.
+Gefunden: Fehler 4 oben (Entriegeln ohne D4) und ein Darstellungsfehler (Schieber zeigte 80 A
+ausserhalb seines Bereichs 6..32 A; jetzt begrenzt).
+
+**Beobachtung (Simulation):** Ein auf dem PC offener Browser-Tab (Vivaldi, aus einer frueheren
+Sitzung) hielt alle 4 Client-Plaetze des HTTP-Servers mit ruhenden Keep-Alive-Verbindungen; neue
+Verbindungen (curl, evcc) wurden nicht mehr angenommen. Zephyr gibt solche Plaetze nach
+`CONFIG_HTTP_SERVER_CLIENT_INACTIVITY_TIMEOUT` (10 s) per `zsock_shutdown` frei; der Socket-Treiber
+der Simulation (NSOS, `drivers/net/nsos_sockets.c`) bietet kein `shutdown`, daher werden die Plaetze
+dort nie frei. Auf der Steuerung (Zephyr-TCP mit `shutdown`) sollte der Zeitgeber greifen; in H1
+pruefen (Browser offen lassen, parallel evcc). Ein Browser, der alle 2 s abfragt, kann bis zu 4
+Plaetze dauerhaft aktiv halten; reicht das nicht, Plaetze erhoehen oder Abfragen buendeln.
+
 ### Abweichungen der Simulation von der Steuerung
 
 - Messwerte unabhaengig vom Tastgrad (wie das Testmodell); kein ADC-Rauschen, keine Zeitfehler.
@@ -299,24 +324,26 @@ reproduzierbar auf (Resetgrund `fault` statt `user_restart`).
 - Netzparameter (feste Adresse, DHCP) werden nicht angewandt; `/info/name` liefert `uid` 000000
   (keine MAC).
 - Sektor 3 ist leer (Import aus dem Original nicht pruefbar ohne Abbild).
+- Ruhende HTTP-Verbindungen werden nie nach 10 s getrennt (kein `shutdown` in NSOS, siehe oben).
 
 ## Noch nicht umgesetzt
 
 - Startablauf auf der Hardware (SOLL-BOOT, H1).
-- Ereignisse in der Weboberflaeche noch nicht angezeigt.
 - RAM-Reserve ~14 KB: Heap (16 KB) und Client-Kontexte bei Bedarf verkleinern.
-- Weboberflaeche im Browser gegen die Simulation noch nicht durchgeklickt (Dateien werden im
-  Ende-zu-Ende-Test nur abgerufen und entpackt); evcc gegen die Simulation spaeter (Nutzer).
+- Browser-Durchlauf deckt Zugangsdaten-Seite, Parameter schreiben und Netz/System nicht ab
+  (bisher nur ueber die API im Ende-zu-Ende-Test).
 
 ## Naechste Schritte (Stand 2026-10-19)
 
 1. ~~Festlegungen bestaetigen~~ – erledigt, Nutzer 2026-10-19 (alle bestaetigt).
 2. ~~Ende-zu-Ende-Test auf dem PC vorbereiten~~ – erledigt 2026-10-19 (`scripts/run-e2e.sh`,
-   20 Tests; vier Fehler der Anwendung gefunden und behoben, siehe unten). Offen: Browser-
-   Durchlauf der Oberflaeche, evcc (Nutzer: spaeter).
+   20 Tests; vier Fehler der Anwendung gefunden und behoben, siehe unten). Browser-Durchlauf
+   erledigt 2026-10-20 (`scripts/web-browser-check.mjs`); evcc gegen die Simulation offen
+   (Docker, Freigabe 2026-10-20).
 3. ~~Kleinere offene Anforderungen~~: SOLL-ERR-10 und SOLL-LED-06 umgesetzt (2026-10-19, vom
    Nutzer bestaetigt 2026-10-20); Zugriffsprotokoll als SOLL-ERR-11 spezifiziert und umgesetzt
-   (2026-10-20, `GET /system/log`); fuenf Festlegungen dazu zu bestaetigen.
+   (2026-10-20, `GET /system/log`); fuenf Festlegungen dazu und die Anzeige der Ereignisse in der
+   Oberflaeche (2026-10-20) zu bestaetigen.
 4. **H0 (Freigabe noetig):** Bootloader auslesen; danach SOLL-SH-10/SOLL-BOOT-30 (Update-Uebergabe),
    Pruefung Start-SP, loescht der Bootloader Sektor 7.
 5. **H1 (Freigabe noetig):** Pruefplan fuer den ersten Probelauf ohne Last: Pinpegel, LEDs, IWDG,
