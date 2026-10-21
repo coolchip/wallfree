@@ -53,12 +53,13 @@ table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { font-size: 12px; color: var(--muted); font-weight: 600; }
 td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
-td input { max-width: 140px; }
+td .row { flex-wrap: nowrap; }
+td .row input { flex: 0 1 100px; width: 100px; min-width: 60px; }
 .msg { font-size: 13px; }
 form { display: grid; gap: 10px; max-width: 420px; }
 label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
 label.check { display: flex; align-items: center; gap: 8px; }
-@media (max-width: 600px) { .hide-s { display: none; } }
+@media (max-width: 600px) { .hide-s { display: none; } td .row { flex-wrap: wrap; } td .row input { width: 80px; flex-basis: 80px; } }
 
 .card.wide { grid-column: 1 / -1; }
 .gauge svg { display: block; width: 100%; max-width: 320px; margin: 0 auto; }

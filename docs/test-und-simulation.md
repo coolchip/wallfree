@@ -100,6 +100,18 @@ Laden, Messwert mit Leistung im Ring, Messwerte und Fehlerzaehler, Leistung im V
 ohne Zaehler zeigt der Verlauf nur den Strom. Nicht abgedeckt:
 Zugangsdaten-Seite, Parameter schreiben, Netz/System.
 
+## Bilder und PDF der Anleitung
+
+`scripts/doc-screenshots.sh` erzeugt die Bilder in `docs/anleitung/bilder/` (etwa 8 min): eigener
+Build `build/doc-sim` mit Telnet-Port 2324, fabrikneue Simulation auf Port 8097 mit
+`--rt-ratio=60`, damit eine Ladegeschichte (Abend 16 A, geregelt 10/7 A, voll, erneut
+angesteckt mit 11 A) den Verlauf in wenigen Minuten mit Stunden fuellt; die Oberflaeche
+rechnet alle Zeiten relativ zu "jetzt", die Bilder sehen daher wie von einem echten Geraet
+aus. Bricht ab, wenn Port 8097 oder 2324 belegt ist. `DOC_QUICK=1` laesst die Ladegeschichte
+weg (Selektoren pruefen). `scripts/anleitung-pdf.sh` baut `build/anleitung/weboberflaeche.pdf`:
+pandoc (`markdown+gfm_auto_identifiers`, Bilder eingebettet, [druck.css](anleitung/druck.css))
+und Druck mit Chrome; kein LaTeX noetig.
+
 ## evcc gegen die Simulation
 
 evcc **0.317.2** im Docker-Container (`evcc/evcc`, Netz `host`), Vorlage `tinkerforge-warp-ws`,
