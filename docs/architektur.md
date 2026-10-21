@@ -115,8 +115,16 @@ UART4 mit RS-485-Freigabe PC12, Zephyr-Modbus-Client und tabellengesteuerte Zaeh
 Davon UART-Treiber 2,2 KB, Zephyr-Modbus 2,7 KB, Abfrage und Registertabellen 1,1 KB,
 Gleitkomma-Hilfsroutinen und CRC rund 1 KB; RAM: Thread-Stack 1 KB, Modbus-Puffer 1 KB.
 Nicht enthalten sind Parameter, API, evcc-Abbildung und Weboberflaeche (geschaetzt weitere
-3..5 KB Flash). Ein eigener schlanker RTU-Master statt des Zephyr-Moduls waere geschaetzt gleich
-gross (nicht gemessen).
+3..5 KB Flash).
+
+**Entscheidung (Nutzer 2026-10-21):** Falls umgesetzt, mit dem Modbus-Client von Zephyr. Ein
+eigener RTU-Master lohnt nur, wenn er deutlich kleiner und deutlich robuster waere; geschaetzt
+waere er etwa gleich gross. Bekannte Grenzen des Zephyr-Clients: Er erkennt das Telegrammende
+nur an der Pause von 3,5 Zeichen (Luecken in einer Antwort ergeben CRC-Fehler), und eine
+verspaetete Antwort kann der naechsten Anfrage zugeordnet werden, wenn Adresse, Funktion und
+Laenge passen. Gegenmassnahmen in der Anwendung: Ruhepause vor jeder Anfrage und laengere Pause
+nach einem Timeout, Wiederholungen, Plausibilitaetspruefung der Werte, Fehlerzaehler ueber die
+API.
 
 ## 6. Softwarestruktur
 
