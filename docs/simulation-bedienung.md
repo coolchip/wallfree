@@ -36,7 +36,10 @@ Danach erreichbar:
 - Telnet-Shell: `telnet 127.0.0.1 2323` (ohne Anmeldung)
 
 Die Einstellungen liegen in `build/sim-flash.bin` und bleiben ueber Neustarts erhalten; Datei
-loeschen = fabrikneu. Beenden mit Strg+C im Terminal der Simulation. Ein Neustart ueber die
+loeschen = fabrikneu. **Achtung:** `scripts/evcc-sim.sh` setzt bei einer fabrikneuen Datei die
+Zugangsdaten `evcc` / `evcc-sim-test` (wie in `tools/evcc/evcc.yaml`); sie gelten danach auch
+fuer die Weboberflaeche. Passt keiner der beiden Zugaenge, Datei loeschen oder mit
+`--reset-button=6000` starten (beides setzt alle Einstellungen zurueck). Beenden mit Strg+C im Terminal der Simulation. Ein Neustart ueber die
 Oberflaeche oder `evse reboot` startet den Prozess selbst neu; das Modell (z. B. angestecktes
 Fahrzeug) bleibt dabei erhalten.
 
