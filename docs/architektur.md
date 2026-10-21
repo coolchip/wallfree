@@ -130,7 +130,7 @@ API.
 
 **MQTT-Client (F30), umgesetzt 2026-10-21:** Zephyr-MQTT 3.1.1 ueber TCP (Bibliothek gemessen
 4,2 KB), Thread, Parameter, Status, Shell und Weboberflaeche zusammen **+9,1 KB Flash,
-+5,1 KB RAM**. Danach bleiben rund 2,3 KB Flash und 3,7 KB RAM; die naechste Erweiterung
++5,1 KB RAM**. Danach bleiben rund 2 KB Flash und 3,7 KB RAM; die naechste Erweiterung
 braucht eine der Einsparungen oben.
 
 ## 6. Softwarestruktur

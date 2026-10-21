@@ -25,6 +25,9 @@ enum wf_auth auth_check(const char *hdr, const char *method, const char *uri);
 /** WWW-Authenticate-Wert. @return Laenge oder -1 */
 int auth_challenge(bool stale, char *out, size_t size);
 
+/** Aktueller Benutzername (fuer GET /credentials). */
+const char *auth_user(void);
+
 /** Werkszugang aktiv: Passwortaenderung erzwingen. */
 bool auth_must_change(void);
 

@@ -638,6 +638,8 @@ static void credentials(struct http_client_ctx *client, struct res *r,
 	wf_jb_raw(&b, "{");
 	wf_jb_key(&b, "must_change", true);
 	wf_jb_raw(&b, auth_must_change() ? "true" : "false");
+	wf_jb_key(&b, "user", false);
+	wf_jb_str(&b, auth_user());
 	wf_jb_raw(&b, "}");
 	respond_json(rsp, HTTP_200_OK, &b);
 }

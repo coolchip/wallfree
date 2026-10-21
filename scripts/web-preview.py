@@ -34,16 +34,17 @@ INFO = [
     {"name": "errors", "kind": "status", "unit": "", "field": 0, "help": "aktive Fehler (Bitmaske)"},
 ]
 SYSINFO = [
-    {"name": "net_dhcp", "type": "bool", "help": "Adresse per DHCP beziehen (F25)"},
+    {"name": "net_dhcp", "type": "bool", "help": "Adresse per DHCP beziehen"},
     {"name": "net_ip", "type": "ipv4", "help": "feste IPv4-Adresse (ohne DHCP)"},
     {"name": "net_hostname", "type": "hostname", "help": "Hostname, leer = wallfree-<MAC-Ende>"},
-    {"name": "telnet_enable", "type": "bool", "help": "Telnet-Shell ohne Anmeldung (F20)"},
+    {"name": "telnet_enable", "type": "bool", "help": "Telnet-Shell ohne Anmeldung"},
 ]
 
 
 class Sim:
     def __init__(self, factory):
         self.must_change = factory
+        self.user = "admin"
         self.ext = 16000
         self.params = {"lock_pulse": 500, "wakeup_delay": 30000, "external_current": 16000,
                        "state": 1, "errors": 0}
@@ -92,7 +93,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b)
         elif self.path == "/credentials":
-            self.send_json({"must_change": s.must_change})
+            self.send_json({"must_change": s.must_change, "user": s.user})
         elif s.must_change:
             self.send_json({"error": "Werkszugang: zuerst Zugangsdaten aendern"}, 403)
         elif self.path == "/evse/state":
@@ -127,7 +128,8 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(b, dict) or len(b.get("password", "")) < 8:
                 return self.send_json({"error": "Passwort: 8..64 Zeichen"}, 400)
             s.must_change = False
-            return self.send_json({"must_change": False})
+            s.user = b.get("user", s.user)
+            return self.send_json({"must_change": False, "user": s.user})
         if s.must_change:
             return self.send_json({"error": "Werkszugang"}, 403)
         if self.path == "/evse/external_current":

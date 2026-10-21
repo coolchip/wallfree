@@ -87,7 +87,7 @@ class T1Api(SimCase):
         self.assertEqual(self.sim.request("GET", "/system/info", auth=auth).status, 403)
         r = self.sim.request("GET", "/credentials", auth=auth)
         self.assertEqual(r.status, 200, r)
-        self.assertTrue(r.json()["must_change"])
+        self.assertEqual(r.json(), {"must_change": True, "user": "admin"})
         # Oberflaeche auch im Werkszugang (Passwortaenderung)
         r = self.sim.request("GET", "/", auth=auth)
         self.assertEqual(r.status, 200)
@@ -105,6 +105,8 @@ class T1Api(SimCase):
 
     def test_04_zugangsdaten_aendern(self):
         T1Api.auth = self.set_credentials()
+        self.assertEqual(self.sim.get_json("/credentials", self.auth),
+                         {"must_change": False, "user": USER})
         self.assertEqual(self.sim.request("GET", "/evse/state", auth=Digest(*FACTORY)).status,
                          401)
         self.assertEqual(self.sim.request("GET", "/evse/state", auth=self.auth).status, 200)

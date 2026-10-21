@@ -339,7 +339,7 @@ function ParamRow({ p, value, onSaved }) {
 		}
 	};
 	return html`<tr>
-		<td><b>${p.name}</b><div class="muted msg">${p.help}${p.field ? ' (Feld ' + p.field + ')' : ''}</div></td>
+		<td title=${p.name}>${p.help}${p.field ? html`<div class="muted msg">Feld ${p.field}</div>` : ''}</td>
 		<td class="num">${value === undefined ? '–' : fmt(p.name, value)} ${p.unit}</td>
 		<td class="num hide-s muted">${writable ? p.min + '…' + p.max : ''}</td>
 		<td>${writable && html`<div class="row">
@@ -367,7 +367,7 @@ function Params() {
 	const groups = [['config', 'Konfiguration (gespeichert)'], ['runtime', 'Laufzeitwerte (nicht gespeichert)'],
 		['status', 'Status']];
 	return groups.map(([k, t]) => html`<${Card} title=${t}><table>
-		<tr><th>Name</th><th>Wert</th><th class="hide-s">Bereich</th><th>${k !== 'status' ? 'Neu' : ''}</th></tr>
+		<tr><th>Parameter</th><th>Wert</th><th class="hide-s">Bereich</th><th>${k !== 'status' ? 'Neu' : ''}</th></tr>
 		${info.filter((p) => p.kind === k).map((p) =>
 			html`<${ParamRow} key=${p.name} p=${p} value=${vals[p.name]} onSaved=${load} />`)}
 	</table><//>`);
@@ -447,18 +447,19 @@ function System() {
 			const set = (v) => setEdit({ ...edit, [p.name]: v });
 			const opts = p.name === 'meter_type' ? METER_TYPES : p.name === 'meter_framing' ? FRAMING : null;
 			if (p.type === 'bool') {
-				return html`<label class="check"><input type="checkbox" checked=${val(p.name)}
-					onChange=${(e) => set(e.target.checked)} />${p.name} – ${p.help}</label>`;
+				return html`<label class="check" title=${p.name}><input type="checkbox" checked=${val(p.name)}
+					onChange=${(e) => set(e.target.checked)} />${p.help}</label>`;
 			}
 			if (p.type === 'secret') {
-				return html`<label>${p.name} – ${p.help}<input type="password" value=${edit[p.name] || ''}
+				return html`<label title=${p.name}>${p.help}<input type="password" value=${edit[p.name] || ''}
 					placeholder="unverändert" autocomplete="off" onInput=${(e) => set(e.target.value)} /></label>`;
 			}
 			if (opts) {
-				return html`<label>${p.name}<select value=${val(p.name)} onChange=${(e) => set(+e.target.value)}>
+				// Hilfetext "Bezeichnung: Codes ..." -> nur die Bezeichnung, die Codes zeigt die Liste
+				return html`<label title=${p.name}>${p.help.split(':')[0]}<select value=${val(p.name)} onChange=${(e) => set(+e.target.value)}>
 					${opts.map((t, i) => html`<option value=${i}>${t}</option>`)}</select></label>`;
 			}
-			return html`<label>${p.name} – ${p.help}<input value=${val(p.name)} inputmode=${p.type === 'code' ? 'numeric' : null}
+			return html`<label title=${p.name}>${p.help}<input value=${val(p.name)} inputmode=${p.type === 'code' ? 'numeric' : null}
 				onInput=${(e) => set(p.type === 'code' ? +e.target.value : e.target.value)} /></label>`;
 		})}
 		<div class="row"><button class="primary" type="submit">Speichern</button>
@@ -478,7 +479,8 @@ function System() {
 }
 
 function Credentials({ first }) {
-	const [u, setU] = useState('admin');
+	const [u, setU] = useState('');
+	useEffect(() => { api('/credentials').then((c) => setU(c.user || '')).catch(() => {}); }, []);
 	const [p1, setP1] = useState('');
 	const [p2, setP2] = useState('');
 	const [msg, setMsg] = useState(null);
@@ -503,7 +505,10 @@ function Credentials({ first }) {
 			<button class="primary" type="submit">Speichern</button>
 		</form>
 		<${Msg} m=${msg} />
-		<p class="muted msg">Ohne TLS: Daten im LAN sind mitlesbar; das Passwort selbst wird nicht übertragen.</p>
+		<p class="muted msg">Die Verbindung ist nicht verschlüsselt (kein HTTPS): Wer im Heimnetz mitlauscht,
+			kann alle angezeigten Daten lesen. Bei der Anmeldung schickt der Browser das Passwort nicht
+			mit, sondern nur einen daraus berechneten Prüfwert. Beim Ändern hier wird das neue Passwort
+			dagegen lesbar übertragen.</p>
 	<//>`;
 }
 

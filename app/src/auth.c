@@ -47,6 +47,11 @@ int auth_challenge(bool stale, char *out, size_t size)
 	return wf_digest_challenge(&cfg, k_uptime_get_32(), stale, out, size);
 }
 
+const char *auth_user(void)
+{
+	return user;
+}
+
 bool auth_must_change(void)
 {
 	return factory_credentials;

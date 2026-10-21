@@ -7,19 +7,19 @@
 #define IP(a, b, c, d) (((uint32_t)(a) << 24) | ((uint32_t)(b) << 16) | ((uint32_t)(c) << 8) | (d))
 
 static const struct wf_syspar pars[] = {
-	{"net_dhcp", 3010, WF_SYS_BOOL, "Adresse per DHCP beziehen (F25)"},
+	{"net_dhcp", 3010, WF_SYS_BOOL, "Adresse per DHCP beziehen"},
 	{"net_ip", 3011, WF_SYS_IPV4, "feste IPv4-Adresse (ohne DHCP)"},
 	{"net_netmask", 3012, WF_SYS_IPV4, "Netzmaske (ohne DHCP)"},
 	{"net_gateway", 3013, WF_SYS_IPV4, "Gateway (ohne DHCP), 0.0.0.0 = keins"},
 	{"net_hostname", 3014, WF_SYS_HOST, "Hostname, leer = wallfree-<MAC-Ende>"},
-	{"telnet_enable", 3015, WF_SYS_BOOL, "Telnet-Shell ohne Anmeldung (F20)"},
+	{"telnet_enable", 3015, WF_SYS_BOOL, "Telnet-Shell ohne Anmeldung"},
 	{"meter_type", 3016, WF_SYS_CODE,
 	 "Energiezaehler (nur Anzeige): 0 keiner, 1 ABB B23, 2 Eastron SDM630, 3 Eastron "
 	 "SDM72D-M V2, 4 Eastron SDM72D-M (V1, nur Summenwerte)"},
 	{"meter_address", 3017, WF_SYS_CODE, "Modbus-Adresse des Zaehlers 1..247"},
 	{"meter_baud", 3018, WF_SYS_CODE, "Baudrate RS-485: 2400..115200"},
 	{"meter_framing", 3019, WF_SYS_CODE, "Rahmenformat: 0 = 8N1, 1 = 8E1, 2 = 8O1, 3 = 8N2"},
-	{"mqtt_enable", 3020, WF_SYS_BOOL, "MQTT-Client (F30), wirkt sofort"},
+	{"mqtt_enable", 3020, WF_SYS_BOOL, "MQTT-Client, wirkt sofort"},
 	{"mqtt_broker", 3021, WF_SYS_IPV4, "IPv4-Adresse des Brokers"},
 	{"mqtt_port", 3022, WF_SYS_CODE, "Port des Brokers 1..65535"},
 	{"mqtt_user", 3023, WF_SYS_TEXT, "Benutzer am Broker, leer = ohne Anmeldung"},
