@@ -212,7 +212,7 @@ function EventLog({ live, all }) {
 				<td class=${x.kind === 'event' ? (x.event.type === 'error' && x.event.set.length ? 'bad' : '') : 'warn'}>${text(x)}</td>
 			</tr>`)}
 		</table>`}
-		${all && html`<p class="muted msg">Letzte 32 Einträge seit dem Start der Steuerung; Uhrzeiten ungefähr.</p>`}
+		${all && html`<p class="muted msg">Letzte 32 Einträge seit dem Start der Steuerung. Uhrzeiten nach der Uhr dieses Geräts, auf wenige Sekunden genau (die Steuerung hat keine eigene Uhr).</p>`}
 	<//>`;
 }
 
@@ -220,7 +220,7 @@ function EventLog({ live, all }) {
 
 // Ladestrom (SOLL-API-32): Vorgabe, Grenzen, erlaubter Strom (Tastgrad) und mit
 // Zaehler der Messwert (hoechste Phase, nur Anzeige).
-const LIMIT_TEXT = { external: 'Vorgabe', hardware: 'Maximum Drehschalter', cable: 'Kabel', input: 'Eingang' };
+const LIMIT_TEXT = { external: 'Vorgabe', hardware: 'Maximum Drehschalter', cable: 'Kabel', input: 'Digitaleingang' };
 
 function measured(meter) {
 	const ph = [13, 17, 21].map((id) => mval(meter, id)).filter((v) => v !== null);
@@ -235,7 +235,7 @@ function limitLine(l) {
 	}
 	const by = l.limited_by;
 	const t = 'begrenzt durch ' + (LIMIT_TEXT[by] || by) + ' (' + amps(by === 'external' ? l.external : l[by]) + ')';
-	return [t + (l.external_ignored ? ' · Vorgabe ignoriert (Eingang)' : ''), by === 'external' ? '' : 'warn'];
+	return [t + (l.external_ignored ? ' · Vorgabe ignoriert (Digitaleingang)' : ''), by === 'external' ? '' : 'warn'];
 }
 
 // Ring ueber 270 Grad von 0 bis zum Maximum (Drehschalter bzw. abgesenkt)
@@ -309,10 +309,10 @@ function CurrentTable({ l, meter }) {
 	if (!l) return null;
 	const ist = measured(meter);
 	const rows = [
-		['external', 'Vorgabe', l.external_ignored ? 'ignoriert (Eingang)' : l.external ? amps(l.external) : 'Laden aus'],
+		['external', 'Vorgabe', l.external_ignored ? 'ignoriert (Digitaleingang)' : l.external ? amps(l.external) : 'Laden aus'],
 		['hardware', 'Maximum Drehschalter', amps(l.hardware)],
 		['cable', 'Kabel', l.cable ? amps(l.cable) : '–'],
-		['input', 'Eingang', l.input ? amps(l.input) : '–'],
+		['input', 'Digitaleingang', l.input ? amps(l.input) : '–'],
 	];
 	return html`<${Card} title="Ladestrom"><table>
 		${rows.map(([k, t, v]) => {
@@ -341,13 +341,14 @@ function Overview({ live }) {
 			<div class="big ${s.error_state ? 'bad' : 'ok'}">${ERRSTATE[s.error_state] || s.error_state}</div>
 			<div class="muted">Verriegelung: ${LOCK[s.lock_state] || '?'}</div>
 		<//>
-		${live.meter && html`<${MeterCard} m=${live.meter} />`}
+		<${MeterCard} m=${live.meter} />
 		<${CurrentControl} ext=${live.ext} setExt=${live.setExt} limits=${live.limits} meter=${live.meter} />
 	</div><${EventLog} live=${live} />`;
 }
 
 // Uebersicht: Leistung, Zaehlerstand, Zustand
 function MeterCard({ m }) {
+	if (!m) return html`<${Card} title="Zähler"><//>`; // ohne Zaehler leer, damit die Anordnung bleibt
 	const p = mval(m, 74), e = mval(m, 209);
 	const st = m.state ? m.state.status : 'connecting';
 	return html`<${Card} title="Zähler">
@@ -713,17 +714,20 @@ function chart(h, rows, maxA, HW, hover, setHover) {
 	for (let t = Math.ceil(x0 / 3600e3) * 3600e3; t < now; t += 3600e3) {
 		if (new Date(t).getHours() % stepH === 0) ticks.push(t);
 	}
-	const sel = hover === null ? rows.length - 1 : hover;
-	const r = rows[sel];
+	const r = hover === null ? null : rows[hover];
+	const xm = r && X((r.t0 + r.t1) / 2);
 	const move = (e) => {
 		const b = e.currentTarget.ownerSVGElement.getBoundingClientRect();
 		const t = x0 + ((e.clientX - b.left) / b.width * HW - HL) / (HW - HL - HR) * span;
-		const i = rows.findIndex((x) => t >= x.t0 && t < x.t1);
-		setHover(i < 0 ? null : i);
+		// naechstgelegenes Intervall: auch schmale (laufendes kurz nach dem Start) treffbar
+		const dist = (x) => (t < x.t0 ? x.t0 - t : t > x.t1 ? t - x.t1 : 0);
+		setHover(rows.reduce((b, x, i) => (dist(x) < dist(rows[b]) ? i : b), 0));
 	};
-	return html`
-		<p class="h-read">${hm(r.t0)}–${r.cur ? 'jetzt' : hm(r.t1)}:
-			${r.p !== null ? html` <b>${num(r.p / 1000, 1)} kW</b> ·` : ''} erlaubt <b>${amps(r.a)}</b> · ${flagText(r.f)}</p>
+	// Werte nur beim Zeigen/Tippen, an der Kurve
+	return html`<div class="h-wrap">
+		${r && html`<div class="h-tip" style=${'left:' + Math.min(Math.max(xm, 90), HW - 90) + 'px'}>
+			${hm(r.t0)}–${r.cur ? 'jetzt' : hm(r.t1)}<br />
+			${r.p !== null ? html`<b>${num(r.p / 1000, 1)} kW</b> · ` : ''}erlaubt <b>${amps(r.a)}</b> · ${flagText(r.f)}</div>`}
 		<svg class="hist" viewBox=${'0 0 ' + HW + ' ' + height} role="img" aria-label="Verlauf der letzten Stunden">
 			${panels.map(([title, max, val, fill], k) => {
 				const y0 = k * (HH + HGAP) + 18, Y = (v) => y0 + HH - v / max * HH;
@@ -739,10 +743,10 @@ function chart(h, rows, maxA, HW, hover, setHover) {
 			${band(rows).map(([c, t0, t1]) => html`<rect class=${'h-band ' + c} x=${X(t0)} y=${bandY}
 				width=${Math.max(2, X(t1) - X(t0) - 2)} height=${HBAND} rx="2" />`)}
 			${ticks.map((t) => html`<text class="h-ax mid" x=${X(t)} y=${bandY + HBAND + 16}>${hm(t)}</text>`)}
-			${hover !== null && html`<line class="h-cross" x1=${X((r.t0 + r.t1) / 2)} x2=${X((r.t0 + r.t1) / 2)} y1="10" y2=${bandY + HBAND} />`}
+			${r && html`<line class="h-cross" x1=${xm} x2=${xm} y1="10" y2=${bandY + HBAND} />`}
 			<rect class="h-hit" x=${HL} y="0" width=${HW - HL - HR} height=${bandY + HBAND}
 				onPointerMove=${move} onPointerDown=${move} onPointerLeave=${() => setHover(null)} />
-		</svg>
+		</svg></div>
 		<p class="legend"><i class="sw chg"></i>lädt <i class="sw conn"></i>angesteckt <i class="sw err"></i>Fehler</p>
 		<p class="muted msg">Mittelwerte je ${h.interval_ms / 60000} min seit dem Start der Steuerung (höchstens 48 h);
 			nach einem Neustart leer.</p>`;

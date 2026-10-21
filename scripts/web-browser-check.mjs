@@ -93,7 +93,11 @@ out.simple3 = await text();
 await shot('2b-einfach-laden-aus');
 const go = async (hash) => { await evalJs(`location.hash = ${JSON.stringify(hash)}`); await sleep(2500); return text(); };
 out.expert = await go('#/insights');
-out.history = await evalJs("(() => { const s = document.querySelector('svg.hist'); return s ? s.querySelectorAll('path.h-line').length + '|' + document.querySelector('.h-read').innerText : ''; })()");
+// Zeigen auf das juengste Intervall: Hinweis an der Kurve
+out.tipBefore = await evalJs("!!document.querySelector('.h-tip')");
+await evalJs("(() => { const h = document.querySelector('.h-hit'); const b = h.getBoundingClientRect(); h.dispatchEvent(new PointerEvent('pointermove', { clientX: b.right - 1, clientY: b.top + 5, bubbles: true })); })()");
+await sleep(300);
+out.history = await evalJs("(() => { const s = document.querySelector('svg.hist'), t = document.querySelector('.h-tip'); return s && t ? s.querySelectorAll('path.h-line').length + '|' + t.innerText.replace(/\\n/g, ' ') : ''; })()");
 await shot('3-insights');
 out.settings = await go('#/einstellungen/zaehler');
 await shot('3b-einstellungen-zaehler');
@@ -129,7 +133,8 @@ const checks = [
 	['Maximum wirkt sichtbar', out.simple2.includes('begrenzt durch Maximum Drehschalter (32 A)')],
 	['Laden aus', out.simple3.includes('S7 Beenden → S3 Warten') && out.simple3.includes('Vorgabe: Laden aus')],
 	['Insights: Ladestrom als Werte', out.expert.includes('Maximum Drehschalter') && out.expert.includes('Erlaubt')],
-	['Insights: Verlauf (laufendes Intervall)', /jetzt:.* · lädt|jetzt:.* · angesteckt/.test(out.history)],
+	['Insights: Verlauf ohne Ablesezeile, Hinweis nur beim Zeigen', !out.tipBefore && out.history.includes('jetzt')],
+	['Insights: Verlauf (laufendes Intervall)', /jetzt .* · (lädt|angesteckt)/.test(out.history)],
 	['Einstellungen Netzwerk', out.settingsNet.includes('DHCP') && out.settingsNet.includes('Telnet') && !out.settingsNet.includes('Broker')],
 	['System', out.system.includes('Firmware') && out.system.includes('Neu starten')],
 	['Zurueck-Taste', out.back === '#/einstellungen/netzwerk'],
@@ -149,6 +154,7 @@ if (withMeter) {
 } else {
 	checks.push(['ohne Zaehler: Ring zeigt erlaubt', out.gauge2.includes('|32 A|erlaubt')]);
 	checks.push(['ohne Zaehler: kein Messwert', !out.gauge2.includes('Messwert') && !out.simple2.includes('Messwert')]);
+	checks.push(['ohne Zaehler: leere Zaehlerkachel', /zähler\n/i.test(out.simple1) && !/ kW/.test(out.simple1)]);
 	checks.push(['ohne Zaehler: Verlauf nur Strom', out.history.startsWith('1|') && !/kW/.test(out.history)]);
 }
 let bad = 0;

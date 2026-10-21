@@ -86,7 +86,10 @@ tr.act td { color: var(--warn); font-weight: 600; }
 main.offline { filter: grayscale(1); opacity: .5; pointer-events: none; transition: opacity .3s; }
 
 .hist { display: block; width: 100%; height: auto; touch-action: pan-y; }
-.h-read { margin: 0 0 6px; font-variant-numeric: tabular-nums; }
+.h-wrap { position: relative; }
+.h-tip { position: absolute; top: 0; transform: translateX(-50%); pointer-events: none; white-space: nowrap;
+	background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px;
+	font-size: 12px; font-variant-numeric: tabular-nums; box-shadow: 0 2px 6px rgba(0, 0, 0, .12); }
 .h-title { font-size: 12px; fill: var(--muted); font-weight: 600; }
 .h-ax { font-size: 11px; fill: var(--muted); text-anchor: end; font-variant-numeric: tabular-nums; }
 .h-ax.mid { text-anchor: middle; }
