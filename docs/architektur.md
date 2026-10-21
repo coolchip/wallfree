@@ -109,6 +109,15 @@ Probelauf (Netzleistung ansehen). Wird es knapp, in dieser Reihenfolge: Netz-She
 Assert-Texte, LTO, Shell-Hilfe (zusammen ~100 KB). TLS (mbedTLS) passt neben P1
 voraussichtlich nicht (nicht gemessen); dann Speicherort und Budget neu bewerten.
 
+**Zaehleranbindung Modbus RTU (Groessentest 2026-10-21, nicht im Umfang, Entscheidung offen):**
+UART4 mit RS-485-Freigabe PC12, Zephyr-Modbus-Client und tabellengesteuerte Zaehlerabfrage
+(ABB B23, Eastron SDM630/SDM72D-M) auf Basis 300,8 KB gebaut: **+9,4 KB Flash, +2,5 KB RAM**.
+Davon UART-Treiber 2,2 KB, Zephyr-Modbus 2,7 KB, Abfrage und Registertabellen 1,1 KB,
+Gleitkomma-Hilfsroutinen und CRC rund 1 KB; RAM: Thread-Stack 1 KB, Modbus-Puffer 1 KB.
+Nicht enthalten sind Parameter, API, evcc-Abbildung und Weboberflaeche (geschaetzt weitere
+3..5 KB Flash). Ein eigener schlanker RTU-Master statt des Zephyr-Moduls waere geschaetzt gleich
+gross (nicht gemessen).
+
 ## 6. Softwarestruktur
 
 - **Ladelogik** als hardwareunabhaengiges Modul in reinem C (`lib/evse`): Eingaben Messwerte,
