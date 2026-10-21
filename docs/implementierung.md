@@ -223,7 +223,7 @@ unterbrochene Verdichten wie ein Erststart aus. Getestetes Verhalten bei Stromau
 
 ## Ressourcen
 
-Stand 2026-10-21, `-Os`, Assert-Texte ohne Ausdruck und Meldung: **308 632 B Flash** (94,2 % von 320 KB), **127 292 B RAM** (97,1 %).
+Stand 2026-10-21, `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B: **308 632 B Flash** (94,2 % von 320 KB), **111 404 B RAM** (85,0 %).
 Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudget).
 
 | Anteil (gemessen beim Hinzufuegen) | Flash | RAM |
@@ -238,15 +238,15 @@ Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudge
 | MQTT: Zephyr-Bibliothek (3.1.1, TCP) 4,2 KB, Thread und Anbindung, Parameter (8 Werte mit Hilfetext), `/mqtt/state`, Shell, Weboberflaeche | 9,1 KB | 5,1 KB (Stack 2 KB, Puffer 0,9 KB, Client, Status, Konfigurationskopien) |
 | Energiezaehler: UART-Treiber 2,1 KB, Zephyr-Modbus 2,7 KB, Interrupttabelle 1 KB, Zaehlermodul 1,4 KB, JSON/API/Shell/Parameter 2,9 KB, Weboberflaeche 1,4 KB, Rest (Treiberanteile) | 15,2 KB | 3,9 KB (Stack 1,3 KB, Modbus-Kontext 1 KB, Zaehlerzustand, WebSocket-Rahmen) |
 
-Reserve rund **18,6 KB Flash und 3,7 KB RAM**. Der RAM ist bis auf die Stacks statisch belegt
+Reserve rund **18,6 KB Flash und 19,4 KB RAM**. Der RAM ist bis auf die Stacks statisch belegt
 (kein Wachstum zur Laufzeit); Stacks haben MPU-Schutz (Ueberlauf -> Fault -> sicherer Zustand),
 ihre tatsaechliche Auslastung wird in H1 mit `kernel thread stacks` gemessen. Weitere
 Einsparungen in der [Architektur](architektur.md#5-speicherbudget) (Netz-Shell erst nach H1).
-Beim RAM:
+Beim RAM (Heap umgesetzt, Nutzer 2026-10-21):
 
 | Kandidat | Ersparnis | Befund |
 | --- | --- | --- |
-| System-Heap (`CONFIG_HEAP_MEM_POOL_SIZE` 16 KB) | ~15 KB | einziger Verweis auf `k_malloc` ist `websocket_send_msg` beim Maskieren, das nur die Client-Seite tut (Server: `is_client = 0`); Bau mit Heap 0 scheitert nur an diesem Verweis. Kleinster Heap (z. B. 512 B) haelt den Verweis aufloesbar |
+| **umgesetzt:** System-Heap (`CONFIG_HEAP_MEM_POOL_SIZE`) 16 KB -> 512 B | 15,9 KB | einziger Verweis auf `k_malloc` ist `websocket_send_msg` beim Maskieren, das nur die Client-Seite tut (Server: `is_client = 0`); Bau mit Heap 0 scheitert nur an diesem Verweis. Die 512 B halten ihn aufloesbar und fangen einen unerwarteten kleinen Nutzer ab. Kommt eine Zephyr-Funktion mit Heap-Bedarf hinzu (z. B. DNS, `HEAP_MEM_POOL_ADD_SIZE_*`), erneut pruefen |
 | Thread-Stacks | je nach Messung | erst nach H1 (`kernel thread stacks`); die Simulation (64 Bit) ist nicht aussagekraeftig |
 | `NET_MAX_CONN` 10 -> 8 | ~1,3 KB | 672 B je TCP-Verbindung; Bedarf: 4 HTTP, Telnet, MQTT, Listener, TIME_WAIT |
 | Ethernet-DMA-Puffer (2 x 6 KB) | – | Anzahl fest im HAL-Treiber (4 + 4) |
