@@ -74,7 +74,7 @@ TIM1 und ADC1 stehen nicht im Board-Devicetree, weil die Anwendung sie direkt st
 | [meter_task.c](../app/src/meter_task.c) | Zaehlerthread (niedrigste Anwendungsprioritaet, Stack 1280 B, nicht ueberwacht), nur mit `meter_type` != 0; Momentaufnahme unter Sperre, Bus ohne Sperre; Ereignisse in den gemeinsamen Ringpuffer | SOLL-MTR-01/03/10..14 |
 | [mqtt_task.c](../app/src/mqtt_task.c) | MQTT-Thread (niedrigste Anwendungsprioritaet, Stack 2048 B, nicht ueberwacht): Verbinden mit Last Will, Neuverbindung 1..60 s, Takt 100 ms fuer Zustaende und Ereignisse, Befehl `evse/external_current_update`, Status | SOLL-MQTT-01..04/10..12/20..23/30 |
 | [meter_bus_modbus.c](../app/src/meter_bus_modbus.c) | nur Steuerung: Zephyr-Modbus-Client auf UART4 (`modbus0`, DE an PC12), Baudrate/Format aus den Parametern, Fehler auf Timeout/Rahmen/Ausnahme abgebildet | SOLL-MTR-02/04, F29 |
-| [web/](../web/) | Werkszugang -> Zugangsdaten festlegen; "Einfach": Zustand, Fahrzeug, Ladestrom-Balken, Fehler, Zaehler (Leistung, Zaehlerstand), Sollstrom, letzte Ereignisse; "Experte": Zaehlerwerte mit Fehlerzaehlern, alle Parameter mit Bereich, Default, Herkunftsfeld, Hilfetext, Netz/Zaehler/MQTT/System mit Neustart (Passwortfeld nur schreibbar) und MQTT-Zustand, Zugangsdaten, Zugriffsprotokoll | SOLL-API-31, SOLL-ERR-10/11, SOLL-MTR-32, SOLL-MQTT-32 |
+| [web/](../web/) | Werkszugang -> Zugangsdaten festlegen; "Einfach": Zustand, Fahrzeug, Fehler, Zaehler (Leistung, Zaehlerstand), Ladestrom als Ring mit Vorgabe-Tasten, letzte Ereignisse; "Experte": Ladestrom als Wertetabelle, Zaehlerwerte mit Fehlerzaehlern, alle Parameter mit Bereich, Default, Herkunftsfeld, Hilfetext, Netz/Zaehler/MQTT/System mit Neustart (Passwortfeld nur schreibbar) und MQTT-Zustand, Zugangsdaten, Zugriffsprotokoll | SOLL-API-31, SOLL-ERR-10/11, SOLL-MTR-32, SOLL-MQTT-32 |
 | [hw_sim.c](../app/src/hw_sim.c), [sim_host.c](../app/src/sim_host.c) | nur `native_sim`: Hardwaremodell mit simuliertem Zaehler hinter `meter_bus.h` und Neustart per `execv` ([Test und Simulation](test-und-simulation.md)) | – |
 
 Am Build geprueft: Systemtakt 100 MHz, Ladeadresse `0x08010000`, Interrupttabelle (TIM1_UP ->
@@ -173,8 +173,9 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Bezeichnungen | Parameter erscheinen mit ihrem Hilfetext, der interne Name (wie in API und Shell) nur als Tooltip; Auswahllisten zeigen den Hilfetext bis zum Doppelpunkt; ohne Verweise auf Entscheidungsnummern | Nutzer 2026-10-21: interne Namen und F-Nummern stoeren in der Oberflaeche |
 | Zugangsdaten aendern | Benutzerfeld mit dem aktuellen Benutzer vorbelegt (`GET /credentials` liefert `user`); Hinweis: ohne HTTPS mitlesbar, bei der Anmeldung geht nur ein Pruefwert ueber das Netz, beim Aendern das neue Passwort lesbar | Nutzer 2026-10-21 |
 | Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickte keine Anmeldung), Abfrage alle 2 s. Chrome sendet die Digest-Anmeldung beim WebSocket-Aufbau mit; andere Browser ungeprueft | |
-| Sollstrom-Schieber | 6..32 A in 1-A-Schritten, dazu "Laden aus" (0); Werte ausserhalb (z. B. 80 A) werden am Rand angezeigt | evcc ueberschreibt den Wert, wenn verbunden |
-| Ladestrom-Anzeige (**zu bestaetigen**) | Balken je Groesse, Massstab mindestens 32 A; wirkende Grenze orange mit "begrenzt", wirksamer Wert blau; Kabel/Eingang nur, wenn aktiv; mit Zaehler gruener Balken "Istwert (Zaehler, hoechste Phase)", ohne Zaehler Hinweis "kein Istwert (kein Zaehler)" | Nutzer 2026-10-20: Sollwert, Istwert und Maximum trennen, Maximum sichtbar; SOLL-MTR-32 |
+| Ladestrom-Anzeige ("Einfach") | Ring ueber 270 Grad von 0 bis zum Maximum (Drehschalter bzw. abgesenkt); blau "Erlaubt" (Strom des Tastgrads), gruener Innenring "Messwert" (Zaehler, hoechste Phase, nur wenn > 0), orange Marke fuer Kabel/Eingang, wenn kleiner als das Maximum; Kreis = Vorgabe (rot bei 0, am Ende, wenn ueber dem Maximum). Mitte: Messwert, ohne Zaehler der erlaubte Strom; darunter Leistung und "erlaubt". Darunter eine Zeile, was begrenzt ("begrenzt durch Kabel (20 A)", "Vorgabe: Laden aus", "Laden gesperrt", 5-%-Modus) | Nutzer 2026-10-21; Begriffe Erlaubt/Vorgabe/Messwert, weil "Freigabe" schon die Ladeerlaubnis (EN, Schnittstelle) bezeichnet |
+| Vorgabe setzen | Tasten − / 6 / 10 / 16 / 32 A / + / "Laden aus", wirken sofort; −/+ in 1-A-Schritten zwischen 6 A und dem Maximum; Tasten ueber dem Maximum entfallen; nicht am Ring ziehbar. Hinweis: eine externe Vorgabe (z. B. Energiemanagement) kann den Wert ueberschreiben | Nutzer 2026-10-21: am Ring ziehen ist auf dem Handy fummelig |
+| Ladestrom ("Experte") | Tabelle Vorgabe, Maximum Drehschalter, Kabel, Eingang, Erlaubt, Messwert; wirkende Grenze orange mit "begrenzt"; keine Balken | Nutzer 2026-10-21 |
 | Zaehleranzeige (**zu bestaetigen**) | Karte "Zaehler" nur mit konfiguriertem Zaehler: Leistung in kW, Zaehlerstand in kWh, Zustand; ungueltige Werte als "–"/"ungueltig"; Experte: Tabelle aller Messwerte, Fehlerzaehler; `meter_type` und `meter_framing` als Auswahlliste | SOLL-MTR-32 |
 | Ereignisse | "Einfach": letzte 8 Ereignisse; "Experte": ganzes Zugriffsprotokoll mit Fehlversuchen. Vorgeschichte aus `GET /system/log` beim Oeffnen, danach live ueber `evse/event` (ohne WebSocket alle 5 s neu); Uhrzeit = Browserzeit - Laufzeit der Steuerung (ungefaehr) | Steuerung hat keine gestellte Uhr |
 
@@ -222,7 +223,7 @@ unterbrochene Verdichten wie ein Erststart aus. Getestetes Verhalten bei Stromau
 
 ## Ressourcen
 
-Stand 2026-10-21, `-Os`: **325 692 B Flash** (99,4 % von 320 KB), **127 292 B RAM** (97,1 %).
+Stand 2026-10-21, `-Os`, Assert-Texte ohne Ausdruck und Meldung: **308 632 B Flash** (94,2 % von 320 KB), **127 292 B RAM** (97,1 %).
 Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudget).
 
 | Anteil (gemessen beim Hinzufuegen) | Flash | RAM |
@@ -237,10 +238,9 @@ Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudge
 | MQTT: Zephyr-Bibliothek (3.1.1, TCP) 4,2 KB, Thread und Anbindung, Parameter (8 Werte mit Hilfetext), `/mqtt/state`, Shell, Weboberflaeche | 9,1 KB | 5,1 KB (Stack 2 KB, Puffer 0,9 KB, Client, Status, Konfigurationskopien) |
 | Energiezaehler: UART-Treiber 2,1 KB, Zephyr-Modbus 2,7 KB, Interrupttabelle 1 KB, Zaehlermodul 1,4 KB, JSON/API/Shell/Parameter 2,9 KB, Weboberflaeche 1,4 KB, Rest (Treiberanteile) | 15,2 KB | 3,9 KB (Stack 1,3 KB, Modbus-Kontext 1 KB, Zaehlerzustand, WebSocket-Rahmen) |
 
-Reserve rund **2 KB Flash und 3,7 KB RAM**: Die naechste Erweiterung braucht eine der
-Einsparungen aus der [Architektur](architektur.md#5-speicherbudget) (zuerst die Netz-Shell,
-43 KB); beim RAM kommen Heap (16 KB), HTTP-Client-Kontexte und der MQTT-Stack (nach Messung in
-H1) in Frage.
+Reserve rund **18,6 KB Flash und 3,7 KB RAM**. Weitere Einsparungen in der
+[Architektur](architektur.md#5-speicherbudget) (Netz-Shell erst nach H1); beim RAM kommen Heap
+(16 KB), HTTP-Client-Kontexte und der MQTT-Stack (nach Messung in H1) in Frage.
 
 ## Annahmen der Hardwareschicht (in H1 zu pruefen)
 
@@ -288,9 +288,8 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 
 - H0 und H1 nur mit Freigabe ([Architektur](architektur.md#7-hardware-inbetriebnahme));
   danach Update-Uebergabe (SOLL-SH-10, SOLL-BOOT-30) und Startablauf auf der Hardware.
-- Ladestrom- und Zaehleranzeige der Weboberflaeche bestaetigen lassen; ebenso die Weitergabe
+- Zaehleranzeige der Weboberflaeche bestaetigen lassen; ebenso die Weitergabe
   ungueltiger Zaehlerwerte als `null` (evcc zeigt dann 0 W).
-- Speicher: Nach MQTT ist die Reserve fast aufgebraucht; die naechste Erweiterung braucht eine
-  der Einsparungen aus der [Architektur](architektur.md#5-speicherbudget) (zuerst Netz-Shell).
+- RAM: 97 % belegt; vor der naechsten groesseren Erweiterung Heapbedarf messen.
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
   (bisher nur ueber die API getestet).

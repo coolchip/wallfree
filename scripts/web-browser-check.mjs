@@ -82,6 +82,7 @@ await shot('1-einfach');
 await shell('sim car C');
 await sleep(4000);
 out.simple2 = await text();
+out.gauge2 = await evalJs("[...document.querySelectorAll('.gauge text')].map((t) => t.textContent).join('|')");
 await shot('2-einfach-laden');
 
 out.clickOff = await click('Laden aus');
@@ -105,9 +106,9 @@ const checks = [
 	['WebSocket live', out.mode1.includes('live')],
 	['Ereignis Start (live nachgereicht)', out.simple2.includes('S0 Start → S1 Bereit')],
 	['Laden', out.simple2.includes('Lädt') && out.simple2.includes('Schütz ein')],
-	['Maximum wirkt sichtbar', out.simple2.includes('Maximum Drehschalter') &&
-		out.simple2.includes('begrenzt') && out.simple2.includes('Es wirkt: Maximum Drehschalter')],
-	['Laden aus', out.simple3.includes('S7 Beenden → S3 Warten')],
+	['Maximum wirkt sichtbar', out.simple2.includes('begrenzt durch Maximum Drehschalter (32 A)')],
+	['Laden aus', out.simple3.includes('S7 Beenden → S3 Warten') && out.simple3.includes('Vorgabe: Laden aus')],
+	['Experte: Ladestrom als Werte', out.expert.includes('Maximum Drehschalter') && out.expert.includes('Erlaubt')],
 	['Zugriffsprotokoll', /zugriffsprotokoll/i.test(out.expert2)],
 	['Entriegelt nach Abstecken', out.expert2.includes('Verriegelung: Entriegelt')],
 	['keine Skriptfehler', !logs.some((l) => l.includes('exceptionDetails'))],
@@ -116,12 +117,13 @@ if (withMeter) {
 	checks.push(
 		// Kartentitel stehen per CSS in Grossbuchstaben (innerText)
 		['Zaehler: Leistung beim Laden', /zähler\n[\d.,]+ kW\nZählerstand [\d.,]+ kWh\nverbunden/i.test(out.simple2)],
-		['Zaehler: Istwert in der Stromanzeige', out.simple2.includes('Istwert (Zähler, höchste Phase)')],
+		['Zaehler: Messwert im Ring', /Messwert\|[\d.,]+ kW · erlaubt 32 A/.test(out.gauge2)],
 		['Zaehler: Messwerte und Fehlerzaehler', /zähler \(nur anzeige\)/i.test(out.expert) &&
 			out.expert.includes('Spannung L1') && out.expert.includes('requests')],
 		['Zaehler: Auswahl in Netz, Zaehler und System', out.expert.includes('Eastron SDM630')]);
 } else {
-	checks.push(['ohne Zaehler: Hinweis kein Istwert', out.simple2.includes('Ein Istwert wird nicht gemessen')]);
+	checks.push(['ohne Zaehler: Ring zeigt erlaubt', out.gauge2.includes('|32 A|erlaubt')]);
+	checks.push(['ohne Zaehler: kein Messwert', !out.gauge2.includes('Messwert') && !out.simple2.includes('Messwert')]);
 }
 let bad = 0;
 for (const [name, ok] of checks) { console.log((ok ? 'ok   ' : 'FAIL ') + name); if (!ok) bad++; }

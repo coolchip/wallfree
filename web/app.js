@@ -187,76 +187,110 @@ function EventLog({ live, all }) {
 
 // ------------------------------------------------------------ Einfach
 
-// Sollwert der Schnittstelle, Grenzen und wirksamer Strom getrennt; die Grenze,
-// die gerade wirkt, ist hervorgehoben. Mit Zaehler zusaetzlich der gemessene
-// Strom (hoechste Phase), nur zur Anzeige.
-const LIMIT_TEXT = { external: 'Sollwert', hardware: 'Maximum Drehschalter', cable: 'Kabel',
-	input: 'Eingang', blocked: 'Sollwert 0 (Laden aus)', pwm5: '5-%-Modus' };
+// Ladestrom (SOLL-API-32): Vorgabe, Grenzen, erlaubter Strom (Tastgrad) und mit
+// Zaehler der Messwert (hoechste Phase, nur Anzeige).
+const LIMIT_TEXT = { external: 'Vorgabe', hardware: 'Maximum Drehschalter', cable: 'Kabel', input: 'Eingang' };
 
-function Limits({ l, meter }) {
-	if (!l) return null;
+function measured(meter) {
 	const ph = [13, 17, 21].map((id) => mval(meter, id)).filter((v) => v !== null);
-	const ist = ph.length ? Math.max(...ph) * 1000 : null;
-	const rows = [
-		['external', 'Sollwert (evcc/Schnittstelle)', l.external_ignored ? 0 : l.external,
-			l.external_ignored ? 'ignoriert (Eingang)' : null],
-		['hardware', 'Maximum Drehschalter', l.hardware, null],
-		['cable', 'Kabel', l.cable, null],
-		['input', 'Eingang', l.input, null],
-	].filter((r) => r[0] === 'external' || r[0] === 'hardware' || r[2] > 0);
-	const scale = Math.max(32000, ...rows.map((r) => r[2]));
-	const pct = (ma) => Math.min(100, (ma / scale) * 100) + '%';
+	return ph.length ? Math.max(...ph) * 1000 : null;
+}
+
+// Zeile unter dem Ring: was gerade begrenzt. @return [Text, CSS-Klasse]
+function limitLine(l) {
+	if (l.limited_by === 'pwm5') return ['5-%-Modus (digitale Kommunikation)', ''];
+	if (l.limited_by === 'blocked') {
+		return [l.external === 0 && !l.external_ignored ? 'Vorgabe: Laden aus' : 'Laden gesperrt', 'bad'];
+	}
 	const by = l.limited_by;
-	return html`<div class="limits">
-		${rows.map(([k, label, ma, note]) => html`<div class=${'lrow' + (by === k && k !== 'external' ? ' act' : '')}>
-			<span>${label}</span>
-			<span class="num">${note || (ma ? amps(ma) : k === 'external' ? 'aus' : '–')}
-				${by === k && k !== 'external' ? html` <b class="warn">begrenzt</b>` : ''}</span>
-			<div class="bar"><i style=${'width:' + pct(ma)}></i></div>
-		</div>`)}
-		<div class="lrow eff">
-			<span>Wirksam (Fahrzeug darf, PWM)</span>
-			<span class="num">${l.allowed ? amps(l.allowed) : '–'}</span>
-			<div class="bar"><i style=${'width:' + pct(l.allowed)}></i></div>
-		</div>
-		${ist !== null && html`<div class="lrow ist">
-			<span>Istwert (Zähler, höchste Phase)</span>
-			<span class="num">${amps(ist)}</span>
-			<div class="bar"><i style=${'width:' + pct(ist)}></i></div>
-		</div>`}
-		<p class="muted msg">${by === 'external' ? 'Der Sollwert wirkt.'
-			: 'Es wirkt: ' + (LIMIT_TEXT[by] || by) + '.'}${!meter ? ' Ein Istwert wird nicht gemessen (kein Zähler).'
-			: ist === null ? ' Kein gültiger Istwert vom Zähler.' : ''}</p>
+	const t = 'begrenzt durch ' + (LIMIT_TEXT[by] || by) + ' (' + amps(by === 'external' ? l.external : l[by]) + ')';
+	return [t + (l.external_ignored ? ' · Vorgabe ignoriert (Eingang)' : ''), by === 'external' ? '' : 'warn'];
+}
+
+// Ring ueber 270 Grad von 0 bis zum Maximum (Drehschalter bzw. abgesenkt)
+const GR = 110, GX = 150, GY = 152;
+const gxy = (a, r) => [GX + r * Math.cos(a * Math.PI / 180), GY + r * Math.sin(a * Math.PI / 180)];
+const gpt = (a, r) => gxy(a, r).map((v) => v.toFixed(1)).join(' ');
+
+function Gauge({ l, meter }) {
+	const max = l.hardware / 1000 || 32;
+	const ang = (a) => 135 + 270 * Math.min(Math.max(a, 0), max) / max;
+	const arc = (a0, a1, r) => `M${gpt(ang(a0), r)} A${r} ${r} 0 ${ang(a1) - ang(a0) > 180 ? 1 : 0} 1 ${gpt(ang(a1), r)}`;
+	const ticks = [0, 6, 10, 16, 20, 25, 32, 40, 63].filter((t) => t < max - 1.5).concat([max]);
+	const ist = measured(meter), allowed = l.allowed / 1000;
+	const p = mval(meter, 74);
+	const marks = ['cable', 'input'].filter((k) => l[k] > 0 && l[k] < l.hardware);
+	const set = l.external_ignored ? null : l.external / 1000;
+	const [line, cls] = limitLine(l);
+	return html`<div class="gauge">
+		<svg viewBox="0 0 300 262" role="img" aria-label="Ladestrom">
+			<path class="g-bg" d=${arc(0, max, GR)} />
+			<path class="g-low" d=${arc(0, Math.min(6, max), GR)} />
+			${allowed > 0 && html`<path class="g-on" d=${arc(0, allowed, GR)} />`}
+			${ist > 0 && html`<path class="g-ist" d=${arc(0, ist / 1000, GR - 20)} />`}
+			${ticks.map((t) => html`<g>
+				<path class="g-tick" d=${'M' + gpt(ang(t), GR + 13) + ' L' + gpt(ang(t), GR + 18)} />
+				<text class="g-tl" x=${gxy(ang(t), GR + 30)[0]} y=${gxy(ang(t), GR + 30)[1] + 4}>${t}</text></g>`)}
+			${marks.map((k) => html`<path class=${'g-lim' + (l.limited_by === k ? ' act' : '')}
+				d=${'M' + gpt(ang(l[k] / 1000), GR - 11) + ' L' + gpt(ang(l[k] / 1000), GR + 11)} />`)}
+			${set !== null && html`<circle class=${'g-set' + (set === 0 ? ' off' : '')} r="10"
+				cx=${gxy(ang(set), GR)[0]} cy=${gxy(ang(set), GR)[1]} />`}
+			<text class="g-big" x=${GX} y=${GY - 8}>${amps(ist !== null ? ist : l.allowed)}</text>
+			<text class="g-cap" x=${GX} y=${GY + 16}>${ist !== null ? 'Messwert' : 'erlaubt'}</text>
+			<text class="g-sub" x=${GX} y=${GY + 38}>${ist !== null
+				? (p !== null ? num(p / 1000, 1) + ' kW · ' : '') + 'erlaubt ' + amps(l.allowed)
+				: meter ? 'kein gültiger Messwert' : ''}</text>
+		</svg>
+		<p class=${'gline ' + cls}>${line}</p>
 	</div>`;
 }
 
 function CurrentControl({ ext, setExt, limits, meter }) {
-	const [val, setVal] = useState(null);
 	const [msg, setMsg] = useState(null);
-	const cur = ext ? ext.current : 0;
-	const shown = val !== null ? val : Math.min(32, Math.max(6, Math.round(cur / 1000) || 16));
-
-	const send = async (ma) => {
+	if (!limits) return null;
+	const max = limits.hardware / 1000 || 32;
+	const cur = Math.min(ext ? ext.current / 1000 : 0, max);
+	const send = async (a) => {
 		try {
-			setExt(await post('/evse/external_current', { current: ma }));
-			setMsg({ ok: true, text: ma ? 'Gesetzt: ' + amps(ma) : 'Laden aus' });
-			setVal(null);
+			setExt(await post('/evse/external_current', { current: Math.round(a * 1000) }));
+			setMsg(null);
 		} catch (e) { setMsg({ ok: false, text: e.message }); }
 	};
+	const sel = (a) => (ext && ext.current === a * 1000 ? 'sel' : '');
 	return html`<section class="card wide"><h2>Ladestrom</h2>
-		<${Limits} l=${limits} meter=${meter} />
-		<div class="row">
-			<input type="range" min="6" max="32" step="1" value=${shown}
-				onInput=${(e) => setVal(+e.target.value)} />
-			<span>${shown} A</span>
-		</div>
-		<div class="row">
-			<button class="primary" onClick=${() => send(shown * 1000)}>Übernehmen</button>
-			<button onClick=${() => send(0)}>Laden aus</button>
+		<${Gauge} l=${limits} meter=${meter} />
+		<div class="presets">
+			<button onClick=${() => send(cur <= 6 ? 6 : Math.ceil(cur) - 1)}>−</button>
+			${[6, 10, 16, 32].filter((a) => a <= max).map((a) =>
+				html`<button class=${sel(a)} onClick=${() => send(a)}>${a} A</button>`)}
+			<button onClick=${() => send(cur < 6 ? 6 : Math.min(Math.floor(cur) + 1, max))}>+</button>
+			<button class=${ext && ext.current === 0 ? 'primary' : 'off'} onClick=${() => send(0)}>Laden aus</button>
 		</div>
 		<${Msg} m=${msg} />
-		<p class="muted msg">Setzt den Sollwert. Ist evcc verbunden, überschreibt evcc diesen Wert.</p>
+		<p class="muted msg center">Eine externe Vorgabe (z. B. Energiemanagement) kann diesen Wert jederzeit überschreiben.</p>
+		<p class="legend"><i class="sw on"></i>Erlaubt${meter ? html` <i class="sw ist"></i>Messwert` : ''}
+			<i class="sw lim"></i>Grenze <i class="sw set"></i>Vorgabe</p>
 	</section>`;
+}
+
+// Experte: dieselben Werte als Zahlen
+function CurrentTable({ l, meter }) {
+	if (!l) return null;
+	const ist = measured(meter);
+	const rows = [
+		['external', 'Vorgabe', l.external_ignored ? 'ignoriert (Eingang)' : l.external ? amps(l.external) : 'Laden aus'],
+		['hardware', 'Maximum Drehschalter', amps(l.hardware)],
+		['cable', 'Kabel', l.cable ? amps(l.cable) : '–'],
+		['input', 'Eingang', l.input ? amps(l.input) : '–'],
+	];
+	return html`<${Card} title="Ladestrom"><table>
+		${rows.map(([k, t, v]) => {
+			const act = l.limited_by === k && k !== 'external';
+			return html`<tr class=${act ? 'act' : ''}><td>${t}</td><td class="num">${v}${act ? ' · begrenzt' : ''}</td></tr>`;
+		})}
+		<tr><td><b>Erlaubt</b></td><td class="num"><b>${amps(l.allowed)}</b></td></tr>
+		${meter && html`<tr><td>Messwert (höchste Phase)</td><td class="num">${ist !== null ? amps(ist) : 'ungültig'}</td></tr>`}
+	</table><p class=${'msg ' + limitLine(l)[1]}>${limitLine(l)[0]}</p><//>`;
 }
 
 function Simple({ live }) {
@@ -531,7 +565,7 @@ function Main() {
 		</header>
 		<main>
 			${view === 'simple' ? html`<${Simple} live=${live} />`
-				: html`<${Errors} /><${Meter} m=${live.meter} /><${EventLog} live=${live} all=${true} /><${Params} /><${System} /><${Credentials} first=${false} />`}
+				: html`<${Errors} /><${CurrentTable} l=${live.limits} meter=${live.meter} /><${Meter} m=${live.meter} /><${EventLog} live=${live} all=${true} /><${Params} /><${System} /><${Credentials} first=${false} />`}
 		</main>`;
 }
 

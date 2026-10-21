@@ -7,7 +7,7 @@ Stand: 2026-10-21. Alle Tests laufen auf dem PC. Sie belegen nichts ueber die re
 | --- | --- | --- |
 | PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezaehler, MQTT ohne Netz | 214 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zaehler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
 | Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zaehler, lokalen MQTT-Broker | 41 Tests, alle bestanden, ca. 120 s |
-| Browser-Durchlauf | Weboberflaeche in headless Chrome gegen die Simulation | ohne Zaehler 9, mit Zaehler 12 Pruefungen bestanden |
+| Browser-Durchlauf | Weboberflaeche in headless Chrome gegen die Simulation | ohne Zaehler 11, mit Zaehler 13 Pruefungen bestanden |
 | MQTT im LAN | Simulation gegen Mosquitto 2.1.2 im Heimnetz (von Hand, 2026-10-21) | Zustaende, Zaehlerwerte (etwa 1/s), Ereignisse, Befehl Ladestrom, `online` true/false |
 | evcc | evcc 0.317.2 mit Vorlage `tinkerforge-warp-ws` gegen die Simulation | Laden, Aus/Sofort, Abstecken, Neustart; mit Zaehler Leistung, Zaehlerstand, Phasenstroeme und -spannungen |
 
@@ -87,11 +87,12 @@ Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](.
 
 `node scripts/web-browser-check.mjs <port> <user> <passwort> <ausgabe> [meter]` gegen eine laufende
 Simulation (Zugangsdaten vorher geaendert): headless Chrome ueber das DevTools-Protokoll, Digest
-beantwortet Chrome selbst. Ablauf: Seite laden (WebSocket "live"), `sim car C` (Laden), Knopf
-"Laden aus" (S6 -> S7 -> S3, Schuetz nach 5 s aus), Ansicht "Experte" (Zugriffsprotokoll mit
-Fehlversuch), `sim car A`; Screenshots und Texte im Ausgabeverzeichnis. Mit `meter` (in der
-Simulation `meter_type` != 0) zusaetzlich: Zaehlerkarte mit Leistung beim Laden, Istwert in der
-Ladestrom-Anzeige, Messwerte und Fehlerzaehler, Auswahlliste des Zaehlertyps. Nicht abgedeckt:
+beantwortet Chrome selbst. Ablauf: Seite laden (WebSocket "live"), `sim car C` (Laden; Ring
+zeigt "begrenzt durch Maximum Drehschalter (32 A)", ohne Zaehler "32 A erlaubt"), Knopf
+"Laden aus" (S6 -> S7 -> S3, "Vorgabe: Laden aus"), Ansicht "Experte" (Ladestrom-Tabelle,
+Zugriffsprotokoll mit Fehlversuch), `sim car A`; Screenshots und Texte im Ausgabeverzeichnis.
+Mit `meter` (in der Simulation `meter_type` != 0) zusaetzlich: Zaehlerkarte mit Leistung beim
+Laden, Messwert mit Leistung im Ring, Messwerte und Fehlerzaehler, Auswahlliste des Zaehlertyps. Nicht abgedeckt:
 Zugangsdaten-Seite, Parameter schreiben, Netz/System.
 
 ## evcc gegen die Simulation
