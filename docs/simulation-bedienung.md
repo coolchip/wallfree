@@ -62,7 +62,7 @@ Die Ladelogik selbst bedient man mit `evse ...` (`evse help`).
 | `sim status` | Modell und Ausgaenge: Fahrzeug, Diode, PP- und Eingangspegel, Sensor, Aktor, Tastgrad, Schuetz, Verriegelungsimpulse, Ausgaenge ER/LR/VR/CR, LEDs, Netz |
 | `sim car <A..E>` | Fahrzeugzustand am CP: A = kein Fahrzeug, B = verbunden, C = Ladewunsch, D = mit Belueftung, E = Kurzschluss CP-PE |
 | `sim diode <0\|1>` | Fahrzeugdiode vorhanden (0 = Diode fehlt -> Fehler beim PWM-Start) |
-| `sim cable <0\|13\|20\|32\|63\|invalid>` | Kabel am PP (nur mit D1 ausgewertet); `0` = kein Kabel |
+| `sim cable <0\|13\|20\|32\|63\|invalid>` | Kabel am PP (nur mit D1 ausgewertet, sonst Warnung); `0` = kein Kabel |
 | `sim din <en\|ml\|xr\|in> <0\|1>` | Digitaleingang EN, ML, XR, IN; LD kommt aus dem Aktormodell |
 | `sim ld <none\|permanent\|pulse>` | LD-Rueckmeldung des Aktors: keine, Kontakt geschlossen solange verriegelt, oder nur waehrend der Fahrt (wie Kuester; Default) |
 | `sim actuator <ok\|stuck>` | Verriegelungsaktor faehrt bzw. klemmt |

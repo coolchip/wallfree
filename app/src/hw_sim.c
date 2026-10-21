@@ -628,6 +628,11 @@ static int cmd_cable(const struct shell *sh, size_t argc, char **argv)
 	for (size_t i = 0; i < ARRAY_SIZE(t); i++) {
 		if (strcmp(argv[1], t[i].name) == 0) {
 			m.pp_mv = t[i].mv;
+			if ((opt_dip & BIT(0)) == 0) {
+				/* SOLL-PP-01: ohne D1 gilt der Drehschalter */
+				shell_warn(sh, "PP wird nur mit DIP D1 ausgewertet "
+					       "(Start mit --dip=0x1)");
+			}
 			return 0;
 		}
 	}

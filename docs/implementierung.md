@@ -238,9 +238,18 @@ Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudge
 | MQTT: Zephyr-Bibliothek (3.1.1, TCP) 4,2 KB, Thread und Anbindung, Parameter (8 Werte mit Hilfetext), `/mqtt/state`, Shell, Weboberflaeche | 9,1 KB | 5,1 KB (Stack 2 KB, Puffer 0,9 KB, Client, Status, Konfigurationskopien) |
 | Energiezaehler: UART-Treiber 2,1 KB, Zephyr-Modbus 2,7 KB, Interrupttabelle 1 KB, Zaehlermodul 1,4 KB, JSON/API/Shell/Parameter 2,9 KB, Weboberflaeche 1,4 KB, Rest (Treiberanteile) | 15,2 KB | 3,9 KB (Stack 1,3 KB, Modbus-Kontext 1 KB, Zaehlerzustand, WebSocket-Rahmen) |
 
-Reserve rund **18,6 KB Flash und 3,7 KB RAM**. Weitere Einsparungen in der
-[Architektur](architektur.md#5-speicherbudget) (Netz-Shell erst nach H1); beim RAM kommen Heap
-(16 KB), HTTP-Client-Kontexte und der MQTT-Stack (nach Messung in H1) in Frage.
+Reserve rund **18,6 KB Flash und 3,7 KB RAM**. Der RAM ist bis auf die Stacks statisch belegt
+(kein Wachstum zur Laufzeit); Stacks haben MPU-Schutz (Ueberlauf -> Fault -> sicherer Zustand),
+ihre tatsaechliche Auslastung wird in H1 mit `kernel thread stacks` gemessen. Weitere
+Einsparungen in der [Architektur](architektur.md#5-speicherbudget) (Netz-Shell erst nach H1).
+Beim RAM:
+
+| Kandidat | Ersparnis | Befund |
+| --- | --- | --- |
+| System-Heap (`CONFIG_HEAP_MEM_POOL_SIZE` 16 KB) | ~15 KB | einziger Verweis auf `k_malloc` ist `websocket_send_msg` beim Maskieren, das nur die Client-Seite tut (Server: `is_client = 0`); Bau mit Heap 0 scheitert nur an diesem Verweis. Kleinster Heap (z. B. 512 B) haelt den Verweis aufloesbar |
+| Thread-Stacks | je nach Messung | erst nach H1 (`kernel thread stacks`); die Simulation (64 Bit) ist nicht aussagekraeftig |
+| `NET_MAX_CONN` 10 -> 8 | ~1,3 KB | 672 B je TCP-Verbindung; Bedarf: 4 HTTP, Telnet, MQTT, Listener, TIME_WAIT |
+| Ethernet-DMA-Puffer (2 x 6 KB) | – | Anzahl fest im HAL-Treiber (4 + 4) |
 
 ## Annahmen der Hardwareschicht (in H1 zu pruefen)
 
