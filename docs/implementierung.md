@@ -192,13 +192,13 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 
 | Punkt | Umsetzung | Grund |
 | --- | --- | --- |
-| Zeiten (**zu bestaetigen**) | Takt 100 ms; Keepalive 60 s; CONNACK-Frist 10 s; Neuverbindung nach 1 s, verdoppelt bis 60 s | wie der WebSocket-Takt; Keepalive ist der Zephyr-Default; 60 s Hoechstwartezeit begrenzt die Last bei dauerhaft fehlendem Broker |
+| Zeiten | Takt 100 ms; Keepalive 60 s; CONNACK-Frist 10 s; Neuverbindung nach 1 s, verdoppelt bis 60 s | wie der WebSocket-Takt; Keepalive ist der Zephyr-Default; 60 s Hoechstwartezeit begrenzt die Last bei dauerhaft fehlendem Broker |
 | toter Broker | Zephyr wertet unbeantwortete PINGREQ nicht aus: Die Anwendung trennt, wenn ein PINGREQ eine Keepalive-Spanne lang offen ist. Zephyr pingt nur in Sendepausen; bei Dauerversand (Zaehlerwerte jede Sekunde) erkennt erst TCP den Ausfall (Wiederholungen bis zum Abbruch) | Erkennungszeit auf der Steuerung in H1 ansehen |
 | Aenderungserkennung | FNV-1a-Pruefsumme der Nutzdaten statt einer Kopie je Topic | spart RAM; eine Kollision (2^-32 je Aenderung) verschiebt eine Meldung bis zur naechsten Aenderung |
 | Neukonfiguration | nur wenn sich ein `mqtt_*`-Wert aendert: `online` = `false`, DISCONNECT, sofort neu verbinden | ein geordnetes DISCONNECT loest den Last Will nicht aus |
 | Neustart der Steuerung | kein `online` = `false` vorab; der Broker meldet den Last Will nach 1,5 x Keepalive (bis 90 s) | der Neustart beendet die Verbindung ohne TCP-Abbau |
 | Anmeldung am Broker | Client-ID = Hostname; Passwort nur zusammen mit einem Benutzer | MQTT 3.1.1 erlaubt kein Passwort ohne Benutzername. Zwei Steuerungen mit gleichem Hostname wuerden sich am Broker gegenseitig trennen |
-| Praefix (**zu bestaetigen**) | leer = `wallfree/<MAC-Ende>` (in der Simulation ohne MAC `wallfree/000000`) | wie WARP `warp2/<uid>` |
+| Praefix | leer = `wallfree/<MAC-Ende>` (in der Simulation ohne MAC `wallfree/000000`) | wie WARP `warp2/<uid>` |
 | Retain bei Befehlen | eine mit Retain veroeffentlichte Nachricht kommt bei bestehendem Abo ohne Retain-Kennung an (MQTT-3.3.1-9) und wird angenommen; ignoriert wird die gespeicherte Kopie, die der Broker beim Abonnieren ausliefert | genau dieser Fall wuerde nach jedem Neustart einen alten Sollwert setzen (SOLL-MQTT-22) |
 | Ereignisse | vor dem Verbinden entstandene werden verworfen | SOLL-MQTT-11 |
 | Broker-Adresse | Pruefung wie Gateway, zusaetzlich 127.x erlaubt | PC-Simulation mit Broker auf demselben Rechner; auf der Steuerung schlaegt die Verbindung nur fehl |
@@ -288,7 +288,6 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   danach Update-Uebergabe (SOLL-SH-10, SOLL-BOOT-30) und Startablauf auf der Hardware.
 - Ladestrom- und Zaehleranzeige der Weboberflaeche bestaetigen lassen; ebenso die Weitergabe
   ungueltiger Zaehlerwerte als `null` (evcc zeigt dann 0 W).
-- MQTT-Festlegungen (Zeiten, Praefix) bestaetigen lassen.
 - Speicher: Nach MQTT ist die Reserve fast aufgebraucht; die naechste Erweiterung braucht eine
   der Einsparungen aus der [Architektur](architektur.md#5-speicherbudget) (zuerst Netz-Shell).
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
