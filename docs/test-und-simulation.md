@@ -86,7 +86,9 @@ Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](.
 ## Browser-Durchlauf
 
 `node scripts/web-browser-check.mjs <port> <user> <passwort> <ausgabe> [meter]` gegen eine laufende
-Simulation (Zugangsdaten vorher geaendert): headless Chrome ueber das DevTools-Protokoll, Digest
+Simulation (Zugangsdaten vorher geaendert; laeuft schon eine zweite, eigenen Telnet-Port bauen,
+`-DCONFIG_SHELL_TELNET_PORT=2324`, und `WALLFREE_TELNET_PORT=2324` setzen, sonst gehen die
+`sim`-Befehle an die andere): headless Chrome ueber das DevTools-Protokoll, Digest
 beantwortet Chrome selbst. Ablauf: Seite laden ("verbunden" ueber WebSocket), `sim car C` (Laden; Ring
 zeigt "begrenzt durch Maximum Drehschalter (32 A)", ohne Zaehler "32 A erlaubt"), Knopf
 "Laden aus" (S6 -> S7 -> S3, "Vorgabe: Laden aus"), Insights (Ladestrom-Tabelle, Verlauf

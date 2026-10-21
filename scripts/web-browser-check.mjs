@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Browser-Durchlauf der Weboberflaeche gegen die laufende Simulation (scripts/sim-run.sh):
 // headless Chrome ueber das DevTools-Protokoll (Node >= 22, google-chrome-stable), Digest-
-// Anmeldung durch Chrome selbst, Fahrzeug ueber die Telnet-Shell (Port 2323).
+// Anmeldung durch Chrome selbst, Fahrzeug ueber die Telnet-Shell (Port 2323, anders mit
+// WALLFREE_TELNET_PORT, z. B. fuer eine zweite Simulation mit -DCONFIG_SHELL_TELNET_PORT=2324).
 // Zugangsdaten muessen bereits geaendert sein (Werkszugang zeigt nur die Zugangsdaten-Seite).
 //   node scripts/web-browser-check.mjs <http-port> <user> <passwort> <ausgabeverzeichnis> [meter]
 // "meter": in der Simulation ist ein Zaehler konfiguriert (meter_type != 0), zusaetzliche Pruefungen.
@@ -59,7 +60,7 @@ const click = (label) => evalJs(`(() => { const b = [...document.querySelectorAl
 // Telnet-Shell der Simulation
 function shell(cmd) {
 	return new Promise((res) => {
-		const s = net.connect(2323, '127.0.0.1');
+		const s = net.connect(Number(process.env.WALLFREE_TELNET_PORT || 2323), '127.0.0.1');
 		let buf = '';
 		s.on('data', (d) => { buf += d.toString('latin1'); });
 		setTimeout(() => s.write(cmd + '\r\n'), 300);

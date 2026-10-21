@@ -19,6 +19,12 @@ async function api(path, opts) {
 const post = (path, body) => api(path, {
 	method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
 });
+// Abruf mit Browserzeit zur Mitte der Anfrage (F32: die Steuerung hat keine Uhr; ihre
+// Zeiten zaehlen ab Start und werden bei jedem Abruf neu gegen die Browseruhr abgeglichen)
+async function timed(path) {
+	const t0 = Date.now(), j = await api(path);
+	return [j, (t0 + Date.now()) / 2];
+}
 
 // ------------------------------------------------------------ Texte
 
@@ -170,15 +176,17 @@ function evText(e) {
 
 // Vorgeschichte aus GET /system/log (SOLL-ERR-11), danach live ueber den
 // WebSocket; ohne WebSocket alle 5 s neu abfragen. Zeiten sind ms seit Start
-// der Steuerung, umgerechnet ueber deren Laufzeit beim Abruf (ungefaehr).
+// der Steuerung; der Startzeitpunkt in Browserzeit wird bei jedem Abruf und
+// mindestens jede Minute ueber /system/info neu bestimmt (ungefaehr).
 function EventLog({ live, all }) {
 	const [log, setLog] = useState(null);
 	const [off, setOff] = useState(null);
 	const [err, setErr] = useState(null);
 	const load = async () => {
 		try {
-			const [l, i] = [await api('/system/log'), await api('/system/info')];
-			setOff(Date.now() - i.uptime_ms);
+			const l = await api('/system/log');
+			const [i, at] = await timed('/system/info');
+			setOff(at - i.uptime_ms);
 			setLog(l.entries);
 			setErr(null);
 		} catch (e) { setErr(e.message); }
@@ -186,8 +194,7 @@ function EventLog({ live, all }) {
 	const polling = live.mode !== 'live';
 	useEffect(() => {
 		load();
-		if (!polling) return undefined;
-		const t = setInterval(load, 5000);
+		const t = setInterval(load, polling ? 5000 : 60000);
 		return () => clearInterval(t);
 	}, [polling]);
 	if (!log) return err ? html`<${Card} title="Ereignisse"><p class="bad">${err}</p><//>` : null;
@@ -621,7 +628,7 @@ const flagText = (f) => (f & HF_ERR ? 'Fehler' : f & HF_CHG ? 'lädt' : f & HF_C
 function useHistory() {
 	const [h, setH] = useState(null);
 	useEffect(() => {
-		const load = () => api('/evse/history').then(setH).catch(() => {});
+		const load = () => timed('/evse/history').then(([j, at]) => setH({ ...j, at })).catch(() => {});
 		load();
 		const t = setInterval(load, 60000);
 		return () => clearInterval(t);
@@ -629,9 +636,10 @@ function useHistory() {
 	return h;
 }
 
-// Zeilen mit Beginn/Ende in Browserzeit; das laufende Intervall endet jetzt
+// Zeilen mit Beginn/Ende in Browserzeit (age_ms gilt zum Abrufzeitpunkt); das laufende
+// Intervall endet jetzt
 function histRows(h) {
-	const now = Date.now(), n = h.rows.length, end0 = now - h.age_ms;
+	const now = Date.now(), n = h.rows.length, end0 = h.at - h.age_ms;
 	const rows = h.rows.map((r, i) => {
 		const t1 = end0 - (n - 1 - i) * h.interval_ms;
 		return { t0: t1 - h.interval_ms, t1, p: r[0], a: r[1], f: r[2] };

@@ -39,7 +39,9 @@ Die Einstellungen liegen in `build/sim-flash.bin` und bleiben ueber Neustarts er
 loeschen = fabrikneu. **Achtung:** `scripts/evcc-sim.sh` setzt bei einer fabrikneuen Datei die
 Zugangsdaten `evcc` / `evcc-sim-test` (wie in `tools/evcc/evcc.yaml`); sie gelten danach auch
 fuer die Weboberflaeche. Passt keiner der beiden Zugaenge, Datei loeschen oder mit
-`--reset-button=6000` starten (beides setzt alle Einstellungen zurueck). Beenden mit Strg+C im Terminal der Simulation. Ein Neustart ueber die
+`--reset-button=6000` starten (beides setzt alle Einstellungen zurueck; die Option wirkt bei jedem
+Start, also danach ohne sie starten). Fragt der Browser danach nicht nach dem Werkszugang, schickt
+er noch die alten Zugangsdaten: neuen Tab oder privates Fenster oeffnen. Beenden mit Strg+C im Terminal der Simulation. Ein Neustart ueber die
 Oberflaeche oder `evse reboot` startet den Prozess selbst neu; das Modell (z. B. angestecktes
 Fahrzeug) bleibt dabei erhalten.
 
