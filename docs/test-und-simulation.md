@@ -87,10 +87,11 @@ Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](.
 
 `node scripts/web-browser-check.mjs <port> <user> <passwort> <ausgabe> [meter]` gegen eine laufende
 Simulation (Zugangsdaten vorher geaendert): headless Chrome ueber das DevTools-Protokoll, Digest
-beantwortet Chrome selbst. Ablauf: Seite laden (WebSocket "live"), `sim car C` (Laden; Ring
+beantwortet Chrome selbst. Ablauf: Seite laden ("verbunden" ueber WebSocket), `sim car C` (Laden; Ring
 zeigt "begrenzt durch Maximum Drehschalter (32 A)", ohne Zaehler "32 A erlaubt"), Knopf
 "Laden aus" (S6 -> S7 -> S3, "Vorgabe: Laden aus"), Ansicht "Experte" (Ladestrom-Tabelle,
-Zugriffsprotokoll mit Fehlversuch), `sim car A`; Screenshots und Texte im Ausgabeverzeichnis.
+Zugriffsprotokoll mit Fehlversuch), `sim car A`, Netz im Browser 7 s trennen ("getrennt", grau)
+und wieder verbinden ("verbunden"); Screenshots und Texte im Ausgabeverzeichnis.
 Mit `meter` (in der Simulation `meter_type` != 0) zusaetzlich: Zaehlerkarte mit Leistung beim
 Laden, Messwert mit Leistung im Ring, Messwerte und Fehlerzaehler, Auswahlliste des Zaehlertyps. Nicht abgedeckt:
 Zugangsdaten-Seite, Parameter schreiben, Netz/System.

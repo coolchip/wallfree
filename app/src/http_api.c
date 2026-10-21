@@ -55,6 +55,7 @@ LOG_MODULE_REGISTER(http_api, LOG_LEVEL_INF);
 #define WS_PRIO        11
 #define WS_SEND_MS     200
 #define WS_DRAIN_MS    2
+#define WS_BEAT_MS     2000  /* evse/state auch ohne Aenderung: Lebenszeichen fuer Clients */
 
 HTTP_SERVER_REGISTER_HEADER_CAPTURE(capture_auth, "Authorization");
 
@@ -981,6 +982,8 @@ static void ws_entry(void *p1, void *p2, void *p3)
 	ARG_UNUSED(p2);
 	ARG_UNUSED(p3);
 
+	int64_t beat = 0;
+
 	for (;;) {
 		(void)k_sem_take(&ws_wake, K_MSEC(WS_PERIOD_MS));
 		evse_task_iface_beat(EVSE_IFACE_WS);
@@ -992,8 +995,13 @@ static void ws_entry(void *p1, void *p2, void *p3)
 				ws_drain(i);
 			}
 		}
+		bool beat_due = k_uptime_get() - beat >= WS_BEAT_MS;
+
+		if (beat_due) {
+			beat = k_uptime_get();
+		}
 		for (int t = 0; t < WS_TOPICS; t++) {
-			bool changed = strcmp(ws_cur[t], ws_last[t]) != 0;
+			bool changed = strcmp(ws_cur[t], ws_last[t]) != 0 || (t == 0 && beat_due);
 
 			for (int i = 0; i < WS_MAX; i++) {
 				if (ws[i].sock >= 0 && (changed || ws[i].full_sync)) {

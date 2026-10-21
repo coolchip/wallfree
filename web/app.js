@@ -58,41 +58,62 @@ const mval = (m, id) => {
 // ------------------------------------------------------------ Live-Daten
 
 // WebSocket /ws; schliesst der Server sofort (z. B. Browser sendet keine
-// Anmeldung beim Aufbau), wird stattdessen alle 2 s abgefragt.
+// Anmeldung beim Aufbau), wird stattdessen alle 2 s abgefragt und alle 30 s
+// erneut ein WebSocket versucht. Die Steuerung sendet evse/state mindestens alle
+// 2 s; ohne Daten seit OFFLINE_MS gilt die Verbindung als getrennt.
+const OFFLINE_MS = 5000;
+
 function useLive() {
 	const [state, setState] = useState(null);
 	const [ext, setExt] = useState(null);
 	const [limits, setLimits] = useState(null); // Topic evse/limits
-	const [mode, setMode] = useState('…');
+	const [mode, setMode] = useState(null); // 'live' (WebSocket) oder 'poll'
+	const [online, setOnline] = useState(null); // null = noch keine Antwort
 	const [events, setEvents] = useState([]); // Topic evse/event (SOLL-ERR-10), juengste zuletzt
 	const [meter, setMeter] = useState(null); // meters/0/*: {ids, values, state}; null = kein Zaehler
 
 	useEffect(() => {
-		let ws = null, timer = null, stop = false;
+		let ws = null, timer = null, retry = null, stop = false, busy = false, lastOk = 0;
+		const ok = () => { lastOk = Date.now(); setOnline(true); };
+		const get = (path) => api(path, { signal: AbortSignal.timeout(OFFLINE_MS - 1000) });
 		const poll = async () => {
+			if (busy) return;
+			busy = true;
 			try {
-				setState(await api('/evse/state'));
-				setExt(await api('/evse/external_current'));
-				setLimits(await api('/evse/limits'));
+				setState(await get('/evse/state'));
+				setExt(await get('/evse/external_current'));
+				setLimits(await get('/evse/limits'));
+				ok();
 			} catch (e) { /* naechster Versuch */ }
 			try {
-				const st = await api('/meters/0/state');
-				const ids = await api('/meters/0/value_ids');
-				setMeter({ ids, values: await api('/meters/0/values'), state: st });
+				const st = await get('/meters/0/state');
+				const ids = await get('/meters/0/value_ids');
+				setMeter({ ids, values: await get('/meters/0/values'), state: st });
 			} catch (e) { if (e.status === 404) setMeter(null); }
+			busy = false;
 		};
 		const startPoll = () => {
 			if (timer) return;
-			setMode('Abfrage');
+			setMode('poll');
 			poll();
 			timer = setInterval(poll, 2000);
 		};
+		const later = (ms) => { clearTimeout(retry); retry = setTimeout(connect, ms); };
+		// Verbindung verloren: kurzlebig oder ohne Daten -> Abfrage, sonst bald neu verbinden
+		const lost = (opened, got) => {
+			ws = null;
+			if (stop) return;
+			if (!got || Date.now() - opened < 3000) { startPoll(); later(30000); } else later(3000);
+		};
 		const connect = () => {
+			if (ws) return;
 			const opened = Date.now();
 			let got = false;
-			ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
-			ws.onmessage = (ev) => {
+			const w = ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+			w.onmessage = (ev) => {
+				if (!got && timer) { clearInterval(timer); timer = null; }
 				got = true;
+				ok();
 				setMode('live');
 				for (const line of ev.data.split('\n')) {
 					if (!line.trim()) continue;
@@ -106,16 +127,19 @@ function useLive() {
 					if (m.topic === 'meters/0/state') setMeter((o) => ({ ...o, state: m.payload }));
 				}
 			};
-			ws.onclose = () => {
-				if (stop) return;
-				if (!got || Date.now() - opened < 3000) startPoll();
-				else setTimeout(connect, 3000);
-			};
+			w.onclose = () => { if (ws === w) lost(opened, got); };
+			w.drop = () => { w.onclose = null; w.close(); lost(opened, got); };
 		};
+		// Ein haengender WebSocket (Kabel gezogen) meldet sich nicht von selbst
+		const watch = setInterval(() => {
+			if (!lastOk || Date.now() - lastOk < OFFLINE_MS) return;
+			setOnline(false);
+			if (ws && ws.readyState === WebSocket.OPEN) ws.drop();
+		}, 1000);
 		connect();
-		return () => { stop = true; if (ws) ws.close(); clearInterval(timer); };
+		return () => { stop = true; if (ws) ws.close(); clearInterval(timer); clearInterval(watch); clearTimeout(retry); };
 	}, []);
-	return { state, ext, mode, setExt, events, limits, meter };
+	return { state, ext, mode, online, setExt, events, limits, meter };
 }
 
 // ------------------------------------------------------------ Bausteine
@@ -388,7 +412,7 @@ function Params() {
 	const [vals, setVals] = useState({});
 	const [err, setErr] = useState(null);
 	const load = async () => {
-		try { setVals(await api('/evse/params')); } catch (e) { setErr(e.message); }
+		try { setVals(await api('/evse/params')); } catch (e) { /* Verbindung zeigt der Kopf */ }
 	};
 	useEffect(() => {
 		api('/evse/param_info').then(setInfo).catch((e) => setErr(e.message));
@@ -410,7 +434,7 @@ function Params() {
 function Errors() {
 	const [d, setD] = useState(null);
 	const [msg, setMsg] = useState(null);
-	const load = () => api('/evse/errors').then(setD).catch((e) => setMsg({ ok: false, text: e.message }));
+	const load = () => api('/evse/errors').then(setD).catch(() => { /* Verbindung zeigt der Kopf */ });
 	useEffect(() => { load(); const t = setInterval(load, 3000); return () => clearInterval(t); }, []);
 	const ack = async () => {
 		try {
@@ -554,16 +578,17 @@ function Main() {
 	try { initial = localStorage.getItem('wf-view') || 'simple'; } catch (e) { /* privat */ }
 	const [view, setView] = useState(initial);
 	const choose = (v) => { setView(v); try { localStorage.setItem('wf-view', v); } catch (e) { /* */ } };
-	const dot = live.mode === 'live' ? 'ok' : live.mode === 'Abfrage' ? 'warn' : '';
+	const dot = live.online ? 'ok' : live.online === false ? 'bad' : '';
+	const conn = live.online ? 'verbunden' : live.online === false ? 'getrennt' : '…';
 	return html`
 		<header>
-			<h1>Wallfree</h1><span class="grow muted"><span class="dot ${dot}"></span> ${live.mode}</span>
+			<h1>Wallfree</h1><span class="grow muted" title=${live.mode === 'live' ? 'live (WebSocket)' : live.mode === 'poll' ? 'Abfrage alle 2 s' : ''}><span class="dot ${dot}"></span> ${conn}</span>
 			<nav>
 				<button class=${view === 'simple' ? 'sel' : ''} onClick=${() => choose('simple')}>Einfach</button>
 				<button class=${view === 'expert' ? 'sel' : ''} onClick=${() => choose('expert')}>Experte</button>
 			</nav>
 		</header>
-		<main>
+		<main class=${live.online === false ? 'offline' : ''}>
 			${view === 'simple' ? html`<${Simple} live=${live} />`
 				: html`<${Errors} /><${CurrentTable} l=${live.limits} meter=${live.meter} /><${Meter} m=${live.meter} /><${EventLog} live=${live} all=${true} /><${Params} /><${System} /><${Credentials} first=${false} />`}
 		</main>`;

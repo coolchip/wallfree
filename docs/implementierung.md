@@ -14,7 +14,7 @@ Tests: [Test und Simulation](test-und-simulation.md).
 | Energiezaehler (`lib/meter`, Zaehlerthread, nur Anzeige) | fertig, PC-getestet, in der Simulation Ende-zu-Ende und gegen evcc geprueft; Modbus-Anbindung auf UART4 gebaut, ungeprueft (H1) |
 | MQTT-Client (`lib/api/mqtt.c`, `mqtt_task.c`) | fertig, PC-getestet, in der Simulation Ende-zu-Ende gegen Mosquitto geprueft; auf der Steuerung gebaut, ungeprueft (H1) |
 | Anwendung (`app/`) | baut fuer `ev_cc_ac1` ohne Warnung; als PC-Simulation Ende-zu-Ende getestet |
-| Weboberflaeche (`web/`) | fertig, Browser-Durchlauf in der Simulation |
+| Weboberflaeche (`web/`) | Ansichten "Einfach"/"Experte" fertig, Browser-Durchlauf in der Simulation; Gliederung in Bereiche und Verlauf (SOLL-API-31/33, F31) offen |
 | evcc-Anbindung | gegen die Simulation geprueft (evcc 0.317.2) |
 | Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) | gebaut, ungeprueft (H1) |
 | Update-Uebergabe an den Bootloader (SOLL-SH-10, SOLL-BOOT-30) | zurueckgestellt bis H0 |
@@ -172,7 +172,8 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Anmeldung | Oberflaeche hinter Digest wie die API (Anmeldedialog des Browsers); im Werkszugang nur die Zugangsdaten-Seite; nach der Aenderung fragt der Browser neu | SOLL-API-07 |
 | Bezeichnungen | Parameter erscheinen mit ihrem Hilfetext, der interne Name (wie in API und Shell) nur als Tooltip; Auswahllisten zeigen den Hilfetext bis zum Doppelpunkt; ohne Verweise auf Entscheidungsnummern | Nutzer 2026-10-21: interne Namen und F-Nummern stoeren in der Oberflaeche |
 | Zugangsdaten aendern | Benutzerfeld mit dem aktuellen Benutzer vorbelegt (`GET /credentials` liefert `user`); Hinweis: ohne HTTPS mitlesbar, bei der Anmeldung geht nur ein Pruefwert ueber das Netz, beim Aendern das neue Passwort lesbar | Nutzer 2026-10-21 |
-| Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickte keine Anmeldung), Abfrage alle 2 s. Chrome sendet die Digest-Anmeldung beim WebSocket-Aufbau mit; andere Browser ungeprueft | |
+| Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickte keine Anmeldung), Abfrage alle 2 s und alle 30 s ein neuer WebSocket-Versuch; nach einer laengeren Verbindung neuer Versuch nach 3 s. Chrome sendet die Digest-Anmeldung beim WebSocket-Aufbau mit; andere Browser ungeprueft | |
+| Verbindungsanzeige | "verbunden", sobald eine Nachricht oder Abfrage ankommt; 5 s ohne Daten "getrennt": `main.offline` grau, Klicks gesperrt; ein offener, aber stummer WebSocket (Kabel gezogen) wird dann verworfen. Grundlage ist das Lebenszeichen `evse/state` alle 2 s (SOLL-API-06). Abfragen mit 4 s Zeitlimit, nie zwei gleichzeitig. Periodische Nachlader (Parameter, Fehler) zeigen Verbindungsfehler nicht selbst an. Art der Verbindung (WebSocket/Abfrage) nur als Tooltip | Nutzer 2026-10-21: "Abfrage" war nicht greifbar und blieb bei getrennter Steuerung stehen |
 | Ladestrom-Anzeige ("Einfach") | Ring ueber 270 Grad von 0 bis zum Maximum (Drehschalter bzw. abgesenkt); blau "Erlaubt" (Strom des Tastgrads), gruener Innenring "Messwert" (Zaehler, hoechste Phase, nur wenn > 0), orange Marke fuer Kabel/Eingang, wenn kleiner als das Maximum; Kreis = Vorgabe (rot bei 0, am Ende, wenn ueber dem Maximum). Mitte: Messwert, ohne Zaehler der erlaubte Strom; darunter Leistung und "erlaubt". Darunter eine Zeile, was begrenzt ("begrenzt durch Kabel (20 A)", "Vorgabe: Laden aus", "Laden gesperrt", 5-%-Modus) | Nutzer 2026-10-21; Begriffe Erlaubt/Vorgabe/Messwert, weil "Freigabe" schon die Ladeerlaubnis (EN, Schnittstelle) bezeichnet |
 | Vorgabe setzen | Tasten − / 6 / 10 / 16 / 32 A / + / "Laden aus", wirken sofort; −/+ in 1-A-Schritten zwischen 6 A und dem Maximum; Tasten ueber dem Maximum entfallen; nicht am Ring ziehbar. Hinweis: eine externe Vorgabe (z. B. Energiemanagement) kann den Wert ueberschreiben | Nutzer 2026-10-21: am Ring ziehen ist auf dem Handy fummelig |
 | Ladestrom ("Experte") | Tabelle Vorgabe, Maximum Drehschalter, Kabel, Eingang, Erlaubt, Messwert; wirkende Grenze orange mit "begrenzt"; keine Balken | Nutzer 2026-10-21 |
@@ -300,5 +301,7 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 - Zaehleranzeige der Weboberflaeche bestaetigen lassen; ebenso die Weitergabe
   ungueltiger Zaehlerwerte als `null` (evcc zeigt dann 0 W).
 - RAM: 97 % belegt; vor der naechsten groesseren Erweiterung Heapbedarf messen.
+- Weboberflaeche in Bereiche gliedern (SOLL-API-31, F31) und Verlauf umsetzen (SOLL-API-33;
+  Werte, Abtastung und Dauer mit dem Nutzer festlegen).
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
   (bisher nur ueber die API getestet).

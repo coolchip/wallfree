@@ -76,7 +76,8 @@ const out = {};
 await send('Page.navigate', { url: base });
 await sleep(3000);
 out.simple1 = await text();
-out.mode1 = await evalJs("document.querySelector('header .grow').innerText");
+const conn = "(() => { const e = document.querySelector('header .grow'); return e.innerText.trim() + '|' + e.title + '|' + document.querySelector('main').className; })()";
+out.mode1 = await evalJs(conn);
 await shot('1-einfach');
 
 await shell('sim car C');
@@ -97,13 +98,23 @@ await shot('3-experte');
 await shell('sim car A');
 await sleep(3000);
 out.expert2 = await text();
+// Verbindungsabbruch: Netz im Browser trennen, nach OFFLINE_MS grau; danach Wiederkehr
+await send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+await sleep(7000);
+out.mode2 = await evalJs(conn);
+await shot('4-getrennt');
+await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+await sleep(5000);
+out.mode3 = await evalJs(conn);
 out.logs = logs;
 writeFileSync(`${outdir}/browse.json`, JSON.stringify(out, null, 1));
 ws.close();
 chrome.kill();
 
 const checks = [
-	['WebSocket live', out.mode1.includes('live')],
+	['WebSocket live', out.mode1.startsWith('verbunden|live')],
+	['getrennt: grau', out.mode2.startsWith('getrennt|') && out.mode2.endsWith('|offline')],
+	['wieder verbunden', out.mode3.startsWith('verbunden|') && !out.mode3.endsWith('offline')],
 	['Ereignis Start (live nachgereicht)', out.simple2.includes('S0 Start → S1 Bereit')],
 	['Laden', out.simple2.includes('Lädt') && out.simple2.includes('Schütz ein')],
 	['Maximum wirkt sichtbar', out.simple2.includes('begrenzt durch Maximum Drehschalter (32 A)')],

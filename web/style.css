@@ -76,3 +76,4 @@ button.off { color: var(--bad); }
 .sw.on { background: var(--accent); } .sw.ist { background: var(--ok); } .sw.lim { background: var(--warn); }
 .sw.set { border: 2px solid var(--fg); border-radius: 50%; }
 tr.act td { color: var(--warn); font-weight: 600; }
+main.offline { filter: grayscale(1); opacity: .5; pointer-events: none; transition: opacity .3s; }
