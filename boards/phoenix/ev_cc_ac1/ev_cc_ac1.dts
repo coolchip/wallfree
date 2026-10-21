@@ -64,7 +64,9 @@
 			       <&gpioc 7 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* Bit 3 */
 		reset-button-gpios = <&gpiod 2 GPIO_ACTIVE_LOW>;      /* [HYP] */
 		phy-reset-gpios = <&gpioa 15 GPIO_ACTIVE_LOW>;        /* [HYP] PHY RST# */
-		rs485-de-gpios = <&gpioc 12 GPIO_ACTIVE_HIGH>,        /* nicht genutzt, Low */
+		/* Low beim Start (SOLL-IO-01); PC12 uebernimmt danach der Zaehlerbus,
+		 * falls ein Zaehler konfiguriert ist (modbus0 unten) */
+		rs485-de-gpios = <&gpioc 12 GPIO_ACTIVE_HIGH>,
 				 <&gpiod 7 GPIO_ACTIVE_HIGH>;
 	};
 };
@@ -116,6 +118,24 @@
 };
 
 /* CP-PWM (TIM1 CH1, PE9) und ADC1/DMA2: direkt in der Anwendung, siehe app/src/hw_stm32.c */
+
+/*
+ * RS-485 an Klemme A/B: UART4 PC10/PC11, Treiberfreigabe PC12 [HYP, Firmwarebefund,
+ * wallbe2 Belege §9]. Energiezaehler, nur Anzeige (Soll-Spezifikation 12.5).
+ * Baudrate und Rahmenformat setzt die Anwendung (meter_*).
+ */
+&uart4 {
+	status = "okay";
+	pinctrl-0 = <&uart4_tx_pc10 &uart4_rx_pc11>;
+	pinctrl-names = "default";
+	current-speed = <9600>;
+
+	modbus0 {
+		compatible = "zephyr,modbus-serial";
+		status = "okay";
+		de-gpios = <&gpioc 12 GPIO_ACTIVE_HIGH>;
+	};
+};
 
 &iwdg {
 	status = "okay";

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Ereignisse an die Schnittstellen (SOLL-ERR-10): Fehler, Zustandswechsel,
- * Verriegelungsergebnisse, Schuetzschaltungen. Erkennung durch Vergleich
+ * Verriegelungsergebnisse, Schuetzschaltungen, Zaehlerzustand. Erkennung durch Vergleich
  * zweier Momentaufnahmen der Ladelogik, Ringpuffer mit fortlaufender
  * Nummer (Luecken = verlorene Ereignisse), JSON fuer das WebSocket-Topic
  * evse/event. Reines C, nicht threadsicher (Aufrufer sperrt).
@@ -24,6 +24,7 @@ enum wf_ev_type {
 	WF_EV_ERROR,     /**< Fehler: set/cleared */
 	WF_EV_LOCK,      /**< Verriegelung erreicht Endzustand: a = lock_state (1, 3, 5) */
 	WF_EV_CONTACTOR, /**< Schuetz-Soll: a = 1 ein, 0 aus */
+	WF_EV_METER,     /**< Zaehler (SOLL-MTR-13/14): a = enum meter_status, b = 1 Zaehlerstand gesunken */
 };
 
 /** Was die Erkennung vergleicht. */

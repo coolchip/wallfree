@@ -32,7 +32,7 @@ button { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 button.sel { border-color: var(--accent); color: var(--accent); }
 button:disabled { opacity: .5; cursor: default; }
-input { font: inherit; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line);
+input, select { font: inherit; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line);
 	background: var(--bg); color: var(--fg); width: 100%; }
 input[type=range] { padding: 0; }
 input[type=checkbox] { width: auto; }
@@ -58,3 +58,4 @@ label.check { display: flex; align-items: center; gap: 8px; }
 .lrow.act .bar i { background: var(--warn); opacity: 1; }
 .lrow.eff { font-weight: 600; }
 .lrow.eff .bar i { background: var(--accent); opacity: 1; }
+.lrow.ist .bar i { background: var(--ok); opacity: 1; }

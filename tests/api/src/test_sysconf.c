@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* Tests Netz- und Systemparameter (10.1 net_*, telnet_enable; F20, F25; SOLL-NVM-10) */
+/* Tests Netz- und Systemparameter (10.1 net_*, telnet_enable, meter_*; F20, F25, F28; SOLL-NVM-10) */
 #include <string.h>
 #include <zephyr/ztest.h>
 #include <wallfree/api/sysconf.h>
@@ -34,14 +34,15 @@ static const char *set(const char *name, struct wf_jval v)
 
 ZTEST(api_sysconf, test_defaults_and_json)
 {
-	char buf[256];
+	char buf[320];
 	struct wf_jbuf b;
 
 	wf_jb_init(&b, buf, sizeof(buf));
 	wf_sys_json(&c, &b);
 	zassert_str_equal(buf, "{\"net_dhcp\":true,\"net_ip\":\"192.168.0.8\","
 			       "\"net_netmask\":\"255.255.255.0\",\"net_gateway\":\"192.168.0.1\","
-			       "\"net_hostname\":\"\",\"telnet_enable\":true}");
+			       "\"net_hostname\":\"\",\"telnet_enable\":true,\"meter_type\":0,"
+			       "\"meter_address\":1,\"meter_baud\":9600,\"meter_framing\":0}");
 	zassert_is_null(wf_sys_check(&c));
 	for (size_t i = 0; i < wf_sys_count(); i++) {
 		const struct wf_syspar *p = wf_sys_at(i);
@@ -53,12 +54,40 @@ ZTEST(api_sysconf, test_defaults_and_json)
 	zassert_is_null(wf_sys_find("nix"));
 	zassert_is_null(wf_sys_by_id(1));
 
-	char info[512];
+	char info[1536];
 
 	wf_jb_init(&b, info, sizeof(info));
 	wf_sys_info_json(&b);
 	zassert_false(b.overflow);
 	zassert_not_null(strstr(info, "{\"name\":\"net_ip\",\"type\":\"ipv4\""));
+	zassert_not_null(strstr(info, "{\"name\":\"meter_type\",\"type\":\"code\""));
+}
+
+/* 10.1 meter_*, SOLL-MTR-01/02 */
+ZTEST(api_sysconf, test_meter_params)
+{
+	zassert_equal(c.meter_type, 0, "Werkszustand: kein Zaehler");
+	zassert_is_null(set("meter_type", N(4)));
+	zassert_equal(c.meter_type, 4);
+	zassert_not_null(set("meter_type", N(5)));
+	zassert_not_null(set("meter_type", N(-1)));
+	zassert_not_null(set("meter_type", S("1")));
+	zassert_equal(c.meter_type, 4, "unveraendert nach Ablehnung");
+
+	zassert_is_null(set("meter_address", N(247)));
+	zassert_is_null(set("meter_address", N(1)));
+	zassert_not_null(set("meter_address", N(0)), "0 = Broadcast");
+	zassert_not_null(set("meter_address", N(248)));
+
+	zassert_is_null(set("meter_baud", N(19200)));
+	zassert_equal(c.meter_baud, 19200);
+	zassert_is_null(set("meter_baud", N(115200)));
+	zassert_not_null(set("meter_baud", N(1200)));
+	zassert_not_null(set("meter_baud", N(9601)));
+
+	zassert_is_null(set("meter_framing", N(3)));
+	zassert_equal(c.meter_framing, WF_FRAMING_8N2);
+	zassert_not_null(set("meter_framing", N(4)));
 }
 
 ZTEST(api_sysconf, test_ipv4_parse)
@@ -135,6 +164,10 @@ ZTEST(api_sysconf, test_encode_decode)
 	zassert_is_null(set("net_dhcp", N(0)));
 	zassert_is_null(set("net_ip", S("10.0.0.5")));
 	zassert_is_null(set("net_hostname", S("wb1")));
+	zassert_is_null(set("meter_type", N(1)));
+	zassert_is_null(set("meter_address", N(12)));
+	zassert_is_null(set("meter_baud", N(38400)));
+	zassert_is_null(set("meter_framing", N(1)));
 	wf_sysconf_defaults(&d);
 	for (size_t i = 0; i < wf_sys_count(); i++) {
 		const struct wf_syspar *p = wf_sys_at(i);
@@ -159,6 +192,11 @@ ZTEST(api_sysconf, test_encode_decode)
 	zassert_equal(wf_sys_decode(&d, 3011, "\x0a\x00", 2), -1);
 	zassert_equal(wf_sys_decode(&d, 3014, "a b", 3), -1);
 	zassert_equal(wf_sys_decode(&d, 2999, "\x01", 1), -1);
+	zassert_equal(wf_sys_decode(&d, 3016, "\x00\x00\x00\x05", 4), -1);
+	zassert_equal(wf_sys_decode(&d, 3018, "\x00\x00\x04\xb0", 4), -1, "1200 Bd");
+	zassert_equal(wf_sys_decode(&d, 3018, "\x00\x00\x4b\x00", 4), 0, "19200 Bd");
+	zassert_equal(d.meter_baud, 19200);
+	zassert_equal(wf_sys_decode(&d, 3017, "\x01", 1), -1);
 }
 
 /* ------------------------------------------------ Import */

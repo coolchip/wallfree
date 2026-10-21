@@ -9,8 +9,10 @@
 #include <string.h>
 #include <zephyr/shell/shell.h>
 #include <wallfree/api/evse_api.h>
+#include <wallfree/api/meter_json.h>
 #include <wallfree/evse/param.h>
 #include "evse_task.h"
+#include "meter_task.h"
 #include "netcfg.h"
 #include "storage.h"
 #include "sysinfo.h"
@@ -410,6 +412,44 @@ static int cmd_reboot(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+/* ------------------------------------------------ Zaehler (SOLL-MTR-33) */
+
+static int cmd_meter(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	static const char *const names[METER_Q_COUNT] = {
+		"U1 V", "U2 V", "U3 V", "I1 A", "I2 A", "I3 A", "P1 W", "P2 W", "P3 W",
+		"P W", "f Hz", "E Bezug kWh", "E Einsp. kWh"};
+	static char buf[288];
+	struct meter_values mv;
+	struct wf_jbuf b;
+
+	if (meter_task_type() == METER_NONE) {
+		shell_print(sh, "kein Zaehler konfiguriert (evse sys set meter_type ...)");
+		return 0;
+	}
+	(void)meter_task_get(&mv);
+	shell_print(sh, "Zaehler  %s, Zustand %s, Alter %lld ms", meter_type_name(mv.type),
+		    meter_status_name(mv.status), (long long)mv.age_ms);
+	for (int q = 0; q < METER_Q_COUNT; q++) {
+		if (!meter_has(mv.type, (enum meter_q)q)) {
+			continue;
+		}
+		wf_jb_init(&b, buf, sizeof(buf));
+		if (mv.valid[q]) {
+			wf_jb_milli(&b, mv.v[q]);
+		} else {
+			wf_jb_raw(&b, "ungueltig");
+		}
+		shell_print(sh, "  %-13s %s", names[q], buf);
+	}
+	wf_jb_init(&b, buf, sizeof(buf));
+	wf_meter_state_json(&mv, &b);
+	shell_print(sh, "Zaehler  %s", buf);
+	return 0;
+}
+
 /* ------------------------------------------------ Systemparameter */
 
 static int cmd_sys_list(const struct shell *sh, size_t argc, char **argv)
@@ -479,6 +519,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_evse,
 	SHELL_CMD_ARG(selftest, NULL, "RCM-Selbsttest (nur S1, CP A)", cmd_selftest, 1, 0),
 	SHELL_CMD_ARG(reboot, NULL, "geordneter Neustart (SOLL-RT-22)", cmd_reboot, 1, 0),
 	SHELL_CMD_ARG(nvm, NULL, "Zustand des Parameterspeichers", cmd_nvm, 1, 0),
+	SHELL_CMD_ARG(meter, NULL, "Energiezaehler: Messwerte und Fehlerzaehler", cmd_meter, 1, 0),
 	SHELL_CMD_ARG(factory-reset, NULL, "confirm: Werkseinstellungen und Neustart",
 		      cmd_factory_reset, 1, 1),
 	SHELL_CMD_ARG(import-original, NULL, "Einstellungen aus der Originalfirmware uebernehmen",

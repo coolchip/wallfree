@@ -66,7 +66,9 @@ bool wf_ev_ring_get(const struct wf_ev_ring *r, uint32_t *seq, struct wf_event *
 	return true;
 }
 
-static const char *const type_names[] = {"state", "error", "lock", "contactor"};
+static const char *const type_names[] = {"state", "error", "lock", "contactor", "meter"};
+/* wie meter_status_name(); lib/api haengt nicht vom Zaehlermodul ab */
+static const char *const meter_status[] = {"off", "connecting", "ok", "error"};
 
 void wf_ev_json(const struct wf_event *ev, struct wf_jbuf *b)
 {
@@ -76,7 +78,7 @@ void wf_ev_json(const struct wf_event *ev, struct wf_jbuf *b)
 	wf_jb_key(b, "t_ms", false);
 	wf_jb_int(b, ev->t);
 	wf_jb_key(b, "type", false);
-	wf_jb_str(b, ev->type < 4 ? type_names[ev->type] : "?");
+	wf_jb_str(b, ev->type < 5 ? type_names[ev->type] : "?");
 	switch (ev->type) {
 	case WF_EV_STATE:
 		wf_jb_key(b, "from", false);
@@ -97,6 +99,14 @@ void wf_ev_json(const struct wf_event *ev, struct wf_jbuf *b)
 	case WF_EV_CONTACTOR:
 		wf_jb_key(b, "on", false);
 		wf_jb_raw(b, ev->a ? "true" : "false");
+		break;
+	case WF_EV_METER:
+		wf_jb_key(b, "status", false);
+		wf_jb_str(b, ev->a < 4 ? meter_status[ev->a] : "?");
+		if (ev->b) {
+			wf_jb_key(b, "energy_decreased", false);
+			wf_jb_raw(b, "true");
+		}
 		break;
 	default:
 		break;

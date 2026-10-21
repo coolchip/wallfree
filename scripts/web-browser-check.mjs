@@ -3,13 +3,15 @@
 // headless Chrome ueber das DevTools-Protokoll (Node >= 22, google-chrome-stable), Digest-
 // Anmeldung durch Chrome selbst, Fahrzeug ueber die Telnet-Shell (Port 2323).
 // Zugangsdaten muessen bereits geaendert sein (Werkszugang zeigt nur die Zugangsdaten-Seite).
-//   node scripts/web-browser-check.mjs <http-port> <user> <passwort> <ausgabeverzeichnis>
+//   node scripts/web-browser-check.mjs <http-port> <user> <passwort> <ausgabeverzeichnis> [meter]
+// "meter": in der Simulation ist ein Zaehler konfiguriert (meter_type != 0), zusaetzliche Pruefungen.
 // Ergebnis: Screenshots und browse.json im Ausgabeverzeichnis, Exitcode 1 bei Fehlschlag.
 import { spawn } from 'node:child_process';
 import { writeFileSync, mkdtempSync } from 'node:fs';
 import net from 'node:net';
 
-const [port, user, pass, outdir] = process.argv.slice(2);
+const [port, user, pass, outdir, variant] = process.argv.slice(2);
+const withMeter = variant === 'meter';
 const base = `http://127.0.0.1:${port}/`;
 const dbg = 9333;
 const prof = mkdtempSync(outdir + '/chrome-');
@@ -110,6 +112,17 @@ const checks = [
 	['Entriegelt nach Abstecken', out.expert2.includes('Verriegelung: Entriegelt')],
 	['keine Skriptfehler', !logs.some((l) => l.includes('exceptionDetails'))],
 ];
+if (withMeter) {
+	checks.push(
+		// Kartentitel stehen per CSS in Grossbuchstaben (innerText)
+		['Zaehler: Leistung beim Laden', /zähler\n[\d.,]+ kW\nZählerstand [\d.,]+ kWh\nverbunden/i.test(out.simple2)],
+		['Zaehler: Istwert in der Stromanzeige', out.simple2.includes('Istwert (Zähler, höchste Phase)')],
+		['Zaehler: Messwerte und Fehlerzaehler', /zähler \(nur anzeige\)/i.test(out.expert) &&
+			out.expert.includes('Spannung L1') && out.expert.includes('requests')],
+		['Zaehler: Auswahl in Netz, Zaehler und System', out.expert.includes('Eastron SDM630')]);
+} else {
+	checks.push(['ohne Zaehler: Hinweis kein Istwert', out.simple2.includes('Ein Istwert wird nicht gemessen')]);
+}
 let bad = 0;
 for (const [name, ok] of checks) { console.log((ok ? 'ok   ' : 'FAIL ') + name); if (!ok) bad++; }
 process.exit(bad ? 1 : 0);

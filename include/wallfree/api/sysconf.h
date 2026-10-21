@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Netz- und Systemparameter der Anwendung (Soll-Spezifikation 10.1: net_*,
- * telnet_enable; F20, F25). Reines C ohne Netzwerk: Pruefung, JSON,
+ * telnet_enable, meter_*; F20, F25, F28). Reines C ohne Netzwerk: Pruefung, JSON,
  * Kodierung fuer den Parameterspeicher (Kennungen 3010..), Import aus dem
  * Originalbereich. Aenderungen wirken nach einem Neustart.
  */
@@ -25,12 +25,25 @@ struct wf_sysconf {
 	uint32_t gateway;   /**< 0 = kein Gateway */
 	char hostname[WF_HOSTNAME_MAX + 1]; /**< "" = automatisch wallfree-<MAC-Ende> */
 	bool telnet;
+	uint8_t meter_type;     /**< enum meter_type, 0 = kein Zaehler */
+	uint8_t meter_addr;     /**< 1..247 */
+	uint32_t meter_baud;
+	uint8_t meter_framing;  /**< enum wf_framing */
+};
+
+/** meter_framing */
+enum wf_framing {
+	WF_FRAMING_8N1 = 0,
+	WF_FRAMING_8E1,
+	WF_FRAMING_8O1,
+	WF_FRAMING_8N2,
 };
 
 enum wf_sys_type {
 	WF_SYS_BOOL = 0,
 	WF_SYS_IPV4,
 	WF_SYS_HOST,
+	WF_SYS_CODE,  /**< Zahl aus einer Liste bzw. einem Bereich */
 };
 
 struct wf_syspar {

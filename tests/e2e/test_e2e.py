@@ -390,6 +390,144 @@ class T2Faults(SimCase):
         self.assertIn("Werksreset", self.sim.log_text())
 
 
+class T4Meter(SimCase):
+    """Energiezaehler nur zur Anzeige (Soll-Spezifikation 12.5) mit simuliertem Zaehler."""
+
+    def meter(self):
+        ids = self.sim.get_json("/meters/0/value_ids", self.auth)
+        vals = self.sim.get_json("/meters/0/values", self.auth)
+        return dict(zip(ids, vals))
+
+    def wait_meter(self, pred, timeout=25, what="Zaehlerzustand"):
+        t0 = time.monotonic()
+        last = None
+        while time.monotonic() - t0 < timeout:
+            last = self.sim.get_json("/meters/0/state", self.auth)
+            if pred(last):
+                return last
+            time.sleep(0.2)
+        raise AssertionError(f"{what} nicht erreicht, zuletzt {last}")
+
+    def test_01_ohne_zaehler(self):
+        T4Meter.auth = self.set_credentials()
+        self.assertEqual(self.sim.get_json("/info/features", self.auth), [])
+        self.assertEqual(self.sim.request("GET", "/meters/0/values", auth=self.auth).status, 404)
+        self.assertIn("kein Zaehler", self.shell("evse meter"))
+        self.assertEqual(self.sim.get_json("/system/config", self.auth)["active"]["meter_type"], 0)
+
+    def test_02_konfigurieren(self):
+        r = self.sim.request("POST", "/system/config", {"meter_type": 9}, auth=self.auth)
+        self.assertEqual(r.status, 400, r)
+        self.assertIn("meter_type", r.json()["errors"])
+        r = self.sim.request("POST", "/system/config",
+                             {"meter_type": 2, "meter_address": 5, "meter_baud": 19200},
+                             auth=self.auth)
+        self.assertEqual(r.status, 200, r)
+        self.assertTrue(r.json()["restart_required"])
+        self.assertIn("gespeichert", self.shell("evse sys set meter_framing 0"))
+        boots = self.sim.boots()
+        self.assertEqual(self.sim.request("POST", "/system/restart", b"", auth=self.auth).status,
+                         202)
+        self.sim.wait_restart(boots)
+        self.assertEqual(self.sim.get_json("/info/features", self.auth), ["meters"])
+        self.assertEqual(self.sim.get_json("/meters/0/value_ids", self.auth),
+                         [1, 2, 3, 13, 17, 21, 39, 48, 57, 74, 364, 209, 211])
+        st = self.wait_meter(lambda s: s["status"] == "ok")
+        self.assertEqual(st["state"], 2)
+        self.assertEqual(st["type"], 2)
+        m = self.meter()
+        self.assertAlmostEqual(m[1], 230.0, places=1)
+        self.assertEqual(m[13], 0.0)
+        self.assertEqual(m[74], 0.0)
+        self.assertAlmostEqual(m[364], 50.0, places=2)
+        self.assertGreater(m[209], 1000.0)
+
+    def test_03_laden_mit_istwert(self):
+        self.shell("sim car C")
+        st = self.sim.wait_state(self.auth, lambda s: s["charger_state"] == 3, what="Laden")
+        allowed = st["allowed_charging_current"] / 1000
+        time.sleep(2.5)
+        m = self.meter()
+        e0 = m[209]
+        self.assertAlmostEqual(m[13], allowed, delta=0.1)
+        self.assertAlmostEqual(m[74], m[39] + m[48] + m[57], delta=0.01)
+        self.assertGreater(m[74], 3 * 230 * allowed * 0.95)
+        time.sleep(3)
+        self.assertGreater(self.meter()[209], e0, "Zaehlerstand steigt beim Laden")
+        out = self.shell("evse meter")
+        self.assertIn("Eastron SDM630", out)
+        self.assertIn("Zustand ok", out)
+
+    def test_04_websocket(self):
+        ws = self.sim.ws_connect(self.auth)
+        try:
+            self.assertEqual(ws.recv_topic("meters/0/value_ids")[0], 1)
+            v1 = ws.recv_topic("meters/0/values")
+            st = ws.recv_topic("meters/0/state")
+            # nach jedem Zyklus erneut, auch ohne Aenderung (SOLL-MTR-30)
+            ws.recv_topic("meters/0/state", lambda p: p["sets"] > st["sets"], timeout=3)
+            self.assertEqual(len(v1), 13)
+        finally:
+            ws.close()
+
+    def test_05_zaehlerausfall_laden_unberuehrt(self):
+        ws = self.sim.ws_connect(self.auth)
+        try:
+            ws.recv_topic("evse/state")
+            self.shell("sim meter off")
+            ev = ws.recv_topic("evse/event", lambda p: p["type"] == "meter", timeout=25)
+            self.assertEqual(ev["status"], "error")
+        finally:
+            ws.close()
+        st = self.sim.get_json("/meters/0/state", self.auth)
+        self.assertEqual(st["state"], 1)
+        self.assertGreaterEqual(st["timeouts"], 9)
+        # SOLL-MTR-03: kein Einfluss auf die Ladelogik
+        s = self.sim.state(self.auth)
+        self.assertEqual(s["charger_state"], 3)
+        self.assertEqual(s["error_state"], 0)
+        self.assertEqual(self.sim.get_json("/evse/errors", self.auth)["active"], [])
+        # nach 10 s ohne Satz ungueltig (SOLL-MTR-12)
+        self.wait_meter(lambda s: s["age_ms"] > 10000, timeout=10)
+        self.assertTrue(all(v is None for v in self.meter().values()))
+        self.shell("sim meter ok")
+        self.wait_meter(lambda s: s["status"] == "ok", timeout=15)
+        self.assertIsNotNone(self.meter()[74])
+
+    def test_06_stoerungen_gezaehlt(self):
+        st0 = self.sim.get_json("/meters/0/state", self.auth)
+        self.shell("sim meter frame")
+        self.wait_meter(lambda s: s["frame_errors"] >= st0["frame_errors"] + 3, timeout=5)
+        self.shell("sim meter bad")
+        self.wait_meter(lambda s: s["implausible"] >= st0["implausible"] + 1, timeout=5)
+        self.shell("sim meter flaky")
+        self.wait_meter(lambda s: s["timeouts"] > st0["timeouts"] and s["sets"] > st0["sets"],
+                        timeout=10, what="Saetze trotz jeder zweiten Antwort")
+        self.shell("sim meter ok")
+        self.wait_meter(lambda s: s["status"] == "ok", timeout=15)
+
+    def test_07_zaehlerstand_sinkt(self):
+        ws = self.sim.ws_connect(self.auth)
+        try:
+            ws.recv_topic("evse/state")
+            self.shell("sim meter energy 5000")
+            ev = ws.recv_topic("evse/event", lambda p: p["type"] == "meter", timeout=5)
+            self.assertTrue(ev.get("energy_decreased"), ev)
+        finally:
+            ws.close()
+        self.assertLess(self.meter()[209], 6.0)
+        self.shell("sim car A")
+
+    def test_08_wieder_ohne_zaehler(self):
+        r = self.sim.request("POST", "/system/config", {"meter_type": 0}, auth=self.auth)
+        self.assertEqual(r.status, 200, r)
+        boots = self.sim.boots()
+        self.sim.request("POST", "/system/restart", b"", auth=self.auth)
+        self.sim.wait_restart(boots)
+        self.assertEqual(self.sim.get_json("/info/features", self.auth), [])
+        self.assertEqual(self.sim.request("GET", "/meters/0/state", auth=self.auth).status, 404)
+
+
 class T3ZephyrTelnet(SimCase):
     """Telnet-Client bricht hart ab (RST), waehrend Shell-Ausgabe ansteht.
 

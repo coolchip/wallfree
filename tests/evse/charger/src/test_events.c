@@ -142,6 +142,11 @@ ZTEST(api_events, test_json)
 		 "{\"seq\":3,\"t_ms\":14,\"type\":\"lock\",\"lock_state\":3}"},
 		{{.seq = 4, .t = 15, .type = WF_EV_ERROR, .set = EVSE_ERR_RCM_DC6, .cleared = 0},
 		 "{\"seq\":4,\"t_ms\":15,\"type\":\"error\",\"set\":[\"RCM-DC6\"],\"cleared\":[]}"},
+		{{.seq = 5, .t = 16, .type = WF_EV_METER, .a = 3},
+		 "{\"seq\":5,\"t_ms\":16,\"type\":\"meter\",\"status\":\"error\"}"},
+		{{.seq = 6, .t = 17, .type = WF_EV_METER, .a = 2, .b = 1},
+		 "{\"seq\":6,\"t_ms\":17,\"type\":\"meter\",\"status\":\"ok\","
+		 "\"energy_decreased\":true}"},
 	};
 
 	for (size_t i = 0; i < ARRAY_SIZE(t); i++) {

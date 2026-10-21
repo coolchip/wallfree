@@ -10,6 +10,7 @@
 #include "evse_task.h"
 #include "http_api.h"
 #include "hw.h"
+#include "meter_task.h"
 #include "netcfg.h"
 #include "storage.h"
 #include "sysinfo.h"
@@ -99,5 +100,10 @@ int main(void)
 	storage_start();
 	netcfg_init();          /* Hostname, DHCP bzw. feste Adresse, Telnet */
 	(void)http_api_start(); /* SOLL-BOOT-09: Netz verzoegert den Ladeablauf nicht */
+
+	struct wf_sysconf sys;
+
+	netcfg_get(&sys, NULL);
+	meter_task_start(&sys); /* SOLL-MTR-01: ohne Zaehler nichts */
 	return r;
 }

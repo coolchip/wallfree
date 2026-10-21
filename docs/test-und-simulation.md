@@ -1,14 +1,14 @@
 # Test und Simulation
 
-Stand: 2026-10-20. Alle Tests laufen auf dem PC. Sie belegen nichts ueber die reale Hardware
+Stand: 2026-10-21. Alle Tests laufen auf dem PC. Sie belegen nichts ueber die reale Hardware
 (Pegel, Zeiten, Interrupts) und **keine elektrische Sicherheit**.
 
 | Ebene | Umfang | Stand |
 | --- | --- | --- |
-| PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine | 195 Tests in fuenf Testprogrammen, alle bestanden; Abdeckung `lib/` 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
-| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts | 24 Tests, alle bestanden, ca. 70 s |
-| Browser-Durchlauf | Weboberflaeche in headless Chrome gegen die Simulation | 7 Pruefungen bestanden |
-| evcc | evcc 0.317.2 mit Vorlage `tinkerforge-warp-ws` gegen die Simulation | Laden, Aus/Sofort, Abstecken, Neustart funktionieren |
+| PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezaehler | 207 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zaehler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
+| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zaehler | 32 Tests, alle bestanden, ca. 110 s |
+| Browser-Durchlauf | Weboberflaeche in headless Chrome gegen die Simulation | ohne Zaehler 9, mit Zaehler 12 Pruefungen bestanden |
+| evcc | evcc 0.317.2 mit Vorlage `tinkerforge-warp-ws` gegen die Simulation | Laden, Aus/Sofort, Abstecken, Neustart; mit Zaehler Leistung, Zaehlerstand, Phasenstroeme und -spannungen |
 
 ## PC-Tests
 
@@ -24,7 +24,8 @@ scripts/run-tests.sh --coverage   # zusaetzlich Abdeckung von lib/ (gcovr)
 | `tests/evse/prot` | Verriegelung, RCM-Selbsttest, Schuetzueberwachung |
 | `tests/evse/charger` | Automat mit Simulationsmodell (`sim.c`: Fahrzeug, Kabel, RCM-Sensor, Aktor, Schuetz, 1-ms-Schritte), Ausgaenge, Parameter, Persistenz, API-Abbildung, Ereignisse |
 | `tests/nvm` | Speicherformat mit simuliertem Flash: Stromausfall nach jedem Byte beim Anhaengen und Verdichten, Ausfall beim Loeschen, Pruefsummenfehler, voller Bereich; Sektor-3-Leser |
-| `tests/api` | MD5 (RFC-1321-Vektoren), Digest (RFC-2617-Beispiel, Rundlauf wie evcc, Fehlformen), JSON, Systemparameter, Resetgrund, Bremse, Zugriffsprotokoll |
+| `tests/api` | MD5 (RFC-1321-Vektoren), Digest (RFC-2617-Beispiel, Rundlauf wie evcc, Fehlformen), JSON, Systemparameter inkl. Zaehlerparameter, Resetgrund, Bremse, Zugriffsprotokoll |
+| `tests/meter` | Zaehler mit gescriptetem Bus: Anfragen je Modell, Dekodierung mit Registerwerten von Hand (ABB-Ganzzahlen, Eastron-Float32), Ungueltig-Kennungen, NaN/unendlich, Grenzen, Wiederholung und Zusatzpause nach Timeout, Zaehler je Fehlerart, Teilerfolg im Zyklus, Zustandsfolge, Veralten nach 10 s, gesunkener Zaehlerstand, Rundlauf mit dem simulierten Zaehler, JSON |
 
 Zuordnung Modul -> Anforderung -> Test: [Implementierung](implementierung.md#module-der-ladelogik-und-bausteine).
 
@@ -55,7 +56,8 @@ Ohne Simulation zeigt `scripts/web-preview.py` die Oberflaeche mit Attrappen der
 | Reset | Prozess startet sich per `execv` neu ([sim_host.c](../app/src/sim_host.c)); Flags/BKP19 und der physische Modellzustand (Fahrzeug bleibt angesteckt, Aktorstellung) gehen ueber Umgebungsvariablen mit; neuer Prozess = Einschalten |
 | Flash | Zephyr-Flash-Simulator mit Datei (`--flash=`), Partitionen an den Stellen von Sektor 3 und 7 ([Overlay](../app/boards/native_sim_native_64.overlay)) |
 | Netz | Host-Sockets (`NET_NATIVE_OFFLOADED_SOCKETS`), keine Adress-/DHCP-Konfiguration |
-| Bedienung | Shell-Kommando `sim` (`status`, `car`, `diode`, `cable`, `din`, `ld`, `rcm`, `actuator`, `weld`, `link`, `supply`, `hang`); DIP/Drehschalter/Reset-Taster per Kommandozeile |
+| Energiezaehler | hinter `meter_bus.h` statt Zephyr-Modbus: Antworten des konfigurierten Modells aus `meter_sim_encode`; 230/230,7/231,4 V, Strom = Strom des Tastgrads bei Schuetz ein und Fahrzeug C/D, Energie integriert; Stoerungen `sim meter off` (keine Antwort, 500 ms), `frame`, `flaky` (jede zweite Anfrage ohne Antwort), `bad` (Spannung ausserhalb der Grenze), `energy <Wh>` |
+| Bedienung | Shell-Kommando `sim` (`status`, `car`, `diode`, `cable`, `din`, `ld`, `rcm`, `actuator`, `weld`, `link`, `supply`, `hang`, `meter`); DIP/Drehschalter/Reset-Taster per Kommandozeile |
 | Logging | verzoegert mit Log-Thread wie auf der Steuerung; `NET_LOG` an; stdout zeilengepuffert |
 
 Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](../tests/e2e/wfsim.py)):
@@ -81,11 +83,13 @@ Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](.
 
 ## Browser-Durchlauf
 
-`node scripts/web-browser-check.mjs <port> <user> <passwort> <ausgabe>` gegen eine laufende
+`node scripts/web-browser-check.mjs <port> <user> <passwort> <ausgabe> [meter]` gegen eine laufende
 Simulation (Zugangsdaten vorher geaendert): headless Chrome ueber das DevTools-Protokoll, Digest
 beantwortet Chrome selbst. Ablauf: Seite laden (WebSocket "live"), `sim car C` (Laden), Knopf
 "Laden aus" (S6 -> S7 -> S3, Schuetz nach 5 s aus), Ansicht "Experte" (Zugriffsprotokoll mit
-Fehlversuch), `sim car A`; Screenshots und Texte im Ausgabeverzeichnis. Nicht abgedeckt:
+Fehlversuch), `sim car A`; Screenshots und Texte im Ausgabeverzeichnis. Mit `meter` (in der
+Simulation `meter_type` != 0) zusaetzlich: Zaehlerkarte mit Leistung beim Laden, Istwert in der
+Ladestrom-Anzeige, Messwerte und Fehlerzaehler, Auswahlliste des Zaehlertyps. Nicht abgedeckt:
 Zugangsdaten-Seite, Parameter schreiben, Netz/System.
 
 ## evcc gegen die Simulation
@@ -106,6 +110,8 @@ scripts/evcc-sim.sh                   # Terminal 2, setzt Testzugangsdaten, evcc
 | Modus "aus" | `external_current` 0, geordnetes Ende, Schuetz aus nach 5 s |
 | Modus "sofort" | 16 000 mA, PWM, nach C wieder Laden |
 | Abstecken | "stop charging", "car disconnected" binnen eines evcc-Intervalls |
+| mit Zaehler (`meter_type` 2, Simulation) | evcc meldet `charger: power ✓ energy ✓ currents ✓`; beim Laden 11 046 W, 15,96 A je Phase, Spannungen 230/230,7/231,4 V, Zaehlerstand und geladene Energie steigen |
+| Zaehler faellt aus (`sim meter off`) | Laden laeuft weiter; evcc zeigt 0 W und 0 A (Werte `null` werden in evcc zu 0), Zaehlerstand bleibt auf dem letzten Wert |
 | `POST /system/restart` beim Laden | geordnetes Ende; evcc meldet waehrenddessen `unknown evse status: 4` (S10 -> F -> 4, F23), danach WebSocket neu aufgebaut, keine abgewiesene Anmeldung; evcc kommt mit den neuen Nonces zurecht |
 
 Verhalten von evcc (Grundlage fuer F12 und SOLL-API-32):
@@ -121,6 +127,8 @@ Verhalten von evcc (Grundlage fuer F12 und SOLL-API-32):
   B, meldet evcc `charger out of sync: expected enabled, got disabled`, sendet sofort wieder
   seinen Strom, und nach C wird geladen. WARP loest dasselbe ueber `evse/external_defaults`.
 - Ohne Zaehler schaetzt evcc die Ladeleistung aus seinem eigenen Sollwert (16 A x 3 x 230 V =
-  11 040 W), auch wenn wirksam weniger gilt.
+  11 040 W), auch wenn wirksam weniger gilt. Mit Zaehler nimmt evcc die gemessenen Werte
+  (`meters/0/values`); die Faehigkeiten liest es nur beim Verbinden, nach Aenderung von
+  `meter_type` evcc neu starten.
 - `charger logic error: disabled but charging` erscheint, solange nach "aus" der CP-Zustand C
   bleibt (nur beim Modellfahrzeug dauerhaft; WARP meldet dasselbe).

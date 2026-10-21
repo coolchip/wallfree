@@ -1,6 +1,6 @@
 # Implementierungsstand
 
-Stand: 2026-10-20. **Nichts davon ist auf Hardware ausgefuehrt**; bestandene Tests belegen
+Stand: 2026-10-21. **Nichts davon ist auf Hardware ausgefuehrt**; bestandene Tests belegen
 keine elektrische Sicherheit. Rahmen und Begruendungen: [Architektur](architektur.md);
 Tests: [Test und Simulation](test-und-simulation.md).
 
@@ -11,6 +11,7 @@ Tests: [Test und Simulation](test-und-simulation.md).
 | Ladelogik (`lib/evse`) | vollstaendig nach Soll-Spezifikation, PC-getestet |
 | Parameterspeicher (`lib/nvm`) | fertig, PC-getestet inkl. Stromausfall nach jedem Byte |
 | API-Bausteine (`lib/api`) | fertig, PC-getestet |
+| Energiezaehler (`lib/meter`, Zaehlerthread, nur Anzeige) | fertig, PC-getestet, in der Simulation Ende-zu-Ende und gegen evcc geprueft; Modbus-Anbindung auf UART4 gebaut, ungeprueft (H1) |
 | Anwendung (`app/`) | baut fuer `ev_cc_ac1` ohne Warnung; als PC-Simulation Ende-zu-Ende getestet |
 | Weboberflaeche (`web/`) | fertig, Browser-Durchlauf in der Simulation |
 | evcc-Anbindung | gegen die Simulation geprueft (evcc 0.317.2) |
@@ -40,11 +41,14 @@ Reines C99, getestet auf `native_sim/native/64` mit ztest.
 | [md5.c](../lib/api/md5.c), [digest.c](../lib/api/digest.c) | MD5 (RFC 1321), HTTP-Digest mit `qop=auth`: Challenge, Pruefung, zustandslose Nonces | SOLL-API-07 | `tests/api` (RFC-Vektoren, Rundlauf wie evcc) |
 | [json.c](../lib/api/json.c) | JSON-Ausgabe mit Maskierung, Lesen flacher Objekte | 12.1 | api_json |
 | [evse_api.c](../lib/api/evse_api.c) | `evse/state` (WARP-Abbildung), `external_current`, `limits`, alle Parameter lesen/schreiben, Parameterbeschreibung in Teilen | SOLL-API-03..05/30/32 | evse_api |
-| [sysconf.c](../lib/api/sysconf.c) | Netz- und Systemparameter: Pruefung, JSON, Speicherkodierung (Kennungen 3010..3015), Import der Originalfelder 404/315..326 | 10.1, F20, F25, SOLL-NVM-10 | api_sysconf |
+| [sysconf.c](../lib/api/sysconf.c) | Netz-, Zaehler- und Systemparameter: Pruefung, JSON, Speicherkodierung (Kennungen 3010..3019), Import der Originalfelder 404/315..326 | 10.1, F20, F25, F28, SOLL-NVM-10 | api_sysconf |
 | [reset.c](../lib/api/reset.c) | Resetgrund aus Flags und Backup-Code | SOLL-RT-14 | api_reset |
 | [ratelimit.c](../lib/api/ratelimit.c) | Bremse gegen Passwort-Durchprobieren je Absenderadresse | SOLL-API-07 | api_ratelimit |
 | [events.c](../lib/api/events.c) | Ereignisse aus dem Vergleich zweier Momentaufnahmen, Ringpuffer, JSON | SOLL-ERR-10 | api_events |
 | [alog.c](../lib/api/alog.c) | Zugriffsprotokoll: Ringpuffer (32), Zusammenfassen wiederholter Fehlversuche, JSON in Teilen | SOLL-ERR-11 | api_alog |
+| [meter.c](../lib/meter/meter.c) | Zaehler: Modelltabellen (ABB B23, SDM630, SDM72D-M V2/V1), Dekodierung Float32/U16/U32/S32/U64 mit Ungueltig-Kennungen, Plausibilitaet, Abfragezyklus mit Ruhepause, Wiederholung und Zusatzpause nach Timeout, Satzbildung, Zustand, Fehlerzaehler, Ereignisse; Bus hinter `struct meter_bus` | SOLL-MTR-01/03..15 | `tests/meter` (meter) |
+| [meter_sim.c](../lib/meter/meter_sim.c) | nur PC: Antworten eines Zaehlers je Modell (Tests, Simulation) | – | meter |
+| [meter_json.c](../lib/api/meter_json.c) | `meters/0/value_ids`, `/values` (Tausendstel als Dezimalzahl, ungueltig `null`), `/state` mit Fehlerzaehlern | SOLL-MTR-30/31 | meter |
 
 ## Anwendung und Hardwareschicht
 
@@ -60,17 +64,19 @@ TIM1 und ADC1 stehen nicht im Board-Devicetree, weil die Anwendung sie direkt st
 | [hw_gpio.c](../app/src/hw_gpio.c) | alle Ein-/Ausgaenge aus `zephyr,user`; RCM-Flankeninterrupt schaltet PE2 per Register ab und setzt einen Schutz-Latch, der Ein-Befehle sperrt; PE0-Flankenzeitstempel; PB2 erst nach der ersten Ausgabe | SOLL-PROT-01/05, SOLL-IO-01/21 |
 | [evse_task.c](../app/src/evse_task.c) | Schutzthread (Prio 0, 1 ms): RCM-Pegel, Ueberwachung Automat (100 ms) und Messbloecke (50 ms), IWDG 250 ms, Wartungsmodus fuer Flash-Loeschen; Automatenthread (Prio 2, 10 ms und je Messblock); Ereigniserkennung; Fault-Handler: sicherer Zustand, Neustart | SOLL-RT-04/05/10..12/21 |
 | [storage.c](../app/src/storage.c) | Flash-Adapter (Sektor 7 lesen/schreiben/loeschen, Sektor 3 nur lesen, Lage beim Bauen geprueft); Speicher-Thread (Prio 12): Verriegelungszustand speichern, Verdichten im sicheren Zustand; Werksreset, Import | SOLL-NVM-01..05/10, SOLL-RT-13, SOLL-BOOT-04/20/21 |
-| [http_api.c](../app/src/http_api.c) | HTTP-Server Port 80: `/info/name`, `/info/features`, `/evse/state`, `/evse/external_current`, `/evse/limits`, `/evse/params`, `/evse/param_info`, `/evse/errors`, `/evse/errors/ack`, `/credentials`, `/system/config`, `/system/config_info`, `/system/restart`, `/system/info`, `/system/log`; WebSocket `/ws` (bis 3 Clients, Push alle 100 ms bzw. sofort nach Schreibzugriffen, ein Topic je Rahmen, Topics `evse/state`, `evse/external_current`, `evse/limits`, `evse/event`); Digest-Pruefung je Anfrage | SOLL-API-01..07/30..32, SOLL-ERR-10/11 |
+| [http_api.c](../app/src/http_api.c) | HTTP-Server Port 80: `/info/name`, `/info/features`, `/evse/state`, `/evse/external_current`, `/evse/limits`, `/evse/params`, `/evse/param_info`, `/evse/errors`, `/evse/errors/ack`, `/credentials`, `/system/config`, `/system/config_info`, `/system/restart`, `/system/info`, `/system/log`, mit Zaehler `/meters/0/value_ids`, `/values`, `/state` (sonst 404); WebSocket `/ws` (bis 3 Clients, Push alle 100 ms bzw. sofort nach Schreibzugriffen, ein Topic je Rahmen, Topics `evse/state`, `evse/external_current`, `evse/limits`, `evse/event`, mit Zaehler `meters/0/*` nach jedem Zyklus); Digest-Pruefung je Anfrage | SOLL-API-01..07/30..32, SOLL-ERR-10/11, SOLL-MTR-30/31 |
 | [auth.c](../app/src/auth.c) | Zugangsdaten (HA1), Werkszugang, Passwortaenderung, Nonce-Geheimnis je Start | SOLL-API-07 |
 | [netcfg.c](../app/src/netcfg.c) | Netz-/Systemparameter, Hostname, DHCP oder feste Adresse, Telnet; Aendern (atomar), Import; Netzwerk-LED PC2 | 10.1, F20, F25, SOLL-LED-06 |
-| [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `param list/get/set`, `current`, `enable`, `avail`, `pause`, `pwm5`, `lock`, `unlock`, `errors [clear]`, `selftest`, `reboot`, `ack`, `nvm`, `sys list/set`, `factory-reset confirm`, `import-original` | SOLL-SH-01..09/11/19/20 |
+| [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `param list/get/set`, `current`, `enable`, `avail`, `pause`, `pwm5`, `lock`, `unlock`, `errors [clear]`, `selftest`, `reboot`, `ack`, `nvm`, `meter`, `sys list/set`, `factory-reset confirm`, `import-original` | SOLL-SH-01..09/11/19/20, SOLL-MTR-33 |
 | [sysinfo.c](../app/src/sysinfo.c) | Resetgrund, Firmwarestand (`git describe`), Laufzeit; `GET /system/info` | SOLL-RT-14 |
-| [web/](../web/) | Werkszugang -> Zugangsdaten festlegen; "Einfach": Zustand, Fahrzeug, Ladestrom-Balken, Fehler, Sollstrom, letzte Ereignisse; "Experte": alle Parameter mit Bereich, Default, Herkunftsfeld, Hilfetext, Netz/System mit Neustart, Zugangsdaten, Zugriffsprotokoll | SOLL-API-31, SOLL-ERR-10/11 |
-| [hw_sim.c](../app/src/hw_sim.c), [sim_host.c](../app/src/sim_host.c) | nur `native_sim`: Hardwaremodell und Neustart per `execv` ([Test und Simulation](test-und-simulation.md)) | – |
+| [meter_task.c](../app/src/meter_task.c) | Zaehlerthread (niedrigste Anwendungsprioritaet, Stack 1280 B, nicht ueberwacht), nur mit `meter_type` != 0; Momentaufnahme unter Sperre, Bus ohne Sperre; Ereignisse in den gemeinsamen Ringpuffer | SOLL-MTR-01/03/10..14 |
+| [meter_bus_modbus.c](../app/src/meter_bus_modbus.c) | nur Steuerung: Zephyr-Modbus-Client auf UART4 (`modbus0`, DE an PC12), Baudrate/Format aus den Parametern, Fehler auf Timeout/Rahmen/Ausnahme abgebildet | SOLL-MTR-02/04, F29 |
+| [web/](../web/) | Werkszugang -> Zugangsdaten festlegen; "Einfach": Zustand, Fahrzeug, Ladestrom-Balken, Fehler, Zaehler (Leistung, Zaehlerstand), Sollstrom, letzte Ereignisse; "Experte": Zaehlerwerte mit Fehlerzaehlern, alle Parameter mit Bereich, Default, Herkunftsfeld, Hilfetext, Netz/Zaehler/System mit Neustart, Zugangsdaten, Zugriffsprotokoll | SOLL-API-31, SOLL-ERR-10/11, SOLL-MTR-32 |
+| [hw_sim.c](../app/src/hw_sim.c), [sim_host.c](../app/src/sim_host.c) | nur `native_sim`: Hardwaremodell mit simuliertem Zaehler hinter `meter_bus.h` und Neustart per `execv` ([Test und Simulation](test-und-simulation.md)) | – |
 
 Am Build geprueft: Systemtakt 100 MHz, Ladeadresse `0x08010000`, Interrupttabelle (TIM1_UP ->
 `tim1_up_isr`, DMA2_Stream0 -> `dma2_s0_isr`, EXTI0/3/4/9_5 -> GPIO-Treiber, ETH ->
-Ethernet-Treiber). CCR = ARR haelt den Ausgang im Center-aligned-Modus dauerhaft auf 1 (CP
+Ethernet-Treiber, UART4 -> UART-Treiber). CCR = ARR haelt den Ausgang im Center-aligned-Modus dauerhaft auf 1 (CP
 +12 V DC, RM0033 Abb. 98).
 
 ## Festlegungen
@@ -163,8 +169,21 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Anmeldung | Oberflaeche hinter Digest wie die API (Anmeldedialog des Browsers); im Werkszugang nur die Zugangsdaten-Seite; nach der Aenderung fragt der Browser neu | SOLL-API-07 |
 | Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickte keine Anmeldung), Abfrage alle 2 s. Chrome sendet die Digest-Anmeldung beim WebSocket-Aufbau mit; andere Browser ungeprueft | |
 | Sollstrom-Schieber | 6..32 A in 1-A-Schritten, dazu "Laden aus" (0); Werte ausserhalb (z. B. 80 A) werden am Rand angezeigt | evcc ueberschreibt den Wert, wenn verbunden |
-| Ladestrom-Anzeige (**zu bestaetigen**) | Balken je Groesse, Massstab mindestens 32 A; wirkende Grenze orange mit "begrenzt", wirksamer Wert blau; Kabel/Eingang nur, wenn aktiv; Hinweis "kein Istwert (kein Zaehler)" | Nutzer 2026-10-20: Sollwert, Istwert und Maximum trennen, Maximum sichtbar |
+| Ladestrom-Anzeige (**zu bestaetigen**) | Balken je Groesse, Massstab mindestens 32 A; wirkende Grenze orange mit "begrenzt", wirksamer Wert blau; Kabel/Eingang nur, wenn aktiv; mit Zaehler gruener Balken "Istwert (Zaehler, hoechste Phase)", ohne Zaehler Hinweis "kein Istwert (kein Zaehler)" | Nutzer 2026-10-20: Sollwert, Istwert und Maximum trennen, Maximum sichtbar; SOLL-MTR-32 |
+| Zaehleranzeige (**zu bestaetigen**) | Karte "Zaehler" nur mit konfiguriertem Zaehler: Leistung in kW, Zaehlerstand in kWh, Zustand; ungueltige Werte als "–"/"ungueltig"; Experte: Tabelle aller Messwerte, Fehlerzaehler; `meter_type` und `meter_framing` als Auswahlliste | SOLL-MTR-32 |
 | Ereignisse | "Einfach": letzte 8 Ereignisse; "Experte": ganzes Zugriffsprotokoll mit Fehlversuchen. Vorgeschichte aus `GET /system/log` beim Oeffnen, danach live ueber `evse/event` (ohne WebSocket alle 5 s neu); Uhrzeit = Browserzeit - Laufzeit der Steuerung (ungefaehr) | Steuerung hat keine gestellte Uhr |
+
+### Energiezaehler
+
+| Punkt | Umsetzung | Grund |
+| --- | --- | --- |
+| Werte intern | ganze Zahlen in Tausendsteln der WARP-Einheit (mV, mA, mW, mHz, Wh), JSON mit 3 Nachkommastellen | keine Gleitkommazahlen ausserhalb der Dekodierung |
+| Float32 der Eastron-Zaehler | ganzzahlig aus Mantisse und Exponent dekodiert, gerundet | `float` -> `int64` zieht auf dem Cortex-M3 die Double-Routinen nach (3,5 KB, Fallstricke) |
+| Zyklus | 1 s von Beginn zu Beginn, im Zustand `error` 10 s; Ruhepause 50 ms vor jeder Anfrage, nach einem Timeout zusaetzlich 500 ms; je Block 3 Versuche, auch nach einer Ausnahmeantwort | SOLL-MTR-10/11 (Nutzer 2026-10-21) |
+| Parameter | bei den Systemparametern (`/system/config`, `evse sys set`), Kennungen 3016..3019, wirken nach Neustart; Werkszustand `meter_type` = 0 | SOLL-MTR-01/02 |
+| Ereignis | Typ `meter` mit `status` (`off`, `connecting`, `ok`, `error`), bei gesunkenem Zaehlerstand zusaetzlich `energy_decreased`: true | SOLL-MTR-13/14 |
+| Ungueltige Werte an evcc (**zu bestaetigen**) | `null` wie WARP; evcc 0.317.2 macht daraus 0: bei ausgefallenem Zaehler zeigt evcc waehrend des Ladens 0 W und 0 A, der Zaehlerstand bleibt auf dem letzten Wert | WARP-konform; ein Weitersenden alter Werte wuerde einen Ausfall verbergen |
+| UART4 ohne Zaehler | der UART-Treiber richtet UART4 beim Start ein; ohne Zaehler wird nie gesendet, PC12 bleibt Low | Zephyr initialisiert Devicetree-Geraete immer; ohne Sendefreigabe wirkt nichts auf den Bus |
 
 ## Parameterspeicher
 
@@ -183,7 +202,7 @@ unterbrochene Verdichten wie ein Erststart aus. Getestetes Verhalten bei Stromau
 
 ## Ressourcen
 
-Stand 2026-10-20, `-Os`: **300 856 B Flash** (91,8 % von 320 KB), **118 140 B RAM** (90,1 %).
+Stand 2026-10-21, `-Os`: **316 016 B Flash** (96,4 % von 320 KB), **122 044 B RAM** (93,1 %).
 Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudget).
 
 | Anteil (gemessen beim Hinzufuegen) | Flash | RAM |
@@ -195,8 +214,10 @@ Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudge
 | Netz-/Systemparameter, Bremse | 5,7 KB | – |
 | Ereignisse, Netzwerk-LED, Zugriffsprotokoll, `/evse/limits`, Ereignisanzeige | 5,1 KB | 3,9 KB |
 | Ladelogik `lib/evse` (Code und Konstanten inkl. Parametertabelle mit Hilfetexten) | 15,7 KB | – |
+| Energiezaehler: UART-Treiber 2,1 KB, Zephyr-Modbus 2,7 KB, Interrupttabelle 1 KB, Zaehlermodul 1,4 KB, JSON/API/Shell/Parameter 2,9 KB, Weboberflaeche 1,4 KB, Rest (Treiberanteile) | 15,2 KB | 3,9 KB (Stack 1,3 KB, Modbus-Kontext 1 KB, Zaehlerzustand, WebSocket-Rahmen) |
 
-RAM-Reserve rund 12 KB; bei Bedarf Heap (16 KB) und HTTP-Client-Kontexte verkleinern.
+Reserve rund 11,7 KB Flash und 9 KB RAM; Einsparmoeglichkeiten in der
+[Architektur](architektur.md#5-speicherbudget), beim RAM Heap (16 KB) und HTTP-Client-Kontexte.
 
 ## Annahmen der Hardwareschicht (in H1 zu pruefen)
 
@@ -210,6 +231,10 @@ RAM-Reserve rund 12 KB; bei Bedarf Heap (16 KB) und HTTP-Client-Kontexte verklei
   nach dem Start nicht aendern kann) und Loeschzeit Sektor 7 <= 4000 ms (Zephyr-Devicetree,
   nicht Datenblatt).
 - Zugriff auf RTC-Backup-Register ohne RTC-Takt (nur PWR-Takt und DBP).
+- Zaehlerbus: RS-485 an Klemme A/B auf UART4 mit Freigabe PC12 (Firmwarebefund, wallbe2
+  Belege §9): Sendepegel an A/B messen; danach je Modell einen echten Zaehler abfragen und die
+  Fehlerzaehler bei offener und vertauschter Leitung ansehen. Zephyr-Modbus im nicht
+  normkonformen Modus (8N1) ist nur gebaut.
 - Ruhende HTTP-Verbindungen: Zephyr gibt Client-Plaetze nach 10 s Inaktivitaet per `shutdown`
   frei; in der Simulation fehlt `shutdown`. Auf der Steuerung mit offenem Browser und evcc
   gleichzeitig pruefen.
@@ -228,14 +253,14 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 | Simulation: Socket-Treiber NSOS ohne `shutdown` | ruhende HTTP-Verbindungen werden nie getrennt; ein offener Browser-Tab belegte alle 4 Plaetze | in der Simulation 8 Plaetze, 24 Deskriptoren |
 | Simulation: Telnet-Backend setzt kein `SO_REUSEADDR` | nach Neustart blockiert TIME_WAIT den Port | `bind` setzt es in der Simulation |
 | `twister --coverage` | bricht in dieser Version ab | `scripts/run-tests.sh --coverage` ruft gcovr direkt |
+| Umrechnung `float` -> `int64_t` auf dem Cortex-M3 (`__aeabi_f2lz`) | zieht die Double-Softfloat-Routinen nach (+3,5 KB Flash), ohne dass der Quelltext `double` enthaelt | Float32 der Zaehler ganzzahlig dekodieren (`f32_scaled` in meter.c) |
+| Zephyr-Modbus, Stoppbits | im normkonformen Modus erzwingt Zephyr bei "keine Paritaet" 2 Stoppbits; die Eastron-Werkseinstellung 8N1 ginge nicht | `CONFIG_MODBUS_NONCOMPLIANT_SERIAL_MODE`, Stoppbits je Format setzen |
 
 ## Offen
 
 - H0 und H1 nur mit Freigabe ([Architektur](architektur.md#7-hardware-inbetriebnahme));
   danach Update-Uebergabe (SOLL-SH-10, SOLL-BOOT-30) und Startablauf auf der Hardware.
-- Energiezaehler (Modbus RTU, nur Anzeige): spezifiziert (Soll-Spezifikation 12.5,
-  SOLL-MTR-*, F28/F29), nicht umgesetzt. Zu bestaetigen: Zyklus 1 s, Ruhepause 50 ms,
-  Antwortfrist 500 ms, Plausibilitaetsgrenzen (SOLL-MTR-10/13).
-- Ladestrom-Anzeige der Weboberflaeche bestaetigen lassen.
+- Ladestrom- und Zaehleranzeige der Weboberflaeche bestaetigen lassen; ebenso die Weitergabe
+  ungueltiger Zaehlerwerte als `null` (evcc zeigt dann 0 W).
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
   (bisher nur ueber die API getestet).

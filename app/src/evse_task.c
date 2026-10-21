@@ -175,6 +175,15 @@ static void events_post(const struct wf_ev_snap *before, const struct wf_ev_snap
 	http_api_notify(); /* Ausgabe und Log im WebSocket-Thread */
 }
 
+void evse_task_event_push(struct wf_event ev)
+{
+	k_spinlock_key_t key = k_spin_lock(&ev_lock);
+
+	wf_ev_ring_push(&ev_ring, ev);
+	k_spin_unlock(&ev_lock, key);
+	http_api_notify();
+}
+
 bool evse_task_event_get(uint32_t *seq, struct wf_event *ev)
 {
 	k_spinlock_key_t key = k_spin_lock(&ev_lock);

@@ -13,6 +13,12 @@ static const struct wf_syspar pars[] = {
 	{"net_gateway", 3013, WF_SYS_IPV4, "Gateway (ohne DHCP), 0.0.0.0 = keins"},
 	{"net_hostname", 3014, WF_SYS_HOST, "Hostname, leer = wallfree-<MAC-Ende>"},
 	{"telnet_enable", 3015, WF_SYS_BOOL, "Telnet-Shell ohne Anmeldung (F20)"},
+	{"meter_type", 3016, WF_SYS_CODE,
+	 "Energiezaehler (nur Anzeige): 0 keiner, 1 ABB B23, 2 Eastron SDM630, 3 Eastron "
+	 "SDM72D-M V2, 4 Eastron SDM72D-M (V1, nur Summenwerte)"},
+	{"meter_address", 3017, WF_SYS_CODE, "Modbus-Adresse des Zaehlers 1..247"},
+	{"meter_baud", 3018, WF_SYS_CODE, "Baudrate RS-485: 2400..115200"},
+	{"meter_framing", 3019, WF_SYS_CODE, "Rahmenformat: 0 = 8N1, 1 = 8E1, 2 = 8O1, 3 = 8N2"},
 };
 #define N_PARS (sizeof(pars) / sizeof(pars[0]))
 
@@ -24,6 +30,9 @@ void wf_sysconf_defaults(struct wf_sysconf *c)
 	c->netmask = IP(255, 255, 255, 0);
 	c->gateway = IP(192, 168, 0, 1);
 	c->telnet = true;                   /* F20, spaeter Default aus */
+	c->meter_addr = 1;                  /* Werkseinstellung der Eastron-Zaehler */
+	c->meter_baud = 9600;
+	c->meter_framing = WF_FRAMING_8N1;
 }
 
 size_t wf_sys_count(void)
@@ -152,6 +161,46 @@ static const char *check_host(const char *h, size_t n)
 	return NULL;
 }
 
+static const uint32_t bauds[] = {2400, 4800, 9600, 19200, 38400, 57600, 115200};
+
+static const char *check_code(uint16_t id, int64_t v)
+{
+	switch (id) {
+	case 3016:
+		return v >= 0 && v <= 4 ? NULL : "Zaehlertyp 0..4";
+	case 3017:
+		return v >= 1 && v <= 247 ? NULL : "Adresse 1..247";
+	case 3018:
+		for (size_t i = 0; i < sizeof(bauds) / sizeof(bauds[0]); i++) {
+			if (v == bauds[i]) {
+				return NULL;
+			}
+		}
+		return "Baudrate 2400, 4800, 9600, 19200, 38400, 57600 oder 115200";
+	default:
+		return v >= 0 && v <= 3 ? NULL : "Rahmenformat 0..3";
+	}
+}
+
+static uint32_t code_get(const struct wf_sysconf *c, uint16_t id)
+{
+	return id == 3016 ? c->meter_type : id == 3017 ? c->meter_addr
+		: id == 3018 ? c->meter_baud : c->meter_framing;
+}
+
+static void code_put(struct wf_sysconf *c, uint16_t id, uint32_t v)
+{
+	if (id == 3016) {
+		c->meter_type = (uint8_t)v;
+	} else if (id == 3017) {
+		c->meter_addr = (uint8_t)v;
+	} else if (id == 3018) {
+		c->meter_baud = v;
+	} else {
+		c->meter_framing = (uint8_t)v;
+	}
+}
+
 static uint32_t *ip_field(struct wf_sysconf *c, uint16_t id)
 {
 	return id == 3011 ? &c->ip : id == 3012 ? &c->netmask : &c->gateway;
@@ -181,6 +230,17 @@ const char *wf_sys_set(struct wf_sysconf *c, const struct wf_syspar *p, const st
 
 		if (err == NULL) {
 			*ip_field(c, p->id) = ip;
+		}
+		return err;
+	}
+	case WF_SYS_CODE: {
+		if (v->type != WF_J_NUM) {
+			return "Zahl erwartet";
+		}
+		const char *err = check_code(p->id, v->num);
+
+		if (err == NULL) {
+			code_put(c, p->id, (uint32_t)v->num);
 		}
 		return err;
 	}
@@ -228,6 +288,9 @@ void wf_sys_json(const struct wf_sysconf *c, struct wf_jbuf *b)
 			wf_ipv4_format(*ip_field((struct wf_sysconf *)c, p->id), ip);
 			wf_jb_str(b, ip);
 			break;
+		case WF_SYS_CODE:
+			wf_jb_int(b, code_get(c, p->id));
+			break;
 		default:
 			wf_jb_str(b, c->hostname);
 			break;
@@ -238,7 +301,7 @@ void wf_sys_json(const struct wf_sysconf *c, struct wf_jbuf *b)
 
 void wf_sys_info_json(struct wf_jbuf *b)
 {
-	static const char *const types[] = {"bool", "ipv4", "hostname"};
+	static const char *const types[] = {"bool", "ipv4", "hostname", "code"};
 
 	wf_jb_raw(b, "[");
 	for (size_t i = 0; i < N_PARS; i++) {
@@ -262,6 +325,15 @@ size_t wf_sys_encode(const struct wf_sysconf *c, const struct wf_syspar *p, uint
 		return 1;
 	case WF_SYS_IPV4: {
 		uint32_t v = *ip_field((struct wf_sysconf *)c, p->id);
+
+		buf[0] = (uint8_t)(v >> 24);
+		buf[1] = (uint8_t)(v >> 16);
+		buf[2] = (uint8_t)(v >> 8);
+		buf[3] = (uint8_t)v;
+		return 4;
+	}
+	case WF_SYS_CODE: {
+		uint32_t v = code_get(c, p->id);
 
 		buf[0] = (uint8_t)(v >> 24);
 		buf[1] = (uint8_t)(v >> 16);
@@ -307,6 +379,18 @@ int wf_sys_decode(struct wf_sysconf *c, uint16_t id, const void *data, size_t le
 			return -1;
 		}
 		*ip_field(c, id) = v;
+		return 0;
+	}
+	case WF_SYS_CODE: {
+		if (len != 4) {
+			return -1;
+		}
+		uint32_t v = IP(d[0], d[1], d[2], d[3]);
+
+		if (check_code(id, v) != NULL) {
+			return -1;
+		}
+		code_put(c, id, v);
 		return 0;
 	}
 	default:

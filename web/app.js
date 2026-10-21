@@ -35,6 +35,24 @@ const ERRBITS = ['Kabel abgewiesen', 'PP ungültig', 'CP ungültig', 'Verriegeln
 	'Intern'];
 const errText = (m) => ERRBITS.filter((_, i) => m & (1 << i)).join(', ') || 'keine';
 const amps = (ma) => (ma / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' A';
+const num = (v, d) => v.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+// Zaehler (SOLL-MTR-30..32): WARP-Kennungen der Messwerte
+const MV = { 1: ['Spannung L1', 'V', 1], 2: ['Spannung L2', 'V', 1], 3: ['Spannung L3', 'V', 1],
+	13: ['Strom L1', 'A', 2], 17: ['Strom L2', 'A', 2], 21: ['Strom L3', 'A', 2],
+	39: ['Leistung L1', 'W', 0], 48: ['Leistung L2', 'W', 0], 57: ['Leistung L3', 'W', 0],
+	74: ['Leistung gesamt', 'W', 0], 364: ['Frequenz', 'Hz', 2], 209: ['Energie Bezug', 'kWh', 3],
+	211: ['Energie Einspeisung', 'kWh', 3] };
+const METER_STATUS = { off: 'kein Zähler', connecting: 'verbinde …', ok: 'verbunden', error: 'gestört' };
+const METER_TYPES = ['kein Zähler', 'ABB B23', 'Eastron SDM630', 'Eastron SDM72D-M V2',
+	'Eastron SDM72D-M (V1, nur Summen)'];
+const FRAMING = ['8N1', '8E1', '8O1', '8N2'];
+// Wert zur Kennung oder null (nicht vorhanden, ungueltig, veraltet)
+const mval = (m, id) => {
+	if (!m || !m.ids || !m.values) return null;
+	const i = m.ids.indexOf(id);
+	return i < 0 || m.values[i] === null || m.values[i] === undefined ? null : m.values[i];
+};
 
 // ------------------------------------------------------------ Live-Daten
 
@@ -46,6 +64,7 @@ function useLive() {
 	const [limits, setLimits] = useState(null); // Topic evse/limits
 	const [mode, setMode] = useState('…');
 	const [events, setEvents] = useState([]); // Topic evse/event (SOLL-ERR-10), juengste zuletzt
+	const [meter, setMeter] = useState(null); // meters/0/*: {ids, values, state}; null = kein Zaehler
 
 	useEffect(() => {
 		let ws = null, timer = null, stop = false;
@@ -55,6 +74,11 @@ function useLive() {
 				setExt(await api('/evse/external_current'));
 				setLimits(await api('/evse/limits'));
 			} catch (e) { /* naechster Versuch */ }
+			try {
+				const st = await api('/meters/0/state');
+				const ids = await api('/meters/0/value_ids');
+				setMeter({ ids, values: await api('/meters/0/values'), state: st });
+			} catch (e) { if (e.status === 404) setMeter(null); }
 		};
 		const startPoll = () => {
 			if (timer) return;
@@ -76,6 +100,9 @@ function useLive() {
 					if (m.topic === 'evse/external_current') setExt(m.payload);
 					if (m.topic === 'evse/limits') setLimits(m.payload);
 					if (m.topic === 'evse/event') setEvents((l) => l.concat([m.payload]).slice(-40));
+					if (m.topic === 'meters/0/value_ids') setMeter((o) => ({ ...o, ids: m.payload }));
+					if (m.topic === 'meters/0/values') setMeter((o) => ({ ...o, values: m.payload }));
+					if (m.topic === 'meters/0/state') setMeter((o) => ({ ...o, state: m.payload }));
 				}
 			};
 			ws.onclose = () => {
@@ -87,7 +114,7 @@ function useLive() {
 		connect();
 		return () => { stop = true; if (ws) ws.close(); clearInterval(timer); };
 	}, []);
-	return { state, ext, mode, setExt, events, limits };
+	return { state, ext, mode, setExt, events, limits, meter };
 }
 
 // ------------------------------------------------------------ Bausteine
@@ -110,6 +137,8 @@ function evText(e) {
 		e.cleared.length && 'behoben: ' + e.cleared.join(', ')].filter(Boolean).join('; ');
 	case 'lock': return 'Verriegelung: ' + (LOCK[e.lock_state] || e.lock_state);
 	case 'contactor': return 'Schütz ' + (e.on ? 'ein' : 'aus');
+	case 'meter': return 'Zähler ' + (METER_STATUS[e.status] || e.status) +
+		(e.energy_decreased ? ', Zählerstand gesunken' : '');
 	}
 	return e.type;
 }
@@ -158,12 +187,15 @@ function EventLog({ live, all }) {
 // ------------------------------------------------------------ Einfach
 
 // Sollwert der Schnittstelle, Grenzen und wirksamer Strom getrennt; die Grenze,
-// die gerade wirkt, ist hervorgehoben. Gemessen wird der Strom nicht (kein Zaehler).
+// die gerade wirkt, ist hervorgehoben. Mit Zaehler zusaetzlich der gemessene
+// Strom (hoechste Phase), nur zur Anzeige.
 const LIMIT_TEXT = { external: 'Sollwert', hardware: 'Maximum Drehschalter', cable: 'Kabel',
 	input: 'Eingang', blocked: 'Sollwert 0 (Laden aus)', pwm5: '5-%-Modus' };
 
-function Limits({ l }) {
+function Limits({ l, meter }) {
 	if (!l) return null;
+	const ph = [13, 17, 21].map((id) => mval(meter, id)).filter((v) => v !== null);
+	const ist = ph.length ? Math.max(...ph) * 1000 : null;
 	const rows = [
 		['external', 'Sollwert (evcc/Schnittstelle)', l.external_ignored ? 0 : l.external,
 			l.external_ignored ? 'ignoriert (Eingang)' : null],
@@ -186,12 +218,18 @@ function Limits({ l }) {
 			<span class="num">${l.allowed ? amps(l.allowed) : '–'}</span>
 			<div class="bar"><i style=${'width:' + pct(l.allowed)}></i></div>
 		</div>
+		${ist !== null && html`<div class="lrow ist">
+			<span>Istwert (Zähler, höchste Phase)</span>
+			<span class="num">${amps(ist)}</span>
+			<div class="bar"><i style=${'width:' + pct(ist)}></i></div>
+		</div>`}
 		<p class="muted msg">${by === 'external' ? 'Der Sollwert wirkt.'
-			: 'Es wirkt: ' + (LIMIT_TEXT[by] || by) + '.'} Ein Istwert wird nicht gemessen (kein Zähler).</p>
+			: 'Es wirkt: ' + (LIMIT_TEXT[by] || by) + '.'}${!meter ? ' Ein Istwert wird nicht gemessen (kein Zähler).'
+			: ist === null ? ' Kein gültiger Istwert vom Zähler.' : ''}</p>
 	</div>`;
 }
 
-function CurrentControl({ ext, setExt, limits }) {
+function CurrentControl({ ext, setExt, limits, meter }) {
 	const [val, setVal] = useState(null);
 	const [msg, setMsg] = useState(null);
 	const cur = ext ? ext.current : 0;
@@ -205,7 +243,7 @@ function CurrentControl({ ext, setExt, limits }) {
 		} catch (e) { setMsg({ ok: false, text: e.message }); }
 	};
 	return html`<section class="card wide"><h2>Ladestrom</h2>
-		<${Limits} l=${limits} />
+		<${Limits} l=${limits} meter=${meter} />
 		<div class="row">
 			<input type="range" min="6" max="32" step="1" value=${shown}
 				onInput=${(e) => setVal(+e.target.value)} />
@@ -237,8 +275,40 @@ function Simple({ live }) {
 			<div class="big ${s.error_state ? 'bad' : 'ok'}">${ERRSTATE[s.error_state] || s.error_state}</div>
 			<div class="muted">Verriegelung: ${LOCK[s.lock_state] || '?'}</div>
 		<//>
-		<${CurrentControl} ext=${live.ext} setExt=${live.setExt} limits=${live.limits} />
+		${live.meter && html`<${MeterCard} m=${live.meter} />`}
+		<${CurrentControl} ext=${live.ext} setExt=${live.setExt} limits=${live.limits} meter=${live.meter} />
 	</div><${EventLog} live=${live} />`;
+}
+
+// Einfach: Leistung, Zaehlerstand, Zustand
+function MeterCard({ m }) {
+	const p = mval(m, 74), e = mval(m, 209);
+	const st = m.state ? m.state.status : 'connecting';
+	return html`<${Card} title="Zähler">
+		<div class="big">${p === null ? '–' : num(p / 1000, 2) + ' kW'}</div>
+		<div class="muted">${e === null ? 'Zählerstand –' : 'Zählerstand ' + num(e, 1) + ' kWh'}</div>
+		<div class=${st === 'ok' ? 'muted' : 'warn'}>${METER_STATUS[st] || st}</div>
+	<//>`;
+}
+
+// Experte: alle Messwerte und Fehlerzaehler (SOLL-MTR-15)
+function Meter({ m }) {
+	if (!m) return null;
+	const s = m.state || {};
+	const cnt = ['requests', 'responses', 'timeouts', 'frame_errors', 'exceptions', 'implausible', 'sets'];
+	return html`<${Card} title="Zähler (nur Anzeige)">
+		<p class=${s.status === 'ok' ? 'muted' : 'warn'}>${(METER_TYPES[s.type] || '?') + ', ' +
+			(METER_STATUS[s.status] || s.status || '…') + (s.age_ms >= 0 ? ', letzter Satz vor ' +
+			num(s.age_ms / 1000, 1) + ' s' : '')}</p>
+		<table>
+			${(m.ids || []).map((id) => {
+				const v = mval(m, id), d = MV[id] || [String(id), '', 3];
+				return html`<tr><td>${d[0]}</td><td class="num">${v === null ? 'ungültig' : num(v, d[2]) + ' ' + d[1]}</td></tr>`;
+			})}
+		</table>
+		<p class="muted msg">${cnt.map((k) => k + ' ' + (s[k] || 0)).join(' · ') +
+			(s.last_exception ? ' · letzte Ausnahme ' + s.last_exception : '')}</p>
+	<//>`;
 }
 
 // ------------------------------------------------------------ Experte
@@ -366,13 +436,22 @@ function System() {
 			setTimeout(() => location.reload(), 25000);
 		} catch (e) { setMsg({ ok: false, text: e.message }); }
 	};
-	return html`<${Card} title="Netz und System">
+	return html`<${Card} title="Netz, Zähler und System">
 		<form onSubmit=${save}>
-		${info.map((p) => p.type === 'bool'
-			? html`<label class="check"><input type="checkbox" checked=${val(p.name)}
-				onChange=${(e) => setEdit({ ...edit, [p.name]: e.target.checked })} />${p.name} – ${p.help}</label>`
-			: html`<label>${p.name} – ${p.help}<input value=${val(p.name)}
-				onInput=${(e) => setEdit({ ...edit, [p.name]: e.target.value })} /></label>`)}
+		${info.map((p) => {
+			const set = (v) => setEdit({ ...edit, [p.name]: v });
+			const opts = p.name === 'meter_type' ? METER_TYPES : p.name === 'meter_framing' ? FRAMING : null;
+			if (p.type === 'bool') {
+				return html`<label class="check"><input type="checkbox" checked=${val(p.name)}
+					onChange=${(e) => set(e.target.checked)} />${p.name} – ${p.help}</label>`;
+			}
+			if (opts) {
+				return html`<label>${p.name}<select value=${val(p.name)} onChange=${(e) => set(+e.target.value)}>
+					${opts.map((t, i) => html`<option value=${i}>${t}</option>`)}</select></label>`;
+			}
+			return html`<label>${p.name} – ${p.help}<input value=${val(p.name)} inputmode=${p.type === 'code' ? 'numeric' : null}
+				onInput=${(e) => set(p.type === 'code' ? +e.target.value : e.target.value)} /></label>`;
+		})}
 		<div class="row"><button class="primary" type="submit">Speichern</button>
 			<button type="button" onClick=${restart}>Neu starten</button></div>
 		</form>
@@ -434,7 +513,7 @@ function Main() {
 		</header>
 		<main>
 			${view === 'simple' ? html`<${Simple} live=${live} />`
-				: html`<${Errors} /><${EventLog} live=${live} all=${true} /><${Params} /><${System} /><${Credentials} first=${false} />`}
+				: html`<${Errors} /><${Meter} m=${live.meter} /><${EventLog} live=${live} all=${true} /><${Params} /><${System} /><${Credentials} first=${false} />`}
 		</main>`;
 }
 

@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * HTTP- und WebSocket-API (Soll-Spezifikation 12.1, SOLL-API-01..07/30),
- * erster Umfang fuer evcc ueber die Vorlage tinkerforge-warp-ws.
+ * HTTP- und WebSocket-API (Soll-Spezifikation 12.1, SOLL-API-01..07/30,
+ * Zaehler SOLL-MTR-30/31), Umfang fuer evcc ueber die Vorlage
+ * tinkerforge-warp-ws.
  *
  *  - Alle Ressourcen mit HTTP-Digest (MD5, qop=auth). Im Werkszugang
  *    beantwortet die API nur /credentials, sonst 403.
@@ -30,11 +31,13 @@
 #include <wallfree/api/alog.h>
 #include <wallfree/api/events.h>
 #include <wallfree/api/evse_api.h>
+#include <wallfree/api/meter_json.h>
 #include <wallfree/api/ratelimit.h>
 #include <wallfree/evse/persist.h>
 #include "auth.h"
 #include "evse_task.h"
 #include "hw.h"
+#include "meter_task.h"
 #include "netcfg.h"
 #include "http_api.h"
 #include "storage.h"
@@ -362,9 +365,10 @@ static void info_features(struct http_client_ctx *client, struct res *r,
 {
 	ARG_UNUSED(client);
 	ARG_UNUSED(r);
-	/* kein Zaehler, kein NFC, keine Phasenumschaltung */
-	strcpy(out, "[]");
-	respond(rsp, HTTP_200_OK, 2);
+	/* SOLL-API-02: Zaehler nur, wenn konfiguriert; kein NFC, keine Phasenumschaltung.
+	 * evcc liest das nur beim Verbinden. */
+	strcpy(out, meter_task_type() != METER_NONE ? "[\"meters\"]" : "[]");
+	respond(rsp, HTTP_200_OK, strlen(out));
 }
 
 JSON_RESOURCE(info_name_r, "/info/name", BIT(HTTP_GET), info_name, false, 0);
@@ -526,6 +530,60 @@ JSON_RESOURCE(external_current_r, "/evse/external_current", BIT(HTTP_GET) | BIT(
 JSON_RESOURCE(evse_params_r, "/evse/params", BIT(HTTP_GET) | BIT(HTTP_POST), evse_params,
 	      false, BODY_MAX);
 JSON_RESOURCE(param_info_r, "/evse/param_info", BIT(HTTP_GET), param_info, false, 0);
+
+/* ------------------------------------------------ /meters/0 (SOLL-MTR-30/31) */
+
+enum meter_topic {
+	MT_VALUE_IDS = 0,
+	MT_VALUES,
+	MT_STATE,
+	MT_COUNT,
+};
+static const char *const meter_topic[MT_COUNT] = {"meters/0/value_ids", "meters/0/values",
+						 "meters/0/state"};
+
+static void meter_render(enum meter_topic t, struct wf_jbuf *b)
+{
+	struct meter_values mv;
+
+	if (t == MT_VALUE_IDS) {
+		wf_meter_value_ids_json(meter_task_type(), b);
+		return;
+	}
+	(void)meter_task_get(&mv);
+	if (t == MT_VALUES) {
+		wf_meter_values_json(&mv, b);
+	} else {
+		wf_meter_state_json(&mv, b);
+	}
+}
+
+static void meter_res(struct http_response_ctx *rsp, enum meter_topic t)
+{
+	struct wf_jbuf b;
+
+	if (meter_task_type() == METER_NONE) {
+		respond_error(rsp, HTTP_404_NOT_FOUND, "kein Zaehler konfiguriert (meter_type)");
+		return;
+	}
+	wf_jb_init(&b, out, sizeof(out));
+	meter_render(t, &b);
+	respond_json(rsp, HTTP_200_OK, &b);
+}
+
+#define METER_RESOURCE(_id, _path, _topic)                                                         \
+	static void _id##_fn(struct http_client_ctx *client, struct res *r,                        \
+			     struct http_response_ctx *rsp)                                        \
+	{                                                                                          \
+		ARG_UNUSED(client);                                                                \
+		ARG_UNUSED(r);                                                                     \
+		meter_res(rsp, _topic);                                                            \
+	}                                                                                          \
+	JSON_RESOURCE(_id, _path, BIT(HTTP_GET), _id##_fn, false, 0)
+
+METER_RESOURCE(meter_ids_r, "/meters/0/value_ids", MT_VALUE_IDS);
+METER_RESOURCE(meter_values_r, "/meters/0/values", MT_VALUES);
+METER_RESOURCE(meter_state_r, "/meters/0/state", MT_STATE);
 
 /* ------------------------------------------------ /credentials (SOLL-API-07) */
 
@@ -858,6 +916,50 @@ static void ws_events(void)
 	}
 }
 
+/*
+ * Zaehler-Topics (SOLL-MTR-30): nach jedem Zyklus Werte und Zustand an alle,
+ * beim Verbinden zusaetzlich die Kennungen. Kein Vergleich mit dem letzten
+ * Stand, daher ohne eigene Puffer je Topic.
+ */
+static uint32_t meter_cycles;
+static char meter_frame[448];
+
+static void ws_meter(void)
+{
+	struct meter_values mv;
+	uint32_t n = meter_task_get(&mv);
+	bool cycle = n != meter_cycles;
+
+	meter_cycles = n;
+	for (int t = 0; t < MT_COUNT; t++) {
+		struct wf_jbuf b;
+		bool any = false;
+
+		for (int i = 0; i < WS_MAX; i++) {
+			any |= ws[i].sock >= 0 && (ws[i].full_sync || (cycle && t != MT_VALUE_IDS));
+		}
+		if (!any) {
+			continue;
+		}
+		wf_jb_init(&b, meter_frame, sizeof(meter_frame));
+		wf_jb_raw(&b, "{\"topic\":");
+		wf_jb_str(&b, meter_topic[t]);
+		wf_jb_raw(&b, ",\"payload\":");
+		meter_render((enum meter_topic)t, &b);
+		wf_jb_raw(&b, "}");
+		if (b.overflow) {
+			continue;
+		}
+		for (int i = 0; i < WS_MAX; i++) {
+			if (ws[i].sock >= 0 && (ws[i].full_sync || (cycle && t != MT_VALUE_IDS)) &&
+			    websocket_send_msg(ws[i].sock, (const uint8_t *)meter_frame, b.len,
+					       WEBSOCKET_OPCODE_DATA_TEXT, false, true, WS_SEND_MS) < 0) {
+				ws_close(i);
+			}
+		}
+	}
+}
+
 static void ws_entry(void *p1, void *p2, void *p3)
 {
 	ARG_UNUSED(p1);
@@ -884,6 +986,9 @@ static void ws_entry(void *p1, void *p2, void *p3)
 				}
 			}
 			strcpy(ws_last[t], ws_cur[t]);
+		}
+		if (meter_task_type() != METER_NONE) {
+			ws_meter();
 		}
 		for (int i = 0; i < WS_MAX; i++) {
 			ws[i].full_sync = false;

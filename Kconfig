@@ -20,3 +20,11 @@ config WALLFREE_API
 	  Digest-Authentifizierung (MD5), minimales JSON und Abbildung der
 	  Ladelogik auf die WARP-angelehnte API (Soll-Spezifikation 12.1).
 	  Reines C, auf dem PC testbar.
+
+config WALLFREE_METER
+	bool "Wallfree Energiezaehler (hardwareunabhaengig)"
+	help
+	  Zaehlerabfrage ueber Modbus RTU zur Anzeige (Soll-Spezifikation
+	  12.5): Modelltabellen, Dekodierung, Plausibilitaet, Zustand und
+	  Fehlerzaehler. Reines C, auf dem PC testbar; der Bus ist hinter
+	  struct meter_bus gekapselt.

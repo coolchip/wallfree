@@ -111,13 +111,10 @@ Probelauf (Netzleistung ansehen). Wird es knapp, in dieser Reihenfolge: Netz-She
 Assert-Texte, LTO, Shell-Hilfe (zusammen ~100 KB). TLS (mbedTLS) passt neben P1
 voraussichtlich nicht (nicht gemessen); dann Speicherort und Budget neu bewerten.
 
-**Zaehleranbindung Modbus RTU (Groessentest 2026-10-21, F28):**
-UART4 mit RS-485-Freigabe PC12, Zephyr-Modbus-Client und tabellengesteuerte Zaehlerabfrage
-(ABB B23, Eastron SDM630/SDM72D-M) auf Basis 300,8 KB gebaut: **+9,4 KB Flash, +2,5 KB RAM**.
-Davon UART-Treiber 2,2 KB, Zephyr-Modbus 2,7 KB, Abfrage und Registertabellen 1,1 KB,
-Gleitkomma-Hilfsroutinen und CRC rund 1 KB; RAM: Thread-Stack 1 KB, Modbus-Puffer 1 KB.
-Nicht enthalten sind Parameter, API, evcc-Abbildung und Weboberflaeche (geschaetzt weitere
-3..5 KB Flash).
+**Zaehleranbindung Modbus RTU (F28), umgesetzt 2026-10-21:** UART4 mit RS-485-Freigabe PC12,
+Zephyr-Modbus-Client, Zaehlermodul, API, Shell und Weboberflaeche zusammen **+15,2 KB Flash,
++3,9 KB RAM** (Aufteilung: [Implementierung](implementierung.md#ressourcen)). Der Groessentest
+vorab (nur Abfrage, ohne Parameter, API und Oberflaeche) ergab +9,4 KB.
 
 **Entscheidung (Nutzer 2026-10-21, F29):** Modbus-Client von Zephyr, hinter einer schmalen
 Schnittstelle gekapselt (SOLL-MTR-04). Ein eigener RTU-Master lohnt nur, wenn er deutlich

@@ -15,6 +15,7 @@ target_sources(app PRIVATE
   src/http_api.c
   src/netcfg.c
   src/sysinfo.c
+  src/meter_task.c
 )
 if(CONFIG_ARCH_POSIX)
   # PC-Simulation (native_sim): Modell statt TIM1/ADC/GPIO, Neustart per execv
@@ -22,7 +23,7 @@ if(CONFIG_ARCH_POSIX)
   target_sources(native_simulator INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src/sim_host.c)
   target_include_directories(native_simulator INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 else()
-  target_sources(app PRIVATE src/hw_stm32.c src/hw_gpio.c)
+  target_sources(app PRIVATE src/hw_stm32.c src/hw_gpio.c src/meter_bus_modbus.c)
 endif()
 # Ressourcenliste des HTTP-Servers (HTTP_RESOURCE_DEFINE)
 zephyr_linker_sources(SECTIONS sections-rom.ld)

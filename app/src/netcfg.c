@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Netz- und Systemparameter (10.1, F20, F25, SOLL-SH-19), siehe netcfg.h.
+ * Die Zaehlerparameter (meter_*) liegen mit im Satz; sie wertet meter_task
+ * beim Start aus.
  *
  * Telnet: Zephyr startet die Telnet-Shell vor main() und kann den Port zur
  * Laufzeit nicht schliessen. Mit telnet_enable = 0 wird die Kommando-
@@ -10,6 +12,7 @@
  *
  * Nur gebaut, auf Hardware nicht ausgefuehrt.
  */
+#include <stdlib.h>
 #include <string.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -268,7 +271,15 @@ const char *netcfg_set_text(const char *name, const char *text)
 	if (p == NULL) {
 		return "unbekannter Parameter";
 	}
-	if (p->type == WF_SYS_BOOL) {
+	if (p->type == WF_SYS_CODE) {
+		char *end;
+
+		v.type = WF_J_NUM;
+		v.num = strtol(text, &end, 10);
+		if (*text == '\0' || *end != '\0') {
+			return "Zahl erwartet";
+		}
+	} else if (p->type == WF_SYS_BOOL) {
 		v.type = WF_J_NUM;
 		if (strcmp(text, "1") == 0 || strcmp(text, "true") == 0) {
 			v.num = 1;

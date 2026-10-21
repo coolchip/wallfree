@@ -16,6 +16,9 @@
  *    WALLFREE_SIM_MODEL. Ein neuer Prozess entspricht dem Einschalten.
  *  - DIP, Drehschalter und Reset-Taster ueber Kommandozeilenoptionen,
  *    das Modell zur Laufzeit ueber die Shell (Kommando "sim").
+ *  - Energiezaehler hinter meter_bus.h (SOLL-MTR-04): Antworten aus
+ *    meter_sim_encode(); Strom = Strom des Tastgrads bei Schuetz ein und
+ *    Fahrzeug in C/D, sonst 0; Stoerungen ueber "sim meter".
  *
  * Rein fuer Tests auf dem PC; keine Aussage ueber reale Hardware.
  */
@@ -30,7 +33,9 @@
 #include <cmdline.h>
 #include <nsi_host_trampolines.h>
 #include <posix_native_task.h>
+#include <wallfree/meter/meter.h>
 #include "hw.h"
+#include "meter_bus.h"
 #include "sim_host.h"
 
 LOG_MODULE_REGISTER(hw_sim, LOG_LEVEL_INF);
@@ -482,6 +487,73 @@ void hw_gpio_apply(const struct evse_outputs *o)
 	irq_unlock(key);
 }
 
+/* ------------------------------------------------ Energiezaehler (meter_bus.h) */
+
+enum meter_mode {
+	MM_OK = 0,
+	MM_OFF,    /* keine Antwort */
+	MM_FRAME,  /* gestoerte Telegramme */
+	MM_FLAKY,  /* jede zweite Anfrage ohne Antwort */
+	MM_BAD,    /* unplausibler Wert (Spannung NaN bzw. ungueltig) */
+};
+static const char *const meter_modes[] = {"ok", "off", "frame", "flaky", "bad"};
+
+static struct {
+	uint8_t type;
+	enum meter_mode mode;
+	uint32_t n;
+	int64_t energy_uj;   /* Bezug in Mikrojoule (mW x ms) */
+	int64_t t_last;
+} sm = {.energy_uj = 1234567LL * 3600000000LL}; /* 1234,567 kWh */
+
+int meter_bus_init(const struct wf_sysconf *c)
+{
+	sm.type = c->meter_type;
+	sm.t_last = k_uptime_get();
+	return 0;
+}
+
+int meter_bus_read(void *ctx, uint8_t unit, uint8_t fc, uint16_t reg, uint16_t n,
+		   uint16_t *out)
+{
+	ARG_UNUSED(ctx);
+	ARG_UNUSED(unit);
+	int64_t v[METER_Q_COUNT] = {0};
+	int64_t now = k_uptime_get();
+	bool flaky_miss = sm.mode == MM_FLAKY && (sm.n++ & 1);
+
+	if (sm.mode == MM_OFF || flaky_miss) {
+		k_msleep(METER_RESPONSE_MS); /* wie die Antwortfrist des Clients */
+		return METER_BUS_TIMEOUT;
+	}
+	k_msleep(5 + n / 4); /* Uebertragungszeit grob */
+	if (sm.mode == MM_FRAME) {
+		return METER_BUS_FRAME;
+	}
+	unsigned int key = irq_lock();
+	bool charging = m.contactor && (m.car == EVSE_CP_C || m.car == EVSE_CP_D);
+	uint16_t duty = m.duty;
+
+	irq_unlock(key);
+	/* IEC 61851: 10..85 % -> 0,6 A je Prozent */
+	int64_t ma = charging && duty >= 100 && duty <= 850 ? (int64_t)duty * 60 : 0;
+
+	for (int i = 0; i < 3; i++) {
+		v[METER_U1 + i] = 230000 + i * 700;
+		v[METER_I1 + i] = ma;
+		v[METER_P1 + i] = v[METER_U1 + i] * ma / 1000;
+		v[METER_P] += v[METER_P1 + i];
+	}
+	v[METER_F] = 50000;
+	sm.energy_uj += v[METER_P] * (now - sm.t_last);
+	sm.t_last = now;
+	v[METER_E_IMP] = sm.energy_uj / 3600000000LL; /* Wh = Tausendstel kWh */
+	if (sm.mode == MM_BAD) {
+		v[METER_U1] = 400000; /* ausserhalb der Grenze (SOLL-MTR-13) */
+	}
+	return meter_sim_encode(sm.type, fc, reg, n, v, out);
+}
+
 /* ------------------------------------------------ Shell "sim" */
 
 static const char *const din_names[EVSE_DIN_COUNT] = {"ld", "en", "ml", "xr", "in"};
@@ -662,6 +734,22 @@ static int cmd_hang(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+static int cmd_meter(const struct shell *sh, size_t argc, char **argv)
+{
+	if (argc == 3 && strcmp(argv[1], "energy") == 0) {
+		sm.energy_uj = strtoll(argv[2], NULL, 0) * 3600000000LL;
+		return 0;
+	}
+	for (size_t i = 0; i < ARRAY_SIZE(meter_modes); i++) {
+		if (argc == 2 && strcmp(argv[1], meter_modes[i]) == 0) {
+			sm.mode = (enum meter_mode)i;
+			return 0;
+		}
+	}
+	shell_error(sh, "ok|off|frame|flaky|bad oder energy <Wh>");
+	return -EINVAL;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_sim,
 	SHELL_CMD_ARG(status, NULL, "Modell und Ausgaenge anzeigen", cmd_status, 1, 0),
 	SHELL_CMD_ARG(car, NULL, "<A..E> Fahrzeugzustand am CP (E = Kurzschluss)", cmd_car, 2, 0),
@@ -676,5 +764,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_sim,
 	SHELL_CMD_ARG(link, NULL, "<0|1> Netzverbindung (Netzwerk-LED)", cmd_link, 2, 0),
 	SHELL_CMD_ARG(supply, NULL, "<mV> Versorgungsmessung", cmd_supply, 2, 0),
 	SHELL_CMD_ARG(hang, NULL, "Messbloecke anhalten (Ueberwachung pruefen)", cmd_hang, 1, 0),
+	SHELL_CMD_ARG(meter, NULL, "<ok|off|frame|flaky|bad> | energy <Wh>  Energiezaehler",
+		      cmd_meter, 2, 1),
 	SHELL_SUBCMD_SET_END);
 SHELL_CMD_REGISTER(sim, &sub_sim, "Simulierte Hardware (nur native_sim)", cmd_status);

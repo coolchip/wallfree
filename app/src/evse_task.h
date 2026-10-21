@@ -54,6 +54,9 @@ void evse_task_iface_beat(enum evse_iface id);
  */
 bool evse_task_event_get(uint32_t *seq, struct wf_event *ev);
 
+/** Ereignis aus einem anderen Thread einreihen (Zaehler, SOLL-MTR-14); seq vergibt der Puffer. */
+void evse_task_event_push(struct wf_event ev);
+
 void evse_task_maint_begin(void);
 void evse_task_maint_end(void);
 

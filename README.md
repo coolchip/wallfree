@@ -24,6 +24,7 @@ koennen Menschen gefaehrden. Software-Tests belegen keine elektrische Sicherheit
 | [include/wallfree/evse/](include/wallfree/evse/), [lib/evse/](lib/evse/) | Ladelogik als Zephyr-Modul, reines C ohne Hardwarebezug |
 | [include/wallfree/nvm/](include/wallfree/nvm/), [lib/nvm/](lib/nvm/) | Parameterspeicher (Log-Format in Sektor 7) und Leser fuer den Originalbereich, reines C |
 | [include/wallfree/api/](include/wallfree/api/), [lib/api/](lib/api/) | Digest-Anmeldung, JSON, Abbildung der Ladelogik auf die WARP-angelehnte API, reines C |
+| [include/wallfree/meter/](include/wallfree/meter/), [lib/meter/](lib/meter/) | Energiezaehler ueber Modbus RTU, nur Anzeige: Modelltabellen, Dekodierung, Plausibilitaet, Fehlerzaehler; reines C, Bus gekapselt |
 | [web/](web/) | Weboberflaeche (Preact + htm, gzip im Flash); Fremdcode unter [web/vendor/](web/vendor/) mit eigenen Lizenzen |
 | [tests/](tests/) | PC-Tests (ztest auf `native_sim/native/64`), Aufruf `scripts/run-tests.sh`; Ende-zu-Ende-Tests in [tests/e2e/](tests/e2e/), Aufruf `scripts/run-e2e.sh` |
 
@@ -38,7 +39,7 @@ west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d ~/zephyrproject/build
 
 ## Testen (PC)
 
-Ladelogik (`lib/evse`), Parameterspeicher (`lib/nvm`) und API-Bausteine (`lib/api`) sind reines C
+Ladelogik (`lib/evse`), Parameterspeicher (`lib/nvm`), API-Bausteine (`lib/api`) und Zaehler (`lib/meter`) sind reines C
 und werden fuer `native_sim/native/64` als Linux-Programm gebaut und mit ztest geprueft:
 
 ```sh

@@ -71,6 +71,8 @@ Die Ladelogik selbst bedient man mit `evse ...` (`evse help`).
 | `sim link <0\|1>` | Netzverbindung fuer die Netzwerk-LED |
 | `sim supply <mV>` | Versorgungsmessung (unter 9000 -> Warnung) |
 | `sim hang` | Messbloecke anhalten; die Ueberwachung muss nach 50 ms zuruecksetzen |
+| `sim meter <ok\|off\|frame\|flaky\|bad>` | simulierter Energiezaehler (nur mit `meter_type` != 0): normal, keine Antwort, gestoerte Telegramme, jede zweite Anfrage ohne Antwort, Spannung ausserhalb der Grenze |
+| `sim meter energy <Wh>` | Zaehlerstand setzen (kleiner als bisher -> Ereignis "Zaehlerstand gesunken") |
 
 Modellverhalten: Der Aktor braucht 200 ms fuer eine Fahrt. Beim Selbsttest faellt SWITCH_2 nach
 330 ms, SWITCH_1 nach 770 ms, beide kehren nach 1,9 s zurueck (wie Bender). Das Modellfahrzeug
@@ -107,5 +109,19 @@ sim rcm clear      # Fehlerstrom weg; nach 30 s Wiederholtest wird der Fehler ge
 sim weld 1         # nach dem naechsten Ladeende: Schuetzfehler (CP F), quittieren mit evse errors clear
 sim diode 0        # Diode fehlt beim naechsten PWM-Start: Fehler, 3 s -12 V
 ```
+
+**Energiezaehler** (nur Anzeige): Zaehlertyp einstellen, neu starten, dann laden.
+
+```text
+evse sys set meter_type 2   # 1 ABB B23, 2 SDM630, 3 SDM72D-M V2, 4 SDM72D-M V1; 0 = keiner
+evse reboot                 # Zaehlerparameter wirken nach dem Neustart
+evse meter                  # Zustand, Messwerte, Fehlerzaehler
+sim car C                   # laden: Strom und Leistung erscheinen im Zaehler
+sim meter off               # Zaehler antwortet nicht: nach ~10 s Zustand "error", Laden laeuft weiter
+sim meter ok
+```
+
+In der Oberflaeche: Karte "Zaehler" (Einfach), Messwerte und Fehlerzaehler (Experte),
+Einstellung unter "Netz, Zaehler und System". evcc liest die Werte ueber `meters/0/*`.
 
 **Werksreset:** `scripts/sim-run.sh --reset-button=6000` (Werkszugang danach wieder aktiv).
