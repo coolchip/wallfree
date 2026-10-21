@@ -2,12 +2,12 @@
 :root {
 	--bg: #f4f5f7; --card: #fff; --fg: #1d2330; --muted: #667085; --line: #e2e5ea;
 	--accent: #1f6feb; --ok: #1a7f37; --warn: #b26b00; --bad: #c62828; --r: 10px;
-	--logo-wall: #192633; --logo-free: #00b88a;
+	--logo-free: #009670;
 	color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
 	:root { --bg: #0f1218; --card: #181c24; --fg: #e6e8eb; --muted: #98a2b3; --line: #2a303b;
-		--accent: #4d8eff; --ok: #3fb950; --warn: #e3a008; --bad: #ff6b6b; --logo-wall: var(--fg); }
+		--accent: #4d8eff; --ok: #3fb950; --warn: #e3a008; --bad: #ff6b6b; --logo-free: #1fd1a0; }
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--fg);
@@ -16,7 +16,7 @@ header { display: flex; align-items: center; gap: 12px; padding: 10px 16px;
 	background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; }
 header h1 { font-size: 18px; margin: 0; }
 .logo { font: italic 800 24px/1 Montserrat, Inter, Arial, sans-serif !important; letter-spacing: -.04em; }
-.logo a { color: var(--logo-wall); text-decoration: none; }
+.logo a { color: var(--fg); text-decoration: none; }
 .logo span { color: var(--logo-free); padding-right: .08em; }
 header .grow { flex: 1; }
 header { flex-wrap: wrap; }
