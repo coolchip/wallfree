@@ -7,7 +7,7 @@ Originalverhalten steht in der [Ladeautomat-Spezifikation](../../wallbe2/docs/la
 Sie ist **kein Sicherheitsnachweis**. Weder bestandene Tests noch diese Spezifikation
 belegen elektrische Sicherheit oder Eignung fuer den Ladebetrieb.
 
-Die Fragen F1..F29 sind entschieden ([Abschnitt 15](#15-entscheidungen-und-offene-punkte)).
+Die Fragen F1..F30 sind entschieden ([Abschnitt 15](#15-entscheidungen-und-offene-punkte)).
 Umsetzungsstand und Festlegungen im Detail: [Implementierung](implementierung.md).
 
 ## Lesehilfe
@@ -15,7 +15,8 @@ Umsetzungsstand und Festlegungen im Detail: [Implementierung](implementierung.md
 - **Kennungen:** `SOLL-<Bereich>-<Nr>`. Bereiche: GEN (allgemein), IO (Klemmen),
   RT (Zeitmodell, Watchdog), CP, PP, SM (Ladeautomat), CUR (Strom), PROT (Schutzpfad),
   LOCK (Verriegelung), FN (Ein-/Ausgangsfunktionen), EN (Freigabe), PAR (Parameter),
-  ERR (Fehler/Status), LED, API, SH (Shell), NVM (Parameterspeicher), BOOT (Start).
+  ERR (Fehler/Status), LED, API, SH (Shell), NVM (Parameterspeicher), BOOT (Start),
+  MTR (Energiezaehler), MQTT.
 - **Quelle** je Anforderung: `E<n>` = Entscheidung n der
   [Ist-Spez.](../../wallbe2/docs/ladeautomat-spezifikation.md#entscheidungen),
   `Ist §n` = Abschnitt n der Ist-Spez., `Belege §n` = Abschnitt n der
@@ -687,6 +688,13 @@ abgelehnt (E14). Namen sind Vorschlaege (WARP-angelehnt, englisch).
 | `meter_address` | – | 1..247 | 1 | ja | – | ja | SOLL-MTR-02 |
 | `meter_baud` | Bd | 2400, 4800, 9600, 19200, 38400, 57600, 115200 | 9600 | ja | (386) | ja | SOLL-MTR-02 |
 | `meter_framing` | Code | 0 = 8N1, 1 = 8E1, 2 = 8O1, 3 = 8N2 | 0 | ja | – | ja | SOLL-MTR-02 |
+| `mqtt_enable` | 0/1 | 0..1 (1 nur mit `mqtt_broker`) | 0 | ja | – | nein | F30, SOLL-MQTT-01 |
+| `mqtt_broker` | IPv4 | Einzeladresse (auch 127.x fuer die PC-Simulation) oder 0.0.0.0 (keiner) | 0.0.0.0 | ja | – | nein | SOLL-MQTT-02 |
+| `mqtt_port` | – | 1..65535 | 1883 | ja | – | nein | SOLL-MQTT-02 |
+| `mqtt_user`, `mqtt_password` | Text | 0..32 / 0..64 druckbare ASCII-Zeichen, leer = ohne Anmeldung; Passwort nicht lesbar | leer | ja | – | nein | SOLL-MQTT-02 |
+| `mqtt_prefix` | Text | 0..64 Zeichen, leer = `wallfree/<MAC-Ende>` | leer | ja | – | nein | SOLL-MQTT-12 |
+| `mqtt_interval` | s | 0..3600 (0 = ohne Bremse) | 1 | ja | – | nein | SOLL-MQTT-11 |
+| `mqtt_commands` | 0/1 | 0..1 | 0 | ja | – | nein | SOLL-MQTT-20 |
 
 Netz- und Systemparameter (`net_*`, `telnet_enable`) wirken **nach einem Neustart**
 (`POST /system/restart` oder Shell); bis dahin laeuft die beim Start angewandte Konfiguration.
@@ -694,7 +702,8 @@ Pruefung: Einzeladresse (1..223, nicht 127), Netzmaske zusammenhaengend /8../30,
 der Adresse oder 0.0.0.0, Hostname 1..32 Zeichen aus Buchstaben, Ziffern, '-' (leer =
 automatisch). Ist die gespeicherte feste Adresse widerspruechlich, startet das Netz mit DHCP.
 Die Zaehlerparameter (`meter_*`) wirken ebenfalls nach einem Neustart (evcc liest die
-Faehigkeiten nur beim Verbinden, SOLL-MTR-30). `telnet_enable` = 0 stoppt die Kommandoverarbeitung; Port 23 bleibt offen, solange Telnet im
+Faehigkeiten nur beim Verbinden, SOLL-MTR-30). Die MQTT-Parameter (`mqtt_*`) wirken **sofort**: Die
+Verbindung zum Broker wird mit den neuen Werten neu aufgebaut (SOLL-MQTT-31). `telnet_enable` = 0 stoppt die Kommandoverarbeitung; Port 23 bleibt offen, solange Telnet im
 Build enthalten ist (Zephyr kann den Port zur Laufzeit nicht schliessen).
 
 Feste Konstanten (keine Parameter, Aenderung nur nach Absprache): Anlauf 5 s (E9),
@@ -946,6 +955,54 @@ Topics, `features` leer). native_sim – Zaehlermodell hinter derselben Schnitts
 evcc gegen die Simulation. H1 – Sendepegel an A/B bei aktivem PC12 (Zuordnung UART4), Abfrage
 eines echten Zaehlers je Modell, Fehlerzaehler bei offener und vertauschter Leitung.
 
+### 12.6 MQTT
+
+Grundlage: F30; MQTT-Modul der WARP (Tinkerforge `esp32-firmware`, `modules/mqtt`, gelesen
+2026-10-21) und [WARP-API-Referenz](https://docs.warp-charger.com/en/docs/interfaces/mqtt_http/api_reference/evse).
+Die WARP behandelt MQTT als weitere Schnittstelle der API: Zustaende unter
+`<prefix>/<pfad>` mit demselben JSON wie HTTP, Befehle auf Befehlstopics. Daran haelt sich
+Wallfree, im Umfang wie der WebSocket (SOLL-API-06) und mit einem ersten Befehl.
+
+**Grundsatz und Verbindung**
+
+| Kennung | Anforderung | Quelle |
+| --- | --- | --- |
+| SOLL-MQTT-01 | MQTT ist optional, Werkszustand aus (`mqtt_enable` = 0): kein Socket, keine Verbindung. Ein fehlender oder gestoerter Broker ist kein Fehler der Ladelogik (keine Fehlerklasse, keine Fehler-LED, kein Einfluss auf das Laden); er erscheint nur im MQTT-Status (SOLL-MQTT-30). Der MQTT-Thread ist nicht Teil der Thread-Ueberwachung (SOLL-RT-11), damit ein haengender Broker keinen Neustart ausloest; er laeuft mit niedrigster Prioritaet und haelt die Sperre der Ladelogik nur zum Erzeugen der Nutzdaten. | F30 |
+| SOLL-MQTT-02 | MQTT 3.1.1 ueber TCP, **ohne TLS** (1.4). Broker als IPv4-Adresse und Port (kein DNS). Benutzer und Passwort optional; das Passwort liegt im Klartext im Parameterspeicher (es muss beim Verbinden gesendet werden) und ist ueber HTTP und Shell nicht lesbar (Ausgabe `null`). Client-ID = Hostname (`net_hostname`). Keepalive 60 s, Clean Session, QoS 0 fuer alles. | F30 |
+| SOLL-MQTT-03 | Nach einem Verbindungsabbruch oder Fehlversuch wird neu verbunden; Wartezeit 1 s, je weiterem Fehlversuch verdoppelt bis 60 s, nach einer erfolgreichen Verbindung wieder 1 s. Antwortfrist fuer die Verbindungsbestaetigung (CONNACK) 10 s. Bleibt ein PINGREQ eine Keepalive-Spanne lang unbeantwortet, gilt die Verbindung als getrennt. | [ANN] |
+| SOLL-MQTT-04 | **Erreichbarkeit** (eigene Erweiterung, nicht WARP): Last Will `<prefix>/online` = `false` (retained); nach jeder Verbindungsbestaetigung `<prefix>/online` = `true` (retained). Faellt die Steuerung aus oder startet neu, meldet der Broker `false` spaetestens nach 1,5 x Keepalive. | F30 |
+
+**Zustaende**
+
+| Kennung | Anforderung | Quelle |
+| --- | --- | --- |
+| SOLL-MQTT-10 | Topic = `<prefix>/<name>`, Nutzdaten wie `GET /<name>` bzw. das WebSocket-Payload (SOLL-API-06). Topics: `evse/state`, `evse/external_current`, `evse/limits`, mit Zaehler zusaetzlich `meters/0/value_ids`, `meters/0/values`, `meters/0/state`; diese retained. `evse/event` (SOLL-ERR-10) **nicht** retained. | WARP `mqtt.cpp`, F30 |
+| SOLL-MQTT-11 | Nach jeder Verbindungsbestaetigung werden alle Zustandstopics einmal gesendet. Danach `evse/*` bei Aenderung, `meters/0/values` und `meters/0/state` nach jedem Zaehlerzyklus, `meters/0/value_ids` nur beim Verbinden. Je Topic hoechstens ein Versand je `mqtt_interval` Sekunden; eine dazwischen liegende Aenderung wird mit dem dann aktuellen Stand nachgeholt (wie WARP `interval`). Ereignisse werden sofort und einzeln gesendet; waehrend einer Unterbrechung entstandene Ereignisse werden nicht nachgesendet (Luecke in `seq` sichtbar). | WARP `mqtt.cpp` |
+| SOLL-MQTT-12 | `mqtt_prefix`: leer = `wallfree/<MAC-Ende>` (6 Hexziffern wie `uid` in `/info/name`). Erlaubt sind druckbare ASCII-Zeichen ohne Leerzeichen, `+` und `#`; nicht mit `/` oder `$` beginnend, nicht mit `/` endend. | MQTT 3.1.1 (Platzhalter, `$`-Topics) |
+
+**Befehle**
+
+| Kennung | Anforderung | Quelle |
+| --- | --- | --- |
+| SOLL-MQTT-20 | Befehle nur mit `mqtt_commands` = 1 (Werkszustand 0). Abonniert werden nur die Befehlstopics (nicht `<prefix>/#`). Befehle stehen in einer Tabelle (Topic-Name, Behandlung); weitere Befehle erfordern nur einen Eintrag. Jeder Befehl laeuft ueber die gemeinsame Zugriffsschicht (SOLL-API-20) mit denselben Pruefungen und Fehlertexten wie der HTTP-Zugang. | F30 |
+| SOLL-MQTT-21 | Erster Befehl: `<prefix>/evse/external_current_update` (Name wie WARP), Nutzdaten `{"current": mA}` oder nur die Zahl, Wirkung wie SOLL-API-05 (Slot `external`, nur RAM). | WARP-API-Referenz |
+| SOLL-MQTT-22 | Ignoriert (mit Zaehler und Text im MQTT-Status und im Log, ohne Antworttopic) werden: Nachrichten mit Retain-Kennung, leere Nachrichten, Nachrichten ueber 128 Byte; abgelehnt werden ungueltige Werte. **[ABW]** WARP nimmt fuer `external_current_update` auch gespeicherte (retained) Nachrichten an. Grund: Ein auf dem Broker gespeicherter Sollwert wuerde nach jedem Neustart unbemerkt den Startwert `external_current_default` (F12) ersetzen. | F30 |
+| SOLL-MQTT-23 | **Abgrenzung:** Ueber MQTT sind nur Laufzeitwerte schreibbar, die nicht gespeichert werden (10.2); Konfiguration, persistente Parameter, Zugangsdaten, Neustart und Werksreset bleiben HTTP und Shell vorbehalten. Erweiterungen nur nach Absprache. Grund: Der Broker hat im Regelfall keine oder eine schwaechere Anmeldung als die API (SOLL-API-07); jeder mit Schreibrecht am Broker kann die freigegebenen Befehle ausfuehren. | F30 |
+
+**Status und Bedienung**
+
+| Kennung | Zugriff | Inhalt (Soll) |
+| --- | --- | --- |
+| SOLL-MQTT-30 | `GET /mqtt/state` (an WARP `mqtt/state` angelehnt, Felder ab `published` eigene Erweiterung) | `{"connection_state": 0 aus / 1 nicht verbunden / 2 verbunden / 3 Fehler (Broker lehnt ab), "connection_start", "connection_end"` (Laufzeit in ms, 0 = nie)`, "last_error"` (0, negativer Fehlercode des Netzes oder CONNACK-Code)`, "published", "publish_errors", "commands", "rejected", "last_reject"` (Text)`, "prefix"` (wirksam)`}` |
+| SOLL-MQTT-31 | Parameter | Aenderungen an `mqtt_*` wirken sofort: bestehende Verbindung trennen, mit den neuen Werten neu verbinden (abweichend von den Netzparametern, die einen Neustart brauchen). |
+| SOLL-MQTT-32 | Weboberflaeche, Shell `evse mqtt` | Weboberflaeche: Parameter in der Systemkarte, Verbindungszustand daneben. Shell: Zustand und Zaehler. |
+
+Pruefung 12.6: PC – Pruefung und Kodierung der Parameter, Topicbildung und Praefixregeln,
+Versandregel (Aenderung, Intervall, Nachholen, Vollversand nach Verbinden), Befehlstabelle
+(Zuordnung, Retain, leer, zu lang, ungueltiger Wert). native_sim – Ende-zu-Ende gegen einen
+Mosquitto-Broker (Zustaende, Last Will, Befehl, Neuverbindung nach Broker-Neustart). H1 –
+Betrieb auf der Steuerung im LAN.
+
 ## 13. Parameterspeicher, Startablauf, Werksreset
 
 ### 13.1 Parameterspeicher (P1)
@@ -1008,9 +1065,9 @@ Taster, Persistenz.
 
 ## 15. Entscheidungen und offene Punkte
 
-### 15.1 Entscheidungen des Nutzers zu F1..F29
+### 15.1 Entscheidungen des Nutzers zu F1..F30
 
-Alle Fragen am 2026-10-19 entschieden (F12 am 2026-10-20 bestaetigt); die betroffenen
+F1..F27 am 2026-10-19 entschieden (F12 am 2026-10-20 bestaetigt), F28..F30 am 2026-10-21; die betroffenen
 Anforderungen sind angepasst. Rahmenentscheidungen (Zephyr, Takt, Speicher, Weboberflaeche,
 Projekt): [Architektur](architektur.md#2-entscheidungen).
 
@@ -1045,6 +1102,7 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 | F27 | LD-Pruefung beim Entriegeln | Option `unlock_check`, Default aus | Signalform erst in H1 messbar; Default wie Original | SOLL-LOCK-14a |
 | F28 | Energiezaehler (2026-10-21, revidiert "Modbus nicht im Umfang") | Modbus-RTU-Zaehler ABB B23 112-100, Eastron SDM72D-M, SDM630, erweiterbar; Auswahl "kein Zaehler" als Default; **nur Anzeige** (Weboberflaeche, evcc und andere Clients) | Messwerte fuer evcc und Anzeige sind nuetzlich und passen in den Speicher; fuer Schutzfunktionen sind Geraete und Bus zu unsicher; die Steuerung muss ohne Zaehler voll funktionieren | 1.4, 12.5 |
 | F29 | Modbus-Implementierung | Modbus-Client von Zephyr, gekapselt und austauschbar; Fehlerzaehler zur Beurteilung | ein eigener Master waere kaum kleiner; Austausch, falls die Fehlerzaehler im Betrieb Probleme zeigen | SOLL-MTR-04/15, [Architektur](architektur.md#5-speicherbudget) |
+| F30 | MQTT-Client (2026-10-21) | MQTT 3.1.1 ohne TLS, Zustaende als WARP-JSON (kein Einzelwert je Topic, keine Home-Assistant-Erkennung); Befehle minimal (Ladestrom), erweiterbar, Default aus; zusaetzlich Erreichbarkeit per Last Will | Anbindung an vorhandene MQTT-Umgebungen mit demselben Datenformat wie HTTP und WebSocket; der Ladestrom muss ueber MQTT setzbar sein; weitere Befehle sollen spaeter ohne Umbau moeglich sein | 12.6, 10.1 |
 
 ### 15.2 Annahmen und offene Punkte
 
