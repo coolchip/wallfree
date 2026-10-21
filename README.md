@@ -49,7 +49,8 @@ scripts/run-tests.sh --coverage   # zusaetzlich Abdeckung von lib/ (gcovr)
 ```
 
 Ende-zu-Ende: die ganze Anwendung als PC-Simulation (`native_sim`, Hardwaremodell statt
-TIM1/ADC/GPIO, Host-Sockets, Flash-Datei) gegen HTTP, Digest, WebSocket, Shell und Neustarts:
+TIM1/ADC/GPIO, Host-Sockets, Flash-Datei) gegen HTTP, Digest, WebSocket, Shell, Neustarts und
+einen lokalen MQTT-Broker (Mosquitto, sonst werden diese Tests uebersprungen):
 
 ```sh
 scripts/run-e2e.sh                # bauen und tests/e2e ausfuehren

@@ -8,6 +8,7 @@ zephyr_library_sources(
   events.c
   alog.c
   sysconf.c
+  mqtt.c
   ratelimit.c
   reset.c
 )

@@ -5,9 +5,10 @@ Stand: 2026-10-21. Alle Tests laufen auf dem PC. Sie belegen nichts ueber die re
 
 | Ebene | Umfang | Stand |
 | --- | --- | --- |
-| PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezaehler | 207 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zaehler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
-| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zaehler | 32 Tests, alle bestanden, ca. 110 s |
+| PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezaehler, MQTT ohne Netz | 214 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zaehler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
+| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zaehler, lokalen MQTT-Broker | 41 Tests, alle bestanden, ca. 120 s |
 | Browser-Durchlauf | Weboberflaeche in headless Chrome gegen die Simulation | ohne Zaehler 9, mit Zaehler 12 Pruefungen bestanden |
+| MQTT im LAN | Simulation gegen Mosquitto 2.1.2 im Heimnetz (von Hand, 2026-10-21) | Zustaende, Zaehlerwerte (etwa 1/s), Ereignisse, Befehl Ladestrom, `online` true/false |
 | evcc | evcc 0.317.2 mit Vorlage `tinkerforge-warp-ws` gegen die Simulation | Laden, Aus/Sofort, Abstecken, Neustart; mit Zaehler Leistung, Zaehlerstand, Phasenstroeme und -spannungen |
 
 ## PC-Tests
@@ -24,7 +25,7 @@ scripts/run-tests.sh --coverage   # zusaetzlich Abdeckung von lib/ (gcovr)
 | `tests/evse/prot` | Verriegelung, RCM-Selbsttest, Schuetzueberwachung |
 | `tests/evse/charger` | Automat mit Simulationsmodell (`sim.c`: Fahrzeug, Kabel, RCM-Sensor, Aktor, Schuetz, 1-ms-Schritte), Ausgaenge, Parameter, Persistenz, API-Abbildung, Ereignisse |
 | `tests/nvm` | Speicherformat mit simuliertem Flash: Stromausfall nach jedem Byte beim Anhaengen und Verdichten, Ausfall beim Loeschen, Pruefsummenfehler, voller Bereich; Sektor-3-Leser |
-| `tests/api` | MD5 (RFC-1321-Vektoren), Digest (RFC-2617-Beispiel, Rundlauf wie evcc, Fehlformen), JSON, Systemparameter inkl. Zaehlerparameter, Resetgrund, Bremse, Zugriffsprotokoll |
+| `tests/api` | MD5 (RFC-1321-Vektoren), Digest (RFC-2617-Beispiel, Rundlauf wie evcc, Fehlformen), JSON, Systemparameter inkl. Zaehler- und MQTT-Parameter (Grenzen, Praefixregeln, Passwort nicht lesbar, sofort wirksame Werte, Korrektur beim Start), MQTT-Versandregel und Befehlstabelle, Resetgrund, Bremse, Zugriffsprotokoll |
 | `tests/meter` | Zaehler mit gescriptetem Bus: Anfragen je Modell, Dekodierung mit Registerwerten von Hand (ABB-Ganzzahlen, Eastron-Float32), Ungueltig-Kennungen, NaN/unendlich, Grenzen, Wiederholung und Zusatzpause nach Timeout, Zaehler je Fehlerart, Teilerfolg im Zyklus, Zustandsfolge, Veralten nach 10 s, gesunkener Zaehlerstand, Rundlauf mit dem simulierten Zaehler, JSON |
 
 Zuordnung Modul -> Anforderung -> Test: [Implementierung](implementierung.md#module-der-ladelogik-und-bausteine).
@@ -55,7 +56,7 @@ Ohne Simulation zeigt `scripts/web-preview.py` die Oberflaeche mit Attrappen der
 | IWDG | Software-Zeitgeber in simulierter Zeit (250 ms, beim Flash-Loeschen 32 s) |
 | Reset | Prozess startet sich per `execv` neu ([sim_host.c](../app/src/sim_host.c)); Flags/BKP19 und der physische Modellzustand (Fahrzeug bleibt angesteckt, Aktorstellung) gehen ueber Umgebungsvariablen mit; neuer Prozess = Einschalten |
 | Flash | Zephyr-Flash-Simulator mit Datei (`--flash=`), Partitionen an den Stellen von Sektor 3 und 7 ([Overlay](../app/boards/native_sim_native_64.overlay)) |
-| Netz | Host-Sockets (`NET_NATIVE_OFFLOADED_SOCKETS`), keine Adress-/DHCP-Konfiguration |
+| Netz | Host-Sockets (`NET_NATIVE_OFFLOADED_SOCKETS`), keine Adress-/DHCP-Konfiguration; ohne MAC sind `uid` und MQTT-Praefix `000000`, der Hostname `wallfree-000000`; ein MQTT-Broker ist ueber 127.0.0.1 oder das LAN des PCs erreichbar |
 | Energiezaehler | hinter `meter_bus.h` statt Zephyr-Modbus: Antworten des konfigurierten Modells aus `meter_sim_encode`; 230/230,7/231,4 V, Strom = Strom des Tastgrads bei Schuetz ein und Fahrzeug C/D, Energie integriert; Stoerungen `sim meter off` (keine Antwort, 500 ms), `frame`, `flaky` (jede zweite Anfrage ohne Antwort), `bad` (Spannung ausserhalb der Grenze), `energy <Wh>` |
 | Bedienung | Shell-Kommando `sim` (`status`, `car`, `diode`, `cable`, `din`, `ld`, `rcm`, `actuator`, `weld`, `link`, `supply`, `hang`, `meter`); DIP/Drehschalter/Reset-Taster per Kommandozeile |
 | Logging | verzoegert mit Log-Thread wie auf der Steuerung; `NET_LOG` an; stdout zeilengepuffert |
@@ -67,6 +68,7 @@ Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](.
 | T1Api | 401 mit Challenge; Werkszugang nur `/credentials` und Oberflaeche (403 sonst); Passwortregeln und Aenderung; `/info/*`, `/system/*`, alle Webdateien gzip; Parameter lesen/Beschreibung/Grenzen/Syntaxfehler/Schreiben; Laden B -> PWM -> C -> Schuetz; Sollstrom 10 A (Tastgrad 166, 9960 mA), Ablehnung 3 A, 0 = aus, wieder ein; WebSocket Erstsynchronisation und Push < 1 s; 3 WebSockets gleichzeitig, Wiederverwendung der Plaetze, Abbruch ohne Close-Rahmen; WebSocket ohne bzw. mit falscher Anmeldung geschlossen; Abstecken; Neustart mit Persistenz (Zugangsdaten, Parameter, Hostname), Resetgrund `user_restart`, Sollstrom wieder Startwert; Neustart waehrend des Ladens geordnet; Bremse 5 x 401, dann 429 mit `Retry-After` | SOLL-API-01..07/30/31, SOLL-CUR-21, SOLL-NVM-03, SOLL-PAR-03, SOLL-RT-14/22 |
 | T1Api (Ereignisse, LED, Protokoll) | Ereignisse beim Sollstrom 0 und wieder ein (`seq`/`t_ms` steigend, Logzeile); Netzwerk-LED an, bei `sim link 0` 1 Hz; `/system/log`: ohne Anmeldung 401, Fehlversuch mit Absender, `count` und Zeit, Ereignisse enthalten, Antwort > 1,5 KB in Teilen | SOLL-ERR-10/11, SOLL-LED-06 |
 | T2Faults | Fehlerstrom beim Laden: Schuetz aus, `error_state` 3, Ereignisse (RCM, Schuetz aus, S9); Messbloecke stehen -> Reset `supervision_limit`; Reset-Taster 6 s beim Start -> Werkszugang wieder aktiv | SOLL-PROT-01/05, SOLL-RT-10/14, SOLL-BOOT-20, SOLL-ERR-10 |
+| T5Mqtt | gegen einen lokalen Mosquitto (Test wird ohne `mosquitto` uebersprungen): Werkszustand aus, Einschalten nur mit Broker, Verbinden ohne Neustart, Passwort `null`; neuer Abonnent erhaelt `online` und die Zustaende retained; Aenderung und Ereignis (nicht retained); Befehl ohne `mqtt_commands` wirkungslos; mit Befehlen Zahl und JSON angenommen, 3 A abgelehnt mit Text; gespeicherter Befehl nach Neuverbindung ignoriert; Broker-Neustart -> Neuverbindung, Laden unberuehrt; Abschalten sendet `online` = `false`; harter Abbruch -> Last Will | SOLL-MQTT-01..04/10/11/20..22/30/31 |
 | T3ZephyrTelnet | harter Telnet-Abbruch: HTTP, WebSocket, neue Telnet-Sitzung, geordneter Neustart und Logausgabe laufen weiter | SOLL-RT-11 |
 
 ### Abweichungen der Simulation von der Steuerung

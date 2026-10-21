@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Netz- und Systemparameter der Anwendung (10.1 net_*, telnet_enable).
- * Gespeicherte Werte wirken nach einem Neustart; bis dahin laeuft die
- * beim Start angewandte Konfiguration weiter.
+ * Netz- und Systemparameter der Anwendung (10.1 net_*, telnet_enable,
+ * meter_*, mqtt_*). Gespeicherte Werte wirken nach einem Neustart; bis dahin
+ * laeuft die beim Start angewandte Konfiguration weiter. Ausnahme mqtt_*:
+ * sofort (SOLL-MQTT-31).
  */
 #ifndef WALLFREE_APP_NETCFG_H_
 #define WALLFREE_APP_NETCFG_H_
@@ -11,6 +12,9 @@
 
 /** Beim Start nach storage_init(): laden, Hostname/Adresse/Telnet anwenden. */
 void netcfg_init(void);
+
+/** Letzte 3 Byte der MAC als 6 Hexziffern (uid, Hostname, MQTT-Praefix). */
+void netcfg_uid(char out[7]);
 
 /** Laufende und gespeicherte (beim naechsten Start wirksame) Konfiguration. */
 void netcfg_get(struct wf_sysconf *active, struct wf_sysconf *saved);

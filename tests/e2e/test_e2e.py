@@ -10,11 +10,14 @@ die Tests belegen nichts ueber die reale Steuerung.
 """
 
 import gzip
+import json
 import os
 import re
 import shutil
 import socket
+import subprocess
 import tempfile
+import threading
 import time
 import unittest
 
@@ -568,6 +571,206 @@ class T3ZephyrTelnet(SimCase):
         time.sleep(1)
         tail = self.sim.log_text().rsplit("Telnet socket", 1)[-1]
         self.assertEqual(tail.count("WebSocket ohne gueltige Anmeldung"), 3)
+
+
+class Broker:
+    """Mosquitto auf 127.0.0.1 und ein Abonnent fuer <prefix>/#; Zeilen "<retain> <topic> <payload>"."""
+
+    def __init__(self, port):
+        self.port = port
+        self.proc = None
+        self.lines = []
+        self.lock = threading.Lock()
+
+    def start(self):
+        self.proc = subprocess.Popen(["mosquitto", "-p", str(self.port)],
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < 5:
+            try:
+                socket.create_connection(("127.0.0.1", self.port), timeout=0.2).close()
+                return
+            except OSError:
+                time.sleep(0.05)
+        raise AssertionError("Mosquitto startet nicht")
+
+    def stop(self):
+        if self.proc is not None:
+            self.proc.terminate()
+            self.proc.wait(5)
+            self.proc = None
+
+    def subscribe(self, topic):
+        """Neuer Abonnent; liefert gespeicherte Nachrichten mit retain = 1."""
+        with self.lock:
+            self.lines = []
+        p = subprocess.Popen(["mosquitto_sub", "-p", str(self.port), "-t", topic, "-F",
+                              "%r %t %p"], stdout=subprocess.PIPE, text=True)
+
+        def reader():
+            for line in p.stdout:
+                with self.lock:
+                    self.lines.append(line.rstrip("\n").split(" ", 2))
+
+        threading.Thread(target=reader, daemon=True).start()
+        return p
+
+    def wait(self, topic, pred=lambda r, p: True, timeout=10):
+        """Erste passende Nachricht seit dem Abonnieren: (retain, payload)."""
+        t0 = time.monotonic()
+        seen = 0
+        while time.monotonic() - t0 < timeout:
+            with self.lock:
+                new = self.lines[seen:]
+                seen = len(self.lines)
+            for r, t, p in new:
+                if t == topic and pred(r == "1", p):
+                    return r == "1", p
+            time.sleep(0.05)
+        raise AssertionError(f"{topic} nicht empfangen, zuletzt {self.lines[-5:]}")
+
+    def publish(self, topic, payload, retain=False):
+        subprocess.run(["mosquitto_pub", "-p", str(self.port), "-t", topic, "-m", payload] +
+                       (["-r"] if retain else []), check=True)
+
+
+@unittest.skipUnless(shutil.which("mosquitto") and shutil.which("mosquitto_sub"),
+                     "Mosquitto fehlt")
+class T5Mqtt(SimCase):
+    """MQTT-Client (Soll-Spezifikation 12.6) gegen einen lokalen Mosquitto."""
+
+    PREFIX = "e2e/wb"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.broker = Broker(free_port())
+        cls.broker.start()
+        cls.sub = None
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        if cls.sub is not None:
+            cls.sub.terminate()
+        cls.broker.stop()
+
+    def resubscribe(self):
+        if T5Mqtt.sub is not None:
+            T5Mqtt.sub.terminate()
+        T5Mqtt.sub = self.broker.subscribe(self.PREFIX + "/#")
+
+    def mqtt_state(self, pred, timeout=20, what="MQTT-Zustand"):
+        t0 = time.monotonic()
+        last = None
+        while time.monotonic() - t0 < timeout:
+            last = self.sim.get_json("/mqtt/state", self.auth)
+            if pred(last):
+                return last
+            time.sleep(0.1)
+        raise AssertionError(f"{what} nicht erreicht, zuletzt {last}")
+
+    def config(self, body, status=200):
+        r = self.sim.request("POST", "/system/config", body, auth=self.auth)
+        self.assertEqual(r.status, status, r)
+        return r.json()
+
+    def test_01_aus(self):
+        T5Mqtt.auth = self.set_credentials()
+        st = self.sim.get_json("/mqtt/state", self.auth)
+        self.assertEqual(st["connection_state"], 0)  # SOLL-MQTT-01
+        self.assertTrue(re.fullmatch(r"wallfree/[0-9a-f]{6}", st["prefix"]), st)
+        self.assertIn("aus", self.shell("evse mqtt"))
+
+    def test_02_nur_mit_broker(self):
+        self.assertIn("Broker", self.config({"mqtt_enable": True}, 400)["error"])
+        self.assertIn("mqtt_prefix", self.config({"mqtt_prefix": "a/#"}, 400)["errors"])
+
+    def test_03_verbinden_sofort(self):
+        # SOLL-MQTT-31: ohne Neustart; Passwort nie lesbar (SOLL-MQTT-02)
+        r = self.config({"mqtt_enable": True, "mqtt_broker": "127.0.0.1",
+                         "mqtt_port": self.broker.port, "mqtt_prefix": self.PREFIX,
+                         "mqtt_password": "geheim"})
+        self.assertFalse(r["restart_required"])
+        self.assertIsNone(self.sim.get_json("/system/config", self.auth)["saved"]["mqtt_password"])
+        st = self.mqtt_state(lambda s: s["connection_state"] == 2)
+        self.assertEqual(st["prefix"], self.PREFIX)
+        time.sleep(0.5)  # Vollversand im ersten Takt nach dem Verbinden
+        # neuer Abonnent sieht die gespeicherten Zustaende (SOLL-MQTT-04/10)
+        self.resubscribe()
+        self.assertEqual(self.broker.wait(self.PREFIX + "/online"), (True, "true"))
+        # zuerst kann eine Live-Meldung kommen (Anlauf S0 -> S1)
+        _, p = self.broker.wait(self.PREFIX + "/evse/state", lambda r, p: r)
+        self.assertEqual(self.broker.wait(self.PREFIX + "/evse/external_current"),
+                         (True, '{"current":80000}'))
+        self.assertEqual(json.loads(p).keys(), self.sim.state(self.auth).keys())
+        self.broker.wait(self.PREFIX + "/evse/limits", lambda r, p: r)
+
+    def test_04_aenderung_und_ereignis(self):
+        self.shell("sim car B")
+        _, p = self.broker.wait(self.PREFIX + "/evse/state",
+                                lambda r, p: json.loads(p)["iec61851_state"] == 1)
+        retained, p = self.broker.wait(self.PREFIX + "/evse/event")
+        self.assertFalse(retained)
+        self.assertIn("seq", json.loads(p))
+
+    def test_05_befehle_aus(self):
+        self.broker.publish(self.PREFIX + "/evse/external_current_update", "10000")
+        time.sleep(1.5)
+        self.assertEqual(self.sim.get_json("/evse/external_current", self.auth)["current"], 80000)
+        self.assertEqual(self.sim.get_json("/mqtt/state", self.auth)["commands"], 0)
+
+    def test_06_befehle(self):
+        self.assertIn("wirkt sofort", self.shell("evse sys set mqtt_commands 1"))
+        self.mqtt_state(lambda s: s["connection_state"] == 2 and s["connection_start"] > 0)
+        time.sleep(0.5)  # Abo bestaetigt
+        topic = self.PREFIX + "/evse/external_current_update"
+        self.broker.publish(topic, "10000")
+        self.broker.wait(self.PREFIX + "/evse/external_current",
+                         lambda r, p: json.loads(p)["current"] == 10000)
+        self.broker.publish(topic, '{"current": 12000}')
+        self.broker.wait(self.PREFIX + "/evse/external_current",
+                         lambda r, p: json.loads(p)["current"] == 12000)
+        self.broker.publish(topic, "3000")  # SOLL-API-05: 1..5999 abgelehnt
+        st = self.mqtt_state(lambda s: s["rejected"] == 1)
+        self.assertIn("Bereich", st["last_reject"])
+        self.assertEqual(self.sim.get_json("/evse/external_current", self.auth)["current"], 12000)
+
+    def test_07_gespeicherter_befehl_ignoriert(self):
+        # SOLL-MQTT-22: retained beim Abonnieren ausgeliefert -> ignoriert
+        topic = self.PREFIX + "/evse/external_current_update"
+        self.broker.publish(topic, "14000", retain=True)  # laufendes Abo: ohne Retain-Kennung
+        self.broker.wait(self.PREFIX + "/evse/external_current",
+                         lambda r, p: json.loads(p)["current"] == 14000)
+        self.sim.request("POST", "/evse/external_current", 9000, auth=self.auth)
+        n = self.sim.get_json("/mqtt/state", self.auth)["rejected"]
+        self.config({"mqtt_interval": 2})  # neu verbinden, Broker liefert die gespeicherte Nachricht
+        st = self.mqtt_state(lambda s: s["rejected"] == n + 1, what="retained ignoriert")
+        self.assertIn("retained", st["last_reject"])
+        self.assertEqual(self.sim.get_json("/evse/external_current", self.auth)["current"], 9000)
+        self.broker.publish(topic, "", retain=True)  # gespeicherte Nachricht loeschen
+
+    def test_08_broker_neustart(self):
+        # SOLL-MQTT-01/03: Ausfall beruehrt das Laden nicht, Neuverbindung
+        self.broker.stop()
+        self.mqtt_state(lambda s: s["connection_state"] == 1 and s["connection_end"] > 0)
+        self.assertEqual(self.sim.state(self.auth)["iec61851_state"], 1)
+        self.broker.start()
+        self.mqtt_state(lambda s: s["connection_state"] == 2, timeout=30, what="neu verbunden")
+        self.resubscribe()
+        self.assertEqual(self.broker.wait(self.PREFIX + "/online"), (True, "true"))
+
+    def test_09_aus_und_last_will(self):
+        # geordnet aus: online = false gesendet (SOLL-MQTT-04), Zustand 0
+        self.config({"mqtt_enable": False})
+        self.broker.wait(self.PREFIX + "/online", lambda r, p: p == "false")
+        self.mqtt_state(lambda s: s["connection_state"] == 0)
+        self.config({"mqtt_enable": True})
+        self.broker.wait(self.PREFIX + "/online", lambda r, p: p == "true")
+        # harter Abbruch: der Broker sendet den Last Will
+        self.sim.proc.kill()
+        self.sim.proc.wait()
+        self.broker.wait(self.PREFIX + "/online", lambda r, p: p == "false")
 
 
 if __name__ == "__main__":

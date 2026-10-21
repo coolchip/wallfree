@@ -12,6 +12,7 @@ Tests: [Test und Simulation](test-und-simulation.md).
 | Parameterspeicher (`lib/nvm`) | fertig, PC-getestet inkl. Stromausfall nach jedem Byte |
 | API-Bausteine (`lib/api`) | fertig, PC-getestet |
 | Energiezaehler (`lib/meter`, Zaehlerthread, nur Anzeige) | fertig, PC-getestet, in der Simulation Ende-zu-Ende und gegen evcc geprueft; Modbus-Anbindung auf UART4 gebaut, ungeprueft (H1) |
+| MQTT-Client (`lib/api/mqtt.c`, `mqtt_task.c`) | fertig, PC-getestet, in der Simulation Ende-zu-Ende gegen Mosquitto geprueft; auf der Steuerung gebaut, ungeprueft (H1) |
 | Anwendung (`app/`) | baut fuer `ev_cc_ac1` ohne Warnung; als PC-Simulation Ende-zu-Ende getestet |
 | Weboberflaeche (`web/`) | fertig, Browser-Durchlauf in der Simulation |
 | evcc-Anbindung | gegen die Simulation geprueft (evcc 0.317.2) |
@@ -41,7 +42,8 @@ Reines C99, getestet auf `native_sim/native/64` mit ztest.
 | [md5.c](../lib/api/md5.c), [digest.c](../lib/api/digest.c) | MD5 (RFC 1321), HTTP-Digest mit `qop=auth`: Challenge, Pruefung, zustandslose Nonces | SOLL-API-07 | `tests/api` (RFC-Vektoren, Rundlauf wie evcc) |
 | [json.c](../lib/api/json.c) | JSON-Ausgabe mit Maskierung, Lesen flacher Objekte | 12.1 | api_json |
 | [evse_api.c](../lib/api/evse_api.c) | `evse/state` (WARP-Abbildung), `external_current`, `limits`, alle Parameter lesen/schreiben, Parameterbeschreibung in Teilen | SOLL-API-03..05/30/32 | evse_api |
-| [sysconf.c](../lib/api/sysconf.c) | Netz-, Zaehler- und Systemparameter: Pruefung, JSON, Speicherkodierung (Kennungen 3010..3019), Import der Originalfelder 404/315..326 | 10.1, F20, F25, F28, SOLL-NVM-10 | api_sysconf |
+| [sysconf.c](../lib/api/sysconf.c) | Netz-, Zaehler-, MQTT- und Systemparameter: Pruefung, JSON (Passwort `null`), Speicherkodierung (Kennungen 3010..3027), Korrektur widerspruechlicher Saetze beim Start, sofort wirksame Werte (`mqtt_*`), Import der Originalfelder 404/315..326 | 10.1, F20, F25, F28, F30, SOLL-NVM-10 | api_sysconf |
+| [mqtt.c](../lib/api/mqtt.c) | MQTT ohne Netzwerk: Versandregel je Topic (Vollversand nach Verbinden, Aenderung per Pruefsumme, Mindestabstand mit Nachholen, Zyklus ohne Vergleich), Topicbildung, Befehlstabelle mit Retain-/Leer-/Laengenpruefung, Status-JSON | SOLL-MQTT-10/11/20/22/30 | api_mqtt |
 | [reset.c](../lib/api/reset.c) | Resetgrund aus Flags und Backup-Code | SOLL-RT-14 | api_reset |
 | [ratelimit.c](../lib/api/ratelimit.c) | Bremse gegen Passwort-Durchprobieren je Absenderadresse | SOLL-API-07 | api_ratelimit |
 | [events.c](../lib/api/events.c) | Ereignisse aus dem Vergleich zweier Momentaufnahmen, Ringpuffer, JSON | SOLL-ERR-10 | api_events |
@@ -64,14 +66,15 @@ TIM1 und ADC1 stehen nicht im Board-Devicetree, weil die Anwendung sie direkt st
 | [hw_gpio.c](../app/src/hw_gpio.c) | alle Ein-/Ausgaenge aus `zephyr,user`; RCM-Flankeninterrupt schaltet PE2 per Register ab und setzt einen Schutz-Latch, der Ein-Befehle sperrt; PE0-Flankenzeitstempel; PB2 erst nach der ersten Ausgabe | SOLL-PROT-01/05, SOLL-IO-01/21 |
 | [evse_task.c](../app/src/evse_task.c) | Schutzthread (Prio 0, 1 ms): RCM-Pegel, Ueberwachung Automat (100 ms) und Messbloecke (50 ms), IWDG 250 ms, Wartungsmodus fuer Flash-Loeschen; Automatenthread (Prio 2, 10 ms und je Messblock); Ereigniserkennung; Fault-Handler: sicherer Zustand, Neustart | SOLL-RT-04/05/10..12/21 |
 | [storage.c](../app/src/storage.c) | Flash-Adapter (Sektor 7 lesen/schreiben/loeschen, Sektor 3 nur lesen, Lage beim Bauen geprueft); Speicher-Thread (Prio 12): Verriegelungszustand speichern, Verdichten im sicheren Zustand; Werksreset, Import | SOLL-NVM-01..05/10, SOLL-RT-13, SOLL-BOOT-04/20/21 |
-| [http_api.c](../app/src/http_api.c) | HTTP-Server Port 80: `/info/name`, `/info/features`, `/evse/state`, `/evse/external_current`, `/evse/limits`, `/evse/params`, `/evse/param_info`, `/evse/errors`, `/evse/errors/ack`, `/credentials`, `/system/config`, `/system/config_info`, `/system/restart`, `/system/info`, `/system/log`, mit Zaehler `/meters/0/value_ids`, `/values`, `/state` (sonst 404); WebSocket `/ws` (bis 3 Clients, Push alle 100 ms bzw. sofort nach Schreibzugriffen, ein Topic je Rahmen, Topics `evse/state`, `evse/external_current`, `evse/limits`, `evse/event`, mit Zaehler `meters/0/*` nach jedem Zyklus); Digest-Pruefung je Anfrage | SOLL-API-01..07/30..32, SOLL-ERR-10/11, SOLL-MTR-30/31 |
+| [http_api.c](../app/src/http_api.c) | HTTP-Server Port 80: `/info/name`, `/info/features`, `/evse/state`, `/evse/external_current`, `/evse/limits`, `/evse/params`, `/evse/param_info`, `/evse/errors`, `/evse/errors/ack`, `/credentials`, `/system/config`, `/system/config_info`, `/system/restart`, `/system/info`, `/system/log`, `/mqtt/state`, mit Zaehler `/meters/0/value_ids`, `/values`, `/state` (sonst 404); WebSocket `/ws` (bis 3 Clients, Push alle 100 ms bzw. sofort nach Schreibzugriffen, ein Topic je Rahmen, Topics `evse/state`, `evse/external_current`, `evse/limits`, `evse/event`, mit Zaehler `meters/0/*` nach jedem Zyklus); Digest-Pruefung je Anfrage | SOLL-API-01..07/30..32, SOLL-ERR-10/11, SOLL-MTR-30/31, SOLL-MQTT-30 |
 | [auth.c](../app/src/auth.c) | Zugangsdaten (HA1), Werkszugang, Passwortaenderung, Nonce-Geheimnis je Start | SOLL-API-07 |
-| [netcfg.c](../app/src/netcfg.c) | Netz-/Systemparameter, Hostname, DHCP oder feste Adresse, Telnet; Aendern (atomar), Import; Netzwerk-LED PC2 | 10.1, F20, F25, SOLL-LED-06 |
-| [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `param list/get/set`, `current`, `enable`, `avail`, `pause`, `pwm5`, `lock`, `unlock`, `errors [clear]`, `selftest`, `reboot`, `ack`, `nvm`, `meter`, `sys list/set`, `factory-reset confirm`, `import-original` | SOLL-SH-01..09/11/19/20, SOLL-MTR-33 |
+| [netcfg.c](../app/src/netcfg.c) | Netz-/Systemparameter, Hostname, DHCP oder feste Adresse, Telnet; Aendern (atomar), Import; `mqtt_*` sofort in die laufende Konfiguration und MQTT neu verbinden; Netzwerk-LED PC2 | 10.1, F20, F25, SOLL-LED-06, SOLL-MQTT-31 |
+| [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `param list/get/set`, `current`, `enable`, `avail`, `pause`, `pwm5`, `lock`, `unlock`, `errors [clear]`, `selftest`, `reboot`, `ack`, `nvm`, `meter`, `mqtt`, `sys list/set`, `factory-reset confirm`, `import-original` | SOLL-SH-01..09/11/19/20, SOLL-MTR-33, SOLL-MQTT-32 |
 | [sysinfo.c](../app/src/sysinfo.c) | Resetgrund, Firmwarestand (`git describe`), Laufzeit; `GET /system/info` | SOLL-RT-14 |
 | [meter_task.c](../app/src/meter_task.c) | Zaehlerthread (niedrigste Anwendungsprioritaet, Stack 1280 B, nicht ueberwacht), nur mit `meter_type` != 0; Momentaufnahme unter Sperre, Bus ohne Sperre; Ereignisse in den gemeinsamen Ringpuffer | SOLL-MTR-01/03/10..14 |
+| [mqtt_task.c](../app/src/mqtt_task.c) | MQTT-Thread (niedrigste Anwendungsprioritaet, Stack 2048 B, nicht ueberwacht): Verbinden mit Last Will, Neuverbindung 1..60 s, Takt 100 ms fuer Zustaende und Ereignisse, Befehl `evse/external_current_update`, Status | SOLL-MQTT-01..04/10..12/20..23/30 |
 | [meter_bus_modbus.c](../app/src/meter_bus_modbus.c) | nur Steuerung: Zephyr-Modbus-Client auf UART4 (`modbus0`, DE an PC12), Baudrate/Format aus den Parametern, Fehler auf Timeout/Rahmen/Ausnahme abgebildet | SOLL-MTR-02/04, F29 |
-| [web/](../web/) | Werkszugang -> Zugangsdaten festlegen; "Einfach": Zustand, Fahrzeug, Ladestrom-Balken, Fehler, Zaehler (Leistung, Zaehlerstand), Sollstrom, letzte Ereignisse; "Experte": Zaehlerwerte mit Fehlerzaehlern, alle Parameter mit Bereich, Default, Herkunftsfeld, Hilfetext, Netz/Zaehler/System mit Neustart, Zugangsdaten, Zugriffsprotokoll | SOLL-API-31, SOLL-ERR-10/11, SOLL-MTR-32 |
+| [web/](../web/) | Werkszugang -> Zugangsdaten festlegen; "Einfach": Zustand, Fahrzeug, Ladestrom-Balken, Fehler, Zaehler (Leistung, Zaehlerstand), Sollstrom, letzte Ereignisse; "Experte": Zaehlerwerte mit Fehlerzaehlern, alle Parameter mit Bereich, Default, Herkunftsfeld, Hilfetext, Netz/Zaehler/MQTT/System mit Neustart (Passwortfeld nur schreibbar) und MQTT-Zustand, Zugangsdaten, Zugriffsprotokoll | SOLL-API-31, SOLL-ERR-10/11, SOLL-MTR-32, SOLL-MQTT-32 |
 | [hw_sim.c](../app/src/hw_sim.c), [sim_host.c](../app/src/sim_host.c) | nur `native_sim`: Hardwaremodell mit simuliertem Zaehler hinter `meter_bus.h` und Neustart per `execv` ([Test und Simulation](test-und-simulation.md)) | – |
 
 Am Build geprueft: Systemtakt 100 MHz, Ladeadresse `0x08010000`, Interrupttabelle (TIM1_UP ->
@@ -185,6 +188,21 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Ungueltige Werte an evcc (**zu bestaetigen**) | `null` wie WARP; evcc 0.317.2 macht daraus 0: bei ausgefallenem Zaehler zeigt evcc waehrend des Ladens 0 W und 0 A, der Zaehlerstand bleibt auf dem letzten Wert | WARP-konform; ein Weitersenden alter Werte wuerde einen Ausfall verbergen |
 | UART4 ohne Zaehler | der UART-Treiber richtet UART4 beim Start ein; ohne Zaehler wird nie gesendet, PC12 bleibt Low | Zephyr initialisiert Devicetree-Geraete immer; ohne Sendefreigabe wirkt nichts auf den Bus |
 
+### MQTT
+
+| Punkt | Umsetzung | Grund |
+| --- | --- | --- |
+| Zeiten (**zu bestaetigen**) | Takt 100 ms; Keepalive 60 s; CONNACK-Frist 10 s; Neuverbindung nach 1 s, verdoppelt bis 60 s | wie der WebSocket-Takt; Keepalive ist der Zephyr-Default; 60 s Hoechstwartezeit begrenzt die Last bei dauerhaft fehlendem Broker |
+| toter Broker | Zephyr wertet unbeantwortete PINGREQ nicht aus: Die Anwendung trennt, wenn ein PINGREQ eine Keepalive-Spanne lang offen ist. Zephyr pingt nur in Sendepausen; bei Dauerversand (Zaehlerwerte jede Sekunde) erkennt erst TCP den Ausfall (Wiederholungen bis zum Abbruch) | Erkennungszeit auf der Steuerung in H1 ansehen |
+| Aenderungserkennung | FNV-1a-Pruefsumme der Nutzdaten statt einer Kopie je Topic | spart RAM; eine Kollision (2^-32 je Aenderung) verschiebt eine Meldung bis zur naechsten Aenderung |
+| Neukonfiguration | nur wenn sich ein `mqtt_*`-Wert aendert: `online` = `false`, DISCONNECT, sofort neu verbinden | ein geordnetes DISCONNECT loest den Last Will nicht aus |
+| Neustart der Steuerung | kein `online` = `false` vorab; der Broker meldet den Last Will nach 1,5 x Keepalive (bis 90 s) | der Neustart beendet die Verbindung ohne TCP-Abbau |
+| Anmeldung am Broker | Client-ID = Hostname; Passwort nur zusammen mit einem Benutzer | MQTT 3.1.1 erlaubt kein Passwort ohne Benutzername. Zwei Steuerungen mit gleichem Hostname wuerden sich am Broker gegenseitig trennen |
+| Praefix (**zu bestaetigen**) | leer = `wallfree/<MAC-Ende>` (in der Simulation ohne MAC `wallfree/000000`) | wie WARP `warp2/<uid>` |
+| Retain bei Befehlen | eine mit Retain veroeffentlichte Nachricht kommt bei bestehendem Abo ohne Retain-Kennung an (MQTT-3.3.1-9) und wird angenommen; ignoriert wird die gespeicherte Kopie, die der Broker beim Abonnieren ausliefert | genau dieser Fall wuerde nach jedem Neustart einen alten Sollwert setzen (SOLL-MQTT-22) |
+| Ereignisse | vor dem Verbinden entstandene werden verworfen | SOLL-MQTT-11 |
+| Broker-Adresse | Pruefung wie Gateway, zusaetzlich 127.x erlaubt | PC-Simulation mit Broker auf demselben Rechner; auf der Steuerung schlaegt die Verbindung nur fehl |
+
 ## Parameterspeicher
 
 Format in [nvm.h](../include/wallfree/nvm/nvm.h). Eintrag = Kopf (Kennung, Laenge, CRC-8) +
@@ -202,7 +220,7 @@ unterbrochene Verdichten wie ein Erststart aus. Getestetes Verhalten bei Stromau
 
 ## Ressourcen
 
-Stand 2026-10-21, `-Os`: **316 016 B Flash** (96,4 % von 320 KB), **122 044 B RAM** (93,1 %).
+Stand 2026-10-21, `-Os`: **325 352 B Flash** (99,3 % von 320 KB), **127 292 B RAM** (97,1 %).
 Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudget).
 
 | Anteil (gemessen beim Hinzufuegen) | Flash | RAM |
@@ -214,10 +232,13 @@ Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudge
 | Netz-/Systemparameter, Bremse | 5,7 KB | – |
 | Ereignisse, Netzwerk-LED, Zugriffsprotokoll, `/evse/limits`, Ereignisanzeige | 5,1 KB | 3,9 KB |
 | Ladelogik `lib/evse` (Code und Konstanten inkl. Parametertabelle mit Hilfetexten) | 15,7 KB | – |
+| MQTT: Zephyr-Bibliothek (3.1.1, TCP) 4,2 KB, Thread und Anbindung, Parameter (8 Werte mit Hilfetext), `/mqtt/state`, Shell, Weboberflaeche | 9,1 KB | 5,1 KB (Stack 2 KB, Puffer 0,9 KB, Client, Status, Konfigurationskopien) |
 | Energiezaehler: UART-Treiber 2,1 KB, Zephyr-Modbus 2,7 KB, Interrupttabelle 1 KB, Zaehlermodul 1,4 KB, JSON/API/Shell/Parameter 2,9 KB, Weboberflaeche 1,4 KB, Rest (Treiberanteile) | 15,2 KB | 3,9 KB (Stack 1,3 KB, Modbus-Kontext 1 KB, Zaehlerzustand, WebSocket-Rahmen) |
 
-Reserve rund 11,7 KB Flash und 9 KB RAM; Einsparmoeglichkeiten in der
-[Architektur](architektur.md#5-speicherbudget), beim RAM Heap (16 KB) und HTTP-Client-Kontexte.
+Reserve rund **2,3 KB Flash und 3,7 KB RAM**: Die naechste Erweiterung braucht eine der
+Einsparungen aus der [Architektur](architektur.md#5-speicherbudget) (zuerst die Netz-Shell,
+43 KB); beim RAM kommen Heap (16 KB), HTTP-Client-Kontexte und der MQTT-Stack (nach Messung in
+H1) in Frage.
 
 ## Annahmen der Hardwareschicht (in H1 zu pruefen)
 
@@ -238,6 +259,9 @@ Reserve rund 11,7 KB Flash und 9 KB RAM; Einsparmoeglichkeiten in der
 - Ruhende HTTP-Verbindungen: Zephyr gibt Client-Plaetze nach 10 s Inaktivitaet per `shutdown`
   frei; in der Simulation fehlt `shutdown`. Auf der Steuerung mit offenem Browser und evcc
   gleichzeitig pruefen.
+- MQTT: Betrieb gegen den Broker im LAN; Stackbedarf des MQTT-Threads (2048 B angenommen) mit
+  dem Thread-Analysator messen; Erkennungszeit eines ausgeschalteten Brokers bei laufendem
+  Zaehlerversand.
 
 ## Fallstricke
 
@@ -254,6 +278,8 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 | Simulation: Telnet-Backend setzt kein `SO_REUSEADDR` | nach Neustart blockiert TIME_WAIT den Port | `bind` setzt es in der Simulation |
 | `twister --coverage` | bricht in dieser Version ab | `scripts/run-tests.sh --coverage` ruft gcovr direkt |
 | Umrechnung `float` -> `int64_t` auf dem Cortex-M3 (`__aeabi_f2lz`) | zieht die Double-Softfloat-Routinen nach (+3,5 KB Flash), ohne dass der Quelltext `double` enthaelt | Float32 der Zaehler ganzzahlig dekodieren (`f32_scaled` in meter.c) |
+| Zephyr-MQTT, Keepalive | `mqtt_live` sendet PINGREQ, wertet fehlende Antworten aber nicht aus; ein stumm verschwundener Broker bliebe "verbunden" | Anwendung prueft `unacked_ping` gegen `mqtt_keepalive_time_left` |
+| Retain-Kennung beim Empfang | bei bestehendem Abo setzt der Broker sie nie (MQTT-3.3.1-9); ein Test mit `mosquitto_pub -r` zeigt das Ignorieren nicht | Test ueber eine Neuverbindung, die die gespeicherte Nachricht ausliefert |
 | Zephyr-Modbus, Stoppbits | im normkonformen Modus erzwingt Zephyr bei "keine Paritaet" 2 Stoppbits; die Eastron-Werkseinstellung 8N1 ginge nicht | `CONFIG_MODBUS_NONCOMPLIANT_SERIAL_MODE`, Stoppbits je Format setzen |
 
 ## Offen
@@ -262,5 +288,8 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   danach Update-Uebergabe (SOLL-SH-10, SOLL-BOOT-30) und Startablauf auf der Hardware.
 - Ladestrom- und Zaehleranzeige der Weboberflaeche bestaetigen lassen; ebenso die Weitergabe
   ungueltiger Zaehlerwerte als `null` (evcc zeigt dann 0 W).
+- MQTT-Festlegungen (Zeiten, Praefix) bestaetigen lassen.
+- Speicher: Nach MQTT ist die Reserve fast aufgebraucht; die naechste Erweiterung braucht eine
+  der Einsparungen aus der [Architektur](architektur.md#5-speicherbudget) (zuerst Netz-Shell).
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
   (bisher nur ueber die API getestet).

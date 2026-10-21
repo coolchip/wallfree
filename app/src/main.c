@@ -11,6 +11,7 @@
 #include "http_api.h"
 #include "hw.h"
 #include "meter_task.h"
+#include "mqtt_task.h"
 #include "netcfg.h"
 #include "storage.h"
 #include "sysinfo.h"
@@ -105,5 +106,6 @@ int main(void)
 
 	netcfg_get(&sys, NULL);
 	meter_task_start(&sys); /* SOLL-MTR-01: ohne Zaehler nichts */
+	mqtt_task_start();      /* SOLL-MQTT-01: ohne mqtt_enable keine Verbindung */
 	return r;
 }

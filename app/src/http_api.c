@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
  * HTTP- und WebSocket-API (Soll-Spezifikation 12.1, SOLL-API-01..07/30,
- * Zaehler SOLL-MTR-30/31), Umfang fuer evcc ueber die Vorlage
+ * Zaehler SOLL-MTR-30/31, MQTT-Status SOLL-MQTT-30), Umfang fuer evcc ueber die Vorlage
  * tinkerforge-warp-ws.
  *
  *  - Alle Ressourcen mit HTTP-Digest (MD5, qop=auth). Im Werkszugang
@@ -38,6 +38,7 @@
 #include "evse_task.h"
 #include "hw.h"
 #include "meter_task.h"
+#include "mqtt_task.h"
 #include "netcfg.h"
 #include "http_api.h"
 #include "storage.h"
@@ -334,17 +335,9 @@ static void info_name(struct http_client_ctx *client, struct res *r,
 	ARG_UNUSED(client);
 	ARG_UNUSED(r);
 	struct wf_jbuf b;
-	char uid[8] = "000000";
-	struct net_if *iface = net_if_get_default();
+	char uid[7];
 
-	if (iface != NULL) {
-		struct net_linkaddr *ll = net_if_get_link_addr(iface);
-
-		if (ll != NULL && ll->len >= 3) {
-			snprintf(uid, sizeof(uid), "%02x%02x%02x", ll->addr[ll->len - 3],
-				 ll->addr[ll->len - 2], ll->addr[ll->len - 1]);
-		}
-	}
+	netcfg_uid(uid);
 	wf_jb_init(&b, out, sizeof(out));
 	wf_jb_raw(&b, "{");
 	wf_jb_key(&b, "name", true);
@@ -682,12 +675,14 @@ static void system_config_info(struct http_client_ctx *client, struct res *r,
 			       struct http_response_ctx *rsp)
 {
 	ARG_UNUSED(client);
-	ARG_UNUSED(r);
 	struct wf_jbuf b;
 
+	/* in Teilen: der Server ruft erneut auf, bis final_chunk gesetzt ist */
 	wf_jb_init(&b, out, sizeof(out));
-	wf_sys_info_json(&b);
-	respond_json(rsp, HTTP_200_OK, &b);
+	r->cursor = wf_sys_info_json(r->cursor, &b);
+	rsp->body = (const uint8_t *)out;
+	rsp->body_len = b.len;
+	rsp->final_chunk = r->cursor > wf_sys_count();
 }
 
 static void system_restart(struct http_client_ctx *client, struct res *r,
@@ -739,6 +734,24 @@ JSON_RESOURCE(system_config_r, "/system/config", BIT(HTTP_GET) | BIT(HTTP_POST),
 JSON_RESOURCE(system_config_info_r, "/system/config_info", BIT(HTTP_GET), system_config_info,
 	      false, 0);
 JSON_RESOURCE(system_restart_r, "/system/restart", BIT(HTTP_POST), system_restart, false, 16);
+
+/* ------------------------------------------------ /mqtt/state (SOLL-MQTT-30) */
+
+static void mqtt_state(struct http_client_ctx *client, struct res *r,
+		       struct http_response_ctx *rsp)
+{
+	ARG_UNUSED(client);
+	ARG_UNUSED(r);
+	struct wf_mq_status s;
+	struct wf_jbuf b;
+
+	mqtt_task_status(&s);
+	wf_jb_init(&b, out, sizeof(out));
+	wf_mq_status_json(&s, &b);
+	respond_json(rsp, HTTP_200_OK, &b);
+}
+
+JSON_RESOURCE(mqtt_state_r, "/mqtt/state", BIT(HTTP_GET), mqtt_state, false, 0);
 
 /* ------------------------------------------------ WebSocket /ws (SOLL-API-06) */
 

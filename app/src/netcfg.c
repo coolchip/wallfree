@@ -2,7 +2,9 @@
 /*
  * Netz- und Systemparameter (10.1, F20, F25, SOLL-SH-19), siehe netcfg.h.
  * Die Zaehlerparameter (meter_*) liegen mit im Satz; sie wertet meter_task
- * beim Start aus.
+ * beim Start aus. Die MQTT-Parameter (mqtt_*) wirken sofort (SOLL-MQTT-31):
+ * Sie werden beim Speichern auch in die laufende Konfiguration uebernommen,
+ * und mqtt_task baut die Verbindung neu auf.
  *
  * Telnet: Zephyr startet die Telnet-Shell vor main() und kann den Port zur
  * Laufzeit nicht schliessen. Mit telnet_enable = 0 wird die Kommando-
@@ -21,6 +23,7 @@
 #include <zephyr/net/hostname.h>
 #include <zephyr/shell/shell_telnet.h>
 #include "hw.h"
+#include "mqtt_task.h"
 #include "netcfg.h"
 #include "storage.h"
 
@@ -32,7 +35,8 @@ static K_MUTEX_DEFINE(mtx);
 
 static void load(struct wf_sysconf *c)
 {
-	uint8_t buf[WF_HOSTNAME_MAX];
+	uint8_t buf[WF_SYS_VAL_MAX];
+	const char *fix;
 
 	wf_sysconf_defaults(c);
 	for (size_t i = 0; i < wf_sys_count(); i++) {
@@ -43,10 +47,9 @@ static void load(struct wf_sysconf *c)
 			LOG_WRN("%s: gespeicherter Wert ungueltig, Default", p->name);
 		}
 	}
-	if (wf_sys_check(c) != NULL) {
-		/* widerspruechliche feste Adresse: lieber DHCP als gar kein Netz */
-		LOG_WRN("Netzkonfiguration ungueltig (%s), DHCP", wf_sys_check(c));
-		c->dhcp = true;
+	fix = wf_sys_repair(c); /* z. B. feste Adresse widerspruechlich: lieber DHCP als kein Netz */
+	if (fix != NULL) {
+		LOG_WRN("gespeicherte Konfiguration: %s", fix);
 	}
 }
 
@@ -57,23 +60,30 @@ static struct net_in_addr in4(uint32_t ip)
 	return a;
 }
 
-static void apply(const struct wf_sysconf *c)
+void netcfg_uid(char out[7])
 {
 	struct net_if *iface = net_if_get_default();
+	struct net_linkaddr *ll = iface ? net_if_get_link_addr(iface) : NULL;
+
+	if (ll != NULL && ll->len >= 3) {
+		snprintk(out, 7, "%02x%02x%02x", ll->addr[ll->len - 3], ll->addr[ll->len - 2],
+			 ll->addr[ll->len - 1]);
+	} else {
+		strcpy(out, "000000");
+	}
+}
+
+static void apply(const struct wf_sysconf *c)
+{
 	char host[WF_HOSTNAME_MAX + 1];
 
 	if (c->hostname[0] != '\0') {
 		strcpy(host, c->hostname);
 	} else {
-		/* wallfree-<MAC-Ende> */
-		struct net_linkaddr *ll = iface ? net_if_get_link_addr(iface) : NULL;
+		char uid[7];
 
-		if (ll != NULL && ll->len >= 3) {
-			snprintk(host, sizeof(host), "wallfree-%02x%02x%02x", ll->addr[ll->len - 3],
-				 ll->addr[ll->len - 2], ll->addr[ll->len - 1]);
-		} else {
-			strcpy(host, "wallfree");
-		}
+		netcfg_uid(uid);
+		snprintk(host, sizeof(host), "wallfree-%s", uid);
 	}
 	(void)net_hostname_set(host, strlen(host));
 
@@ -83,6 +93,8 @@ static void apply(const struct wf_sysconf *c)
 	LOG_INF("Simulation: Host-Sockets, gespeicherte Adresse (%s) nicht angewandt",
 		c->dhcp ? "DHCP" : "fest");
 #else
+	struct net_if *iface = net_if_get_default();
+
 	if (iface != NULL) {
 		if (c->dhcp) {
 			net_dhcpv4_start(iface);
@@ -111,7 +123,7 @@ static void apply(const struct wf_sysconf *c)
 /* gleich, wenn alle Parameter gleich kodiert sind (ohne Fuellbytes) */
 static bool same(const struct wf_sysconf *x, const struct wf_sysconf *y)
 {
-	uint8_t a[WF_HOSTNAME_MAX], b[WF_HOSTNAME_MAX];
+	uint8_t a[WF_SYS_VAL_MAX], b[WF_SYS_VAL_MAX];
 
 	for (size_t i = 0; i < wf_sys_count(); i++) {
 		const struct wf_syspar *p = wf_sys_at(i);
@@ -188,7 +200,8 @@ bool netcfg_restart_required(void)
 /* geaenderte Werte speichern; mtx gehalten */
 static const char *commit(const struct wf_sysconf *next)
 {
-	uint8_t a[WF_HOSTNAME_MAX], b[WF_HOSTNAME_MAX];
+	uint8_t a[WF_SYS_VAL_MAX], b[WF_SYS_VAL_MAX];
+	bool live = false;
 
 	for (size_t i = 0; i < wf_sys_count(); i++) {
 		const struct wf_syspar *p = wf_sys_at(i);
@@ -201,8 +214,13 @@ static const char *commit(const struct wf_sysconf *next)
 		if (storage_save_raw(p->id, a, na) < 0) {
 			return "Speichern fehlgeschlagen";
 		}
+		live |= p->id >= WF_SYS_ID_LIVE;
 	}
 	saved = *next;
+	if (live) {
+		wf_sys_take_live(&active, &saved);
+		mqtt_task_reconfigure();
+	}
 	return NULL;
 }
 

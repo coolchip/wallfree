@@ -19,6 +19,14 @@ static const struct wf_syspar pars[] = {
 	{"meter_address", 3017, WF_SYS_CODE, "Modbus-Adresse des Zaehlers 1..247"},
 	{"meter_baud", 3018, WF_SYS_CODE, "Baudrate RS-485: 2400..115200"},
 	{"meter_framing", 3019, WF_SYS_CODE, "Rahmenformat: 0 = 8N1, 1 = 8E1, 2 = 8O1, 3 = 8N2"},
+	{"mqtt_enable", 3020, WF_SYS_BOOL, "MQTT-Client (F30), wirkt sofort"},
+	{"mqtt_broker", 3021, WF_SYS_IPV4, "IPv4-Adresse des Brokers"},
+	{"mqtt_port", 3022, WF_SYS_CODE, "Port des Brokers 1..65535"},
+	{"mqtt_user", 3023, WF_SYS_TEXT, "Benutzer am Broker, leer = ohne Anmeldung"},
+	{"mqtt_password", 3024, WF_SYS_SECRET, "Passwort am Broker (nicht lesbar)"},
+	{"mqtt_prefix", 3025, WF_SYS_TEXT, "Topic-Praefix, leer = wallfree/<MAC-Ende>"},
+	{"mqtt_interval", 3026, WF_SYS_CODE, "Mindestabstand je Topic in s, 0..3600"},
+	{"mqtt_commands", 3027, WF_SYS_BOOL, "Befehle annehmen (Ladestrom setzen)"},
 };
 #define N_PARS (sizeof(pars) / sizeof(pars[0]))
 
@@ -33,6 +41,8 @@ void wf_sysconf_defaults(struct wf_sysconf *c)
 	c->meter_addr = 1;                  /* Werkseinstellung der Eastron-Zaehler */
 	c->meter_baud = 9600;
 	c->meter_framing = WF_FRAMING_8N1;
+	c->mqtt_port = 1883;
+	c->mqtt_interval = 1;
 }
 
 size_t wf_sys_count(void)
@@ -139,6 +149,10 @@ static const char *check_ip(const struct wf_syspar *p, uint32_t v)
 	if (p->id == 3013 && v != 0 && !unicast(v)) {
 		return "keine gueltige Gateway-Adresse";
 	}
+	/* Broker: auch 127.x (PC-Simulation mit Broker auf demselben Rechner) */
+	if (p->id == 3021 && v != 0 && !unicast(v) && (v >> 24) != 127) {
+		return "keine gueltige Broker-Adresse";
+	}
 	return NULL;
 }
 
@@ -161,6 +175,57 @@ static const char *check_host(const char *h, size_t n)
 	return NULL;
 }
 
+/* SOLL-MQTT-12: keine Platzhalter, kein $-Topic, keine leere Ebene am Rand */
+static const char *check_prefix(const char *h, size_t n)
+{
+	if (n > 0 && (h[0] == '/' || h[0] == '$' || h[n - 1] == '/')) {
+		return "Praefix: nicht mit '/' oder '$' beginnend, nicht mit '/' endend";
+	}
+	for (size_t i = 0; i < n; i++) {
+		if (h[i] == '+' || h[i] == '#') {
+			return "Praefix: ohne '+' und '#'";
+		}
+		if (h[i] == ' ') {
+			return "Praefix: ohne Leerzeichen";
+		}
+	}
+	return NULL;
+}
+
+static char *text_field(struct wf_sysconf *c, uint16_t id, size_t *max)
+{
+	switch (id) {
+	case 3023:
+		*max = WF_MQTT_USER_MAX;
+		return c->mqtt_user;
+	case 3024:
+		*max = WF_MQTT_PW_MAX;
+		return c->mqtt_password;
+	case 3025:
+		*max = WF_MQTT_PREFIX_MAX;
+		return c->mqtt_prefix;
+	default:
+		*max = WF_HOSTNAME_MAX;
+		return c->hostname;
+	}
+}
+
+static const char *check_text(uint16_t id, const char *h, size_t n)
+{
+	if (id == 3014) {
+		return check_host(h, n);
+	}
+	if (n > (id == 3023 ? WF_MQTT_USER_MAX : WF_MQTT_PW_MAX)) {
+		return id == 3023 ? "hoechstens 32 Zeichen" : "hoechstens 64 Zeichen";
+	}
+	for (size_t i = 0; i < n; i++) {
+		if (h[i] < 0x20 || h[i] > 0x7E) {
+			return "nur druckbare ASCII-Zeichen";
+		}
+	}
+	return id == 3025 ? check_prefix(h, n) : NULL;
+}
+
 static const uint32_t bauds[] = {2400, 4800, 9600, 19200, 38400, 57600, 115200};
 
 static const char *check_code(uint16_t id, int64_t v)
@@ -177,6 +242,10 @@ static const char *check_code(uint16_t id, int64_t v)
 			}
 		}
 		return "Baudrate 2400, 4800, 9600, 19200, 38400, 57600 oder 115200";
+	case 3022:
+		return v >= 1 && v <= 65535 ? NULL : "Port 1..65535";
+	case 3026:
+		return v >= 0 && v <= 3600 ? NULL : "Intervall 0..3600 s";
 	default:
 		return v >= 0 && v <= 3 ? NULL : "Rahmenformat 0..3";
 	}
@@ -184,31 +253,56 @@ static const char *check_code(uint16_t id, int64_t v)
 
 static uint32_t code_get(const struct wf_sysconf *c, uint16_t id)
 {
-	return id == 3016 ? c->meter_type : id == 3017 ? c->meter_addr
-		: id == 3018 ? c->meter_baud : c->meter_framing;
+	switch (id) {
+	case 3016:
+		return c->meter_type;
+	case 3017:
+		return c->meter_addr;
+	case 3018:
+		return c->meter_baud;
+	case 3022:
+		return c->mqtt_port;
+	case 3026:
+		return c->mqtt_interval;
+	default:
+		return c->meter_framing;
+	}
 }
 
 static void code_put(struct wf_sysconf *c, uint16_t id, uint32_t v)
 {
-	if (id == 3016) {
+	switch (id) {
+	case 3016:
 		c->meter_type = (uint8_t)v;
-	} else if (id == 3017) {
+		break;
+	case 3017:
 		c->meter_addr = (uint8_t)v;
-	} else if (id == 3018) {
+		break;
+	case 3018:
 		c->meter_baud = v;
-	} else {
+		break;
+	case 3022:
+		c->mqtt_port = (uint16_t)v;
+		break;
+	case 3026:
+		c->mqtt_interval = (uint16_t)v;
+		break;
+	default:
 		c->meter_framing = (uint8_t)v;
+		break;
 	}
 }
 
 static uint32_t *ip_field(struct wf_sysconf *c, uint16_t id)
 {
-	return id == 3011 ? &c->ip : id == 3012 ? &c->netmask : &c->gateway;
+	return id == 3011 ? &c->ip : id == 3012 ? &c->netmask
+		: id == 3013 ? &c->gateway : &c->mqtt_broker;
 }
 
 static bool *bool_field(struct wf_sysconf *c, uint16_t id)
 {
-	return id == 3010 ? &c->dhcp : &c->telnet;
+	return id == 3010 ? &c->dhcp : id == 3015 ? &c->telnet
+		: id == 3020 ? &c->mqtt_enable : &c->mqtt_commands;
 }
 
 const char *wf_sys_set(struct wf_sysconf *c, const struct wf_syspar *p, const struct wf_jval *v)
@@ -245,13 +339,16 @@ const char *wf_sys_set(struct wf_sysconf *c, const struct wf_syspar *p, const st
 		return err;
 	}
 	default: {
+		size_t max;
+		char *dst = text_field(c, p->id, &max);
+
 		if (v->type != WF_J_STR) {
 			return "Text erwartet";
 		}
-		const char *err = check_host(v->str, v->str_len);
+		const char *err = check_text(p->id, v->str, v->str_len);
 
 		if (err == NULL) {
-			memcpy(c->hostname, v->str, v->str_len + 1);
+			memcpy(dst, v->str, v->str_len + 1);
 		}
 		return err;
 	}
@@ -268,7 +365,38 @@ const char *wf_sys_check(const struct wf_sysconf *c)
 	if (c->gateway != 0 && ((c->gateway & m) != (c->ip & m) || c->gateway == c->ip)) {
 		return "Gateway liegt nicht im Netz der Adresse";
 	}
+	if (c->mqtt_enable && c->mqtt_broker == 0) {
+		return "MQTT: Broker-Adresse fehlt (mqtt_broker)";
+	}
 	return NULL;
+}
+
+const char *wf_sys_repair(struct wf_sysconf *c)
+{
+	const char *what = NULL;
+
+	if (c->mqtt_enable && c->mqtt_broker == 0) {
+		c->mqtt_enable = false;
+		what = "MQTT ohne Broker, aus";
+	}
+	if (wf_sys_check(c) != NULL) {
+		/* widerspruechliche feste Adresse: lieber DHCP als gar kein Netz */
+		c->dhcp = true;
+		what = "feste Adresse ungueltig, DHCP";
+	}
+	return what;
+}
+
+void wf_sys_take_live(struct wf_sysconf *dst, const struct wf_sysconf *src)
+{
+	dst->mqtt_enable = src->mqtt_enable;
+	dst->mqtt_commands = src->mqtt_commands;
+	dst->mqtt_port = src->mqtt_port;
+	dst->mqtt_interval = src->mqtt_interval;
+	dst->mqtt_broker = src->mqtt_broker;
+	memcpy(dst->mqtt_user, src->mqtt_user, sizeof(dst->mqtt_user));
+	memcpy(dst->mqtt_password, src->mqtt_password, sizeof(dst->mqtt_password));
+	memcpy(dst->mqtt_prefix, src->mqtt_prefix, sizeof(dst->mqtt_prefix));
 }
 
 void wf_sys_json(const struct wf_sysconf *c, struct wf_jbuf *b)
@@ -291,30 +419,58 @@ void wf_sys_json(const struct wf_sysconf *c, struct wf_jbuf *b)
 		case WF_SYS_CODE:
 			wf_jb_int(b, code_get(c, p->id));
 			break;
-		default:
-			wf_jb_str(b, c->hostname);
+		case WF_SYS_SECRET:
+			wf_jb_raw(b, "null"); /* SOLL-MQTT-02: nicht lesbar */
 			break;
+		default: {
+			size_t max;
+
+			wf_jb_str(b, text_field((struct wf_sysconf *)c, p->id, &max));
+			break;
+		}
 		}
 	}
 	wf_jb_raw(b, "}");
 }
 
-void wf_sys_info_json(struct wf_jbuf *b)
+/* Ausgabe ab @p mark verwerfen (passt nicht mehr, kommt im naechsten Teil) */
+static bool undo_overflow(struct wf_jbuf *b, size_t mark)
 {
-	static const char *const types[] = {"bool", "ipv4", "hostname", "code"};
-
-	wf_jb_raw(b, "[");
-	for (size_t i = 0; i < N_PARS; i++) {
-		wf_jb_raw(b, i == 0 ? "{" : ",{");
-		wf_jb_key(b, "name", true);
-		wf_jb_str(b, pars[i].name);
-		wf_jb_key(b, "type", false);
-		wf_jb_str(b, types[pars[i].type]);
-		wf_jb_key(b, "help", false);
-		wf_jb_str(b, pars[i].help);
-		wf_jb_raw(b, "}");
+	if (!b->overflow) {
+		return false;
 	}
+	b->len = mark;
+	b->p[mark] = '\0';
+	b->overflow = false;
+	return true;
+}
+
+size_t wf_sys_info_json(size_t idx, struct wf_jbuf *b)
+{
+	static const char *const types[] = {"bool", "ipv4", "hostname", "code", "text", "secret"};
+
+	if (idx == 0) {
+		wf_jb_raw(b, "[");
+	}
+	for (; idx < N_PARS; idx++) {
+		size_t mark = b->len;
+
+		wf_jb_raw(b, idx == 0 ? "{" : ",{");
+		wf_jb_key(b, "name", true);
+		wf_jb_str(b, pars[idx].name);
+		wf_jb_key(b, "type", false);
+		wf_jb_str(b, types[pars[idx].type]);
+		wf_jb_key(b, "help", false);
+		wf_jb_str(b, pars[idx].help);
+		wf_jb_raw(b, "}");
+		if (undo_overflow(b, mark)) {
+			return idx;
+		}
+	}
+	size_t mark = b->len;
+
 	wf_jb_raw(b, "]");
+	return undo_overflow(b, mark) ? N_PARS : N_PARS + 1;
 }
 
 size_t wf_sys_encode(const struct wf_sysconf *c, const struct wf_syspar *p, uint8_t *buf)
@@ -342,13 +498,15 @@ size_t wf_sys_encode(const struct wf_sysconf *c, const struct wf_syspar *p, uint
 		return 4;
 	}
 	default: {
-		size_t n = strlen(c->hostname);
+		size_t max;
+		const char *t = text_field((struct wf_sysconf *)c, p->id, &max);
+		size_t n = strlen(t);
 
 		if (n == 0) {
 			buf[0] = 0; /* leer: ein NUL, weil der Speicher keine leeren Werte kennt */
 			return 1;
 		}
-		memcpy(buf, c->hostname, n);
+		memcpy(buf, t, n);
 		return n;
 	}
 	}
@@ -393,17 +551,21 @@ int wf_sys_decode(struct wf_sysconf *c, uint16_t id, const void *data, size_t le
 		code_put(c, id, v);
 		return 0;
 	}
-	default:
+	default: {
+		size_t max;
+		char *t = text_field(c, id, &max);
+
 		if (len == 1 && d[0] == 0) {
-			c->hostname[0] = '\0';
+			t[0] = '\0';
 			return 0;
 		}
-		if (check_host(data, len) != NULL || len == 0) {
+		if (len == 0 || check_text(id, data, len) != NULL) {
 			return -1;
 		}
-		memcpy(c->hostname, data, len);
-		c->hostname[len] = '\0';
+		memcpy(t, data, len);
+		t[len] = '\0';
 		return 0;
+	}
 	}
 }
 

@@ -16,6 +16,7 @@ target_sources(app PRIVATE
   src/netcfg.c
   src/sysinfo.c
   src/meter_task.c
+  src/mqtt_task.c
 )
 if(CONFIG_ARCH_POSIX)
   # PC-Simulation (native_sim): Modell statt TIM1/ADC/GPIO, Neustart per execv

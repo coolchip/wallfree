@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* Tests Netz- und Systemparameter (10.1 net_*, telnet_enable, meter_*; F20, F25, F28; SOLL-NVM-10) */
+/* Tests Netz- und Systemparameter (10.1 net_*, telnet_enable, meter_*, mqtt_*; F20, F25, F28, F30;
+ * SOLL-NVM-10) */
 #include <string.h>
 #include <zephyr/ztest.h>
 #include <wallfree/api/sysconf.h>
@@ -34,7 +35,7 @@ static const char *set(const char *name, struct wf_jval v)
 
 ZTEST(api_sysconf, test_defaults_and_json)
 {
-	char buf[320];
+	char buf[512];
 	struct wf_jbuf b;
 
 	wf_jb_init(&b, buf, sizeof(buf));
@@ -42,7 +43,10 @@ ZTEST(api_sysconf, test_defaults_and_json)
 	zassert_str_equal(buf, "{\"net_dhcp\":true,\"net_ip\":\"192.168.0.8\","
 			       "\"net_netmask\":\"255.255.255.0\",\"net_gateway\":\"192.168.0.1\","
 			       "\"net_hostname\":\"\",\"telnet_enable\":true,\"meter_type\":0,"
-			       "\"meter_address\":1,\"meter_baud\":9600,\"meter_framing\":0}");
+			       "\"meter_address\":1,\"meter_baud\":9600,\"meter_framing\":0,"
+			       "\"mqtt_enable\":false,\"mqtt_broker\":\"0.0.0.0\",\"mqtt_port\":1883,"
+			       "\"mqtt_user\":\"\",\"mqtt_password\":null,\"mqtt_prefix\":\"\","
+			       "\"mqtt_interval\":1,\"mqtt_commands\":false}");
 	zassert_is_null(wf_sys_check(&c));
 	for (size_t i = 0; i < wf_sys_count(); i++) {
 		const struct wf_syspar *p = wf_sys_at(i);
@@ -54,13 +58,120 @@ ZTEST(api_sysconf, test_defaults_and_json)
 	zassert_is_null(wf_sys_find("nix"));
 	zassert_is_null(wf_sys_by_id(1));
 
-	char info[1536];
+	char info[2560];
 
 	wf_jb_init(&b, info, sizeof(info));
-	wf_sys_info_json(&b);
+	zassert_equal(wf_sys_info_json(0, &b), wf_sys_count() + 1, "passt in einem Teil");
 	zassert_false(b.overflow);
 	zassert_not_null(strstr(info, "{\"name\":\"net_ip\",\"type\":\"ipv4\""));
 	zassert_not_null(strstr(info, "{\"name\":\"meter_type\",\"type\":\"code\""));
+	zassert_not_null(strstr(info, "{\"name\":\"mqtt_password\",\"type\":\"secret\""));
+	zassert_not_null(strstr(info, "{\"name\":\"mqtt_prefix\",\"type\":\"text\""));
+}
+
+/* Beschreibung in Teilen (kleiner Puffer wie die HTTP-Antwort) ergibt dieselbe Liste */
+ZTEST(api_sysconf, test_info_parts)
+{
+	static char whole[2560], joined[2560], part[200];
+	struct wf_jbuf b;
+	size_t idx = 0, parts = 0;
+
+	wf_jb_init(&b, whole, sizeof(whole));
+	(void)wf_sys_info_json(0, &b);
+	joined[0] = '\0';
+	while (idx <= wf_sys_count()) {
+		wf_jb_init(&b, part, sizeof(part));
+		size_t next = wf_sys_info_json(idx, &b);
+
+		zassert_true(next > idx || b.len > 0, "Fortschritt");
+		zassert_false(b.overflow);
+		strcat(joined, part);
+		idx = next;
+		parts++;
+	}
+	zassert_true(parts > 3);
+	zassert_str_equal(joined, whole);
+}
+
+/* 10.1 mqtt_*, SOLL-MQTT-01/02/12 */
+ZTEST(api_sysconf, test_mqtt_params)
+{
+	zassert_false(c.mqtt_enable, "Werkszustand aus");
+	zassert_false(c.mqtt_commands, "Werkszustand ohne Befehle");
+	zassert_is_null(set("mqtt_broker", S("192.168.1.50")));
+	zassert_equal(c.mqtt_broker, 0xC0A801D7);
+	zassert_is_null(set("mqtt_broker", S("0.0.0.0")), "keiner");
+	zassert_not_null(set("mqtt_broker", S("224.0.0.1")));
+	zassert_is_null(set("mqtt_broker", S("127.0.0.1")), "Simulation");
+
+	zassert_is_null(set("mqtt_port", N(1)));
+	zassert_is_null(set("mqtt_port", N(65535)));
+	zassert_equal(c.mqtt_port, 65535);
+	zassert_not_null(set("mqtt_port", N(0)));
+	zassert_not_null(set("mqtt_port", N(65536)));
+	zassert_is_null(set("mqtt_interval", N(0)));
+	zassert_is_null(set("mqtt_interval", N(3600)));
+	zassert_not_null(set("mqtt_interval", N(3601)));
+	zassert_not_null(set("mqtt_interval", N(-1)));
+
+	zassert_is_null(set("mqtt_user", S("")));
+	zassert_is_null(set("mqtt_user", S("12345678901234567890123456789012")));
+	zassert_not_null(set("mqtt_user", S("123456789012345678901234567890123")));
+	zassert_not_null(set("mqtt_user", S("a\tb")), "Steuerzeichen");
+	zassert_is_null(set("mqtt_password", S("geheim mit Leerzeichen!")));
+	zassert_str_equal(c.mqtt_password, "geheim mit Leerzeichen!");
+	zassert_not_null(set("mqtt_password", S("\xc3\xa4")), "kein ASCII");
+
+	zassert_is_null(set("mqtt_prefix", S("garage/wallbox-1")));
+	zassert_str_equal(c.mqtt_prefix, "garage/wallbox-1");
+	zassert_is_null(set("mqtt_prefix", S("")), "automatisch");
+	static const char *const bad[] = {"/a", "a/", "$SYS/x", "a/+/b", "a/#", "a b", "a\x01"};
+
+	for (size_t i = 0; i < ARRAY_SIZE(bad); i++) {
+		zassert_not_null(set("mqtt_prefix", S(bad[i])), "%s", bad[i]);
+	}
+	zassert_is_null(set("mqtt_prefix",
+			    S("1234567890123456789012345678901234567890123456789012345678901234")));
+	zassert_not_null(set("mqtt_prefix",
+			     S("12345678901234567890123456789012345678901234567890123456789012345")));
+
+	/* einschalten nur mit Broker */
+	zassert_is_null(set("mqtt_broker", S("0.0.0.0")));
+	zassert_is_null(set("mqtt_enable", N(1)));
+	zassert_not_null(wf_sys_check(&c));
+	zassert_is_null(set("mqtt_broker", S("192.168.1.50")));
+	zassert_is_null(wf_sys_check(&c));
+}
+
+/* SOLL-MQTT-31: sofort wirksame Werte; Start mit widerspruechlichem Satz */
+ZTEST(api_sysconf, test_live_and_repair)
+{
+	struct wf_sysconf a;
+
+	wf_sysconf_defaults(&a);
+	zassert_is_null(set("mqtt_enable", N(1)));
+	zassert_is_null(set("mqtt_broker", S("10.0.0.2")));
+	zassert_is_null(set("mqtt_password", S("pw")));
+	zassert_is_null(set("mqtt_prefix", S("x/y")));
+	zassert_is_null(set("mqtt_commands", N(1)));
+	zassert_is_null(set("net_hostname", S("nicht-live")));
+	wf_sys_take_live(&a, &c);
+	zassert_true(a.mqtt_enable && a.mqtt_commands);
+	zassert_equal(a.mqtt_broker, 0x0A000002);
+	zassert_str_equal(a.mqtt_password, "pw");
+	zassert_str_equal(a.mqtt_prefix, "x/y");
+	zassert_str_equal(a.hostname, "", "Netzwerte erst nach Neustart");
+
+	wf_sysconf_defaults(&a);
+	zassert_is_null(wf_sys_repair(&a));
+	a.mqtt_enable = true;
+	zassert_not_null(wf_sys_repair(&a));
+	zassert_false(a.mqtt_enable);
+	zassert_true(a.dhcp, "DHCP bleibt");
+	a.dhcp = false;
+	a.ip = 0xC0A800FF; /* Broadcast */
+	zassert_not_null(wf_sys_repair(&a));
+	zassert_true(a.dhcp);
 }
 
 /* 10.1 meter_*, SOLL-MTR-01/02 */
@@ -168,12 +279,21 @@ ZTEST(api_sysconf, test_encode_decode)
 	zassert_is_null(set("meter_address", N(12)));
 	zassert_is_null(set("meter_baud", N(38400)));
 	zassert_is_null(set("meter_framing", N(1)));
+	zassert_is_null(set("mqtt_enable", N(1)));
+	zassert_is_null(set("mqtt_broker", S("192.168.1.50")));
+	zassert_is_null(set("mqtt_port", N(1884)));
+	zassert_is_null(set("mqtt_user", S("wb")));
+	zassert_is_null(set("mqtt_password",
+			    S("1234567890123456789012345678901234567890123456789012345678901234")));
+	zassert_is_null(set("mqtt_prefix", S("a/b")));
+	zassert_is_null(set("mqtt_interval", N(10)));
+	zassert_is_null(set("mqtt_commands", N(1)));
 	wf_sysconf_defaults(&d);
 	for (size_t i = 0; i < wf_sys_count(); i++) {
 		const struct wf_syspar *p = wf_sys_at(i);
 		size_t n = wf_sys_encode(&c, p, buf);
 
-		zassert_true(n >= 1 && n <= WF_HOSTNAME_MAX);
+		zassert_true(n >= 1 && n <= WF_SYS_VAL_MAX);
 		zassert_equal(wf_sys_decode(&d, p->id, buf, n), 0, "%s", p->name);
 	}
 	zassert_mem_equal(&c, &d, sizeof(c));
@@ -197,6 +317,10 @@ ZTEST(api_sysconf, test_encode_decode)
 	zassert_equal(wf_sys_decode(&d, 3018, "\x00\x00\x4b\x00", 4), 0, "19200 Bd");
 	zassert_equal(d.meter_baud, 19200);
 	zassert_equal(wf_sys_decode(&d, 3017, "\x01", 1), -1);
+	zassert_equal(wf_sys_decode(&d, 3022, "\x00\x00\x00\x00", 4), -1, "Port 0");
+	zassert_equal(wf_sys_decode(&d, 3025, "a/#", 3), -1);
+	zassert_equal(wf_sys_decode(&d, 3024, "\x00", 1), 0, "leeres Passwort");
+	zassert_str_equal(d.mqtt_password, "");
 }
 
 /* ------------------------------------------------ Import */

@@ -47,6 +47,7 @@ const METER_STATUS = { off: 'kein Zähler', connecting: 'verbinde …', ok: 'ver
 const METER_TYPES = ['kein Zähler', 'ABB B23', 'Eastron SDM630', 'Eastron SDM72D-M V2',
 	'Eastron SDM72D-M (V1, nur Summen)'];
 const FRAMING = ['8N1', '8E1', '8O1', '8N2'];
+const MQTT_STATES = ['aus', 'nicht verbunden', 'verbunden', 'vom Broker abgelehnt'];
 // Wert zur Kennung oder null (nicht vorhanden, ungueltig, veraltet)
 const mval = (m, id) => {
 	if (!m || !m.ids || !m.values) return null;
@@ -408,7 +409,11 @@ function System() {
 	const [edit, setEdit] = useState({});
 	const [msg, setMsg] = useState(null);
 	const [sysinfo, setSysinfo] = useState(null);
-	const load = () => api('/system/config').then(setCfg).catch((e) => setMsg({ ok: false, text: e.message }));
+	const [mqtt, setMqtt] = useState(null);
+	const load = () => {
+		api('/system/config').then(setCfg).catch((e) => setMsg({ ok: false, text: e.message }));
+		setTimeout(() => api('/mqtt/state').then(setMqtt).catch(() => {}), 1500);
+	};
 	useEffect(() => {
 		api('/system/config_info').then(setInfo).catch(() => {});
 		api('/system/info').then(setSysinfo).catch(() => {});
@@ -445,6 +450,10 @@ function System() {
 				return html`<label class="check"><input type="checkbox" checked=${val(p.name)}
 					onChange=${(e) => set(e.target.checked)} />${p.name} – ${p.help}</label>`;
 			}
+			if (p.type === 'secret') {
+				return html`<label>${p.name} – ${p.help}<input type="password" value=${edit[p.name] || ''}
+					placeholder="unverändert" autocomplete="off" onInput=${(e) => set(e.target.value)} /></label>`;
+			}
 			if (opts) {
 				return html`<label>${p.name}<select value=${val(p.name)} onChange=${(e) => set(+e.target.value)}>
 					${opts.map((t, i) => html`<option value=${i}>${t}</option>`)}</select></label>`;
@@ -459,6 +468,10 @@ function System() {
 		${cfg.restart_required && html`<p class="warn msg">Gespeicherte Werte wirken erst nach einem Neustart.</p>`}
 		<p class="muted msg">${'Aktiv: ' + (cfg.active.net_dhcp ? 'DHCP' : cfg.active.net_ip) +
 			', Hostname ' + (cfg.active.net_hostname || 'automatisch')}</p>
+		${mqtt && html`<p class="muted msg">${'MQTT: ' + MQTT_STATES[mqtt.connection_state] +
+			(mqtt.connection_state ? ', Präfix ' + mqtt.prefix + ', gesendet ' + mqtt.published +
+				', Befehle ' + mqtt.commands + (mqtt.rejected ? ' (abgelehnt ' + mqtt.rejected + ': ' +
+				mqtt.last_reject + ')' : '') : '')}</p>`}
 		${sysinfo && html`<p class="muted msg">${'Firmware ' + sysinfo.firmware + ', letzter Reset: ' +
 			sysinfo.reset_reason + ', Laufzeit ' + Math.round(sysinfo.uptime_ms / 60000) + ' min'}</p>`}
 	<//>`;

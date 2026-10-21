@@ -1,6 +1,6 @@
 # Architektur und Rahmenentscheidungen
 
-Stand: 2026-10-20. Rahmen der Ersatzfirmware mit Begruendungen. Das Soll-Verhalten steht in
+Stand: 2026-10-21. Rahmen der Ersatzfirmware mit Begruendungen. Das Soll-Verhalten steht in
 der [Soll-Spezifikation](soll-spezifikation.md), der Umsetzungsstand in
 [Implementierung](implementierung.md), Tests und Simulation in
 [Test und Simulation](test-und-simulation.md). Belege zur Originalfirmware liegen in
@@ -23,6 +23,8 @@ der [Soll-Spezifikation](soll-spezifikation.md), der Umsetzungsstand in
   Phoenix-Steuerung (Modbus TCP) wird wegen frueherer Probleme bewusst nicht genutzt.
 - **Energiezaehler ueber Modbus RTU nur zur Anzeige** (Nutzer 2026-10-21, F28): Messwerte fuer
   Weboberflaeche und evcc; die Steuerung arbeitet ohne Zaehler vollstaendig.
+- **MQTT-Client** (Nutzer 2026-10-21, F30): Zustaende als WARP-JSON an einen Broker, Ladestrom
+  als erster Befehl, weitere Befehle spaeter ergaenzbar; ohne TLS, ohne Home-Assistant-Erkennung.
 - Hardwaretests erst nach ausdruecklicher Freigabe, in Stufen (Abschnitt 7).
 
 ## 2. Entscheidungen
@@ -125,6 +127,11 @@ verspaetete Antwort kann der naechsten Anfrage zugeordnet werden, wenn Adresse, 
 Laenge passen. Gegenmassnahmen in der Anwendung: Ruhepause vor jeder Anfrage und laengere Pause
 nach einem Timeout, Wiederholungen, Plausibilitaetspruefung der Werte, Fehlerzaehler ueber die
 API.
+
+**MQTT-Client (F30), umgesetzt 2026-10-21:** Zephyr-MQTT 3.1.1 ueber TCP (Bibliothek gemessen
+4,2 KB), Thread, Parameter, Status, Shell und Weboberflaeche zusammen **+9,1 KB Flash,
++5,1 KB RAM**. Danach bleiben rund 2,3 KB Flash und 3,7 KB RAM; die naechste Erweiterung
+braucht eine der Einsparungen oben.
 
 ## 6. Softwarestruktur
 

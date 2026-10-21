@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Netz- und Systemparameter der Anwendung (Soll-Spezifikation 10.1: net_*,
- * telnet_enable, meter_*; F20, F25, F28). Reines C ohne Netzwerk: Pruefung, JSON,
- * Kodierung fuer den Parameterspeicher (Kennungen 3010..), Import aus dem
- * Originalbereich. Aenderungen wirken nach einem Neustart.
+ * telnet_enable, meter_*, mqtt_*; F20, F25, F28, F30). Reines C ohne Netzwerk:
+ * Pruefung, JSON, Kodierung fuer den Parameterspeicher (Kennungen 3010..),
+ * Import aus dem Originalbereich. Aenderungen wirken nach einem Neustart,
+ * mqtt_* sofort (SOLL-MQTT-31, wf_sys_take_live).
  */
 #ifndef WALLFREE_API_SYSCONF_H_
 #define WALLFREE_API_SYSCONF_H_
@@ -17,6 +18,10 @@ extern "C" {
 #endif
 
 #define WF_HOSTNAME_MAX 32
+#define WF_MQTT_USER_MAX 32
+#define WF_MQTT_PW_MAX 64
+#define WF_MQTT_PREFIX_MAX 64
+#define WF_SYS_VAL_MAX 64 /**< groesster kodierter Wert (NVM_MAX_LEN) */
 
 struct wf_sysconf {
 	bool dhcp;
@@ -29,6 +34,14 @@ struct wf_sysconf {
 	uint8_t meter_addr;     /**< 1..247 */
 	uint32_t meter_baud;
 	uint8_t meter_framing;  /**< enum wf_framing */
+	bool mqtt_enable;
+	bool mqtt_commands;     /**< Befehle annehmen (SOLL-MQTT-20) */
+	uint16_t mqtt_port;
+	uint16_t mqtt_interval; /**< s, 0 = ohne Bremse */
+	uint32_t mqtt_broker;   /**< 0 = keiner */
+	char mqtt_user[WF_MQTT_USER_MAX + 1];
+	char mqtt_password[WF_MQTT_PW_MAX + 1]; /**< nie ausgegeben */
+	char mqtt_prefix[WF_MQTT_PREFIX_MAX + 1]; /**< "" = wallfree/<MAC-Ende> */
 };
 
 /** meter_framing */
@@ -44,6 +57,8 @@ enum wf_sys_type {
 	WF_SYS_IPV4,
 	WF_SYS_HOST,
 	WF_SYS_CODE,  /**< Zahl aus einer Liste bzw. einem Bereich */
+	WF_SYS_TEXT,
+	WF_SYS_SECRET, /**< Text, wird nie ausgegeben (JSON null) */
 };
 
 struct wf_syspar {
@@ -54,6 +69,7 @@ struct wf_syspar {
 };
 
 #define WF_SYS_ID_FIRST 3010
+#define WF_SYS_ID_LIVE  3020 /**< ab hier sofort wirksam (mqtt_*, wf_sys_take_live) */
 
 void wf_sysconf_defaults(struct wf_sysconf *c);
 size_t wf_sys_count(void);
@@ -67,11 +83,25 @@ const char *wf_sys_set(struct wf_sysconf *c, const struct wf_syspar *p, const st
 /** Gesamtpruefung (z. B. Gateway im Netz der Adresse). @return NULL oder Fehlertext */
 const char *wf_sys_check(const struct wf_sysconf *c);
 
+/**
+ * Gespeicherten, widerspruechlichen Satz beim Start nutzbar machen: feste
+ * Adresse ungueltig -> DHCP, MQTT ohne Broker -> aus.
+ * @return NULL oder Beschreibung der Korrektur
+ */
+const char *wf_sys_repair(struct wf_sysconf *c);
+
+/** Sofort wirksame Werte (mqtt_*) von @p src nach @p dst uebernehmen. */
+void wf_sys_take_live(struct wf_sysconf *dst, const struct wf_sysconf *src);
+
 /** {"net_dhcp": true, "net_ip": "192.168.0.8", ...} */
 void wf_sys_json(const struct wf_sysconf *c, struct wf_jbuf *b);
 
-/** Beschreibung aller Systemparameter als Liste. */
-void wf_sys_info_json(struct wf_jbuf *b);
+/**
+ * Beschreibung aller Systemparameter als Liste, in Teilen wie api_json_param_info:
+ * beginnt bei @p idx == 0 mit '[' und endet mit ']'.
+ * @return naechster Index; == wf_sys_count() + 1, wenn fertig
+ */
+size_t wf_sys_info_json(size_t idx, struct wf_jbuf *b);
 
 /** Fuer den Speicher kodieren. @return Laenge */
 size_t wf_sys_encode(const struct wf_sysconf *c, const struct wf_syspar *p, uint8_t *buf);

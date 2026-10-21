@@ -13,6 +13,7 @@
 #include <wallfree/evse/param.h>
 #include "evse_task.h"
 #include "meter_task.h"
+#include "mqtt_task.h"
 #include "netcfg.h"
 #include "storage.h"
 #include "sysinfo.h"
@@ -450,13 +451,33 @@ static int cmd_meter(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+/* ------------------------------------------------ MQTT (SOLL-MQTT-32) */
+
+static int cmd_mqtt(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	static const char *const conn[] = {"aus", "nicht verbunden", "verbunden", "abgelehnt"};
+	static char buf[320];
+	struct wf_mq_status s;
+	struct wf_jbuf b;
+
+	mqtt_task_status(&s);
+	shell_print(sh, "MQTT     %s, Praefix %s", s.conn < ARRAY_SIZE(conn) ? conn[s.conn] : "?",
+		    s.prefix);
+	wf_jb_init(&b, buf, sizeof(buf));
+	wf_mq_status_json(&s, &b);
+	shell_print(sh, "MQTT     %s", buf);
+	return 0;
+}
+
 /* ------------------------------------------------ Systemparameter */
 
 static int cmd_sys_list(const struct shell *sh, size_t argc, char **argv)
 {
 	ARG_UNUSED(argc);
 	ARG_UNUSED(argv);
-	static char buf[384];
+	static char buf[768];
 	struct wf_sysconf a, sv;
 	struct wf_jbuf b;
 
@@ -482,7 +503,8 @@ static int cmd_sys_set(const struct shell *sh, size_t argc, char **argv)
 		shell_error(sh, "abgelehnt: %s", err);
 		return -EINVAL;
 	}
-	shell_print(sh, "gespeichert, wirkt nach Neustart");
+	shell_print(sh, strncmp(argv[1], "mqtt_", 5) == 0 ? "gespeichert, wirkt sofort"
+							  : "gespeichert, wirkt nach Neustart");
 	return 0;
 }
 
@@ -493,7 +515,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_errors,
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_sys,
 	SHELL_CMD_ARG(list, NULL, "Netz- und Systemparameter", cmd_sys_list, 1, 0),
-	SHELL_CMD_ARG(set, NULL, "<name> <wert> (wirkt nach Neustart)", cmd_sys_set, 3, 0),
+	SHELL_CMD_ARG(set, NULL, "<name> <wert> (mqtt_* sofort, sonst nach Neustart)", cmd_sys_set,
+		      3, 0),
 	SHELL_SUBCMD_SET_END);
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_param,
@@ -520,6 +543,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_evse,
 	SHELL_CMD_ARG(reboot, NULL, "geordneter Neustart (SOLL-RT-22)", cmd_reboot, 1, 0),
 	SHELL_CMD_ARG(nvm, NULL, "Zustand des Parameterspeichers", cmd_nvm, 1, 0),
 	SHELL_CMD_ARG(meter, NULL, "Energiezaehler: Messwerte und Fehlerzaehler", cmd_meter, 1, 0),
+	SHELL_CMD_ARG(mqtt, NULL, "MQTT: Verbindung und Zaehler", cmd_mqtt, 1, 0),
 	SHELL_CMD_ARG(factory-reset, NULL, "confirm: Werkseinstellungen und Neustart",
 		      cmd_factory_reset, 1, 1),
 	SHELL_CMD_ARG(import-original, NULL, "Einstellungen aus der Originalfirmware uebernehmen",
