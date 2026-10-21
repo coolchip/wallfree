@@ -233,9 +233,9 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 
 - H0 und H1 nur mit Freigabe ([Architektur](architektur.md#7-hardware-inbetriebnahme));
   danach Update-Uebergabe (SOLL-SH-10, SOLL-BOOT-30) und Startablauf auf der Hardware.
-- Energiezaehler ueber Modbus RTU (ABB B23 112-100, Eastron SDM72D-M, SDM630): vom Nutzer
-  erwogen, bisher ausser Umfang (wallbe2/AGENTS.md, F1). Speicherbedarf gemessen
-  ([Architektur](architektur.md#5-speicherbudget)); vor einer Umsetzung Umfang und SOLL klaeren.
+- Energiezaehler (Modbus RTU, nur Anzeige): spezifiziert (Soll-Spezifikation 12.5,
+  SOLL-MTR-*, F28/F29), nicht umgesetzt. Zu bestaetigen: Zyklus 1 s, Ruhepause 50 ms,
+  Antwortfrist 500 ms, Plausibilitaetsgrenzen (SOLL-MTR-10/13).
 - Ladestrom-Anzeige der Weboberflaeche bestaetigen lassen.
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
   (bisher nur ueber die API getestet).

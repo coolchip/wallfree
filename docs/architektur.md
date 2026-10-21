@@ -19,8 +19,10 @@ der [Soll-Spezifikation](soll-spezifikation.md), der Umsetzungsstand in
   einfache Ansicht.
 - Shell auch ueber das Netz (Telnet, ohne Anmeldung; spaeter entfernen oder Default aus).
 - **OCPP perspektivisch** als allgemeine Implementierung, nicht aus der wallbe-Firmware
-  abgeleitet. **TLS vorerst nicht. Modbus (TCP und RTU) entfaellt ganz**; die evcc-Vorlage
-  fuer die Phoenix-Steuerung (Modbus TCP) wird wegen frueherer Probleme bewusst nicht genutzt.
+  abgeleitet. **TLS vorerst nicht. Modbus TCP entfaellt**; die evcc-Vorlage fuer die
+  Phoenix-Steuerung (Modbus TCP) wird wegen frueherer Probleme bewusst nicht genutzt.
+- **Energiezaehler ueber Modbus RTU nur zur Anzeige** (Nutzer 2026-10-21, F28): Messwerte fuer
+  Weboberflaeche und evcc; die Steuerung arbeitet ohne Zaehler vollstaendig.
 - Hardwaretests erst nach ausdruecklicher Freigabe, in Stufen (Abschnitt 7).
 
 ## 2. Entscheidungen
@@ -109,7 +111,7 @@ Probelauf (Netzleistung ansehen). Wird es knapp, in dieser Reihenfolge: Netz-She
 Assert-Texte, LTO, Shell-Hilfe (zusammen ~100 KB). TLS (mbedTLS) passt neben P1
 voraussichtlich nicht (nicht gemessen); dann Speicherort und Budget neu bewerten.
 
-**Zaehleranbindung Modbus RTU (Groessentest 2026-10-21, nicht im Umfang, Entscheidung offen):**
+**Zaehleranbindung Modbus RTU (Groessentest 2026-10-21, F28):**
 UART4 mit RS-485-Freigabe PC12, Zephyr-Modbus-Client und tabellengesteuerte Zaehlerabfrage
 (ABB B23, Eastron SDM630/SDM72D-M) auf Basis 300,8 KB gebaut: **+9,4 KB Flash, +2,5 KB RAM**.
 Davon UART-Treiber 2,2 KB, Zephyr-Modbus 2,7 KB, Abfrage und Registertabellen 1,1 KB,
@@ -117,9 +119,10 @@ Gleitkomma-Hilfsroutinen und CRC rund 1 KB; RAM: Thread-Stack 1 KB, Modbus-Puffe
 Nicht enthalten sind Parameter, API, evcc-Abbildung und Weboberflaeche (geschaetzt weitere
 3..5 KB Flash).
 
-**Entscheidung (Nutzer 2026-10-21):** Falls umgesetzt, mit dem Modbus-Client von Zephyr. Ein
-eigener RTU-Master lohnt nur, wenn er deutlich kleiner und deutlich robuster waere; geschaetzt
-waere er etwa gleich gross. Bekannte Grenzen des Zephyr-Clients: Er erkennt das Telegrammende
+**Entscheidung (Nutzer 2026-10-21, F29):** Modbus-Client von Zephyr, hinter einer schmalen
+Schnittstelle gekapselt (SOLL-MTR-04). Ein eigener RTU-Master lohnt nur, wenn er deutlich
+kleiner und deutlich robuster waere; geschaetzt waere er etwa gleich gross. Zeigen die
+Fehlerzaehler (SOLL-MTR-15) im Betrieb Probleme, wird die Implementierung getauscht. Bekannte Grenzen des Zephyr-Clients: Er erkennt das Telegrammende
 nur an der Pause von 3,5 Zeichen (Luecken in einer Antwort ergeben CRC-Fehler), und eine
 verspaetete Antwort kann der naechsten Anfrage zugeordnet werden, wenn Adresse, Funktion und
 Laenge passen. Gegenmassnahmen in der Anwendung: Ruhepause vor jeder Anfrage und laengere Pause
@@ -164,7 +167,7 @@ evcc spricht die WARP ueber `charger/warp-ws.go` (Vorlage `tinkerforge-warp-ws`;
 
 | Zugriff | Zweck | Umsetzung |
 | --- | --- | --- |
-| `GET /info/features` | Faehigkeiten | `[]` (kein Zaehler, kein NFC, keine Phasenumschaltung) |
+| `GET /info/features` | Faehigkeiten | `[]`; mit Zaehler `["meters"]`, dann liest evcc `meters/0/value_ids` und `meters/0/values` (SOLL-MTR-30) |
 | `GET /info/name` | Typ | `warp2`; bei `warp3`/`warp4` wuerde evcc zusaetzlich `evse/phase_auto_switch` schalten |
 | WebSocket `/ws` | Ereignisse | Textrahmen `{"topic", "payload"}`; noetig `evse/state` (`iec61851_state` 0/1/2 = A/B/C, >= 3 = Fehler) und `evse/external_current` |
 | `POST /evse/external_current` `{"current": mA}` | Ladestrom; 0 = Laden aus | Slot `external`, nur im RAM (kein Flashschreiben) |
@@ -172,7 +175,8 @@ evcc spricht die WARP ueber `charger/warp-ws.go` (Vorlage `tinkerforge-warp-ws`;
 Verhalten von evcc, gegen die Simulation geprueft ([Test und Simulation](test-und-simulation.md#evcc-gegen-die-simulation)):
 evcc schreibt `external_current` nur, wenn sich sein eigenes Ziel aendert, und prueft vom
 gelesenen Wert nur `> 0`. Ohne Zaehler schaetzt evcc die Ladeleistung aus seinem eigenen
-Sollwert. Abhaengigkeit: Aenderungen im evcc-Treiber koennen Anpassungen erfordern.
+Sollwert; mit Zaehler nimmt es Leistung, Zaehlerstand, Phasenstroeme und -spannungen aus
+`meters/0/values` und liest `/info/features` nur beim Verbinden. Abhaengigkeit: Aenderungen im evcc-Treiber koennen Anpassungen erfordern.
 
 WARP-Referenz: [API-Referenz EVSE](https://docs.warp-charger.com/en/docs/interfaces/mqtt_http/api_reference/evse).
 Das Slot-Modell der WARP (wirksamer Strom = Minimum aller aktiven Grenzen) entspricht der

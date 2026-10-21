@@ -1,13 +1,13 @@
 # Soll-Spezifikation der Ersatzfirmware "Wallfree"
 
-Stand: 2026-10-20. Beschreibt, **was die Ersatzfirmware tun soll**, bezogen auf
+Stand: 2026-10-21. Beschreibt, **was die Ersatzfirmware tun soll**, bezogen auf
 die Klemmen der Steuerung **EV-CC-AC1-M3-CBC-RCM-ETH** (Phoenix Contact). Das
 Originalverhalten steht in der [Ladeautomat-Spezifikation](../../wallbe2/docs/ladeautomat-spezifikation.md)
 (im Folgenden "Ist-Spez."). Diese Datei ist Grundlage fuer Implementierung und Tests.
 Sie ist **kein Sicherheitsnachweis**. Weder bestandene Tests noch diese Spezifikation
 belegen elektrische Sicherheit oder Eignung fuer den Ladebetrieb.
 
-Die Fragen F1..F27 sind entschieden ([Abschnitt 15](#15-entscheidungen-und-offene-punkte)).
+Die Fragen F1..F29 sind entschieden ([Abschnitt 15](#15-entscheidungen-und-offene-punkte)).
 Umsetzungsstand und Festlegungen im Detail: [Implementierung](implementierung.md).
 
 ## Lesehilfe
@@ -84,16 +84,19 @@ Beispielkonfiguration der vorhandenen Wallbox: [Hardware, Ist-Einstellungen](../
 
 ### 1.4 Abgrenzung (nicht im Umfang)
 
-Energiemessung, Kartenleser/RFID, OCPP, Mobilfunk, Master-Slave/Lastverteilung,
-Modbus (TCP und RTU), TLS, Nachbau der Originalweboberflaeche. Fuer OCPP wird spaeter eine
+Kartenleser/RFID, OCPP, Mobilfunk, Master-Slave/Lastverteilung, Modbus TCP und die
+Modbus-Register-Schnittstelle des Originals, TLS, Nachbau der Originalweboberflaeche.
+**Im Umfang, aber nur zur Anzeige:** Energiezaehler ueber Modbus RTU (F28, Abschnitt
+[12.5](#125-energiezaehler-modbus-rtu-nur-anzeige)). Fuer OCPP wird spaeter eine
 allgemeine Implementierung vorgesehen; die Architektur laesst Platz (eigener Slot in der
 Stromkette, Freigabequelle, Statusereignisse). Details: [Abschnitt 14](#14-nicht-umgesetzt--spaeter).
 
-**Folge fuer abhaengige Funktionen** (siehe F1): Ueberstromerkennung (Feld 409),
+**Folge fuer abhaengige Funktionen** (siehe F1, F28): Ueberstromerkennung (Feld 409),
 Schuetzueberwachung Modus 4 "Via Energy Meter" und Phasensymmetrie (Feld 433) brauchen
-Messwerte eines externen Zaehlers. Ohne Messquelle sind sie in der Ersatzfirmware **nicht
-verfuegbar**; die Logik wird gegen eine abstrakte Messquelle spezifiziert (SOLL-PROT-30 ff.),
-damit sie spaeter angeschlossen werden kann.
+Messwerte eines Zaehlers als **Messquelle der Ladelogik**. Die Zaehleranbindung nach 12.5 ist
+keine solche Messquelle (nur Anzeige); die Funktionen bleiben daher **nicht verfuegbar**. Die
+Logik ist gegen eine abstrakte Messquelle spezifiziert (SOLL-PROT-30 ff.), damit eine
+verlaessliche Quelle spaeter angeschlossen werden kann.
 
 Pruefung Abschnitt 1: Review dieser Spezifikation gegen AGENTS.md; Rueckverfolgbarkeit
 Kennung -> Test in der Testliste der Implementierung.
@@ -120,7 +123,7 @@ wiedergibt [ANN]; Bestaetigung in H1/H2.
 | 4 | ML | Digitaleingang (Default manuelle Verriegelung) | **PA5** (IN5) | wie LD | wie LD | FW |
 | 4 | XR | Digitaleingang (Default Verfuegbarkeit) | **PA6** (IN6) | wie LD | wie LD | FW |
 | 4 | IN | Digitaleingang (Default Ladestrom 16 A) | **PC3** (IN13) | wie LD | wie LD | FW |
-| 4 | A/B | RS-485 (Modbus RTU) | UART, DE an PC12/PD7 | – | **nicht genutzt** (Modbus nicht im Umfang); Treiberfreigaben PC12/PD7 dauerhaft Low (Empfang) | FW [Belege §9](../../wallbe2/docs/ladelogik-belege.md#9-nicht-zugeordnete-pins) |
+| 4 | A/B | RS-485 (Modbus RTU) | **UART4** PC10 TX / PC11 RX, Treiberfreigabe **PC12** [HYP]; zweiter Kanal USART3 PD8/PD9, Freigabe PD7 | halbduplex, Freigabe High = Senden | Energiezaehler (12.5); ohne Zaehler UART aus und PC12 Low; PD7 dauerhaft Low | FW [Belege §9](../../wallbe2/docs/ladelogik-belege.md#9-nicht-zugeordnete-pins) |
 | 4 | GND | Systemerde | – | – | – | HB |
 | 4 | ER | Digitalausgang (Default Fehler) | **PB4** | Ausgang, aktiv High, 8..30 V ueber 12a, max. 600 mA | Funktionscode (Abschnitt 9) | FW, Treiber DRV8844 [HYP] |
 | 4 | LR | Digitalausgang (Default Lock Request) | **PB5** | wie ER | wie ER | FW |
@@ -158,7 +161,7 @@ Reset-Schaltung [HYP]; offen fuer die Hardwarepruefung.
 
 | Kennung | Anforderung | Quelle |
 | --- | --- | --- |
-| SOLL-IO-01 | Unbenutzte bzw. ausser Umfang liegende Pins (PB3, PB8..PB10, PC12, PC13, PD0, PD1, PD7, PE7, PE8, PE10, PE11) werden wie in der Original-GPIO-Initialisierung in einen definierten Ruhezustand gesetzt; PC12/PD7 (RS-485-DE) Low. | FW [Taktbaum](../../wallbe2/docs/takt-adc-gpio.md#gpio-initialisierung-0x08040ce0-pinuebersicht) |
+| SOLL-IO-01 | Unbenutzte bzw. ausser Umfang liegende Pins (PB3, PB8..PB10, PC12, PC13, PD0, PD1, PD7, PE7, PE8, PE10, PE11) werden wie in der Original-GPIO-Initialisierung in einen definierten Ruhezustand gesetzt; PC12/PD7 (RS-485-DE) Low. PC10..PC12 uebernimmt die Zaehlerabfrage erst, wenn ein Zaehler konfiguriert ist (SOLL-MTR-01). | FW [Taktbaum](../../wallbe2/docs/takt-adc-gpio.md#gpio-initialisierung-0x08040ce0-pinuebersicht) |
 | SOLL-IO-02 | Erste Massnahme nach dem Reset, vor Takt- und Netzinitialisierung: PE2 (Schuetz) Low, PA9/PA10 High (Verriegelungsaktor in Ruhe), PE1 Low, PB2 Low, PB4..PB7 Low, PE5 High (kein RCM-Test). | Ist §14 (Startpegel), E3 |
 | SOLL-IO-10 | Die fuenf Digitaleingaenge werden im ADC-Block (SOLL-RT-03) gemessen. Ein: Pegel > 9,0 V; Aus: < 3,0 V; dazwischen bleibt der letzte Wert (Hysterese). | HB S. 10, FW `0x0803c7d4` |
 | SOLL-IO-11 | Der Rohpegel jedes Eingangs (ein/aus) ist unabhaengig von seiner Funktion als Status lesbar (Original Felder 200..203, 208). | Ist §2, HB Tab. 9-3 |
@@ -185,6 +188,7 @@ DIP/Drehschalter-Bitfolge. H2 – CP/PX-Skalierung mit EV-Simulator.
 | Schutzthread | Thread, hoechste Thread-Prioritaet | 1 ms | zyklische Kontrolle der RCM-Pegel, Schuetzueberwachung, Versorgung, Ueberwachung der anderen Threads, IWDG |
 | Automatenthread | Thread unter dem Schutzthread | 10 ms und bei Messblock-Ereignis | CP-/PP-Auswertung, Ladeautomat, Strom/PWM, Verriegelung, Ausgaenge, LEDs |
 | Netz-/Shell-Threads | niedrige Prioritaet | ereignisgesteuert | HTTP, WebSocket, Telnet-Shell, Parameterspeicher-Schreiben |
+| Zaehlerthread | niedrigste Prioritaet, nur mit konfiguriertem Zaehler | 1 s | Zaehlerabfrage (SOLL-MTR-10); nicht in der Thread-Ueberwachung (SOLL-MTR-03) |
 
 | Kennung | Anforderung | Quelle |
 | --- | --- | --- |
@@ -679,13 +683,18 @@ abgelehnt (E14). Namen sind Vorschlaege (WARP-angelehnt, englisch).
 | `telnet_enable` | 0/1 | 0..1 | 1 | ja | – | nein | F20 (spaeter Default 0 oder Telnet entfernen) |
 | `web_user`, `web_password` | Text | Benutzer 1..32 Zeichen, Passwort 8..64 Zeichen (gespeichert als Hash) | `admin` / Default-Passwort, **Aenderung beim ersten Zugriff erzwungen** | ja | – | nein | F20 |
 | `unlock_check` | 0/1 | 0..1 | 0 | ja | – | ja | F27 |
+| `meter_type` | Code | 0 kein Zaehler, 1 ABB B23, 2 Eastron SDM630, 3 Eastron SDM72D-M V2, 4 Eastron SDM72D-M (V1) | 0 | ja | – | ja | F28, SOLL-MTR-01 |
+| `meter_address` | – | 1..247 | 1 | ja | – | ja | SOLL-MTR-02 |
+| `meter_baud` | Bd | 2400, 4800, 9600, 19200, 38400, 57600, 115200 | 9600 | ja | (386) | ja | SOLL-MTR-02 |
+| `meter_framing` | Code | 0 = 8N1, 1 = 8E1, 2 = 8O1, 3 = 8N2 | 0 | ja | – | ja | SOLL-MTR-02 |
 
 Netz- und Systemparameter (`net_*`, `telnet_enable`) wirken **nach einem Neustart**
 (`POST /system/restart` oder Shell); bis dahin laeuft die beim Start angewandte Konfiguration.
 Pruefung: Einzeladresse (1..223, nicht 127), Netzmaske zusammenhaengend /8../30, Gateway im Netz
 der Adresse oder 0.0.0.0, Hostname 1..32 Zeichen aus Buchstaben, Ziffern, '-' (leer =
 automatisch). Ist die gespeicherte feste Adresse widerspruechlich, startet das Netz mit DHCP.
-`telnet_enable` = 0 stoppt die Kommandoverarbeitung; Port 23 bleibt offen, solange Telnet im
+Die Zaehlerparameter (`meter_*`) wirken ebenfalls nach einem Neustart (evcc liest die
+Faehigkeiten nur beim Verbinden, SOLL-MTR-30). `telnet_enable` = 0 stoppt die Kommandoverarbeitung; Port 23 bleibt offen, solange Telnet im
 Build enthalten ist (Zephyr kann den Port zur Laufzeit nicht schliessen).
 
 Feste Konstanten (keine Parameter, Aenderung nur nach Absprache): Anlauf 5 s (E9),
@@ -806,15 +815,15 @@ Zusatzfunktionen, `/info/name` den Typ (bei `warp3`/`warp4` schaltet evcc
 | Kennung | Zugriff | Inhalt (Soll) |
 | --- | --- | --- |
 | SOLL-API-01 | `GET /info/name` | `{"name": <net_hostname>, "type": "warp2", "display_type": "Wallfree", "uid": <aus MAC>}` – Typ `warp2` (F22 entschieden) |
-| SOLL-API-02 | `GET /info/features` | `[]` (kein Zaehler, kein NFC, keine Phasenumschaltung) |
+| SOLL-API-02 | `GET /info/features` | `[]` ohne Zaehler, `["meters"]` mit konfiguriertem Zaehler (SOLL-MTR-30); kein NFC, keine Phasenumschaltung |
 | SOLL-API-03 | `GET /evse/state` | `{"iec61851_state": 0..4, "charger_state": 0..4, "contactor_state": .., "contactor_error": .., "allowed_charging_current": mA, "error_state": .., "lock_state": 0..5}` |
 | SOLL-API-04 | `GET /evse/external_current` | `{"current": mA}` |
 | SOLL-API-05 | `POST /evse/external_current` mit `{"current": mA}` (auch WARP-Kurzform: nur die Zahl) | setzt Slot `external` (nur RAM); 0 = Laden aus (Stromsperre); erlaubt 0 und 6000..80000, sonst HTTP 400 mit Fehlertext (E14) |
-| SOLL-API-06 | WebSocket `GET /ws` | Textrahmen mit `{"topic": <name>, "payload": <wie GET>}`; beim Verbinden alle Topics einmal, danach bei jeder Aenderung; Topics `evse/state`, `evse/external_current`, `evse/limits` (SOLL-API-32), `evse/event` (SOLL-ERR-10) |
+| SOLL-API-06 | WebSocket `GET /ws` | Textrahmen mit `{"topic": <name>, "payload": <wie GET>}`; beim Verbinden alle Topics einmal, danach bei jeder Aenderung; Topics `evse/state`, `evse/external_current`, `evse/limits` (SOLL-API-32), `evse/event` (SOLL-ERR-10), mit Zaehler zusaetzlich `meters/0/value_ids`, `meters/0/values`, `meters/0/state` (SOLL-MTR-30/31) |
 | SOLL-API-07 | alle | **Zugriffsschutz von Anfang an (F20):** Weboberflaeche und HTTP-/WebSocket-API nur mit Benutzername/Passwort (`web_user`/`web_password`, konfigurierbar). Werkszustand: Default-Zugangsdaten, beim ersten Zugriff muss das Passwort geaendert werden; bis dahin beantwortet die API nur die Passwortaenderung (sonst HTTP 403). **Verfahren (geprueft 2026-10-19): HTTP-Digest, MD5, `qop=auth`** – evcc `charger/warp/connection.go` nutzt `transport.Digest` (`icholy/digest`, Challenge je Host zwischengespeichert, danach Anmeldung vorab, auch beim WebSocket-Aufbau). Gespeichert wird nur HA1. **Bremse:** je Absenderadresse nach 5 Fehlversuchen Sperre 10 s, je weiterer Fehlversuch verdoppelt bis 5 min, Antwort 429 mit `Retry-After`; ein Erfolg setzt zurueck; gesperrt wird auch mit richtigem Passwort, aber nur diese Adresse. Passwortaenderung ueber `POST /credentials` `{"user", "password"}`; `GET /credentials` meldet `must_change`. Ohne TLS kann Mitlesen im LAN Anfragen wiederholbar machen (Hinweis in der Doku). Mindestens 2 gleichzeitige WebSocket-Clients. |
 | SOLL-API-30 | `GET /evse/params`, `POST /evse/params`, `GET /evse/param_info`, `GET/POST /system/config`, `GET /system/config_info`, `POST /system/restart`, `GET /system/info`, `GET /evse/errors`, `GET /system/log` (SOLL-ERR-11) | **Nutzervorgabe 2026-10-19:** Alle Parameter (10.1, 10.2) und alle Mess- und Statuswerte (10.3) sind ueber HTTP lesbar, schreibbare Werte ueber HTTP schreibbar, mit denselben Grenzpruefungen und Fehlermeldungen wie die Shell (E14). Umsetzung: `GET /evse/params` = `{"name": Wert, ...}`; `POST /evse/params` mit `{"name": Wert, ...}` prueft und schreibt jeden Wert einzeln (abgelehnte mit Klartext in `{"errors": {...}}`, HTTP 400; bei Syntaxfehler wird nichts geschrieben); persistente Werte werden gespeichert; `GET /evse/param_info` = Name, Art, Einheit, Bereich, Default, Feld des Originals, Hilfetext |
 | SOLL-API-31 | Weboberflaeche `/`, `/app.js`, `/style.css`, `/vendor.js` | statische, gzip-komprimierte Dateien, die nur die API nutzen; Ansicht "Einfach" und "Experte"; Rahmenwerk Preact + htm mit eigenem CSS (Nutzer 2026-10-19, [Architektur](architektur.md#2-entscheidungen)). Umsetzung: hinter derselben Digest-Anmeldung wie die API (auch im Werkszugang erreichbar, damit die Passwortaenderung moeglich ist); live ueber `/ws`, sonst Abfrage alle 2 s |
-| SOLL-API-32 | `GET /evse/limits`, WebSocket-Topic `evse/limits` (eigene Erweiterung, nicht WARP) | Getrennt: Sollwert der Schnittstelle (`external`, darf das Maximum ueberschreiten, F11), Grenzen (`hardware` = Drehschalter bzw. abgesenkt, `cable`, `input`, 0 = nicht aktiv), wirksamer Strom (`effective`), Strom des Tastgrads (`allowed`) und welche Grenze wirkt (`limited_by`: `external`, `hardware`, `cable`, `input`, `blocked`, `pwm5`). Die Weboberflaeche zeigt Sollwert, Grenzen und wirksamen Wert grafisch und hebt die wirkende Grenze hervor (Nutzer 2026-10-20). Ein Istwert (gemessener Strom) existiert ohne Zaehler nicht. |
+| SOLL-API-32 | `GET /evse/limits`, WebSocket-Topic `evse/limits` (eigene Erweiterung, nicht WARP) | Getrennt: Sollwert der Schnittstelle (`external`, darf das Maximum ueberschreiten, F11), Grenzen (`hardware` = Drehschalter bzw. abgesenkt, `cable`, `input`, 0 = nicht aktiv), wirksamer Strom (`effective`), Strom des Tastgrads (`allowed`) und welche Grenze wirkt (`limited_by`: `external`, `hardware`, `cable`, `input`, `blocked`, `pwm5`). Die Weboberflaeche zeigt Sollwert, Grenzen und wirksamen Wert grafisch und hebt die wirkende Grenze hervor (Nutzer 2026-10-20). Ein Istwert (gemessener Strom) existiert nur mit Zaehler und ist dann reine Anzeige (SOLL-MTR-32). |
 
 Abbildungen fuer `evse/state` (WARP-Semantik nach der
 [WARP-API-Referenz](https://docs.warp-charger.com/en/docs/interfaces/mqtt_http/api_reference/evse), gelesen 2026-10-19):
@@ -869,6 +878,74 @@ Ablehnung ungueltiger Werte, Shell-Kommandos inkl. Ablehnungen; evcc gegen die S
 (erledigt, [Test und Simulation](test-und-simulation.md#evcc-gegen-die-simulation)). H1 – Netzbetrieb
 auf der Steuerung (ohne Last), Update-Uebergabe erst nach H0.
 
+### 12.5 Energiezaehler (Modbus RTU, nur Anzeige)
+
+Grundlage: F28, F29; Registerkarten der Hersteller (ABB "EQ-Energiezaehler B-Serie",
+Kapitel Modbus; Eastron "SDM630 Modbus Protocol" V1.8 und "SDM72D-M Modbus Protocol" V1.1),
+gegengeprueft mit evcc (Vorlagen `abb-ab`, `eastron-sdm72v2_630`, `eastron-sdm72`) und mbmd
+(`meters/rs485/abb.go`), gelesen 2026-10-21. Registeradressen sind die Adressen auf dem Bus
+(Eastron-Handbuecher nennen sie zusaetzlich als 3xxxx-Nummern, um 30001 verschoben).
+
+**Grundsatz und Abgrenzung**
+
+| Kennung | Anforderung | Quelle |
+| --- | --- | --- |
+| SOLL-MTR-01 | Der Zaehler ist optional. `meter_type` = 0 ("kein Zaehler") ist der Werkszustand; dann bleibt UART4 abgeschaltet, PC12 Low, es laeuft keine Abfrage, und die Steuerung verhaelt sich in allem wie ohne Zaehleranbindung. | Nutzer 2026-10-21 |
+| SOLL-MTR-02 | Schnittstelle: UART4 (PC10/PC11) mit Treiberfreigabe PC12 [HYP], Modbus-RTU-Client. Adresse, Baudrate und Rahmenformat sind Parameter (10.1); die Defaults entsprechen den Werkseinstellungen der Eastron-Zaehler (Adresse 1, 9600 Bd, 8N1). 8N1 ist nach der Modbus-Norm nicht konform und muss trotzdem moeglich sein. | Herstellerunterlagen, wallbe2 Belege §9 |
+| SOLL-MTR-03 | **Nur Anzeige:** Zaehlerwerte fliessen nicht in Ladeautomat, Stromvorgabe, Schutzpfad, Fehlermodell oder LEDs ein. Ein Zaehlerausfall ist kein Fehler der Ladelogik (keine Fehlerklasse, keine Fehler-LED, kein Einfluss auf das Laden); er erscheint nur im Zaehlerstatus und als Ereignis. Der Zaehlerthread ist nicht Teil der Thread-Ueberwachung (SOLL-RT), damit ein Haengen keinen Neustart ausloest. Die Messquelle der Ladelogik (SOLL-PROT-30) bleibt unbelegt; `contactor_monitor` = 4 und `overcurrent_enable` = 1 bleiben abgelehnt. | F28 |
+| SOLL-MTR-04 | Der Zugriff auf den Bus ist hinter einer schmalen Schnittstelle gekapselt (Register lesen: Adresse, Funktion 03/04, Startregister, Anzahl -> Daten oder Fehlerart), damit die Modbus-Implementierung ohne Aenderung der Zaehlerlogik ausgetauscht werden kann. Erste Umsetzung: Modbus-Client von Zephyr (F29). | Nutzer 2026-10-21 |
+
+**Modelle und Register**
+
+| Kennung | Anforderung | Quelle |
+| --- | --- | --- |
+| SOLL-MTR-05 | Ein Modell ist eine Tabelle aus Registerbloecken (Funktion, Startregister, Anzahl) und Werten (Messgroesse, Block, Position, Datentyp, Zehnerpotenz). Datentypen: Float32, U16, U32, S32, U64, jeweils hoechstwertiges Wort zuerst. Ein neues Modell erfordert nur einen neuen Tabelleneintrag; Code nur fuer einen neuen Datentyp. Nicht gelieferte Messgroessen sind "nicht vorhanden". | Erweiterbarkeit (Nutzer) |
+| SOLL-MTR-06 | Unterstuetzte Modelle und ihre Bloecke siehe Tabelle unten. Je Abfragezyklus werden alle Bloecke eines Modells gelesen. Hoechstzahl je Anfrage nach Hersteller: ABB 125 Register, SDM630 40 Werte (80 Register), SDM72D-M V1 30 Werte; die Bloecke bleiben darunter. | Herstellerunterlagen |
+
+| Messgroesse | ABB B23 (Funktion 03) | Eastron SDM630 / SDM72D-M V2 (Funktion 04, Float32) | SDM72D-M V1 (04, Float32) |
+| --- | --- | --- | --- |
+| Bloecke | `0x5B00` x 28, `0x5000` x 8, `0x5B2C` x 1 | `0x0000` x 18, `0x0034` x 24 | `0x0034` x 24 |
+| Spannung L1/L2/L3-N | `0x5B00/02/04`, U32, 0,1 V | `0x0000/02/04`, V | – |
+| Strom L1/L2/L3 | `0x5B0C/0E/10`, U32, 0,01 A | `0x0006/08/0A`, A | – |
+| Wirkleistung L1/L2/L3 | `0x5B16/18/1A`, S32, 0,01 W | `0x000C/0E/10`, W | – |
+| Wirkleistung gesamt | `0x5B14`, S32, 0,01 W | `0x0034`, W | `0x0034`, W |
+| Frequenz | `0x5B2C`, U16, 0,01 Hz | `0x0046`, Hz | – |
+| Energie Bezug | `0x5000`, U64, 0,01 kWh | `0x0048`, kWh | `0x0048`, kWh |
+| Energie Einspeisung | `0x5004`, U64, 0,01 kWh | `0x004A`, kWh | `0x004A`, kWh |
+| Ungueltig-Kennung | alle Bytes `FF` (vorzeichenlos) bzw. Hoechstwert `7F..FF` (vorzeichenbehaftet) | NaN | NaN |
+
+Das SDM72D-M gibt es unter gleichem Namen in zwei Versionen; nur V2 liefert Werte je Phase.
+Ein V1-Zaehler mit `meter_type` = 3 antwortet auf den Block `0x0000` mit einer Ausnahme oder
+Nullen; der Zaehlerstatus zeigt das (Hinweis in der Hilfe zu `meter_type`).
+
+**Abfrage und Robustheit**
+
+| Kennung | Anforderung | Quelle |
+| --- | --- | --- |
+| SOLL-MTR-10 | Abfragezyklus 1 s (**zu bestaetigen**). Vor jeder Anfrage eine Ruhepause von mindestens 50 ms auf dem Bus (**zu bestaetigen**); Antwortfrist je Anfrage 500 ms (**zu bestaetigen**). | [ANN] |
+| SOLL-MTR-11 | Fehlschlaege werden nach Art unterschieden: keine Antwort (Timeout), gestoerter Rahmen (CRC, Laenge, Adresse/Funktion passt nicht), Ausnahmeantwort (mit Code), unplausibler Wert (SOLL-MTR-13). Ein Block wird bis zu 3-mal versucht. Nach einem Timeout wird vor der naechsten Anfrage zusaetzlich die Antwortfrist abgewartet, damit eine verspaetete Antwort nicht der naechsten Anfrage zugeordnet wird. | F29 (Grenzen des Zephyr-Clients, [Architektur](architektur.md#5-speicherbudget)) |
+| SOLL-MTR-12 | Ein Messwertsatz gilt nur, wenn alle Bloecke desselben Zyklus erfolgreich gelesen und plausibel sind; sonst bleibt der letzte gueltige Satz mit seinem Alter stehen. Liegt der letzte gueltige Satz mehr als 10 s zurueck, sind alle Werte ungueltig (`null`). | [ANN] |
+| SOLL-MTR-13 | Plausibilitaet je Wert: Ungueltig-Kennung (Tabelle), NaN/unendlich, Spannung 0..300 V, Strom 0..100 A, Leistung je Phase +-25 kW und gesamt +-75 kW, Frequenz 45..65 Hz, Energie 0..10^8 kWh (**Grenzen zu bestaetigen**). Sinkt der Energiezaehlerstand gegenueber dem letzten gueltigen Satz, wird der Wert uebernommen und ein Ereignis gemeldet (Zaehlertausch oder Fehler sichtbar, keine Blockade). | [ANN] |
+| SOLL-MTR-14 | Zustand des Zaehlers: `off` (kein Zaehler), `connecting` (seit Start noch kein gueltiger Satz), `ok`, `error` (3 Zyklen in Folge ohne gueltigen Satz). Im Zustand `error` wird nur noch alle 10 s abgefragt, bis wieder ein Satz gelingt. Jeder Zustandswechsel ist ein Ereignis (SOLL-ERR-10). | [ANN] |
+| SOLL-MTR-15 | **Fehlerzaehler** seit dem Start, ueber HTTP, WebSocket und Shell lesbar: Anfragen, erfolgreiche Antworten, Timeouts, gestoerte Rahmen, Ausnahmeantworten (dazu der letzte Ausnahmecode), unplausible Werte, gueltige Saetze; dazu Alter des letzten gueltigen Satzes. Sie dienen der Fehlersuche am Bus und der Entscheidung, ob die Modbus-Implementierung getauscht werden muss (SOLL-MTR-04). | Nutzer 2026-10-21 |
+
+**Schnittstellen**
+
+| Kennung | Zugriff | Inhalt (Soll) |
+| --- | --- | --- |
+| SOLL-MTR-30 | `GET /meters/0/value_ids`, `GET /meters/0/values`, WebSocket-Topics gleichen Namens (WARP-API `meters`) | Nur mit Zaehler vorhanden (sonst HTTP 404), `/info/features` enthaelt dann `meters` (SOLL-API-02). `value_ids` listet die Kennungen der WARP-Messwertliste fuer die Messgroessen des Modells: 1/2/3 Spannung L1..L3-N, 13/17/21 Strom L1..L3, 39/48/57 Wirkleistung L1..L3, 74 Wirkleistung gesamt, 364 Frequenz, 209 Energie Bezug, 211 Energie Einspeisung. `values` enthaelt die Werte in derselben Reihenfolge in V, A, W, Hz, kWh; ungueltige Werte als `null`. Leistung: Bezug positiv. `values` wird ueber den WebSocket nach jedem Zyklus gesendet, auch wenn sich nichts aendert. evcc (`warp-ws.go`) nimmt daraus Ladeleistung (74), Zaehlerstand (209), Phasenstroeme und -spannungen und liest die Faehigkeiten nur beim Verbinden; nach Aenderung von `meter_type` evcc neu starten. |
+| SOLL-MTR-31 | `GET /meters/0/state`, WebSocket-Topic gleichen Namens (an WARP angelehnt, Felder ab `type` eigene Erweiterung) | `{"state": 0 kein Zaehler / 1 nicht verbunden (connecting, error) / 2 verbunden (ok), "type": meter_type, "status": "off"|"connecting"|"ok"|"error", "age_ms", ` Fehlerzaehler nach SOLL-MTR-15 `}` |
+| SOLL-MTR-32 | Weboberflaeche | Mit Zaehler: "Einfach" zeigt Ladeleistung, Zaehlerstand und Zustand; "Experte" alle Messwerte, Fehlerzaehler und die Zaehlerparameter. Gemessene Phasenstroeme erscheinen in der Ladestrom-Anzeige (SOLL-API-32) als Istwert neben Sollwert und Grenzen. Ungueltige oder veraltete Werte werden als solche angezeigt, nicht als 0. Ohne Zaehler keine Zaehlerelemente ausser der Auswahl `meter_type`. |
+| SOLL-MTR-33 | Shell `evse meter` | Zustand, Messwerte, Fehlerzaehler |
+
+Pruefung 12.5: PC – Dekodierung jedes Datentyps und jeder Ungueltig-Kennung, Modelltabellen
+gegen Beispielantworten aus den Herstellerunterlagen, Plausibilitaetsgrenzen, Satzbildung und
+Zustandsfolge mit simulierter Registerschnittstelle (Timeout, gestoerter Rahmen, Ausnahme,
+verspaetete Antwort, Teilerfolg im Zyklus), Ausnahme `meter_type` = 0 (keine Abfrage, keine
+Topics, `features` leer). native_sim – Zaehlermodell hinter derselben Schnittstelle, API und
+evcc gegen die Simulation. H1 – Sendepegel an A/B bei aktivem PC12 (Zuordnung UART4), Abfrage
+eines echten Zaehlers je Modell, Fehlerzaehler bei offener und vertauschter Leitung.
+
 ## 13. Parameterspeicher, Startablauf, Werksreset
 
 ### 13.1 Parameterspeicher (P1)
@@ -914,7 +991,7 @@ Taster, Persistenz.
 
 | Funktion | Original (Felder/Bits) | Behandlung |
 | --- | --- | --- |
-| Energiemessung, Messquelle | 108..119, 132, Task `Modbus_Master_EM` | entfaellt; Schnittstelle fuer Phasenstroeme/-spannungen vorgesehen (SOLL-PROT-30) |
+| Energiemessung als Messquelle der Ladelogik | 108..119, 132, Task `Modbus_Master_EM` | entfaellt; Zaehler nur zur Anzeige (12.5); Schnittstelle fuer Phasenstroeme vorgesehen (SOLL-PROT-30) |
 | Ueberstromerkennung | 409, R107.8/.9 | spezifiziert, nur mit Messquelle |
 | Schuetzueberwachung Modus 4 | 390 = 4 | spezifiziert (E4), nur mit Messquelle |
 | Phasensymmetrie | 433, 3481 | entfaellt |
@@ -922,7 +999,7 @@ Taster, Persistenz.
 | OCPP | 427, 3843..3861, 466, `cec`, `c88`, R155.0 | entfaellt; spaeter allgemeine Implementierung ueber SOLL-API-20 und eigenen Strom-Slot |
 | Mobilfunk | Modem-Task, PD0/PD1/PB10, PE10/PE11, 418 | entfaellt (BKP15 = 0) |
 | Master-Slave/Lastverteilung | 426, 438, 464, 996, 998, R107.15 | entfaellt |
-| Modbus TCP/RTU | Register-/Coil-Schnittstelle, 386 | entfaellt |
+| Modbus TCP, Modbus-Register-Schnittstelle | Register-/Coil-Schnittstelle | entfaellt; Modbus RTU nur als Client fuer den Zaehler (12.5), Baudrate 386 -> `meter_baud` (kein Import) |
 | TLS | – | vorerst nicht; Zugangsdaten daher im LAN mitlesbar |
 | Originalweboberflaeche, Feldnummern-API | `/daten`, Felder | entfaellt (E21) |
 | Feld 485 (OTP) | `0x1FFF7890` | entfaellt (E13) |
@@ -931,7 +1008,7 @@ Taster, Persistenz.
 
 ## 15. Entscheidungen und offene Punkte
 
-### 15.1 Entscheidungen des Nutzers zu F1..F27
+### 15.1 Entscheidungen des Nutzers zu F1..F29
 
 Alle Fragen am 2026-10-19 entschieden (F12 am 2026-10-20 bestaetigt); die betroffenen
 Anforderungen sind angepasst. Rahmenentscheidungen (Zephyr, Takt, Speicher, Weboberflaeche,
@@ -939,7 +1016,7 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 
 | Nr. | Thema | Entscheidung | Grund | Wirkt in |
 | --- | --- | --- | --- | --- |
-| F1 | Funktionen, die einen Energiezaehler brauchen | "nicht verfuegbar", Schnittstelle fuer spaetere Messquelle vorsehen | Zaehler nicht im Umfang; ohne Messwerte waeren die Funktionen wirkungslos | 1.4, SOLL-PROT-22/30 |
+| F1 | Funktionen, die einen Energiezaehler brauchen | "nicht verfuegbar", Schnittstelle fuer spaetere Messquelle vorsehen | der angebundene Zaehler dient nur der Anzeige (F28); ohne verlaessliche Messquelle waeren die Funktionen wirkungslos oder truegerisch | 1.4, SOLL-PROT-22/30 |
 | F2 | Zusatz-Entprellung Digitaleingaenge | 2 Messbloecke (~16 ms) | Stoerfestigkeit; 16 ms Verzoegerung sind unkritisch | SOLL-IO-12 |
 | F3 | Schreiben 801/802/465 | 801 nur absenken; 802/465 nur in S1, 465 mit echtem Zyklus | Schreibzugriffe duerfen Schutz nicht aushebeln: Obergrenze nicht erhoehen, "verriegelt" nicht ohne Mechanik melden, keine Umkonfiguration mit Fahrzeug | SOLL-PAR-40 |
 | F4 | Zeitwerte Watchdog/Reaktion | Startwerte annehmen, nach H1 nachschaerfen | reale Laufzeiten erst auf der Hardware messbar | SOLL-RT-05/10..12, SOLL-PROT-05 |
@@ -966,6 +1043,8 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 | F25 | Netz-Default | DHCP an | Einbindung ins Heimnetz ohne Vorwissen | 10.1 |
 | F26 | Doppelt belegte Eingangsfunktion | ODER | eindeutig; im Original gewinnt zufaellig der zuletzt ausgewertete Kanal | SOLL-FN-02 |
 | F27 | LD-Pruefung beim Entriegeln | Option `unlock_check`, Default aus | Signalform erst in H1 messbar; Default wie Original | SOLL-LOCK-14a |
+| F28 | Energiezaehler (2026-10-21, revidiert "Modbus nicht im Umfang") | Modbus-RTU-Zaehler ABB B23 112-100, Eastron SDM72D-M, SDM630, erweiterbar; Auswahl "kein Zaehler" als Default; **nur Anzeige** (Weboberflaeche, evcc und andere Clients) | Messwerte fuer evcc und Anzeige sind nuetzlich und passen in den Speicher; fuer Schutzfunktionen sind Geraete und Bus zu unsicher; die Steuerung muss ohne Zaehler voll funktionieren | 1.4, 12.5 |
+| F29 | Modbus-Implementierung | Modbus-Client von Zephyr, gekapselt und austauschbar; Fehlerzaehler zur Beurteilung | ein eigener Master waere kaum kleiner; Austausch, falls die Fehlerzaehler im Betrieb Probleme zeigen | SOLL-MTR-04/15, [Architektur](architektur.md#5-speicherbudget) |
 
 ### 15.2 Annahmen und offene Punkte
 
