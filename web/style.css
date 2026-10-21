@@ -15,7 +15,14 @@ header { display: flex; align-items: center; gap: 12px; padding: 10px 16px;
 	background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; }
 header h1 { font-size: 18px; margin: 0; }
 header .grow { flex: 1; }
-nav button { margin-left: 4px; }
+header { flex-wrap: wrap; }
+nav { display: flex; gap: 4px; flex-wrap: wrap; }
+nav a { padding: 6px 12px; border-radius: 8px; color: var(--fg); text-decoration: none; border: 1px solid transparent; }
+nav a:hover { background: var(--bg); }
+nav a.sel { color: var(--accent); border-color: var(--accent); }
+nav.sub a { border-color: var(--line); background: var(--card); }
+nav.sub a.sel { border-color: var(--accent); }
+@media (max-width: 600px) { nav.top { width: 100%; } nav.top a { flex: 1; text-align: center; padding: 6px 4px; } }
 main { max-width: 960px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
 .cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
@@ -77,3 +84,16 @@ button.off { color: var(--bad); }
 .sw.set { border: 2px solid var(--fg); border-radius: 50%; }
 tr.act td { color: var(--warn); font-weight: 600; }
 main.offline { filter: grayscale(1); opacity: .5; pointer-events: none; transition: opacity .3s; }
+
+.hist { display: block; width: 100%; height: auto; touch-action: pan-y; }
+.h-read { margin: 0 0 6px; font-variant-numeric: tabular-nums; }
+.h-title { font-size: 12px; fill: var(--muted); font-weight: 600; }
+.h-ax { font-size: 11px; fill: var(--muted); text-anchor: end; font-variant-numeric: tabular-nums; }
+.h-ax.mid { text-anchor: middle; }
+.h-grid { stroke: var(--line); stroke-width: 1; }
+.h-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.h-area { fill: var(--accent); fill-opacity: .15; stroke: none; }
+.h-band.chg { fill: var(--ok); } .h-band.conn { fill: var(--muted); fill-opacity: .45; } .h-band.err { fill: var(--bad); }
+.h-cross { stroke: var(--fg); stroke-width: 1; stroke-dasharray: 3 3; opacity: .6; }
+.h-hit { fill: transparent; cursor: crosshair; }
+.sw.chg { background: var(--ok); } .sw.conn { background: var(--muted); opacity: .6; } .sw.err { background: var(--bad); }

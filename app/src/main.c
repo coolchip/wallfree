@@ -8,6 +8,7 @@
 #include <zephyr/logging/log.h>
 #include <wallfree/evse/charger.h>
 #include "evse_task.h"
+#include "history_task.h"
 #include "http_api.h"
 #include "hw.h"
 #include "meter_task.h"
@@ -107,5 +108,6 @@ int main(void)
 	netcfg_get(&sys, NULL);
 	meter_task_start(&sys); /* SOLL-MTR-01: ohne Zaehler nichts */
 	mqtt_task_start();      /* SOLL-MQTT-01: ohne mqtt_enable keine Verbindung */
+	history_task_start();   /* SOLL-API-33 */
 	return r;
 }

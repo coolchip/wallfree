@@ -14,7 +14,7 @@ Tests: [Test und Simulation](test-und-simulation.md).
 | Energiezaehler (`lib/meter`, Zaehlerthread, nur Anzeige) | fertig, PC-getestet, in der Simulation Ende-zu-Ende und gegen evcc geprueft; Modbus-Anbindung auf UART4 gebaut, ungeprueft (H1) |
 | MQTT-Client (`lib/api/mqtt.c`, `mqtt_task.c`) | fertig, PC-getestet, in der Simulation Ende-zu-Ende gegen Mosquitto geprueft; auf der Steuerung gebaut, ungeprueft (H1) |
 | Anwendung (`app/`) | baut fuer `ev_cc_ac1` ohne Warnung; als PC-Simulation Ende-zu-Ende getestet |
-| Weboberflaeche (`web/`) | Ansichten "Einfach"/"Experte" fertig, Browser-Durchlauf in der Simulation; Gliederung in Bereiche und Verlauf (SOLL-API-31/33, F31) offen |
+| Weboberflaeche (`web/`) | fertig (Bereiche, Verlauf), Browser-Durchlauf in der Simulation |
 | evcc-Anbindung | gegen die Simulation geprueft (evcc 0.317.2) |
 | Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) | gebaut, ungeprueft (H1) |
 | Update-Uebergabe an den Bootloader (SOLL-SH-10, SOLL-BOOT-30) | zurueckgestellt bis H0 |
@@ -74,7 +74,8 @@ TIM1 und ADC1 stehen nicht im Board-Devicetree, weil die Anwendung sie direkt st
 | [meter_task.c](../app/src/meter_task.c) | Zaehlerthread (niedrigste Anwendungsprioritaet, Stack 1280 B, nicht ueberwacht), nur mit `meter_type` != 0; Momentaufnahme unter Sperre, Bus ohne Sperre; Ereignisse in den gemeinsamen Ringpuffer | SOLL-MTR-01/03/10..14 |
 | [mqtt_task.c](../app/src/mqtt_task.c) | MQTT-Thread (niedrigste Anwendungsprioritaet, Stack 2048 B, nicht ueberwacht): Verbinden mit Last Will, Neuverbindung 1..60 s, Takt 100 ms fuer Zustaende und Ereignisse, Befehl `evse/external_current_update`, Status | SOLL-MQTT-01..04/10..12/20..23/30 |
 | [meter_bus_modbus.c](../app/src/meter_bus_modbus.c) | nur Steuerung: Zephyr-Modbus-Client auf UART4 (`modbus0`, DE an PC12), Baudrate/Format aus den Parametern, Fehler auf Timeout/Rahmen/Ausnahme abgebildet | SOLL-MTR-02/04, F29 |
-| [web/](../web/) | Werkszugang -> Zugangsdaten festlegen; "Einfach": Zustand, Fahrzeug, Fehler, Zaehler (Leistung, Zaehlerstand), Ladestrom als Ring mit Vorgabe-Tasten, letzte Ereignisse; "Experte": Ladestrom als Wertetabelle, Zaehlerwerte mit Fehlerzaehlern, alle Parameter mit Bereich, Default, Herkunftsfeld, Hilfetext, Netz/Zaehler/MQTT/System mit Neustart (Passwortfeld nur schreibbar) und MQTT-Zustand, Zugangsdaten, Zugriffsprotokoll | SOLL-API-31, SOLL-ERR-10/11, SOLL-MTR-32, SOLL-MQTT-32 |
+| [web/](../web/) | Werkszugang -> Zugangsdaten festlegen; Uebersicht: Zustand, Fahrzeug, Fehler, Zaehler (Leistung, Zaehlerstand), Ladestrom als Ring mit Vorgabe-Tasten, letzte Ereignisse; Insights: Verlauf, Ladestrom als Wertetabelle, Fehler mit Quittierung, Zaehlerwerte mit Fehlerzaehlern, Zugriffsprotokoll, Status der Ladelogik; Einstellungen: Laden (Parameter mit Bereich, Default, Herkunftsfeld, Hilfetext), Netzwerk, MQTT, Zaehler (je mit Zustand, Passwortfeld nur schreibbar), Zugang; System: Firmware, Laufzeit, Resetgrund, Neustart | SOLL-API-31/33, SOLL-ERR-10/11, SOLL-MTR-32, SOLL-MQTT-32 |
+| [history.c](../lib/api/history.c), [history_task.c](../app/src/history_task.c) | Verlauf: Mittelwerte je 10 min im Ringpuffer (RAM), Ausgabe in Teilen; Abtastung je Sekunde auf der Systemworkqueue | SOLL-API-33 |
 | [hw_sim.c](../app/src/hw_sim.c), [sim_host.c](../app/src/sim_host.c) | nur `native_sim`: Hardwaremodell mit simuliertem Zaehler hinter `meter_bus.h` und Neustart per `execv` ([Test und Simulation](test-und-simulation.md)) | – |
 
 Am Build geprueft: Systemtakt 100 MHz, Ladeadresse `0x08010000`, Interrupttabelle (TIM1_UP ->
@@ -174,11 +175,13 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Zugangsdaten aendern | Benutzerfeld mit dem aktuellen Benutzer vorbelegt (`GET /credentials` liefert `user`); Hinweis: ohne HTTPS mitlesbar, bei der Anmeldung geht nur ein Pruefwert ueber das Netz, beim Aendern das neue Passwort lesbar | Nutzer 2026-10-21 |
 | Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickte keine Anmeldung), Abfrage alle 2 s und alle 30 s ein neuer WebSocket-Versuch; nach einer laengeren Verbindung neuer Versuch nach 3 s. Chrome sendet die Digest-Anmeldung beim WebSocket-Aufbau mit; andere Browser ungeprueft | |
 | Verbindungsanzeige | "verbunden", sobald eine Nachricht oder Abfrage ankommt; 5 s ohne Daten "getrennt": `main.offline` grau, Klicks gesperrt; ein offener, aber stummer WebSocket (Kabel gezogen) wird dann verworfen. Grundlage ist das Lebenszeichen `evse/state` alle 2 s (SOLL-API-06). Abfragen mit 4 s Zeitlimit, nie zwei gleichzeitig. Periodische Nachlader (Parameter, Fehler) zeigen Verbindungsfehler nicht selbst an. Art der Verbindung (WebSocket/Abfrage) nur als Tooltip | Nutzer 2026-10-21: "Abfrage" war nicht greifbar und blieb bei getrennter Steuerung stehen |
-| Ladestrom-Anzeige ("Einfach") | Ring ueber 270 Grad von 0 bis zum Maximum (Drehschalter bzw. abgesenkt); blau "Erlaubt" (Strom des Tastgrads), gruener Innenring "Messwert" (Zaehler, hoechste Phase, nur wenn > 0), orange Marke fuer Kabel/Eingang, wenn kleiner als das Maximum; Kreis = Vorgabe (rot bei 0, am Ende, wenn ueber dem Maximum). Mitte: Messwert, ohne Zaehler der erlaubte Strom; darunter Leistung und "erlaubt". Darunter eine Zeile, was begrenzt ("begrenzt durch Kabel (20 A)", "Vorgabe: Laden aus", "Laden gesperrt", 5-%-Modus) | Nutzer 2026-10-21; Begriffe Erlaubt/Vorgabe/Messwert, weil "Freigabe" schon die Ladeerlaubnis (EN, Schnittstelle) bezeichnet |
+| Gliederung | Leiste oben mit Uebersicht, Insights, Einstellungen, System; auf dem Handy volle Breite unter dem Titel. Einstellungen mit Unterseiten als Reiter. Adresse `#/<bereich>/<unterseite>`, unbekannt = Uebersicht bzw. Laden. Netzwerk: `net_*`, `telnet_enable`; MQTT: `mqtt_*`; Zaehler: `meter_*`. Nach dem Speichern von Werten, die erst nach einem Neustart wirken, steht der Hinweis mit "Jetzt neu starten" auf der Seite | Nutzer 2026-10-21 (F31) |
+| Verlauf (**zu bestaetigen**: 48 h) | je 10 min Mittelwert der Wirkleistung (W, nur gueltige Zaehlerwerte; Einspeisung = 0; ohne Zaehler `null`), Mittelwert des erlaubten Stroms (Tastgrad, 0,25 A) und Zustand als ODER (angesteckt, laedt, Fehler); 288 Zeilen = 48 h, 4 Byte je Zeile; Intervalle ab Start der Steuerung, Intervalle ohne Abtastung als leere Zeilen. `GET /evse/history` in Teilen; `age_ms` und das laufende Intervall stehen am Ende, damit sie zu den Zeilen passen. Anzeige: je Groesse ein Diagramm mit eigener Achse (Leistung nur mit Zaehler), Stufen je Intervall, Zustandsband darunter, Fenster mindestens 6 h, Ablesezeile ueber dem Diagramm (zeigt beim Zeigen/Tippen das Intervall, sonst das laufende), neu geladen jede Minute | Nutzer 2026-10-21: Leistung, erlaubter Strom, Zustand, 10 min; Mittel statt Momentanwert, damit kurze Spitzen nicht verzerren; zwei Diagramme statt zweier y-Achsen |
+| Ladestrom-Anzeige (Uebersicht) | Ring ueber 270 Grad von 0 bis zum Maximum (Drehschalter bzw. abgesenkt); blau "Erlaubt" (Strom des Tastgrads), gruener Innenring "Messwert" (Zaehler, hoechste Phase, nur wenn > 0), orange Marke fuer Kabel/Eingang, wenn kleiner als das Maximum; Kreis = Vorgabe (rot bei 0, am Ende, wenn ueber dem Maximum). Mitte: Messwert, ohne Zaehler der erlaubte Strom; darunter Leistung und "erlaubt". Darunter eine Zeile, was begrenzt ("begrenzt durch Kabel (20 A)", "Vorgabe: Laden aus", "Laden gesperrt", 5-%-Modus) | Nutzer 2026-10-21; Begriffe Erlaubt/Vorgabe/Messwert, weil "Freigabe" schon die Ladeerlaubnis (EN, Schnittstelle) bezeichnet |
 | Vorgabe setzen | Tasten − / 6 / 10 / 16 / 32 A / + / "Laden aus", wirken sofort; −/+ in 1-A-Schritten zwischen 6 A und dem Maximum; Tasten ueber dem Maximum entfallen; nicht am Ring ziehbar. Hinweis: eine externe Vorgabe (z. B. Energiemanagement) kann den Wert ueberschreiben | Nutzer 2026-10-21: am Ring ziehen ist auf dem Handy fummelig |
-| Ladestrom ("Experte") | Tabelle Vorgabe, Maximum Drehschalter, Kabel, Eingang, Erlaubt, Messwert; wirkende Grenze orange mit "begrenzt"; keine Balken | Nutzer 2026-10-21 |
-| Zaehleranzeige (**zu bestaetigen**) | Karte "Zaehler" nur mit konfiguriertem Zaehler: Leistung in kW, Zaehlerstand in kWh, Zustand; ungueltige Werte als "–"/"ungueltig"; Experte: Tabelle aller Messwerte, Fehlerzaehler; `meter_type` und `meter_framing` als Auswahlliste | SOLL-MTR-32 |
-| Ereignisse | "Einfach": letzte 8 Ereignisse; "Experte": ganzes Zugriffsprotokoll mit Fehlversuchen. Vorgeschichte aus `GET /system/log` beim Oeffnen, danach live ueber `evse/event` (ohne WebSocket alle 5 s neu); Uhrzeit = Browserzeit - Laufzeit der Steuerung (ungefaehr) | Steuerung hat keine gestellte Uhr |
+| Ladestrom (Insights) | Tabelle Vorgabe, Maximum Drehschalter, Kabel, Eingang, Erlaubt, Messwert; wirkende Grenze orange mit "begrenzt"; keine Balken | Nutzer 2026-10-21 |
+| Zaehleranzeige (**zu bestaetigen**) | Karte "Zaehler" nur mit konfiguriertem Zaehler: Leistung in kW, Zaehlerstand in kWh, Zustand; ungueltige Werte als "–"/"ungueltig"; Insights: Tabelle aller Messwerte, Fehlerzaehler; Einstellungen: `meter_type` und `meter_framing` als Auswahlliste | SOLL-MTR-32 |
+| Ereignisse | Uebersicht: letzte 8 Ereignisse; Insights: ganzes Zugriffsprotokoll mit Fehlversuchen. Vorgeschichte aus `GET /system/log` beim Oeffnen, danach live ueber `evse/event` (ohne WebSocket alle 5 s neu); Uhrzeit = Browserzeit - Laufzeit der Steuerung (ungefaehr) | Steuerung hat keine gestellte Uhr |
 
 ### Energiezaehler
 
@@ -224,7 +227,7 @@ unterbrochene Verdichten wie ein Erststart aus. Getestetes Verhalten bei Stromau
 
 ## Ressourcen
 
-Stand 2026-10-21, `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B: **308 632 B Flash** (94,2 % von 320 KB), **111 404 B RAM** (85,0 %).
+Stand 2026-10-21, `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B: **313 920 B Flash** (95,8 % von 320 KB), **112 940 B RAM** (86,2 %).
 Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudget).
 
 | Anteil (gemessen beim Hinzufuegen) | Flash | RAM |
@@ -237,9 +240,10 @@ Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudge
 | Ereignisse, Netzwerk-LED, Zugriffsprotokoll, `/evse/limits`, Ereignisanzeige | 5,1 KB | 3,9 KB |
 | Ladelogik `lib/evse` (Code und Konstanten inkl. Parametertabelle mit Hilfetexten) | 15,7 KB | – |
 | MQTT: Zephyr-Bibliothek (3.1.1, TCP) 4,2 KB, Thread und Anbindung, Parameter (8 Werte mit Hilfetext), `/mqtt/state`, Shell, Weboberflaeche | 9,1 KB | 5,1 KB (Stack 2 KB, Puffer 0,9 KB, Client, Status, Konfigurationskopien) |
+| Verlauf (Ringpuffer 1,2 KB) und Gliederung der Weboberflaeche in Bereiche (gzip +2,9 KB) | 5,3 KB | 1,5 KB |
 | Energiezaehler: UART-Treiber 2,1 KB, Zephyr-Modbus 2,7 KB, Interrupttabelle 1 KB, Zaehlermodul 1,4 KB, JSON/API/Shell/Parameter 2,9 KB, Weboberflaeche 1,4 KB, Rest (Treiberanteile) | 15,2 KB | 3,9 KB (Stack 1,3 KB, Modbus-Kontext 1 KB, Zaehlerzustand, WebSocket-Rahmen) |
 
-Reserve rund **18,6 KB Flash und 19,4 KB RAM**. Der RAM ist bis auf die Stacks statisch belegt
+Reserve rund **13,4 KB Flash und 17,7 KB RAM**. Der RAM ist bis auf die Stacks statisch belegt
 (kein Wachstum zur Laufzeit); Stacks haben MPU-Schutz (Ueberlauf -> Fault -> sicherer Zustand),
 ihre tatsaechliche Auslastung wird in H1 mit `kernel thread stacks` gemessen. Weitere
 Einsparungen in der [Architektur](architektur.md#5-speicherbudget) (Netz-Shell erst nach H1).
@@ -301,7 +305,6 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 - Zaehleranzeige der Weboberflaeche bestaetigen lassen; ebenso die Weitergabe
   ungueltiger Zaehlerwerte als `null` (evcc zeigt dann 0 W).
 - RAM: 97 % belegt; vor der naechsten groesseren Erweiterung Heapbedarf messen.
-- Weboberflaeche in Bereiche gliedern (SOLL-API-31, F31) und Verlauf umsetzen (SOLL-API-33;
-  Werte, Abtastung und Dauer mit dem Nutzer festlegen).
+- Dauer des Verlaufs (48 h) bestaetigen lassen.
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
   (bisher nur ueber die API getestet).

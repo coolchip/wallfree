@@ -124,8 +124,8 @@ sim meter off               # Zaehler antwortet nicht: nach ~10 s Zustand "error
 sim meter ok
 ```
 
-In der Oberflaeche: Karte "Zaehler" (Einfach), Messwerte und Fehlerzaehler (Experte),
-Einstellung unter "Netz, Zaehler und System". evcc liest die Werte ueber `meters/0/*`.
+In der Oberflaeche: Karte "Zaehler" (Uebersicht), Messwerte, Fehlerzaehler und Leistung im
+Verlauf (Insights), Einstellung unter Einstellungen/Zaehler. evcc liest die Werte ueber `meters/0/*`.
 
 **MQTT** (Broker auf dem PC: `mosquitto -p 1883`, oder ein Broker im LAN): wirkt sofort.
 
@@ -143,6 +143,6 @@ mosquitto_sub -t 'wallfree/000000/#' -v
 mosquitto_pub -t wallfree/000000/evse/external_current_update -m 10000
 ```
 
-In der Oberflaeche unter "Netz, Zaehler und System" (Experte), dort auch der Verbindungszustand.
+In der Oberflaeche unter Einstellungen/MQTT, dort auch der Verbindungszustand.
 
 **Werksreset:** `scripts/sim-run.sh --reset-button=6000` (Werkszugang danach wieder aktiv).

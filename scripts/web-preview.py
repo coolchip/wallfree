@@ -114,6 +114,8 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/system/info":
             self.send_json({"firmware": "vorschau", "reset_reason": "power_on", "reset_flags": 80,
                             "uptime_ms": int((time.time() - s.t0) * 1000)})
+        elif self.path == "/evse/history":
+            self.send_json(history())
         elif self.path == "/evse/errors":
             self.send_json({"active": [], "seen": ["CP-INVALID"], "history": [
                 {"age_ms": 42000, "state": 1, "set": [], "cleared": ["CP-INVALID"]},
@@ -165,6 +167,27 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt, *args):
         pass
+
+
+def history():
+    """40 h Verlauf: zwei Ladevorgaenge (Abend, PV-geregelt mittags), kurzer Fehler."""
+    rows = []
+    for i in range(240):
+        h = (i * 10 / 60) % 24
+        if 18 <= h < 22:
+            a = 16000
+        elif 11 <= h < 15 and i > 100:
+            a = 6000 + int(abs((h - 13) * 4000)) * 0 + (i % 7) * 1000
+        else:
+            a = 0
+        f = 1 if 17 <= h < 23 or (10 <= h < 16 and i > 100) else 0
+        if a:
+            f |= 2
+        if i == 130:
+            f |= 4
+        rows.append([3 * 230 * a // 1000 if a else 0, a, f])
+    rows[60] = [None, 0, 0]
+    return {"interval_ms": 600000, "rows": rows, "age_ms": 240000, "current": [7100, 10000, 3]}
 
 
 def main():

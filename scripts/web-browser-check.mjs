@@ -90,10 +90,18 @@ out.clickOff = await click('Laden aus');
 await sleep(7000);
 out.simple3 = await text();
 await shot('2b-einfach-laden-aus');
-out.clickExpert = await click('Experte');
-await sleep(2500);
-out.expert = await text();
-await shot('3-experte');
+const go = async (hash) => { await evalJs(`location.hash = ${JSON.stringify(hash)}`); await sleep(2500); return text(); };
+out.expert = await go('#/insights');
+out.history = await evalJs("(() => { const s = document.querySelector('svg.hist'); return s ? s.querySelectorAll('path.h-line').length + '|' + document.querySelector('.h-read').innerText : ''; })()");
+await shot('3-insights');
+out.settings = await go('#/einstellungen/zaehler');
+await shot('3b-einstellungen-zaehler');
+out.settingsNet = await go('#/einstellungen/netzwerk');
+out.system = await go('#/system');
+await evalJs('history.back()');
+await sleep(1500);
+out.back = await evalJs('location.hash');
+await go('#/insights');
 
 await shell('sim car A');
 await sleep(3000);
@@ -119,7 +127,11 @@ const checks = [
 	['Laden', out.simple2.includes('Lädt') && out.simple2.includes('Schütz ein')],
 	['Maximum wirkt sichtbar', out.simple2.includes('begrenzt durch Maximum Drehschalter (32 A)')],
 	['Laden aus', out.simple3.includes('S7 Beenden → S3 Warten') && out.simple3.includes('Vorgabe: Laden aus')],
-	['Experte: Ladestrom als Werte', out.expert.includes('Maximum Drehschalter') && out.expert.includes('Erlaubt')],
+	['Insights: Ladestrom als Werte', out.expert.includes('Maximum Drehschalter') && out.expert.includes('Erlaubt')],
+	['Insights: Verlauf (laufendes Intervall)', /jetzt:.* · lädt|jetzt:.* · angesteckt/.test(out.history)],
+	['Einstellungen Netzwerk', out.settingsNet.includes('DHCP') && out.settingsNet.includes('Telnet') && !out.settingsNet.includes('Broker')],
+	['System', out.system.includes('Firmware') && out.system.includes('Neu starten')],
+	['Zurueck-Taste', out.back === '#/einstellungen/netzwerk'],
 	['Zugriffsprotokoll', /zugriffsprotokoll/i.test(out.expert2)],
 	['Entriegelt nach Abstecken', out.expert2.includes('Verriegelung: Entriegelt')],
 	['keine Skriptfehler', !logs.some((l) => l.includes('exceptionDetails'))],
@@ -131,10 +143,12 @@ if (withMeter) {
 		['Zaehler: Messwert im Ring', /Messwert\|[\d.,]+ kW · erlaubt 32 A/.test(out.gauge2)],
 		['Zaehler: Messwerte und Fehlerzaehler', /zähler \(nur anzeige\)/i.test(out.expert) &&
 			out.expert.includes('Spannung L1') && out.expert.includes('requests')],
-		['Zaehler: Auswahl in Netz, Zaehler und System', out.expert.includes('Eastron SDM630')]);
+		['Zaehler: Leistung im Verlauf', out.history.startsWith('2|') && /kW/.test(out.history)],
+		['Zaehler: Auswahl in Einstellungen', out.settings.includes('Eastron SDM630') && out.settings.includes('Zustand: verbunden')]);
 } else {
 	checks.push(['ohne Zaehler: Ring zeigt erlaubt', out.gauge2.includes('|32 A|erlaubt')]);
 	checks.push(['ohne Zaehler: kein Messwert', !out.gauge2.includes('Messwert') && !out.simple2.includes('Messwert')]);
+	checks.push(['ohne Zaehler: Verlauf nur Strom', out.history.startsWith('1|') && !/kW/.test(out.history)]);
 }
 let bad = 0;
 for (const [name, ok] of checks) { console.log((ok ? 'ok   ' : 'FAIL ') + name); if (!ok) bad++; }

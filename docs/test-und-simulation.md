@@ -45,7 +45,7 @@ scripts/sim-run.sh [--build] [--dip=0x109] [--rotary=5] [--http-port=8081] [--re
 `sim-run.sh` startet die Simulation zum Ausprobieren ([Bedienung](simulation-bedienung.md)): Web/API `http://127.0.0.1:8081/`
 (Werkszugang `admin`/`wallfree`), Telnet-Shell `127.0.0.1:2323`, Flash in `build/sim-flash.bin`
 (loeschen = fabrikneu). Ports unter 1024 braeuchten Root-Rechte, daher 8081 und 2323.
-Ohne Simulation zeigt `scripts/web-preview.py` die Oberflaeche mit Attrappen der API
+Ohne Simulation zeigt `scripts/web-preview.py` die Oberflaeche mit Attrappen der API (darunter ein 40-h-Verlauf)
 (`http://127.0.0.1:8080/`).
 
 | Teil | Umsetzung |
@@ -89,11 +89,13 @@ Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](.
 Simulation (Zugangsdaten vorher geaendert): headless Chrome ueber das DevTools-Protokoll, Digest
 beantwortet Chrome selbst. Ablauf: Seite laden ("verbunden" ueber WebSocket), `sim car C` (Laden; Ring
 zeigt "begrenzt durch Maximum Drehschalter (32 A)", ohne Zaehler "32 A erlaubt"), Knopf
-"Laden aus" (S6 -> S7 -> S3, "Vorgabe: Laden aus"), Ansicht "Experte" (Ladestrom-Tabelle,
-Zugriffsprotokoll mit Fehlversuch), `sim car A`, Netz im Browser 7 s trennen ("getrennt", grau)
+"Laden aus" (S6 -> S7 -> S3, "Vorgabe: Laden aus"), Insights (Ladestrom-Tabelle, Verlauf
+mit laufendem Intervall, Zugriffsprotokoll mit Fehlversuch), Einstellungen/Netzwerk und /Zaehler,
+System, Zurueck-Taste (Adresse im Hash), `sim car A`, Netz im Browser 7 s trennen ("getrennt", grau)
 und wieder verbinden ("verbunden"); Screenshots und Texte im Ausgabeverzeichnis.
 Mit `meter` (in der Simulation `meter_type` != 0) zusaetzlich: Zaehlerkarte mit Leistung beim
-Laden, Messwert mit Leistung im Ring, Messwerte und Fehlerzaehler, Auswahlliste des Zaehlertyps. Nicht abgedeckt:
+Laden, Messwert mit Leistung im Ring, Messwerte und Fehlerzaehler, Leistung im Verlauf, Auswahlliste des Zaehlertyps mit Zustand;
+ohne Zaehler zeigt der Verlauf nur den Strom. Nicht abgedeckt:
 Zugangsdaten-Seite, Parameter schreiben, Netz/System.
 
 ## evcc gegen die Simulation

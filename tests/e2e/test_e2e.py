@@ -166,6 +166,14 @@ class T1Api(SimCase):
         lim = self.sim.get_json("/evse/limits", self.auth)
         self.assertEqual((lim["external"], lim["hardware"], lim["allowed"], lim["limited_by"]),
                          (80000, 32000, 31980, "hardware"))
+        # SOLL-API-33: laufendes Intervall (Simulation < 10 min), ohne Zaehler keine Leistung
+        time.sleep(1.5)
+        h = self.sim.get_json("/evse/history", self.auth)
+        self.assertEqual((h["interval_ms"], h["rows"]), (600000, []))
+        power, allowed, flags = h["current"]
+        self.assertIsNone(power)
+        self.assertGreater(allowed, 0)
+        self.assertEqual(flags & 3, 3, "angesteckt und geladen")
 
     def test_09_sollstrom(self):
         r = self.sim.request("POST", "/evse/external_current", {"current": 10000},
@@ -462,6 +470,10 @@ class T4Meter(SimCase):
         out = self.shell("evse meter")
         self.assertIn("Eastron SDM630", out)
         self.assertIn("Zustand ok", out)
+        # SOLL-API-33: Mittel enthaelt die Zeit vor dem Laden, daher nur > 0
+        power = self.sim.get_json("/evse/history", self.auth)["current"][0]
+        self.assertGreater(power, 0)
+        self.assertLess(power, m[74] * 1.05)
 
     def test_04_websocket(self):
         ws = self.sim.ws_connect(self.auth)

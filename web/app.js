@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // Weboberflaeche Wallfree (SOLL-API-31): nutzt nur die HTTP-/WebSocket-API.
-import { html, render, useState, useEffect } from './vendor.js';
+import { html, render, useState, useEffect, useRef } from './vendor.js';
 
 // ------------------------------------------------------------ API
 
@@ -24,7 +24,7 @@ const post = (path, body) => api(path, {
 
 const CHARGER = ['Kein Fahrzeug', 'Wartet auf Freigabe', 'Bereit', 'Lädt', 'Fehler'];
 const IEC = ['A – kein Fahrzeug', 'B – verbunden', 'C – lädt', 'D – lädt (Lüftung)', 'E/F – Fehler'];
-const ERRSTATE = ['Kein Fehler', 'Fehler (Details: Experte)', 'Schalter-/Konfigurationsfehler',
+const ERRSTATE = ['Kein Fehler', 'Fehler (Details: Insights)', 'Schalter-/Konfigurationsfehler',
 	'Fehlerstrom (RCM)', 'Schützfehler', 'Kommunikationsfehler'];
 const LOCK = ['Initialisierung', 'Entriegelt', 'Verriegelt …', 'Verriegelt', 'Entriegelt …', 'Fehler'];
 const STATES = ['S0 Start', 'S1 Bereit', 'S2 Verriegeln', 'S3 Warten', 'S4 Selbsttest', 'S5 PWM an',
@@ -81,9 +81,9 @@ function useLive() {
 			busy = true;
 			try {
 				setState(await get('/evse/state'));
+				ok();
 				setExt(await get('/evse/external_current'));
 				setLimits(await get('/evse/limits'));
-				ok();
 			} catch (e) { /* naechster Versuch */ }
 			try {
 				const st = await get('/meters/0/state');
@@ -209,7 +209,7 @@ function EventLog({ live, all }) {
 	<//>`;
 }
 
-// ------------------------------------------------------------ Einfach
+// ------------------------------------------------------------ Uebersicht
 
 // Ladestrom (SOLL-API-32): Vorgabe, Grenzen, erlaubter Strom (Tastgrad) und mit
 // Zaehler der Messwert (hoechste Phase, nur Anzeige).
@@ -297,7 +297,7 @@ function CurrentControl({ ext, setExt, limits, meter }) {
 	</section>`;
 }
 
-// Experte: dieselben Werte als Zahlen
+// Insights: dieselben Werte als Zahlen
 function CurrentTable({ l, meter }) {
 	if (!l) return null;
 	const ist = measured(meter);
@@ -317,7 +317,7 @@ function CurrentTable({ l, meter }) {
 	</table><p class=${'msg ' + limitLine(l)[1]}>${limitLine(l)[0]}</p><//>`;
 }
 
-function Simple({ live }) {
+function Overview({ live }) {
 	const s = live.state;
 	if (!s) return html`<p class="muted">Warte auf Daten …</p>`;
 	const cls = s.charger_state === 4 || s.error_state ? 'bad' : s.charger_state === 3 ? 'ok' : '';
@@ -339,7 +339,7 @@ function Simple({ live }) {
 	</div><${EventLog} live=${live} />`;
 }
 
-// Einfach: Leistung, Zaehlerstand, Zustand
+// Uebersicht: Leistung, Zaehlerstand, Zustand
 function MeterCard({ m }) {
 	const p = mval(m, 74), e = mval(m, 209);
 	const st = m.state ? m.state.status : 'connecting';
@@ -350,7 +350,7 @@ function MeterCard({ m }) {
 	<//>`;
 }
 
-// Experte: alle Messwerte und Fehlerzaehler (SOLL-MTR-15)
+// Insights: alle Messwerte und Fehlerzaehler (SOLL-MTR-15)
 function Meter({ m }) {
 	if (!m) return null;
 	const s = m.state || {};
@@ -370,7 +370,7 @@ function Meter({ m }) {
 	<//>`;
 }
 
-// ------------------------------------------------------------ Experte
+// ------------------------------------------------------------ Parameter, Fehler, System
 
 function fmt(name, v) {
 	if (name === 'state') return STATES[v] || v;
@@ -407,7 +407,7 @@ function ParamRow({ p, value, onSaved }) {
 	</tr>`;
 }
 
-function Params() {
+function Params({ kinds }) {
 	const [info, setInfo] = useState(null);
 	const [vals, setVals] = useState({});
 	const [err, setErr] = useState(null);
@@ -423,9 +423,9 @@ function Params() {
 	if (err) return html`<p class="bad">${err}</p>`;
 	if (!info) return html`<p class="muted">Lade …</p>`;
 	const groups = [['config', 'Konfiguration (gespeichert)'], ['runtime', 'Laufzeitwerte (nicht gespeichert)'],
-		['status', 'Status']];
-	return groups.map(([k, t]) => html`<${Card} title=${t}><table>
-		<tr><th>Parameter</th><th>Wert</th><th class="hide-s">Bereich</th><th>${k !== 'status' ? 'Neu' : ''}</th></tr>
+		['status', 'Status der Ladelogik']];
+	return groups.filter(([k]) => kinds.includes(k)).map(([k, t]) => html`<${Card} title=${t}><table>
+		<tr><th>Parameter</th><th>Wert</th><th class="hide-s">${k !== 'status' ? 'Bereich' : ''}</th><th>${k !== 'status' ? 'Neu' : ''}</th></tr>
 		${info.filter((p) => p.kind === k).map((p) =>
 			html`<${ParamRow} key=${p.name} p=${p} value=${vals[p.name]} onSaved=${load} />`)}
 	</table><//>`);
@@ -461,21 +461,39 @@ function Errors() {
 	<//>`;
 }
 
-function System() {
+// Neustart (SOLL-API-31): ein laufender Ladevorgang endet geordnet
+async function restart(setMsg) {
+	if (!confirm('Steuerung neu starten? Ein laufender Ladevorgang wird beendet.')) return;
+	try {
+		await post('/system/restart', {});
+		setMsg({ ok: true, text: 'Neustart (laufendes Laden endet geordnet) … Seite lädt in 25 s neu' });
+		setTimeout(() => location.reload(), 25000);
+	} catch (e) { setMsg({ ok: false, text: e.message }); }
+}
+
+// Einstellungen Netzwerk, MQTT, Zaehler: Teil von /system/config nach Namensanfang
+const SYS_PARTS = {
+	netzwerk: ['Netzwerk', ['net_', 'telnet_']],
+	mqtt: ['MQTT', ['mqtt_']],
+	zaehler: ['Zähler (nur Anzeige)', ['meter_']],
+};
+
+function SysConfig({ part, meter }) {
+	const [title, prefixes] = SYS_PARTS[part];
 	const [cfg, setCfg] = useState(null);
 	const [info, setInfo] = useState([]);
 	const [edit, setEdit] = useState({});
 	const [msg, setMsg] = useState(null);
-	const [sysinfo, setSysinfo] = useState(null);
 	const [mqtt, setMqtt] = useState(null);
-	const load = () => {
-		api('/system/config').then(setCfg).catch((e) => setMsg({ ok: false, text: e.message }));
-		setTimeout(() => api('/mqtt/state').then(setMqtt).catch(() => {}), 1500);
-	};
+	const load = () => api('/system/config').then(setCfg).catch((e) => setMsg({ ok: false, text: e.message }));
 	useEffect(() => {
 		api('/system/config_info').then(setInfo).catch(() => {});
-		api('/system/info').then(setSysinfo).catch(() => {});
 		load();
+		if (part !== 'mqtt') return undefined;
+		const lm = () => api('/mqtt/state').then(setMqtt).catch(() => {});
+		lm();
+		const t = setInterval(lm, 3000);
+		return () => clearInterval(t);
 	}, []);
 	if (!cfg) return null;
 	const val = (n) => (n in edit ? edit[n] : cfg.saved[n]);
@@ -491,17 +509,22 @@ function System() {
 			setMsg({ ok: false, text: b ? Object.entries(b).map(([k, v]) => k + ': ' + v).join('; ') : e.message });
 		}
 	};
-	const restart = async () => {
-		if (!confirm('Steuerung neu starten? Ein laufender Ladevorgang wird beendet.')) return;
-		try {
-			await post('/system/restart', {});
-			setMsg({ ok: true, text: 'Neustart (laufendes Laden endet geordnet) … Seite lädt in 25 s neu' });
-			setTimeout(() => location.reload(), 25000);
-		} catch (e) { setMsg({ ok: false, text: e.message }); }
-	};
-	return html`<${Card} title="Netz, Zähler und System">
+	let status = null;
+	if (part === 'netzwerk') {
+		status = 'Aktiv: ' + (cfg.active.net_dhcp ? 'DHCP' : cfg.active.net_ip) + ', Hostname ' +
+			(cfg.active.net_hostname || 'automatisch');
+	} else if (part === 'mqtt' && mqtt) {
+		status = 'Zustand: ' + MQTT_STATES[mqtt.connection_state] + (mqtt.connection_state ? ', Präfix ' +
+			mqtt.prefix + ', gesendet ' + mqtt.published + ', Befehle ' + mqtt.commands + (mqtt.rejected
+			? ' (abgelehnt ' + mqtt.rejected + ': ' + mqtt.last_reject + ')' : '') : '');
+	} else if (part === 'zaehler') {
+		const st = meter && meter.state;
+		status = 'Zustand: ' + (st ? METER_STATUS[st.status] || st.status : METER_STATUS.off);
+	}
+	return html`<${Card} title=${title}>
+		${status && html`<p class="muted">${status}</p>`}
 		<form onSubmit=${save}>
-		${info.map((p) => {
+		${info.filter((p) => prefixes.some((x) => p.name.startsWith(x))).map((p) => {
 			const set = (v) => setEdit({ ...edit, [p.name]: v });
 			const opts = p.name === 'meter_type' ? METER_TYPES : p.name === 'meter_framing' ? FRAMING : null;
 			if (p.type === 'bool') {
@@ -520,19 +543,37 @@ function System() {
 			return html`<label title=${p.name}>${p.help}<input value=${val(p.name)} inputmode=${p.type === 'code' ? 'numeric' : null}
 				onInput=${(e) => set(p.type === 'code' ? +e.target.value : e.target.value)} /></label>`;
 		})}
-		<div class="row"><button class="primary" type="submit">Speichern</button>
-			<button type="button" onClick=${restart}>Neu starten</button></div>
+		<div class="row"><button class="primary" type="submit">Speichern</button></div>
 		</form>
 		<${Msg} m=${msg} />
-		${cfg.restart_required && html`<p class="warn msg">Gespeicherte Werte wirken erst nach einem Neustart.</p>`}
-		<p class="muted msg">${'Aktiv: ' + (cfg.active.net_dhcp ? 'DHCP' : cfg.active.net_ip) +
-			', Hostname ' + (cfg.active.net_hostname || 'automatisch')}</p>
-		${mqtt && html`<p class="muted msg">${'MQTT: ' + MQTT_STATES[mqtt.connection_state] +
-			(mqtt.connection_state ? ', Präfix ' + mqtt.prefix + ', gesendet ' + mqtt.published +
-				', Befehle ' + mqtt.commands + (mqtt.rejected ? ' (abgelehnt ' + mqtt.rejected + ': ' +
-				mqtt.last_reject + ')' : '') : '')}</p>`}
-		${sysinfo && html`<p class="muted msg">${'Firmware ' + sysinfo.firmware + ', letzter Reset: ' +
-			sysinfo.reset_reason + ', Laufzeit ' + Math.round(sysinfo.uptime_ms / 60000) + ' min'}</p>`}
+		${cfg.restart_required && html`<div class="row msg"><span class="warn">Gespeicherte Werte wirken erst
+			nach einem Neustart.</span><button onClick=${() => restart(setMsg)}>Jetzt neu starten</button></div>`}
+	<//>`;
+}
+
+const dur = (ms) => {
+	const m = Math.floor(ms / 60000);
+	return m < 60 ? m + ' min' : m < 1440 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min'
+		: Math.floor(m / 1440) + ' d ' + Math.floor(m % 1440 / 60) + ' h';
+};
+
+function SystemPage() {
+	const [si, setSi] = useState(null);
+	const [msg, setMsg] = useState(null);
+	useEffect(() => {
+		const load = () => api('/system/info').then(setSi).catch(() => {});
+		load();
+		const t = setInterval(load, 10000);
+		return () => clearInterval(t);
+	}, []);
+	return html`<${Card} title="System">
+		${si && html`<table>
+			<tr><td>Firmware</td><td class="num">${si.firmware}</td></tr>
+			<tr><td>Laufzeit</td><td class="num">${dur(si.uptime_ms)}</td></tr>
+			<tr><td>Letzter Reset</td><td class="num">${si.reset_reason}</td></tr>
+		</table>`}
+		<div class="row msg"><button onClick=${() => restart(setMsg)}>Neu starten</button></div>
+		<${Msg} m=${msg} />
 	<//>`;
 }
 
@@ -570,27 +611,188 @@ function Credentials({ first }) {
 	<//>`;
 }
 
+// ------------------------------------------------------------ Verlauf (SOLL-API-33)
+
+const HF_CONN = 1, HF_CHG = 2, HF_ERR = 4;
+const HL = 36, HR = 8, HH = 90, HGAP = 34, HBAND = 10;
+const hm = (t) => new Date(t).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+const flagText = (f) => (f & HF_ERR ? 'Fehler' : f & HF_CHG ? 'lädt' : f & HF_CONN ? 'angesteckt' : 'kein Fahrzeug');
+
+function useHistory() {
+	const [h, setH] = useState(null);
+	useEffect(() => {
+		const load = () => api('/evse/history').then(setH).catch(() => {});
+		load();
+		const t = setInterval(load, 60000);
+		return () => clearInterval(t);
+	}, []);
+	return h;
+}
+
+// Zeilen mit Beginn/Ende in Browserzeit; das laufende Intervall endet jetzt
+function histRows(h) {
+	const now = Date.now(), n = h.rows.length, end0 = now - h.age_ms;
+	const rows = h.rows.map((r, i) => {
+		const t1 = end0 - (n - 1 - i) * h.interval_ms;
+		return { t0: t1 - h.interval_ms, t1, p: r[0], a: r[1], f: r[2] };
+	});
+	if (h.current) rows.push({ t0: end0, t1: now, p: h.current[0], a: h.current[1], f: h.current[2], cur: true });
+	return rows;
+}
+
+// Stufen je Intervall; null = Luecke. @return [Linie, Flaeche bis base]
+function steps(rows, X, Y, val, base) {
+	let line = '', area = '', run = [];
+	const flush = () => {
+		if (!run.length) return;
+		const pts = run.map(([x, y]) => x.toFixed(1) + ' ' + y.toFixed(1)).join('L');
+		line += 'M' + pts;
+		area += 'M' + run[0][0].toFixed(1) + ' ' + base + 'L' + pts + 'L' + run[run.length - 1][0].toFixed(1) + ' ' + base + 'Z';
+		run = [];
+	};
+	for (const r of rows) {
+		const v = val(r);
+		if (v === null) { flush(); continue; }
+		run.push([X(r.t0), Y(v)], [X(r.t1), Y(v)]);
+	}
+	flush();
+	return [line, area];
+}
+
+// Zustandsband: gleiche Nachbarn zu einem Block zusammengefasst
+const bandCls = (f) => (f & HF_ERR ? 'err' : f & HF_CHG ? 'chg' : f & HF_CONN ? 'conn' : null);
+function band(rows) {
+	const out = [];
+	for (const r of rows) {
+		const c = bandCls(r.f), last = out[out.length - 1];
+		if (last && last[0] === c && last[2] === r.t0) last[2] = r.t1;
+		else out.push([c, r.t0, r.t1]);
+	}
+	return out.filter((b) => b[0]);
+}
+
+// in der tatsaechlichen Breite gezeichnet, damit die Schrift auf dem Handy nicht schrumpft
+function History({ h, maxA }) {
+	const [hover, setHover] = useState(null);
+	const [HW, setW] = useState(640);
+	const ref = useRef(null);
+	useEffect(() => {
+		const o = new ResizeObserver(([e]) => setW(Math.max(280, Math.round(e.contentRect.width))));
+		o.observe(ref.current);
+		return () => o.disconnect();
+	}, []);
+	const rows = h ? histRows(h) : [];
+	return html`<${Card} title="Verlauf"><div ref=${ref}>${!h ? html`<p class="muted">Lade …</p>`
+		: !rows.length ? html`<p class="muted">Noch keine Werte seit dem Start.</p>`
+		: chart(h, rows, maxA, HW, hover, setHover)}</div><//>`;
+}
+
+function chart(h, rows, maxA, HW, hover, setHover) {
+	const now = Date.now();
+	const x0 = Math.min(rows[0].t0, now - 6 * 3600e3), span = now - x0;
+	const X = (t) => HL + (t - x0) / span * (HW - HL - HR);
+	const panels = [];
+	if (rows.some((r) => r.p !== null)) {
+		const max = Math.max(1, Math.ceil(Math.max(...rows.map((r) => r.p || 0)) / 1000));
+		panels.push(['Leistung (kW)', max, (r) => (r.p === null ? null : r.p / 1000), true]);
+	}
+	panels.push(['Erlaubter Strom (A)', Math.max(maxA || 32, ...rows.map((r) => Math.ceil(r.a / 1000))),
+		(r) => r.a / 1000, false]);
+	const bandY = panels.length * (HH + HGAP);
+	const height = bandY + HBAND + 22;
+	const stepH = span > 24 * 3600e3 ? 6 : span > 8 * 3600e3 ? 3 : 1;
+	const ticks = [];
+	for (let t = Math.ceil(x0 / 3600e3) * 3600e3; t < now; t += 3600e3) {
+		if (new Date(t).getHours() % stepH === 0) ticks.push(t);
+	}
+	const sel = hover === null ? rows.length - 1 : hover;
+	const r = rows[sel];
+	const move = (e) => {
+		const b = e.currentTarget.ownerSVGElement.getBoundingClientRect();
+		const t = x0 + ((e.clientX - b.left) / b.width * HW - HL) / (HW - HL - HR) * span;
+		const i = rows.findIndex((x) => t >= x.t0 && t < x.t1);
+		setHover(i < 0 ? null : i);
+	};
+	return html`
+		<p class="h-read">${hm(r.t0)}–${r.cur ? 'jetzt' : hm(r.t1)}:
+			${r.p !== null ? html` <b>${num(r.p / 1000, 1)} kW</b> ·` : ''} erlaubt <b>${amps(r.a)}</b> · ${flagText(r.f)}</p>
+		<svg class="hist" viewBox=${'0 0 ' + HW + ' ' + height} role="img" aria-label="Verlauf der letzten Stunden">
+			${panels.map(([title, max, val, fill], k) => {
+				const y0 = k * (HH + HGAP) + 18, Y = (v) => y0 + HH - v / max * HH;
+				const [line, area] = steps(rows, X, Y, val, y0 + HH);
+				return html`<g>
+					<text class="h-title" x=${HL} y=${y0 - 8}>${title}</text>
+					${[0, max / 2, max].map((g) => html`<line class="h-grid" x1=${HL} x2=${HW - HR} y1=${Y(g)} y2=${Y(g)} />
+						<text class="h-ax" x=${HL - 6} y=${Y(g) + 4}>${num(g, g % 1 ? 1 : 0)}</text>`)}
+					${fill && html`<path class="h-area" d=${area} />`}
+					<path class="h-line" d=${line} />
+				</g>`;
+			})}
+			${band(rows).map(([c, t0, t1]) => html`<rect class=${'h-band ' + c} x=${X(t0)} y=${bandY}
+				width=${Math.max(2, X(t1) - X(t0) - 2)} height=${HBAND} rx="2" />`)}
+			${ticks.map((t) => html`<text class="h-ax mid" x=${X(t)} y=${bandY + HBAND + 16}>${hm(t)}</text>`)}
+			${hover !== null && html`<line class="h-cross" x1=${X((r.t0 + r.t1) / 2)} x2=${X((r.t0 + r.t1) / 2)} y1="10" y2=${bandY + HBAND} />`}
+			<rect class="h-hit" x=${HL} y="0" width=${HW - HL - HR} height=${bandY + HBAND}
+				onPointerMove=${move} onPointerDown=${move} onPointerLeave=${() => setHover(null)} />
+		</svg>
+		<p class="legend"><i class="sw chg"></i>lädt <i class="sw conn"></i>angesteckt <i class="sw err"></i>Fehler</p>
+		<p class="muted msg">Mittelwerte je ${h.interval_ms / 60000} min seit dem Start der Steuerung (höchstens 48 h);
+			nach einem Neustart leer.</p>`;
+}
+
+// ------------------------------------------------------------ Bereiche
+
+function Insights({ live }) {
+	const h = useHistory();
+	return html`<${History} h=${h} maxA=${live.limits && live.limits.hardware / 1000} />
+		<${CurrentTable} l=${live.limits} meter=${live.meter} /><${Errors} /><${Meter} m=${live.meter} />
+		<${EventLog} live=${live} all=${true} /><${Params} kinds=${['status']} />`;
+}
+
+const SETTINGS = [['laden', 'Laden'], ['netzwerk', 'Netzwerk'], ['mqtt', 'MQTT'], ['zaehler', 'Zähler'],
+	['zugang', 'Zugang']];
+
+function Settings({ sub, live }) {
+	const s = SETTINGS.some(([k]) => k === sub) ? sub : 'laden';
+	return html`<nav class="sub">${SETTINGS.map(([k, t]) =>
+		html`<a href=${'#/einstellungen/' + k} class=${s === k ? 'sel' : ''}>${t}</a>`)}</nav>
+		${s === 'laden' ? html`<${Params} kinds=${['config', 'runtime']} />`
+		: s === 'zugang' ? html`<${Credentials} first=${false} />`
+		: html`<${SysConfig} key=${s} part=${s} meter=${live.meter} />`}`;
+}
+
 // ------------------------------------------------------------ Rahmen
+
+// Bereich in der Adresse (#/einstellungen/mqtt): Zurueck-Taste und Lesezeichen
+const AREAS = [['', 'Übersicht'], ['insights', 'Insights'], ['einstellungen', 'Einstellungen'], ['system', 'System']];
+const route = () => location.hash.replace(/^#\/?/, '').split('/');
+
+function useRoute() {
+	const [r, setR] = useState(route);
+	useEffect(() => {
+		const f = () => { setR(route()); scrollTo(0, 0); };
+		addEventListener('hashchange', f);
+		return () => removeEventListener('hashchange', f);
+	}, []);
+	return r;
+}
 
 function Main() {
 	const live = useLive();
-	let initial = 'simple';
-	try { initial = localStorage.getItem('wf-view') || 'simple'; } catch (e) { /* privat */ }
-	const [view, setView] = useState(initial);
-	const choose = (v) => { setView(v); try { localStorage.setItem('wf-view', v); } catch (e) { /* */ } };
+	const [a, sub] = useRoute();
+	const area = AREAS.some(([k]) => k === a) ? a : '';
 	const dot = live.online ? 'ok' : live.online === false ? 'bad' : '';
 	const conn = live.online ? 'verbunden' : live.online === false ? 'getrennt' : '…';
 	return html`
 		<header>
 			<h1>Wallfree</h1><span class="grow muted" title=${live.mode === 'live' ? 'live (WebSocket)' : live.mode === 'poll' ? 'Abfrage alle 2 s' : ''}><span class="dot ${dot}"></span> ${conn}</span>
-			<nav>
-				<button class=${view === 'simple' ? 'sel' : ''} onClick=${() => choose('simple')}>Einfach</button>
-				<button class=${view === 'expert' ? 'sel' : ''} onClick=${() => choose('expert')}>Experte</button>
-			</nav>
+			<nav class="top">${AREAS.map(([k, t]) => html`<a href=${'#/' + k} class=${area === k ? 'sel' : ''}>${t}</a>`)}</nav>
 		</header>
 		<main class=${live.online === false ? 'offline' : ''}>
-			${view === 'simple' ? html`<${Simple} live=${live} />`
-				: html`<${Errors} /><${CurrentTable} l=${live.limits} meter=${live.meter} /><${Meter} m=${live.meter} /><${EventLog} live=${live} all=${true} /><${Params} /><${System} /><${Credentials} first=${false} />`}
+			${area === 'insights' ? html`<${Insights} live=${live} />`
+				: area === 'einstellungen' ? html`<${Settings} sub=${sub} live=${live} />`
+				: area === 'system' ? html`<${SystemPage} />`
+				: html`<${Overview} live=${live} />`}
 		</main>`;
 }
 

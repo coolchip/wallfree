@@ -31,11 +31,13 @@
 #include <wallfree/api/alog.h>
 #include <wallfree/api/events.h>
 #include <wallfree/api/evse_api.h>
+#include <wallfree/api/history.h>
 #include <wallfree/api/meter_json.h>
 #include <wallfree/api/ratelimit.h>
 #include <wallfree/evse/persist.h>
 #include "auth.h"
 #include "evse_task.h"
+#include "history_task.h"
 #include "hw.h"
 #include "meter_task.h"
 #include "mqtt_task.h"
@@ -730,6 +732,22 @@ static void system_log(struct http_client_ctx *client, struct res *r,
 	rsp->final_chunk = next == WF_ALOG_DONE;
 }
 
+/* SOLL-API-33: in Teilen wie /system/log */
+static void evse_history(struct http_client_ctx *client, struct res *r,
+			 struct http_response_ctx *rsp)
+{
+	ARG_UNUSED(client);
+	struct wf_jbuf b;
+
+	wf_jb_init(&b, out, sizeof(out));
+	r->cursor = history_task_json((uint32_t)r->cursor, &b);
+	rsp->status = HTTP_200_OK;
+	rsp->body = (const uint8_t *)out;
+	rsp->body_len = b.len;
+	rsp->final_chunk = r->cursor == WF_HIST_DONE;
+}
+
+JSON_RESOURCE(evse_history_r, "/evse/history", BIT(HTTP_GET), evse_history, false, 0);
 JSON_RESOURCE(system_log_r, "/system/log", BIT(HTTP_GET), system_log, false, 0);
 JSON_RESOURCE(system_info_r, "/system/info", BIT(HTTP_GET), system_info, false, 0);
 JSON_RESOURCE(system_config_r, "/system/config", BIT(HTTP_GET) | BIT(HTTP_POST), system_config,

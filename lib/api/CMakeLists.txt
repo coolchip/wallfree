@@ -7,6 +7,7 @@ zephyr_library_sources(
   evse_api.c
   events.c
   alog.c
+  history.c
   sysconf.c
   mqtt.c
   ratelimit.c
