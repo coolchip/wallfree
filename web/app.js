@@ -212,7 +212,7 @@ function EventLog({ live, all }) {
 				<td class=${x.kind === 'event' ? (x.event.type === 'error' && x.event.set.length ? 'bad' : '') : 'warn'}>${text(x)}</td>
 			</tr>`)}
 		</table>`}
-		${all && html`<p class="muted msg">Letzte 32 Einträge seit dem Start der Steuerung. Uhrzeiten nach der Uhr dieses Geräts, auf wenige Sekunden genau (die Steuerung hat keine eigene Uhr).</p>`}
+		${all && html`<p class="muted msg">Letzte 32 Einträge seit dem Start der Steuerung. Uhrzeiten auf wenige Sekunden genau.</p>`}
 	<//>`;
 }
 
@@ -312,7 +312,7 @@ function CurrentTable({ l, meter }) {
 		['external', 'Vorgabe', l.external_ignored ? 'ignoriert (Digitaleingang)' : l.external ? amps(l.external) : 'Laden aus'],
 		['hardware', 'Maximum Drehschalter', amps(l.hardware)],
 		['cable', 'Kabel', l.cable ? amps(l.cable) : '–'],
-		['input', 'Digitaleingang', l.input ? amps(l.input) : '–'],
+		['input', 'Stromgrenze über Digitaleingang', l.input ? amps(l.input) : '–'],
 	];
 	return html`<${Card} title="Ladestrom"><table>
 		${rows.map(([k, t, v]) => {
@@ -789,6 +789,9 @@ function useRoute() {
 	return r;
 }
 
+// Wortmarke (Entwurf des Nutzers) als Text: passt sich Kopfhoehe und dunklem Modus an
+const Logo = () => html`<h1 class="logo"><a href="#/">Wall<span>free</span></a></h1>`;
+
 function Main() {
 	const live = useLive();
 	const [a, sub] = useRoute();
@@ -797,7 +800,7 @@ function Main() {
 	const conn = live.online ? 'verbunden' : live.online === false ? 'getrennt' : '…';
 	return html`
 		<header>
-			<h1>Wallfree</h1><span class="grow muted" title=${live.mode === 'live' ? 'live (WebSocket)' : live.mode === 'poll' ? 'Abfrage alle 2 s' : ''}><span class="dot ${dot}"></span> ${conn}</span>
+			<${Logo} /><span class="grow muted" title=${live.mode === 'live' ? 'live (WebSocket)' : live.mode === 'poll' ? 'Abfrage alle 2 s' : ''}><span class="dot ${dot}"></span> ${conn}</span>
 			<nav class="top">${AREAS.map(([k, t]) => html`<a href=${'#/' + k} class=${area === k ? 'sel' : ''}>${t}</a>`)}</nav>
 		</header>
 		<main class=${live.online === false ? 'offline' : ''}>
@@ -815,7 +818,7 @@ function App() {
 	if (err) return html`<p class="pad bad">Keine Verbindung: ${err}</p>`;
 	if (!cred) return html`<p class="pad muted">Lade …</p>`;
 	if (cred.must_change) {
-		return html`<header><h1>Wallfree</h1></header><main><${Credentials} first=${true} /></main>`;
+		return html`<header><${Logo} /></header><main><${Credentials} first=${true} /></main>`;
 	}
 	return html`<${Main} />`;
 }
