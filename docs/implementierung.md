@@ -304,6 +304,5 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 
 - H0 und H1 nur mit Freigabe ([Architektur](architektur.md#7-hardware-inbetriebnahme));
   danach Update-Uebergabe (SOLL-SH-10, SOLL-BOOT-30) und Startablauf auf der Hardware.
-- RAM: 97 % belegt; vor der naechsten groesseren Erweiterung Heapbedarf messen.
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
   (bisher nur ueber die API getestet).
