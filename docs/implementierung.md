@@ -182,7 +182,7 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Ladestrom-Anzeige (Uebersicht) | Ring ueber 270 Grad von 0 bis zum Maximum (Drehschalter bzw. abgesenkt); blau "Erlaubt" (Strom des Tastgrads), gruener Innenring "Messwert" (Zaehler, hoechste Phase, nur wenn > 0), orange Marke fuer Kabel/Eingang, wenn kleiner als das Maximum; Kreis = Vorgabe (rot bei 0, am Ende, wenn ueber dem Maximum). Mitte: Messwert, ohne Zaehler der erlaubte Strom; darunter Leistung und "erlaubt". Darunter eine Zeile, was begrenzt ("begrenzt durch Kabel (20 A)", "Vorgabe: Laden aus", "Laden gesperrt", 5-%-Modus) | Nutzer 2026-10-21; Begriffe Erlaubt/Vorgabe/Messwert, weil "Freigabe" schon die Ladeerlaubnis (EN, Schnittstelle) bezeichnet |
 | Vorgabe setzen | Tasten − / 6 / 10 / 16 / 32 A / + / "Laden aus", wirken sofort; −/+ in 1-A-Schritten zwischen 6 A und dem Maximum; Tasten ueber dem Maximum entfallen; nicht am Ring ziehbar. Hinweis: eine externe Vorgabe (z. B. Energiemanagement) kann den Wert ueberschreiben | Nutzer 2026-10-21: am Ring ziehen ist auf dem Handy fummelig |
 | Ladestrom (Insights) | Tabelle Vorgabe, Maximum Drehschalter, Kabel, "Stromgrenze ueber Digitaleingang" (Grenze `input`, Funktionscodes 8..15; "Eingang" allein war unverstaendlich; in der Zeile "begrenzt durch ..." kurz "Digitaleingang"), Erlaubt, Messwert; wirkende Grenze orange mit "begrenzt"; keine Balken | Nutzer 2026-10-21 |
-| Zaehleranzeige (**zu bestaetigen**) | Karte "Zaehler" in der Uebersicht immer, ohne Zaehler leer (Nutzer 2026-10-21: Anordnung bleibt gleich); mit Zaehler Leistung in kW, Zaehlerstand in kWh, Zustand; ungueltige Werte als "–"/"ungueltig"; Insights: Tabelle aller Messwerte, Fehlerzaehler; Einstellungen: `meter_type` und `meter_framing` als Auswahlliste | SOLL-MTR-32 |
+| Zaehleranzeige | Karte "Zaehler" in der Uebersicht immer, ohne Zaehler leer (Nutzer 2026-10-21: Anordnung bleibt gleich); mit Zaehler Leistung in kW, Zaehlerstand in kWh, Zustand; ungueltige Werte als "–"/"ungueltig"; Insights: Tabelle aller Messwerte, Fehlerzaehler; Einstellungen: `meter_type` und `meter_framing` als Auswahlliste | SOLL-MTR-32; Nutzer 2026-10-23 bestaetigt |
 | Ereignisse | Uebersicht: letzte 8 Ereignisse; Insights: ganzes Zugriffsprotokoll mit Fehlversuchen. Vorgeschichte aus `GET /system/log` beim Oeffnen, danach live ueber `evse/event` (ohne WebSocket alle 5 s neu); Uhrzeit = Startzeitpunkt + `t_ms` (Hinweis unter dem Protokoll: "Uhrzeiten auf wenige Sekunden genau"); Startzeitpunkt = Browserzeit zur Mitte der Anfrage - `uptime_ms` aus `/system/info`, bei jedem Abruf neu (mindestens jede Minute), damit ein lange offener Tab nicht mit dem Gang des Quarzes auseinanderlaeuft. Verlauf entsprechend: `age_ms` gilt zum Abrufzeitpunkt. Genauigkeit: Netzlaufzeit (ms) plus Quarzabweichung mal Alter des Eintrags (bei 20–50 ppm nach 48 h etwa 3–9 s) | keine Uhrzeit auf der Steuerung (F32) |
 
 ### Energiezaehler
@@ -194,7 +194,7 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Zyklus | 1 s von Beginn zu Beginn, im Zustand `error` 10 s; Ruhepause 50 ms vor jeder Anfrage, nach einem Timeout zusaetzlich 500 ms; je Block 3 Versuche, auch nach einer Ausnahmeantwort | SOLL-MTR-10/11 (Nutzer 2026-10-21) |
 | Parameter | bei den Systemparametern (`/system/config`, `evse sys set`), Kennungen 3016..3019, wirken nach Neustart; Werkszustand `meter_type` = 0 | SOLL-MTR-01/02 |
 | Ereignis | Typ `meter` mit `status` (`off`, `connecting`, `ok`, `error`), bei gesunkenem Zaehlerstand zusaetzlich `energy_decreased`: true | SOLL-MTR-13/14 |
-| Ungueltige Werte an evcc (**zu bestaetigen**) | `null` wie WARP; evcc 0.317.2 macht daraus 0: bei ausgefallenem Zaehler zeigt evcc waehrend des Ladens 0 W und 0 A, der Zaehlerstand bleibt auf dem letzten Wert | WARP-konform; ein Weitersenden alter Werte wuerde einen Ausfall verbergen |
+| Ungueltige Werte an evcc | `null` wie WARP; evcc 0.317.2 macht daraus 0: bei ausgefallenem Zaehler zeigt evcc waehrend des Ladens 0 W und 0 A, der Zaehlerstand bleibt auf dem letzten Wert | Nutzer 2026-10-23 bestaetigt: WARP-konform; die 0 laesst evcc bei der Ueberschussregelung eher herunterregeln (Fehler zur sicheren Seite), waehrend ein Weitersenden alter Werte den Ausfall verbergen und zu hohen Ueberschuss vortaeuschen koennte; ein Abmelden des Zaehlers wirkt nicht, weil evcc `/info/features` nur beim Verbinden liest |
 | UART4 ohne Zaehler | der UART-Treiber richtet UART4 beim Start ein; ohne Zaehler wird nie gesendet, PC12 bleibt Low | Zephyr initialisiert Devicetree-Geraete immer; ohne Sendefreigabe wirkt nichts auf den Bus |
 
 ### MQTT
@@ -304,8 +304,6 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 
 - H0 und H1 nur mit Freigabe ([Architektur](architektur.md#7-hardware-inbetriebnahme));
   danach Update-Uebergabe (SOLL-SH-10, SOLL-BOOT-30) und Startablauf auf der Hardware.
-- Zaehleranzeige der Weboberflaeche bestaetigen lassen; ebenso die Weitergabe
-  ungueltiger Zaehlerwerte als `null` (evcc zeigt dann 0 W).
 - RAM: 97 % belegt; vor der naechsten groesseren Erweiterung Heapbedarf messen.
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
   (bisher nur ueber die API getestet).
