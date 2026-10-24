@@ -109,7 +109,7 @@
 	pinctrl-0 = <&eth_mdio_pa2 &eth_mdc_pc1>;
 	pinctrl-names = "default";
 
-	/* KSZ8081RND, Adresse 0, 25-MHz-Modus (XI an PA8/MCO1, Hypothese) */
+	/* KSZ8081RND, Adresse 0, 25-MHz-Modus (XI ueber 470 Ohm an PA8/MCO1, Durchgang belegt) */
 	phy: ethernet-phy@0 {
 		compatible = "microchip,ksz8081";
 		reg = <0x00>;

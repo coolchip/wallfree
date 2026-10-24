@@ -265,7 +265,8 @@ Beim RAM (Heap umgesetzt, Nutzer 2026-10-21):
   und PE2 High = Schuetz ein.
 - Reaktionszeit RCM-Flanke -> PE2 Low ueber den Zephyr-GPIO-Callback: Ziel <= 1 ms
   (SOLL-PROT-05), am Oszilloskop messen.
-- MCO1 an PA8 als PHY-Takt und Reset an PA15 sind Hypothesen.
+- PHY-Takt (MCO1/PA8 -> 470 Ohm -> XI) und Reset (PA15 -> RST#) sind per Durchgang belegt; ob der
+  PHY damit verbindet, zeigt erst der erste Netzbetrieb.
 - IWDG-Umprogrammierung im Betrieb (direkt ueber Register, weil der Zephyr-Treiber das Limit
   nach dem Start nicht aendern kann) und Loeschzeit Sektor 7 <= 4000 ms (Zephyr-Devicetree,
   nicht Datenblatt).

@@ -154,6 +154,12 @@ API.
 Jede Stufe erfordert vorher eine ausdrueckliche Aenderung der Sicherheitsgrenzen in
 [wallbe2/AGENTS.md](../../wallbe2/AGENTS.md).
 
+Aufbau (Nutzer 2026-10-24): Die Steuerung bleibt in der Wallbox auf dem Tisch; sie wird nur ueber
+230 V AC versorgt (keine Kleinspannungseinspeisung, Handbuch Steuerung S. 8). **Keine
+handgefuehrten Pruefspitzen unter Netzspannung:** Messpunkte und Verbindungen werden spannungsfrei
+angeschlossen, Abdeckung zu, Bedienung und Beobachtung nur ueber Netzwerk, Debugger und fest
+angeklemmte Messleitungen. Signalformen (z. B. LD) zeichnet bevorzugt eine Pruef-Firmware auf.
+
 | Stufe | Inhalt | Ausstattung |
 | --- | --- | --- |
 | H0 | Lesend: Debug-Anschluss, RDP-Stufe, Bootloader/Flash/OTP auslesen | ST-LINK V3SET, USB-Isolator (vorhanden) |

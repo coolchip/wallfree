@@ -117,7 +117,7 @@ wiedergibt [ANN]; Bestaetigung in H1/H2.
 | 1 | C1/C2 | Relaiskontakt Lastschuetz, 230 V AC, 16 A | **PE2** | Ausgang, High = Relais an | nur ueber Schuetz-Schnittstelle (SOLL-PROT-01) | FW (alle Schreiber in `0x0803ba2c`), Relais-Treiber [HYP] |
 | 1 | CT | Contactor Test: Spannung am Schuetzausgang nach Ladeende | **PE0** | Eingang, EXTI steigende Flanke | Flankenzeitstempel; "Via Sense" (SOLL-PROT-20) | FW, Verbindung CT -> PE0 [HYP] |
 | 2 | L/N/PE | Versorgung 230 V AC | (PC0) | – | interne Versorgungsueberwachung ueber ADC IN10/PC0 | FW, Bedeutung (12-V-Schiene) [HYP] |
-| 3 | Ethernet | RJ45, 100Base-TX | RMII: PA1, PA2, PA7, PB11, PB12, PB13, PC1, PC4, PC5; MCO1 **PA8**; Reset **PA15** [HYP] | – | Zephyr-Treiber; PA8 = 25 MHz fuer PHY-XI [HYP]; PA15 >= 10 ms Low beim Start | FW, [Ethernet-PHY](../../wallbe2/docs/ethernet-phy.md) |
+| 3 | Ethernet | RJ45, 100Base-TX | RMII: PA1, PA2, PA7, PB11, PB12, PB13, PC1, PC4, PC5; MCO1 **PA8** (ueber 470 Ohm an PHY XI) und Reset **PA15** (direkt an PHY RST#), per Durchgang belegt (Nutzer 2026-10-24) | – | Zephyr-Treiber; PA8 = 25 MHz fuer PHY-XI [HYP]; PA15 >= 10 ms Low beim Start | FW, [Ethernet-PHY](../../wallbe2/docs/ethernet-phy.md) |
 | 4 | 12 V | Ausgang 12 V DC, max. 200 mA | – | – | keine Ansteuerung bekannt | HB |
 | 4 | LD | Digitaleingang (Default Verriegelungsrueckmeldung) | **PA3** (ADC IN3) | analog, < 3 V aus / > 9 V ein, Eingangswiderstand 3 kOhm | ADC-Block (SOLL-IO-10) | FW, HB S. 10 |
 | 4 | EN | Digitaleingang (Default Freigabe) | **PA4** (IN4) | wie LD | wie LD | FW |
@@ -1111,7 +1111,8 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 
 | Punkt | Stand | Klaerung |
 | --- | --- | --- |
-| PE1-Ziel (C3/C4?), PA15-Ziel (PHY-RST#?), PA8 -> PHY-XI | [HYP] | H1, [Erinnerung](../../wallbe2/docs/hardware.md#erinnerung-sobald-die-hardware-auf-dem-tisch-liegt) |
+| PE1-Ziel (C3/C4?) | [HYP], Bahn nicht verfolgbar | H1 (PE1 schalten und beobachten) |
+| CP-Treiber, Quelle der -12 V | ICL7662 gesehen (Spannungsinverter), Beschaltung offen | Durchgang spannungsfrei, H1 |
 | LD-Signalform der Steckdose (Impulsdauer, Impulse beim Entriegeln) | unbekannt; bestimmt SOLL-LOCK-14/15 | H1 |
 | CP-Treiber (Polaritaet, Pegel), ADC-Skalierung CP/PP/Versorgung | Original-Skalierung uebernommen [ANN] | H1/H2 |
 | RCM: Inversionsstufe, direkter Pfad SWITCH_1/2 -> Schuetztreiber, Konfigurationspins | [HYP] | H1/H3 |
