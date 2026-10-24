@@ -27,9 +27,11 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 #define SWITCH_STABLE    3  /* gleiche Lesungen in Folge */
 #define SWITCH_MAX_READS 30
 #define BLINK_5HZ_MS     100  /* halbe Periode */
+#define BLINK_1HZ_MS     500  /* halbe Periode */
 
 /* SOLL-BOOT-20: Reset-Taster beim Start 5 s gedrueckt -> Werkseinstellungen.
- * Waehrend des Wartens wird der IWDG bedient (Schuetz ist aus). */
+ * Waehrend des Wartens wird der IWDG bedient (Schuetz ist aus); die Power-LED
+ * blinkt mit 1 Hz (SOLL-LED-01), sonst wirkt die Steuerung waehrenddessen aus. */
 static bool check_factory_reset(void)
 {
 	if (!hw_gpio_reset_button()) {
@@ -38,12 +40,16 @@ static bool check_factory_reset(void)
 	int64_t t0 = k_uptime_get();
 
 	while (hw_gpio_reset_button()) {
+		int64_t dt = k_uptime_get() - t0;
+
 		evse_task_wdt_feed();
-		if (k_uptime_get() - t0 >= FACTORY_RESET_MS) {
+		hw_gpio_led(EVSE_LED_POWER, (dt / BLINK_1HZ_MS) % 2 == 0);
+		if (dt >= FACTORY_RESET_MS) {
 			return true;
 		}
 		k_msleep(10);
 	}
+	hw_gpio_led(EVSE_LED_POWER, false);
 	return false;
 }
 
