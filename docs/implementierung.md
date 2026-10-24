@@ -314,5 +314,13 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   325). Damit scheitert die Netzuebernahme (alles oder nichts) bei jeder Adresse mit einer 0 im
   Oktett, z. B. 192.168.0.x. Klaeren, ob fehlend = 0 gilt (Code der Originalfirmware), dann
   ggf. Import anpassen.
+- **Hardwarepruefung auf dem Testgerät in Stufen** (Steuerung ueber Shell/API von Wallfree, Nutzer
+  beobachtet, keine Pruefspitzen unter Netzspannung): A) Eingaenge (Schluesselschalter an EN ->
+  `inputs`, Ladeerlaubnis), Ausgaenge ER/LR/VR/CR ueber Register-Ausgaenge (Codes 30..33, danach
+  Werkseinstellung zurueck), LEDs der Steuerung; B) nur Verriegelungsmotor anklemmen, Zyklus per
+  `lock_state` 1/0 in S1, LD-Rueckmeldung beobachten (Dauersignal oder Impuls); C) CP-PWM und
+  Schuetz erst mit Pruefstecker/EV-Simulator (H2). Offen vor A: was noch angeschlossen ist
+  (Front-LEDs, Schluesselschalter), ob ein Pruefstecker vorhanden ist. Naechstes Abbild bringt das
+  Blitz-Symbol im Kopf mit.
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
   (bisher nur ueber die API getestet).
