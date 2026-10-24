@@ -306,5 +306,9 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 
 - H0 und H1 nur mit Freigabe ([Architektur](architektur.md#7-hardware-inbetriebnahme));
   danach Update-Uebergabe (SOLL-SH-10, SOLL-BOOT-30) und Startablauf auf der Hardware.
+- Import aus Sektor 3: Im Original fehlen offenbar Felder mit Wert 0 (Testgerät: 404, 409, 317, 322,
+  325). Damit scheitert die Netzuebernahme (alles oder nichts) bei jeder Adresse mit einer 0 im
+  Oktett, z. B. 192.168.0.x. Klaeren, ob fehlend = 0 gilt (Code der Originalfirmware), dann
+  ggf. Import anpassen.
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
   (bisher nur ueber die API getestet).
