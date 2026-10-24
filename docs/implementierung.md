@@ -17,7 +17,7 @@ Tests: [Test und Simulation](test-und-simulation.md).
 | Weboberflaeche (`web/`) | fertig (Bereiche, Verlauf), Browser-Durchlauf in der Simulation |
 | evcc-Anbindung | gegen die Simulation geprueft (evcc 0.317.2) |
 | Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) | gebaut, ungeprueft (H1) |
-| Update-Uebergabe an den Bootloader (SOLL-SH-10, SOLL-BOOT-30) | zurueckgestellt bis H0 |
+| Update-Uebergabe an den Bootloader (SOLL-SH-10, SOLL-BOOT-30) | Bootloader ausgelesen (H0 am Testgerät); Umsetzung nach seiner Analyse |
 
 ## Module der Ladelogik und Bausteine
 

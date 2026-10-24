@@ -1119,7 +1119,7 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 | Quelle an PE0 (Klemme CT) | [HYP] | H1 |
 | Reset-Taster: PD2 und/oder NRST (HB: einfache Betaetigung = Neustart) | offen | H1 |
 | "Automatische Entriegelung bei Stromausfall" (HB S. 9): Hardwarefunktion? | in der Firmware nicht gefunden | H1 |
-| Bootloader: Pruefungen, Nutzung von BKP-Registern, loescht er Sektor 7, Start-SP | unbekannt | H0 |
+| Bootloader: Pruefungen, Nutzung von BKP-Registern, loescht er Sektor 7, Start-SP | aus dem Testgerät ausgelesen (H0, RDP 0), eigener Webserver fuer den Upload; Analyse offen | [Bootloader](../../wallbe2/docs/bootloader.md#stand-und-offene-fragen) |
 | IWDG-Umprogrammierung im Betrieb; Loeschzeit Sektor 7 | Loeschzeit hoechstens 4000 ms laut Zephyr-Devicetree (`stm32f2.dtsi`, `max-erase-time`), nicht am Datenblatt geprueft (DS6329 fehlt); IWDG-Umprogrammierung ueber Register umgesetzt, auf Hardware ungeprueft | Datenblatt, H1 |
 | Normzeiten IEC 61851-1 (Abschaltung nach C->B, Reaktionszeit des Fahrzeugs) | Norm nicht im Projekt; 5-s-Frist durch HB S. 38 gestuetzt | Normtext |
 | Diodenpruefung: Vorgabe der IEC 61851-1 zur Ausgabe nach Fehlschlag | Norm nicht im Projekt | Normtext |
