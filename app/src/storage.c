@@ -302,6 +302,7 @@ void storage_get_status(struct storage_status *st)
 	st->compactions = compactions;
 	st->last_error = last_error;
 	st->flash_sr_boot = flash_sr_boot;
+	st->flash_sr_early = hw_flash_errors_early();
 	k_mutex_unlock(&nvm_mtx);
 }
 

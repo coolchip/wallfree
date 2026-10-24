@@ -383,6 +383,11 @@ uint32_t hw_flash_take_errors(void)
 	return 0;
 }
 
+uint32_t hw_flash_errors_early(void)
+{
+	return 0;
+}
+
 /* ------------------------------------------------ Resetgrund */
 
 void hw_reset_take(uint32_t *flags, uint32_t *bkp)

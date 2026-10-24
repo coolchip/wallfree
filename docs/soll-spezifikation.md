@@ -881,12 +881,15 @@ nacheinander; gesendet wird ein Objekt je Rahmen (auch fuer Browser einfach).
 | Kennung | Anforderung | Quelle |
 | --- | --- | --- |
 | SOLL-BOOT-30 | Update-Anforderung wie Original: nur im sicheren Zustand (Schuetz aus, kein Ladevorgang; Hoechstwartezeit 15 s nach SOLL-RT-22), dann RTC-Backup-Register entsperren, **BKP10 = 2, BKP11 = 3, BKP15 = 0, BKP13 = aktuelle IP-Adresse, BKP14 = aktuelle Netzmaske**, Interrupts sperren, Systemreset (AIRCR `0x05FA0004`). | [Bootloader](../../wallbe2/docs/bootloader.md), 1.27 §3.9 |
-| SOLL-BOOT-31 | Die Bedeutung dieser Werte fuer den Bootloader ist nicht belegt; vor dem ersten Einsatz Bootloader auslesen und pruefen (H0). | Arch §4 |
+| SOLL-BOOT-31 | Bedeutung (Bootloader das Testgerät ausgelesen und analysiert): BKP10 = 2 waehlt den Web-Update-Betrieb, BKP11 = Zahl der Versuche (je hoechstens 120 s Warten auf den Upload, dann 30 s fuer die Uebertragung), BKP13/BKP14 = IP und Maske in lwIP-Byteordnung (erstes Oktett im niederwertigsten Byte); sind sie 0, gilt 192.168.0.8/24. Der Bootloader nimmt ein Rohabbild per Web-Formular an, prueft den Inhalt nicht, loescht nur Sektor 4..6 (Parameter in Sektor 3 und 7 bleiben) und meldet das Ergebnis in BKP12. Wallfree schreibt BKP13 = 0, wenn es keine IPv4-Adresse hat. | [Bootloader](../../wallbe2/docs/bootloader.md#update-betrieb-bootloader-box-t-firmware-081) |
+| SOLL-BOOT-32 | **(zu bestaetigen)** Ausloesung ausser ueber die Shell auch ueber `POST /system/update` und einen Knopf "Firmware-Update" im Bereich System der Weboberflaeche (mit Bestaetigung). Die Antwort nennt die Adresse des Bootloaders (aktuelle IP bzw. 192.168.0.8) und die Fristen (Upload binnen 2 min beginnen). | [ANN], Original `config.html` |
+| SOLL-BOOT-33 | **(zu bestaetigen)** Beim Start liest Wallfree BKP12 (Ergebnis eines Updates: Modus im oberen Byte, Bit 0 = Erfolg), meldet es in `GET /system/info` (`update_result`) und im Ereignisprotokoll und setzt BKP12 auf 0. | [ANN] |
+| SOLL-BOOT-34 | Das Abbild darf hoechstens 384 KB gross sein (Sektor 4..6, mehr loescht der Bootloader nicht); erfuellt durch die Anwendungspartition von 320 KB (Linker). | Bootloader |
 
 Pruefung Abschnitt 12: PC/native_sim – HTTP- und WebSocket-Antworten gegen Beispiel-JSON,
 Ablehnung ungueltiger Werte, Shell-Kommandos inkl. Ablehnungen; evcc gegen die Simulation
 (erledigt, [Test und Simulation](test-und-simulation.md#evcc-gegen-die-simulation)). H1 – Netzbetrieb
-auf der Steuerung (ohne Last), Update-Uebergabe erst nach H0.
+auf der Steuerung (ohne Last); Update-Uebergabe auf dem Testgerät mit Rueckweg ueber denselben Weg.
 
 ### 12.5 Energiezaehler (Modbus RTU, nur Anzeige)
 

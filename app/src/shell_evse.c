@@ -156,8 +156,9 @@ static int cmd_nvm(const struct shell *sh, size_t argc, char **argv)
 	shell_print(sh, "Ausstehend %u Werte nur im RAM%s", st.pending,
 		    st.pending ? " (Verdichten im sicheren Zustand)" : "");
 	shell_print(sh, "Verdichtet %u mal, letzter Fehler %d", st.compactions, st.last_error);
-	if (st.flash_sr_boot != 0) {
-		shell_warn(sh, "FLASH_SR-Fehlerbits beim Start 0x%02x (geloescht)", st.flash_sr_boot);
+	if (st.flash_sr_boot != 0 || st.flash_sr_early != 0) {
+		shell_warn(sh, "FLASH_SR-Fehlerbits beim Start 0x%02x (geloescht), vor den Treibern 0x%02x",
+			   st.flash_sr_boot, st.flash_sr_early);
 	}
 	if (st.damaged) {
 		shell_warn(sh, "Rest nach unterbrochenem Schreiben unbrauchbar, wird verdichtet");

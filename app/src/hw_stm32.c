@@ -368,6 +368,21 @@ void hw_iwdg_long(bool on)
 #define FLASH_SR_ERRBITS (FLASH_SR_SOP | FLASH_SR_WRPERR | FLASH_SR_PGAERR | FLASH_SR_PGPERR | \
 			  FLASH_SR_PGSERR)
 
+static uint32_t flash_sr_early;
+
+/* Diagnose: Stand direkt nach dem Sprung aus dem Bootloader, vor jedem Treiber */
+static int hw_flash_sr_early(void)
+{
+	flash_sr_early = FLASH->SR & FLASH_SR_ERRBITS;
+	return 0;
+}
+SYS_INIT(hw_flash_sr_early, EARLY, 0);
+
+uint32_t hw_flash_errors_early(void)
+{
+	return flash_sr_early;
+}
+
 uint32_t hw_flash_take_errors(void)
 {
 	uint32_t sr = FLASH->SR & FLASH_SR_ERRBITS;

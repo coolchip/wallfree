@@ -18,6 +18,7 @@ struct storage_status {
 	uint32_t compactions;
 	int last_error;        /**< letzter Fehler von Speichern/Verdichten, 0 = keiner */
 	uint32_t flash_sr_boot; /**< beim Start vorgefundene FLASH_SR-Fehlerbits */
+	uint32_t flash_sr_early; /**< dieselben, vor allen Treibern gelesen */
 };
 
 /** Beim Start, vor der Ladelogik: einhaengen; ungueltig -> Meldung und neu anlegen. */
