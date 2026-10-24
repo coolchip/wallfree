@@ -1,7 +1,7 @@
 # Implementierungsstand
 
-Stand: 2026-10-21. **Nichts davon ist auf Hardware ausgefuehrt**; bestandene Tests belegen
-keine elektrische Sicherheit. Rahmen und Begruendungen: [Architektur](architektur.md);
+Stand: 2026-10-24. **Auf Hardware nur im Ruhebetrieb gelaufen** (Testgerät, Schuetz und Aktoren
+abgeklemmt, kein Fahrzeug); bestandene Tests belegen keine elektrische Sicherheit. Rahmen und Begruendungen: [Architektur](architektur.md);
 Tests: [Test und Simulation](test-und-simulation.md).
 
 ## Ueberblick
@@ -16,7 +16,7 @@ Tests: [Test und Simulation](test-und-simulation.md).
 | Anwendung (`app/`) | baut fuer `ev_cc_ac1` ohne Warnung; als PC-Simulation Ende-zu-Ende getestet |
 | Weboberflaeche (`web/`) | fertig (Bereiche, Verlauf), Browser-Durchlauf in der Simulation |
 | evcc-Anbindung | gegen die Simulation geprueft (evcc 0.317.2) |
-| Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) | gebaut, ungeprueft (H1) |
+| Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) | auf dem Testgerät gestartet: Takt, Bootloader-Start, Ethernet/PHY, DIP/Drehschalter, CP-Messung (Ruhe, A), RCM-Selbsttest; Aktoren, Schuetz, PWM, LD, Eingaenge/Ausgaenge noch ungeprueft |
 | Update-Uebergabe an den Bootloader (SOLL-SH-10, SOLL-BOOT-30) | Bootloader ausgelesen (H0 am Testgerät); Umsetzung nach seiner Analyse |
 
 ## Module der Ladelogik und Bausteine
@@ -294,6 +294,7 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 | Abbau von WebSockets ueber `zsock_poll` auf dem WebSocket-Deskriptor | geschlossene Verbindungen blieben belegt (in der Simulation sicher) | `websocket_recv_msg` mit 2 ms Timeout je Client und Zyklus (auf der Steuerung hoechstens 6 ms je 100 ms) |
 | Erster Start auf dem Testgerät (2026-10-24) | Wallfree lief an und brach vor `main` mit einem fatalen Fehler ab (BKP19 = Grund `fault`, RCC-Flags ungeloescht), Neustartschleife ueber den Bootloader. Vermutete Ursache: vom Bootloader eingeschaltete Interrupts (SysTick, USART2, RTC). Abhilfe `CONFIG_INIT_ARCH_HW_AT_BOOT=y` (NVIC-Freigaben und anstehende Interrupts beim Start loeschen); zur Diagnose schreibt der Fehlerbehandler Programmzaehler und Grund nach BKP17/BKP18 (per SWD lesbar) | danach lief Wallfree (Power-LED 1 Hz, keine erneute Fehlermeldung in BKP17..19); die Interrupt-Hypothese ist damit gestuetzt, nicht bewiesen |
 | Erster Lauf mit Netz auf dem Testgerät (2026-10-24) | Drehschalter richtig gelesen (Stellung 4, 16 A). DIP nach dem Einschalten mit F1 als 239 gelesen (D8 an), nach Software-Neustart zweimal 111 (wie Originalfirmware; Pinpegel per SWD bestaetigen 111: PA11 High). Mit D8 fehlte die Verfuegbarkeit (XR nicht beschaltet) -> S10. Vermutung: PA11 (nur interner Pull-up) beim Einschalten kurz Low. Die gruene LED an der Buchse blinkt mit etwa 5 Hz, Wallfree laesst PC2 mit 1 Hz blinken: die Buchsen-LED kommt vermutlich vom PHY, PC2 bleibt offen | Nutzer bestaetigt D8 aus. Abhilfe: Schalter erst 20 ms nach der Pin-Einrichtung lesen, dann alle 10 ms bis 3 gleiche Lesungen (hoechstens 30), IWDG dabei bedient; vermutlich laedt der interne Pull-up eine Filterkapazitaet (Hypothese) |
+| Kaltstart das Testgerät mit `2b29b8b` (2026-10-24) | nach F1-Einschalten DIP 111, Drehschalter 4, S1 bereit, CP A mit +11,9 V (cp_pos 11918 mV), RCM-Selbsttest bestanden, keine Fehler; Ladeerlaubnis 0 (D7 an, EN nicht beschaltet). Schuetz und Aktoren abgeklemmt | Ruhebetrieb auf der Steuerung bestaetigt |
 | Zephyr-Treiber KSZ8081, Reg. 0x1F Bit 7 | Treiber setzt Bit 7 nur bei `interface-type = "rmii"` (Logik des RNA); beim RND waehlt Bit 7 = 1 den 25-MHz-Modus mit REF_CLK-Ausgang. Mit `"rmii-25MHz"` lieferte der PHY keinen REF_CLK: MAC nicht gestartet (MACCR im Resetwert, DMAOMR FTF haengt), Netz-LED blinkt, MDIO funktionierte (BMSR `0x7849`) | fuer den RND `"rmii"` eintragen (Testgerät 2026-10-24, SWD-Lesebefund) |
 | Start ueber den Original-Bootloader (Testgerät, [wallbe2/docs/bootloader.md](../../wallbe2/docs/bootloader.md#startablauf-bootloader-box-t-firmware-081)) | springt nach `0x08010000`, wenn das erste Wort ein SRAM-Stack-Pointer ist, sonst keine Pruefung; IWDG laeuft dann schon (etwa 33 s, LSI-abhaengig 22..62 s), PRIMASK = 1, PLL eingestellt; zaehlt IWDG-Resets in BKP16 und geht nach dem 5. in den Update-Betrieb | Wallfree bei `0x08010000` mit Bootloader moeglich; Zephyr gibt PRIMASK beim Start des Hauptthreads frei und schaltet vor der PLL-Konfiguration auf HSI; Wallfree uebernimmt den IWDG frueh (SOLL-BOOT-03) und loescht die Reset-Flags; BKP10..16 bleiben unberuehrt |
 | Simulation: stdout blockgepuffert, wenn das Log in eine Datei geht | Meldungen erscheinen Kilobytes spaeter; sah wie ein Log-Stillstand nach Telnet-Abbruch aus (kein Befund fuer die Steuerung) | stdout zeilengepuffert |
@@ -313,5 +314,7 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   325). Damit scheitert die Netzuebernahme (alles oder nichts) bei jeder Adresse mit einer 0 im
   Oktett, z. B. 192.168.0.x. Klaeren, ob fehlend = 0 gilt (Code der Originalfirmware), dann
   ggf. Import anpassen.
+- Weboberflaeche: Logo in der Kopfzeile (Nutzerwunsch 2026-10-24; Flashbedarf beachten, Ausfuehrung klaeren:
+  Wortmarke als Text ist umgesetzt).
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
   (bisher nur ueber die API getestet).
