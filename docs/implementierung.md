@@ -321,7 +321,8 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   ER/LR/VR/CR ueber Register-Ausgaenge (Codes 30..33, danach Werkseinstellung zurueck) mit
   Spannung an Klemme gegen GND, LEDs der Steuerung und Front-LEDs; B) nur Verriegelungsmotor
   anklemmen, Zyklus per `lock_state` 1/0 in S1, LD-Rueckmeldung beobachten (Dauersignal oder
-  Impuls); C) CP-PWM und Schuetz erst mit Pruefstecker/EV-Simulator (H2, keiner vorhanden).
+  Impuls); C) CP-PWM und Schuetz erst mit Pruefstecker (H2, Plan und Bauanleitung:
+  [Pruefstecker](pruefstecker.md); Freigabe noch offen).
   Angeschlossen: Front-LEDs und Schluesselschalter. **A erledigt** mit `1da691a` (2026-10-24):
   Schluesselschalter an EN (0/12 V, `inputs` Bit 1, Ladeerlaubnis 1), ER/LR/VR/CR je 12 V an der
   Klemme, Front-LED ER rot, VR blau, CR gruen ([wallbe2 Hardware](../../wallbe2/docs/hardware.md)).
