@@ -336,7 +336,7 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   gelingt es. Mit D9 aus entriegelt der Automat in S1 bei CP A sofort wieder (SOLL-LOCK-23), ein
   Verriegeln per `lock_state` ist ohne Fahrzeug also nur ein Pruefzyklus. Das Testgerät jetzt:
   `in_function_ld` 22, `out_function_cr` 40 (gruen im Leerlauf wie das zweite Gerät, Nutzer 2026-10-24).
-  **Nachtrag A** (`87b9bef`): ML, XR, IN mit 12 V -> `inputs` Bit 2/3/4; XR + D8: XR ab -> S10,
+  **A, weitere Eingaenge** (`87b9bef`): ML, XR, IN mit 12 V -> `inputs` Bit 2/3/4; XR + D8: XR ab -> S10,
   XR an -> S1; IN Code 8 -> 6 A, Code 11 -> 16 A. **Reset-Taster:** kurz -> Neustart (`reset_pin`);
   im Betrieb gehalten -> Neustart und nach 5 s Werksreset, also NRST nur gepulst und PD2
   gehalten (Hypothese zur Beschaltung); Power-LED war waehrend der Wartezeit dunkel (behoben in
