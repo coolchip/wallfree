@@ -109,11 +109,16 @@
 	pinctrl-0 = <&eth_mdio_pa2 &eth_mdc_pc1>;
 	pinctrl-names = "default";
 
-	/* KSZ8081RND, Adresse 0, 25-MHz-Modus (XI ueber 470 Ohm an PA8/MCO1, Durchgang belegt) */
+	/*
+	 * KSZ8081RND, Adresse 0, 25-MHz-Modus (XI ueber 470 Ohm an PA8/MCO1, Durchgang belegt).
+	 * "rmii", nicht "rmii-25MHz": der Treiber setzt Reg. 0x1F Bit 7 nach der Logik des RNA
+	 * (1 nur bei "rmii"); beim RND waehlt Bit 7 = 1 den 25-MHz-Modus (Datenblatt 3.2.2.1,
+	 * Original 0x8180). Mit "rmii-25MHz" fehlte REF_CLK (Testgeraet 2026-10-24).
+	 */
 	phy: ethernet-phy@0 {
 		compatible = "microchip,ksz8081";
 		reg = <0x00>;
-		microchip,interface-type = "rmii-25MHz";
+		microchip,interface-type = "rmii";
 	};
 };
 
