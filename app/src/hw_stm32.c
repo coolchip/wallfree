@@ -363,6 +363,19 @@ void hw_iwdg_long(bool on)
 	LL_IWDG_ReloadCounter(IWDG);
 }
 
+/* ------------------------------------------------ Flash */
+
+#define FLASH_SR_ERRBITS (FLASH_SR_SOP | FLASH_SR_WRPERR | FLASH_SR_PGAERR | FLASH_SR_PGPERR | \
+			  FLASH_SR_PGSERR)
+
+uint32_t hw_flash_take_errors(void)
+{
+	uint32_t sr = FLASH->SR & FLASH_SR_ERRBITS;
+
+	FLASH->SR = sr; /* rc_w1 */
+	return sr;
+}
+
 /* ------------------------------------------------ Resetgrund (SOLL-RT-14) */
 
 /* BKP10..16 nutzt der Bootloader (Uebergabe SOLL-BOOT-30, Ergebnis, IWDG-Zaehler);

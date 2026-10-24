@@ -17,6 +17,7 @@ struct storage_status {
 	bool invalid_at_boot;  /**< SOLL-NVM-05: Bereich war ungueltig -> Werkseinstellungen */
 	uint32_t compactions;
 	int last_error;        /**< letzter Fehler von Speichern/Verdichten, 0 = keiner */
+	uint32_t flash_sr_boot; /**< beim Start vorgefundene FLASH_SR-Fehlerbits */
 };
 
 /** Beim Start, vor der Ladelogik: einhaengen; ungueltig -> Meldung und neu anlegen. */

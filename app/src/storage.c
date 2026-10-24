@@ -47,6 +47,7 @@ static uint8_t scratch[2048];
 static bool invalid_at_boot;
 static uint32_t compactions;
 static int last_error;
+static uint32_t flash_sr_boot; /* FLASH_SR-Fehlerbits beim Start */
 static atomic_t lock_pending; /* 0 = nichts, sonst Zustand + 1 */
 
 K_THREAD_STACK_DEFINE(storage_stack, STORAGE_STACK);
@@ -125,6 +126,10 @@ int storage_init(void)
 	fl_orig = (struct nvm_flash){.read = fa_read, .write = ro_write, .erase = ro_erase,
 				     .ctx = (void *)fa_orig, .size = fa_orig->fa_size};
 
+	flash_sr_boot = hw_flash_take_errors();
+	if (flash_sr_boot != 0) {
+		LOG_WRN("FLASH_SR-Fehlerbits beim Start: 0x%02x (geloescht)", flash_sr_boot);
+	}
 	k_mutex_lock(&nvm_mtx, K_FOREVER);
 	r = nvm_mount(&nvm, &fl_store);
 	if (r == NVM_OK && nvm.state == NVM_ST_INVALID) {
@@ -296,6 +301,7 @@ void storage_get_status(struct storage_status *st)
 	st->invalid_at_boot = invalid_at_boot;
 	st->compactions = compactions;
 	st->last_error = last_error;
+	st->flash_sr_boot = flash_sr_boot;
 	k_mutex_unlock(&nvm_mtx);
 }
 

@@ -66,6 +66,13 @@ void hw_fault_note(unsigned int reason, uint32_t pc);
  */
 void hw_reset_take(uint32_t *flags, uint32_t *bkp);
 
+/**
+ * Beim Start: Fehlerbits in FLASH_SR lesen und loeschen. Der Zephyr-Treiber laesst
+ * sonst den ersten Schreibzugriff mit -EIO scheitern, wenn vor Wallfree (Bootloader)
+ * ein Fehlerbit stehen blieb (Testgeraet 2026-10-24). @return vorgefundene Fehlerbits
+ */
+uint32_t hw_flash_take_errors(void);
+
 /** IWDG starten (SOLL-BOOT-03). @return 0 oder Fehler */
 int hw_wdt_start(uint32_t timeout_ms);
 

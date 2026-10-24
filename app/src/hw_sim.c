@@ -376,6 +376,13 @@ void hw_iwdg_long(bool on)
 	hw_wdt_feed();
 }
 
+/* ------------------------------------------------ Flash */
+
+uint32_t hw_flash_take_errors(void)
+{
+	return 0;
+}
+
 /* ------------------------------------------------ Resetgrund */
 
 void hw_reset_take(uint32_t *flags, uint32_t *bkp)
