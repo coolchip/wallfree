@@ -52,7 +52,7 @@ Umsetzungsstand und Festlegungen im Detail: [Implementierung](implementierung.md
 | SOLL-GEN-05 | Die Ladelogik ist ein **hardwareunabhaengiges Modul** mit definierten Ein-/Ausgaengen (Messwerte, Schalterstellungen, Parameter, Zeit -> CP-Tastgrad, Schuetz, Verriegelung, Ausgangsfunktionen, Status), das vollstaendig auf dem PC getestet werden kann. | Arch §6 |
 | SOLL-GEN-06 | Der Schutzpfad (Fehlerstrom, Schuetzfehler, Versorgung, Watchdog) ist vom Ladeautomaten getrennt und wirkt ereignisgesteuert direkt auf das Schuetz. | E1, E2 |
 
-Beispielkonfiguration der vorhandenen Wallbox: [Hardware, Ist-Einstellungen](../../wallbe2/docs/hardware.md#3-ist-einstellungen-laut-weboberflaeche)
+Beispielkonfiguration der vorhandenen Wallbox: [Hardware, Ist-Einstellungen](../../wallbe2/docs/hardware.md#3-ist-einstellungen-laut-weboberflaeche-box-g)
 (keine Vorgabe).
 
 ### 1.2 Plattform (entschieden, nicht Gegenstand dieser Spezifikation)
@@ -659,7 +659,7 @@ Labornetzteil (3/9 V), Schluesselschalter an EN (wallbe, Beispielkonfiguration).
 ## 10. Parameter
 
 Spalten: **P** = persistent (Parameterspeicher, Abschnitt 13), **B** = haengt von der
-aeusseren Beschaltung ab (Beispielwerte in [Hardware, Ist-Einstellungen](../../wallbe2/docs/hardware.md#3-ist-einstellungen-laut-weboberflaeche)).
+aeusseren Beschaltung ab (Beispielwerte in [Hardware, Ist-Einstellungen](../../wallbe2/docs/hardware.md#3-ist-einstellungen-laut-weboberflaeche-box-g)).
 Alle Schreibzugriffe mit Grenzpruefung; ungueltige Werte werden mit Fehlermeldung
 abgelehnt (E14). Namen sind Vorschlaege (WARP-angelehnt, englisch).
 
