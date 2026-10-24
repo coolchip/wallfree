@@ -16,7 +16,7 @@ Tests: [Test und Simulation](test-und-simulation.md).
 | Anwendung (`app/`) | baut fuer `ev_cc_ac1` ohne Warnung; als PC-Simulation Ende-zu-Ende getestet |
 | Weboberflaeche (`web/`) | fertig (Bereiche, Verlauf), Browser-Durchlauf in der Simulation |
 | evcc-Anbindung | gegen die Simulation geprueft (evcc 0.317.2) |
-| Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) | auf dem Testgerät gestartet: Takt, Bootloader-Start, Ethernet/PHY, DIP/Drehschalter, CP-Messung (Ruhe, A), RCM-Selbsttest, Eingang EN (Schluesselschalter), Ausgaenge ER/LR/VR/CR (je 12 V), Parameterspeicher; Aktoren, Schuetz, PWM, LD, Eingaenge LD/ML/XR/IN, Modul-LEDs ausser Power noch ungeprueft |
+| Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) | auf dem Testgerät gestartet: Takt, Bootloader-Start, Ethernet/PHY, DIP/Drehschalter, CP-Messung (Ruhe, A, F), RCM-Selbsttest, alle fuenf Eingaenge, Ausgaenge ER/LR/VR/CR (je 12 V), Verriegelung mit LD, Power-/Error-LED, Parameterspeicher, Reset-Taster/Werksreset; Schuetz, PWM, Connect-/Ready-LED (nur kurz bzw. erst mit Fahrzeug) noch ungeprueft |
 | Update-Uebergabe an den Bootloader (SOLL-SH-10, SOLL-BOOT-30) | Bootloader ausgelesen (H0 am Testgerät); Umsetzung nach seiner Analyse |
 
 ## Module der Ladelogik und Bausteine
@@ -254,7 +254,7 @@ Beim RAM (Heap umgesetzt, Nutzer 2026-10-21):
 | Kandidat | Ersparnis | Befund |
 | --- | --- | --- |
 | **umgesetzt:** System-Heap (`CONFIG_HEAP_MEM_POOL_SIZE`) 16 KB -> 512 B | 15,9 KB | einziger Verweis auf `k_malloc` ist `websocket_send_msg` beim Maskieren, das nur die Client-Seite tut (Server: `is_client = 0`); Bau mit Heap 0 scheitert nur an diesem Verweis. Die 512 B halten ihn aufloesbar und fangen einen unerwarteten kleinen Nutzer ab. Kommt eine Zephyr-Funktion mit Heap-Bedarf hinzu (z. B. DNS, `HEAP_MEM_POOL_ADD_SIZE_*`), erneut pruefen |
-| Thread-Stacks | je nach Messung | erst nach H1 (`kernel thread stacks`); die Simulation (64 Bit) ist nicht aussagekraeftig |
+| Thread-Stacks | je nach Messung | Testgerät (`87b9bef`, 2 h, mit Parameter speichern, Verriegeln, API, ohne Browser/evcc/MQTT): knapp `shell_telnet` 1720/2048, `sysworkq` 800/1024; reichlich `logging` 208/2048, `mqtt` 584/2048 (MQTT aus), `IRQ` 320/2048, `evse_logic` 648/2048, `evse_prot` 192/1024. Erst nach Messung unter Last (Browser, evcc, MQTT) aendern; die Simulation (64 Bit) ist nicht aussagekraeftig |
 | `NET_MAX_CONN` 10 -> 8 | ~1,3 KB | 672 B je TCP-Verbindung; Bedarf: 4 HTTP, Telnet, MQTT, Listener, TIME_WAIT |
 | Ethernet-DMA-Puffer (2 x 6 KB) | – | Anzahl fest im HAL-Treiber (4 + 4) |
 
@@ -335,7 +335,12 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   Code 3 schlaegt Verriegeln fehl (Stift ausgefahren, Zustand "entriegelt"), mit Code 22
   gelingt es. Mit D9 aus entriegelt der Automat in S1 bei CP A sofort wieder (SOLL-LOCK-23), ein
   Verriegeln per `lock_state` ist ohne Fahrzeug also nur ein Pruefzyklus. Das Testgerät jetzt:
-  `in_function_ld` 22, `out_function_cr` 40 (gruen im Leerlauf, Nutzer 2026-10-24).
+  `in_function_ld` 22, `out_function_cr` 40 (gruen im Leerlauf wie das zweite Gerät, Nutzer 2026-10-24).
+  **Nachtrag A** (`87b9bef`): ML, XR, IN mit 12 V -> `inputs` Bit 2/3/4; XR + D8: XR ab -> S10,
+  XR an -> S1; IN Code 8 -> 6 A, Code 11 -> 16 A. **Reset-Taster:** kurz -> Neustart (`reset_pin`);
+  im Betrieb gehalten -> Neustart und nach 5 s Werksreset, also NRST nur gepulst und PD2
+  gehalten (Hypothese zur Beschaltung); Power-LED war waehrend der Wartezeit dunkel (behoben in
+  `50a06ea`, auf dem Testgerät noch zu pruefen). Nach dem Werksreset Zugang, CR 40 und LD 22 neu gesetzt.
 - Ausgangsfunktionen auf dem Testgerät: Mit den Defaults (VR 16, CR 17) bleibt die Front-LED im Leerlauf
   dunkel; das Original hatte CR = 9 (Testgerät) bzw. 40 (zweites Gerät), also gruen im Leerlauf. Ob das Testgerät
   per Parameter CR = 40 (oder 9) bekommt, entscheidet der Nutzer (Konfiguration, SOLL-GEN-02).
