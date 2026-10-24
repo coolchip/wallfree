@@ -790,7 +790,7 @@ function useRoute() {
 }
 
 // Wortmarke (Entwurf des Nutzers) als Text: passt sich Kopfhoehe und dunklem Modus an
-const Logo = () => html`<h1 class="logo"><a href="#/">Wall<span>free</span></a></h1>`;
+const Logo = () => html`<h1 class="logo"><a href="#/"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" /><path d="M18.5 4 8 18h7l-2 10 11-14h-7z" /></svg>Wall<span>free</span></a></h1>`;
 
 function Main() {
 	const live = useLive();

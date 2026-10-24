@@ -16,7 +16,9 @@ header { display: flex; align-items: center; gap: 12px; padding: 10px 16px;
 	background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; }
 header h1 { font-size: 18px; margin: 0; }
 .logo { font: italic 800 24px/1 Montserrat, Inter, Arial, sans-serif !important; letter-spacing: -.04em; }
-.logo a { color: var(--fg); text-decoration: none; }
+.logo a { color: var(--fg); text-decoration: none; display: inline-flex; align-items: center; }
+.logo svg { width: 24px; height: 24px; flex: none; margin-right: 7px; }
+.logo rect { fill: var(--logo-free); } .logo path { fill: var(--card); }
 .logo span { color: var(--logo-free); padding-right: .08em; }
 header .grow { flex: 1; }
 header { flex-wrap: wrap; }
