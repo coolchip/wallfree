@@ -20,6 +20,12 @@
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
 #define FACTORY_RESET_MS 5000 /* E22 */
+/* Schalter: PA11/PA12 haben nur den internen Pull-up; nach dem Einschalten braucht der
+ * Pegel einige ms (Testgeraet las D8 sonst als an). Erst warten, dann stabil lesen. */
+#define SWITCH_SETTLE_MS 20
+#define SWITCH_STEP_MS   10
+#define SWITCH_STABLE    3  /* gleiche Lesungen in Folge */
+#define SWITCH_MAX_READS 30
 #define BLINK_5HZ_MS     100  /* halbe Periode */
 
 /* SOLL-BOOT-20: Reset-Taster beim Start 5 s gedrueckt -> Werkseinstellungen.
@@ -42,6 +48,29 @@ static bool check_factory_reset(void)
 }
 
 /* SOLL-BOOT-20, SOLL-LED-01: Power-LED 5 Hz bis zum Loslassen */
+/* SOLL-BOOT-06/SOLL-IO-30: einmal beim Start, aber erst wenn der Wert stabil ist */
+static void read_switches_stable(evse_dip_t *dip, uint8_t *rotary)
+{
+	evse_dip_t d, last_d = 0;
+	uint8_t r, last_r = 0;
+	int same = 0;
+
+	k_msleep(SWITCH_SETTLE_MS);
+	for (int i = 0; i < SWITCH_MAX_READS && same < SWITCH_STABLE; i++) {
+		evse_task_wdt_feed();
+		hw_gpio_read_switches(&d, &r);
+		same = (i > 0 && d == last_d && r == last_r) ? same + 1 : 1;
+		last_d = d;
+		last_r = r;
+		k_msleep(SWITCH_STEP_MS);
+	}
+	if (same < SWITCH_STABLE) {
+		LOG_WRN("Schalter nicht stabil, letzter Wert gilt");
+	}
+	*dip = last_d;
+	*rotary = last_r;
+}
+
 static void blink_until_released(void)
 {
 	bool on = true;
@@ -91,7 +120,7 @@ int main(void)
 	evse_task_wdt_feed();
 
 	/* SOLL-BOOT-06: DIP und Drehschalter nur beim Start lesen */
-	hw_gpio_read_switches(&dip, &rotary);
+	read_switches_stable(&dip, &rotary);
 	cfg.dip = dip;
 	cfg.rotary = rotary;
 	LOG_INF("DIP 0x%03x, Drehschalter %u", dip, rotary);
