@@ -49,20 +49,60 @@ int bind(int fd, __CONST_SOCKADDR_ARG addr, socklen_t len)
 /* sofortiger Neustart wie ein Hardware-Reset (auch aus einer ISR): ohne die
  * Exit-Ablaeufe von Zephyr; die Flash-Datei ist per MAP_SHARED eingeblendet
  * und damit bereits geschrieben */
-void wf_sim_host_reset_now(void)
+static void close_all(void)
 {
-	char **argv;
-	int argc;
-
 	fflush(stdout);
 	fflush(stderr);
-	nsi_get_cmd_line_args(&argc, &argv);
 	/* syscall statt close(): close loest im gemeinsamen Programm sonst
 	 * Zephyrs close() auf (zvfs) */
 	for (int fd = 3; fd < 1024; fd++) {
 		(void)syscall(SYS_close, fd);
 	}
+}
+
+void wf_sim_host_reset_now(void)
+{
+	char **argv;
+	int argc;
+
+	nsi_get_cmd_line_args(&argc, &argv);
+	close_all();
 	(void)execv("/proc/self/exe", argv);
 	nsi_print_error_and_exit("wallfree-sim: Neustart fehlgeschlagen (%s)\n", strerror(errno));
+}
+
+void wf_sim_host_exec_bootloader(const char *script, unsigned int port)
+{
+	char **argv;
+	int argc;
+	char exe[4096];
+	char portstr[16];
+	ssize_t n = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
+
+	if (n <= 0) {
+		nsi_print_error_and_exit("wallfree-sim: Programmpfad unbekannt\n");
+	}
+	exe[n] = '\0';
+	snprintf(portstr, sizeof(portstr), "%u", port);
+	nsi_get_cmd_line_args(&argc, &argv);
+	/* python3 -I skript --port P -- programm argumente... */
+	char *args[argc + 8];
+	int k = 0;
+
+	args[k++] = "python3";
+	args[k++] = "-I";
+	args[k++] = (char *)script;
+	args[k++] = "--port";
+	args[k++] = portstr;
+	args[k++] = "--";
+	args[k++] = exe;
+	for (int i = 1; i < argc; i++) {
+		args[k++] = argv[i];
+	}
+	args[k] = NULL;
+	close_all();
+	(void)execvp("python3", args);
+	nsi_print_error_and_exit("wallfree-sim: Bootloader-Ersatz nicht startbar (%s)\n",
+				 strerror(errno));
 }
 

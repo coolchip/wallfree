@@ -147,6 +147,8 @@ ZTEST(api_events, test_json)
 		{{.seq = 6, .t = 17, .type = WF_EV_METER, .a = 2, .b = 1},
 		 "{\"seq\":6,\"t_ms\":17,\"type\":\"meter\",\"status\":\"ok\","
 		 "\"energy_decreased\":true}"},
+		{{.seq = 7, .t = 18, .type = WF_EV_UPDATE, .a = 1, .b = 2},
+		 "{\"seq\":7,\"t_ms\":18,\"type\":\"update\",\"ok\":true,\"mode\":2}"},
 	};
 
 	for (size_t i = 0; i < ARRAY_SIZE(t); i++) {

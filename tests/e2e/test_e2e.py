@@ -15,6 +15,7 @@ import os
 import re
 import shutil
 import socket
+import struct
 import subprocess
 import tempfile
 import threading
@@ -39,13 +40,14 @@ class SimCase(unittest.TestCase):
     """Ein Prozess je Klasse, frische Flash-Datei."""
 
     extra_args = ()
+    env = {}
 
     @classmethod
     def setUpClass(cls):
         if not os.path.exists(EXE):
             raise unittest.SkipTest(f"{EXE} fehlt (scripts/run-e2e.sh baut es)")
         cls.tmp = tempfile.mkdtemp(prefix="wallfree-e2e-")
-        cls.sim = Sim(EXE, cls.tmp, free_port(), cls.extra_args)
+        cls.sim = Sim(EXE, cls.tmp, free_port(), cls.extra_args, cls.env)
         cls.sim.start()
 
     @classmethod
@@ -785,6 +787,101 @@ class T5Mqtt(SimCase):
         self.sim.proc.kill()
         self.sim.proc.wait()
         self.broker.wait(self.PREFIX + "/online", lambda r, p: p == "false")
+
+
+class T6Update(SimCase):
+    """Update-Uebergabe an den Bootloader (SOLL-BOOT-30..33, SOLL-SH-10) mit dem
+    Ersatz-Bootloader scripts/bootloader-sim.py."""
+
+    env = {"WALLFREE_SIM_BOOTLOADER": os.path.join(REPO, "scripts/bootloader-sim.py"),
+           "WALLFREE_SIM_BOOTLOADER_WAIT": "8"}
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.out = os.path.join(cls.tmp, "upload.bin")
+        cls.sim.env["WALLFREE_SIM_BOOTLOADER_OUT"] = cls.out
+        cls.sim.stop()
+        cls.sim.start()
+
+    def image(self, sp=0x20020000, size=100000):
+        body = bytes((i * 7 + 3) & 0xFF for i in range(size)) + b"WALLFREE-IMAGE:test\0"
+        return struct.pack("<II", sp, 0x08010201) + body
+
+    def update(self, data, *args):
+        path = os.path.join(self.tmp, "image.bin")
+        with open(path, "wb") as f:
+            f.write(data)
+        return subprocess.run(
+            ["sh", os.path.join(REPO, "scripts/update.sh"), *args,
+             f"127.0.0.1:{self.sim.http_port}", path],
+            capture_output=True, text=True, timeout=150)
+
+    def update_events(self):
+        log = self.sim.get_json("/system/log", self.auth)["entries"]
+        return [x["event"] for x in log if x["kind"] == "event" and x["event"]["type"] == "update"]
+
+    def test_01_ueber_api(self):
+        T6Update.auth = self.set_credentials()
+        data = self.image()
+        r = self.update(data, "-u", f"{USER}:{PASSWORD}")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        with open(self.out, "rb") as f:
+            self.assertEqual(f.read(), data, "Bootloader erhielt genau die Datei")
+        info = self.sim.get_json("/system/info", self.auth)
+        self.assertEqual(info["reset_reason"], "update")
+        self.assertEqual(info["update_result"], {"mode": 2, "ok": True})
+        self.assertEqual(len(self.update_events()), 1)
+        self.assertTrue(self.update_events()[0]["ok"])
+        self.assertIn("bootloader-sim: 100028 Byte empfangen, gueltig", self.sim.log_text())
+
+    def test_02_shell_und_ungueltiges_abbild(self):
+        boots = self.sim.boots()
+        out = self.shell("evse bootloader")
+        self.assertIn("binnen 2 min", out)
+        r = self.update(self.image(sp=0xFFFFFFFF), "--upload-only")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.sim.wait_restart(boots)
+        info = self.sim.get_json("/system/info", self.auth)
+        self.assertEqual(info["update_result"], {"mode": 2, "ok": False})
+        self.assertFalse(self.update_events()[0]["ok"])
+
+    def test_03_ohne_upload_und_doppelt(self):
+        boots = self.sim.boots()
+        r = self.sim.request("POST", "/system/update", b"", auth=self.auth)
+        self.assertEqual(r.status, 202, r)
+        self.assertIn("wait_s", r.json())
+        self.assertEqual(self.sim.request("POST", "/system/update", b"", auth=self.auth).status,
+                         409)
+        self.sim.wait_restart(boots, timeout=40)  # Zeitablauf im Ersatz-Bootloader: 8 s
+        info = self.sim.get_json("/system/info", self.auth)
+        self.assertEqual(info["update_result"], {"mode": 2, "ok": False})
+
+    def test_04_waehrend_laden(self):
+        self.shell("sim car C")
+        self.sim.wait_state(self.auth, lambda s: s["charger_state"] == 3, what="Laden")
+        boots = self.sim.boots()
+        r = self.update(self.image(), "-u", f"{USER}:{PASSWORD}")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.sim.wait_restart(boots)
+        log = self.sim.log_text()
+        # geordnetes Ende (SOLL-BOOT-30): Schuetz aus vor der Uebergabe
+        self.assertIn("Uebergabe an den Bootloader", log)
+        self.assertNotIn("nach Fristablauf", log)
+        self.sim.wait_up()
+        self.shell("sim car A")
+
+    def test_05_ohne_bootloader(self):
+        self.sim.stop()
+        self.sim.env.pop("WALLFREE_SIM_BOOTLOADER")
+        self.sim.start()
+        boots = self.sim.boots()
+        r = self.sim.request("POST", "/system/update", b"", auth=self.auth)
+        self.assertEqual(r.status, 202, r)
+        self.sim.wait_restart(boots)
+        info = self.sim.get_json("/system/info", self.auth)
+        self.assertEqual(info["reset_reason"], "update")
+        self.assertEqual(info["update_result"], {"mode": 2, "ok": False})
 
 
 if __name__ == "__main__":

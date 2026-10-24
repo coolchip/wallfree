@@ -3,6 +3,8 @@
 #ifndef WALLFREE_APP_SYSINFO_H_
 #define WALLFREE_APP_SYSINFO_H_
 
+#include <stdbool.h>
+#include <stdint.h>
 #include <wallfree/api/json.h>
 #include <wallfree/api/reset.h>
 
@@ -13,7 +15,16 @@ enum wf_reset sysinfo_reset_reason(void);
 uint32_t sysinfo_reset_flags(void);
 const char *sysinfo_version(void);
 
-/** {"firmware": ..., "reset_reason": ..., "reset_flags": n, "uptime_ms": n} */
+/**
+ * Ergebnis eines Updates vor diesem Start (SOLL-BOOT-33, BKP12 des Bootloaders).
+ * @return false, wenn keins vorliegt; sonst Modus und Erfolg.
+ */
+bool sysinfo_update_result(uint8_t *mode, bool *ok);
+
+/**
+ * {"firmware": ..., "reset_reason": ..., "reset_flags": n, "uptime_ms": n,
+ *  "update_result": null | {"mode": n, "ok": bool}}
+ */
 void sysinfo_json(struct wf_jbuf *b);
 
 #endif

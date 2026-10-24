@@ -76,6 +76,16 @@ uint32_t hw_flash_take_errors(void);
 /** Fehlerbits in FLASH_SR, gelesen vor allen Treibern (Diagnose der Herkunft). */
 uint32_t hw_flash_errors_early(void);
 
+/**
+ * Uebergabe an den Original-Bootloader (SOLL-BOOT-30/31): sicherer Zustand, BKP10 = 2
+ * (Web-Update), BKP11 = 3 Versuche, BKP15 = 0, BKP13/14 = IP und Maske in lwIP-Byteordnung
+ * (0 = Bootloader nimmt 192.168.0.8), Resetgrund "update" in BKP19, Systemreset.
+ */
+FUNC_NORETURN void hw_bootloader_handover(uint32_t ip, uint32_t mask);
+
+/** Beim Start: BKP12 (Ergebnis eines Updates, SOLL-BOOT-33) lesen und loeschen. */
+uint32_t hw_update_result_take(void);
+
 /** IWDG starten (SOLL-BOOT-03). @return 0 oder Fehler */
 int hw_wdt_start(uint32_t timeout_ms);
 

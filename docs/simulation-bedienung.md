@@ -45,6 +45,12 @@ er noch die alten Zugangsdaten: neuen Tab oder privates Fenster oeffnen. Beenden
 Oberflaeche oder `evse reboot` startet den Prozess selbst neu; das Modell (z. B. angestecktes
 Fahrzeug) bleibt dabei erhalten.
 
+Firmware-Update ausprobieren: unter System eine `.bin`-Datei waehlen (z. B.
+`build/ev_cc_ac1/zephyr/zephyr.bin`) und "Update starten". Die Simulation uebergibt an einen
+Ersatz-Bootloader (`scripts/bootloader-sim.py`), der wie das Original die Datei annimmt und
+danach neu startet; aufgespielt wird nichts, es laeuft weiter die Simulation. Notweg ohne
+Browser: `scripts/update.sh -u <benutzer>:<passwort> 127.0.0.1:8081 <datei.bin>`.
+
 Zum Testen mit evcc: [Test und Simulation](test-und-simulation.md#evcc-gegen-die-simulation).
 
 ## Telnet: Pfeiltasten und Historie

@@ -44,7 +44,7 @@ const char *wf_reset_name(enum wf_reset r)
 	static const char *const n[] = {
 		"unknown", "power_on", "brownout", "reset_pin", "watchdog", "window_watchdog",
 		"low_power", "software", "supervision_limit", "fault", "user_restart",
-		"factory_reset", "interface_hang",
+		"factory_reset", "interface_hang", "update",
 	};
 
 	return (unsigned int)r < sizeof(n) / sizeof(n[0]) ? n[r] : "unknown";

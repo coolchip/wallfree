@@ -23,6 +23,19 @@ void netcfg_get(struct wf_sysconf *active, struct wf_sysconf *saved);
 bool netcfg_restart_required(void);
 
 /**
+ * Aktuelle IPv4-Adresse und Maske, wie sie im Speicher stehen (erstes Oktett im
+ * niederwertigsten Byte); 0, wenn keine Adresse (SOLL-BOOT-31).
+ */
+void netcfg_ipv4(uint32_t *ip, uint32_t *mask);
+
+/**
+ * Adresse, unter der der Bootloader nach der Uebergabe antwortet: die aktuelle
+ * oder ohne Adresse 192.168.0.8 (SOLL-BOOT-31). Liefert auch @p ip / @p mask fuer
+ * die Uebergabe.
+ */
+void netcfg_bootloader_addr(char out[16], uint32_t *ip, uint32_t *mask);
+
+/**
  * Mehrere Werte als JSON-Objekt setzen (atomar: alle gueltig oder keiner).
  * @return HTTP-Status 200/400; Antwort in @p out
  */

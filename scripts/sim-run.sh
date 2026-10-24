@@ -15,4 +15,6 @@ if [ "$1" = "--build" ] || [ ! -x "$OUT/zephyr/zephyr.exe" ]; then
 	(cd "$HOME/zephyrproject/zephyr" &&
 		west build -b native_sim/native/64 "$REPO/app" -d "$OUT")
 fi
+# Update-Uebergabe (SOLL-BOOT-30): Ersatz fuer den Update-Betrieb des Bootloaders
+export WALLFREE_SIM_BOOTLOADER="${WALLFREE_SIM_BOOTLOADER-$REPO/scripts/bootloader-sim.py}"
 exec "$OUT/zephyr/zephyr.exe" --flash="$REPO/build/sim-flash.bin" "$@"

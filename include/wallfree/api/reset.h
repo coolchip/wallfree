@@ -37,6 +37,7 @@ enum wf_reset {
 	WF_RST_USER,         /**< geordneter Neustart auf Anforderung (SOLL-RT-22) */
 	WF_RST_FACTORY,      /**< nach Werkseinstellungen */
 	WF_RST_NET_HANG,     /**< Netz-/Shell-Thread haengt (SOLL-RT-11) */
+	WF_RST_UPDATE,       /**< Uebergabe an den Bootloader (SOLL-BOOT-30) */
 	WF_RST_COUNT,
 };
 

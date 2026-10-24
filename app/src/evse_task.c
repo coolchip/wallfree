@@ -65,6 +65,8 @@ void evse_release(void)
 static int64_t reboot_deadline;
 static atomic_t reboot_pending;
 static enum wf_reset reboot_code;
+static bool handover;           /* statt Reset an den Bootloader (SOLL-BOOT-30) */
+static uint32_t handover_ip, handover_mask;
 
 static void reboot_work_fn(struct k_work *w);
 static K_WORK_DELAYABLE_DEFINE(reboot_work, reboot_work_fn);
@@ -84,7 +86,11 @@ static void reboot_work_fn(struct k_work *w)
 {
 	ARG_UNUSED(w);
 	if (reboot_logged) {
-		hw_reset_with(reboot_code); /* zuerst sicherer Zustand */
+		/* beide zuerst sicherer Zustand */
+		if (handover) {
+			hw_bootloader_handover(handover_ip, handover_mask);
+		}
+		hw_reset_with(reboot_code);
 	}
 	struct evse *e = evse_acquire();
 	bool off = evse_contactor_is_off(e);
@@ -95,7 +101,8 @@ static void reboot_work_fn(struct k_work *w)
 			/* Schuetz sofort aus, nicht erst nach der Log-Wartezeit */
 			hw_safe_state_regs();
 		}
-		LOG_WRN("Neustart%s", off ? "" : " nach Fristablauf (Schuetz hart abgeschaltet)");
+		LOG_WRN("%s%s", handover ? "Uebergabe an den Bootloader" : "Neustart",
+			off ? "" : " nach Fristablauf (Schuetz hart abgeschaltet)");
 		reboot_logged = true;
 		k_work_schedule(&reboot_work, K_MSEC(REBOOT_LOG_MS));
 		return;
@@ -103,18 +110,31 @@ static void reboot_work_fn(struct k_work *w)
 	k_work_schedule(&reboot_work, K_MSEC(100));
 }
 
-int evse_task_reboot_orderly(enum wf_reset code)
+static int orderly(enum wf_reset code, bool to_bootloader, uint32_t ip, uint32_t mask)
 {
 	if (!atomic_cas(&reboot_pending, 0, 1)) {
 		return -EALREADY;
 	}
 	reboot_code = code;
+	handover = to_bootloader;
+	handover_ip = ip;
+	handover_mask = mask;
 	evse_request_shutdown(evse_acquire());
 	evse_release();
 	reboot_deadline = k_uptime_get() + REBOOT_WAIT_MS;
 	/* kurz warten, damit Antworten (HTTP, Shell) noch hinausgehen */
 	k_work_schedule(&reboot_work, K_MSEC(300));
 	return 0;
+}
+
+int evse_task_reboot_orderly(enum wf_reset code)
+{
+	return orderly(code, false, 0, 0);
+}
+
+int evse_task_update_orderly(uint32_t ip, uint32_t mask)
+{
+	return orderly(WF_RST_UPDATE, true, ip, mask);
 }
 
 void evse_task_maint_begin(void)

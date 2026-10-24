@@ -39,5 +39,6 @@ ZTEST(api_reset, test_names)
 		zassert_not_equal(strlen(wf_reset_name(r)), 0);
 	}
 	zassert_str_equal(wf_reset_name(WF_RST_USER), "user_restart");
+	zassert_str_equal(wf_reset_name(WF_RST_UPDATE), "update");
 	zassert_str_equal(wf_reset_name(WF_RST_COUNT), "unknown");
 }

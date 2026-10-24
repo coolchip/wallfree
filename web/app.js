@@ -170,6 +170,7 @@ function evText(e) {
 	case 'contactor': return 'Schütz ' + (e.on ? 'ein' : 'aus');
 	case 'meter': return 'Zähler ' + (METER_STATUS[e.status] || e.status) +
 		(e.energy_decreased ? ', Zählerstand gesunken' : '');
+	case 'update': return 'Firmware-Update ' + (e.ok ? 'erfolgreich' : 'fehlgeschlagen');
 	}
 	return e.type;
 }
@@ -565,6 +566,122 @@ const dur = (ms) => {
 		: Math.floor(m / 1440) + ' d ' + Math.floor(m % 1440 / 60) + ' h';
 };
 
+// Firmware-Update (SOLL-BOOT-30..33). Die Datei bleibt im Browser; die Seite laeuft weiter,
+// waehrend die Steuerung an den Original-Bootloader uebergibt. Der antwortet unter derselben
+// Adresse auf jedes GET mit HTML (Wallfree immer mit JSON, auch ohne Anmeldung), nimmt die
+// Datei als Formular an /upload.cgi an und startet danach die neue Firmware.
+const IMAGE_MAX = 0x60000; // Sektor 4..6, mehr loescht der Bootloader nicht
+const TAG = 'WALLFREE-IMAGE:';
+
+// Vorpruefung: was der Bootloader selbst nicht prueft. @return {version|null} oder Fehlertext
+function checkImage(buf) {
+	if (buf.byteLength < 8) return 'Datei zu klein';
+	if (buf.byteLength > IMAGE_MAX) return 'Datei zu groß (höchstens 384 KB)';
+	const dv = new DataView(buf), sp = dv.getUint32(0, true), rv = dv.getUint32(4, true);
+	if ((sp & 0x2FF00000) !== 0x20000000 || !(rv & 1) || rv < 0x08010000 || rv >= 0x08070000) {
+		return 'Kein Firmware-Abbild für die Adresse 0x08010000';
+	}
+	const b = new Uint8Array(buf), t = new TextEncoder().encode(TAG);
+	outer: for (let i = 0; i + t.length < b.length; i++) {
+		for (let k = 0; k < t.length; k++) if (b[i + k] !== t[k]) continue outer;
+		let j = i + t.length, v = '';
+		while (j < b.length && b[j] && v.length < 40) v += String.fromCharCode(b[j++]);
+		return { version: v };
+	}
+	return { version: null };
+}
+
+// Wer antwortet unter der eigenen Adresse? 'wallfree', 'bootloader' oder 'weg'
+async function probe() {
+	try {
+		const r = await fetch('/system/info', { cache: 'no-store', signal: AbortSignal.timeout(2000) });
+		const t = await r.text();
+		return t.trim().startsWith('{') ? 'wallfree' : r.ok ? 'bootloader' : 'weg';
+	} catch (e) { return 'weg'; }
+}
+
+async function waitFor(what, seconds) {
+	for (let i = 0; i < seconds; i++) {
+		if (await probe() === what) return true;
+		await new Promise((r) => setTimeout(r, 1000));
+	}
+	return false;
+}
+
+const STEPS = ['Übergabe an den Bootloader', 'Warten auf den Bootloader', 'Hochladen',
+	'Neustart', 'Ergebnis'];
+
+function Update() {
+	const [file, setFile] = useState(null); // {name, buf, check}
+	const [step, setStep] = useState(-1);
+	const [msg, setMsg] = useState(null);
+	const pick = async (ev) => {
+		const f = ev.target.files[0];
+		setMsg(null);
+		if (!f) { setFile(null); return; }
+		const buf = await f.arrayBuffer();
+		setFile({ name: f.name, buf, check: checkImage(buf) });
+	};
+	const run = async () => {
+		const c = file.check, ver = c.version;
+		const foreign = 'Kein Wallfree-Abbild (z. B. Originalfirmware). Danach ist diese ' +
+			'Weboberfläche nicht mehr erreichbar. Wirklich aufspielen?';
+		if (!confirm(ver ? 'Firmware ' + ver + ' aufspielen? Ein laufender Ladevorgang wird beendet.'
+			: foreign)) return;
+		setMsg(null);
+		try {
+			setStep(0);
+			const r = await post('/system/update', {});
+			setStep(1);
+			if (!await waitFor('bootloader', 60)) {
+				throw new Error('Der Bootloader antwortet nicht. Er wartet unter http://' + r.address +
+					'/ bis zu 2 min auf einen Upload (von Hand möglich).');
+			}
+			setStep(2);
+			const fd = new FormData();
+			fd.append('datafile', new Blob([file.buf], { type: 'application/octet-stream' }),
+				file.name || 'firmware.bin');
+			// Antwort und Verbindungsende sind beim Bootloader nicht verlaesslich; das
+			// Ergebnis meldet Wallfree nach dem Neustart (SOLL-BOOT-33)
+			try {
+				await fetch('/upload.cgi', { method: 'POST', body: fd, signal: AbortSignal.timeout(30000) });
+			} catch (e) { /* weiter mit dem Neustart */ }
+			setStep(3);
+			if (!ver) {
+				setStep(5);
+				setMsg({ ok: true, text: 'Übertragen. Die Steuerung startet die aufgespielte Firmware.' });
+				return;
+			}
+			if (!await waitFor('wallfree', 180)) throw new Error('Wallfree meldet sich nicht zurück.');
+			setStep(4);
+			const si = await api('/system/info');
+			const ok = si.update_result && si.update_result.ok && si.firmware === ver;
+			setStep(5);
+			setMsg({ ok, text: ok ? 'Update erfolgreich, Firmware ' + si.firmware + '. Seite lädt neu …'
+				: 'Update fehlgeschlagen, es läuft Firmware ' + si.firmware + '.' });
+			if (ok) setTimeout(() => location.reload(), 3000);
+		} catch (e) {
+			setStep(-1);
+			setMsg({ ok: false, text: e.message });
+		}
+	};
+	const busy = step >= 0 && step < 5;
+	const c = file && file.check;
+	return html`<${Card} title="Firmware-Update">
+		<div class="row"><input type="file" accept=".bin" disabled=${busy} onChange=${pick} /></div>
+		${c && html`<p class=${typeof c === 'string' ? 'bad msg' : c.version ? 'msg' : 'warn msg'}>
+			${typeof c === 'string' ? c : c.version ? 'Wallfree ' + c.version + ', ' +
+			Math.round(file.buf.byteLength / 1024) + ' KB' : 'Kein Wallfree-Abbild (z. B. Originalfirmware)'}</p>`}
+		${step >= 0 && html`<ol class="msg">${STEPS.map((s, i) => html`<li
+			class=${i < step ? 'ok' : i === step ? '' : 'muted'}>${s}${i === step && busy ? ' …' : ''}</li>`)}</ol>`}
+		<div class="row msg"><button class="primary" disabled=${!c || typeof c === 'string' || busy}
+			onClick=${run}>Update starten</button></div>
+		<${Msg} m=${msg} />
+		<p class="muted msg">Die Datei geht an den Bootloader der Steuerung; ohne Upload startet er nach
+			2 min wieder die bisherige Firmware. Die Einstellungen bleiben erhalten.</p>
+	<//>`;
+}
+
 function SystemPage() {
 	const [si, setSi] = useState(null);
 	const [msg, setMsg] = useState(null);
@@ -579,10 +696,13 @@ function SystemPage() {
 			<tr><td>Firmware</td><td class="num">${si.firmware}</td></tr>
 			<tr><td>Laufzeit</td><td class="num">${dur(si.uptime_ms)}</td></tr>
 			<tr><td>Letzter Reset</td><td class="num">${si.reset_reason}</td></tr>
+			${si.update_result && html`<tr><td>Letztes Update</td><td class="num ${si.update_result.ok ? 'ok' : 'bad'}">
+				${si.update_result.ok ? 'erfolgreich' : 'fehlgeschlagen'}</td></tr>`}
 		</table>`}
 		<div class="row msg"><button onClick=${() => restart(setMsg)}>Neu starten</button></div>
 		<${Msg} m=${msg} />
-	<//>`;
+	<//>
+	<${Update} />`;
 }
 
 function Credentials({ first }) {

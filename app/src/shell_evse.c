@@ -417,6 +417,25 @@ static int cmd_reboot(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+/* SOLL-SH-10, SOLL-BOOT-30..32: nur die Uebergabe; Upload von Hand oder scripts/update.sh */
+static int cmd_bootloader(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	char addr[16];
+	uint32_t ip, mask;
+
+	netcfg_bootloader_addr(addr, &ip, &mask);
+	if (evse_task_update_orderly(ip, mask) != 0) {
+		shell_print(sh, "Neustart oder Update laeuft bereits");
+		return 0;
+	}
+	shell_print(sh, "Uebergabe an den Bootloader: Laden endet geordnet (hoechstens 15 s).");
+	shell_print(sh, "Dann http://%s/ oeffnen und das Abbild binnen 2 min hochladen", addr);
+	shell_print(sh, "(oder scripts/update.sh --upload-only %s datei.bin).", addr);
+	return 0;
+}
+
 /* ------------------------------------------------ Zaehler (SOLL-MTR-33) */
 
 static int cmd_meter(const struct shell *sh, size_t argc, char **argv)
@@ -545,6 +564,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_evse,
 	SHELL_CMD_ARG(errors, &sub_errors, "aktive Fehler, Historie", cmd_errors, 1, 0),
 	SHELL_CMD_ARG(selftest, NULL, "RCM-Selbsttest (nur S1, CP A)", cmd_selftest, 1, 0),
 	SHELL_CMD_ARG(reboot, NULL, "geordneter Neustart (SOLL-RT-22)", cmd_reboot, 1, 0),
+	SHELL_CMD_ARG(bootloader, NULL, "Update: Uebergabe an den Bootloader (SOLL-SH-10)",
+		      cmd_bootloader, 1, 0),
 	SHELL_CMD_ARG(nvm, NULL, "Zustand des Parameterspeichers", cmd_nvm, 1, 0),
 	SHELL_CMD_ARG(meter, NULL, "Energiezaehler: Messwerte und Fehlerzaehler", cmd_meter, 1, 0),
 	SHELL_CMD_ARG(mqtt, NULL, "MQTT: Verbindung und Zaehler", cmd_mqtt, 1, 0),

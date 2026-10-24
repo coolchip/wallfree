@@ -74,8 +74,9 @@ class Response:
 class Sim:
     """Ein laufender native_sim-Prozess mit eigener Flash-Datei."""
 
-    def __init__(self, exe, workdir, http_port, extra_args=()):
+    def __init__(self, exe, workdir, http_port, extra_args=(), env=None):
         self.exe = os.path.abspath(exe)
+        self.env = dict(env or {})
         self.workdir = workdir
         self.http_port = http_port
         self.flash = os.path.join(workdir, "flash.bin")
@@ -95,7 +96,7 @@ class Sim:
             [self.exe, f"--flash={self.flash}", f"--http-port={self.http_port}",
              *self.extra_args],
             stdout=self.log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
-            cwd=self.workdir)
+            cwd=self.workdir, env={**os.environ, **self.env})
         try:
             self.wait_up(timeout)
         except AssertionError:

@@ -133,6 +133,14 @@ int main(void)
 
 	hw_analog_init();                  /* SOLL-BOOT-07 */
 	int r = evse_task_start(&cfg, lock); /* SOLL-BOOT-08..10 */
+	uint8_t upd_mode;
+	bool upd_ok;
+
+	if (sysinfo_update_result(&upd_mode, &upd_ok)) {
+		/* SOLL-BOOT-33 */
+		evse_task_event_push((struct wf_event){
+			.t = k_uptime_get(), .type = WF_EV_UPDATE, .a = upd_ok, .b = upd_mode});
+	}
 
 	storage_start();
 	netcfg_init();          /* Hostname, DHCP bzw. feste Adresse, Telnet */

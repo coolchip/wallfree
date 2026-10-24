@@ -701,6 +701,26 @@ static void system_restart(struct http_client_ctx *client, struct res *r,
 	respond(rsp, HTTP_202_ACCEPTED, 2);
 }
 
+/* SOLL-BOOT-30..32: Uebergabe an den Bootloader; den Upload macht die Weboberflaeche */
+static void system_update(struct http_client_ctx *client, struct res *r,
+			  struct http_response_ctx *rsp)
+{
+	ARG_UNUSED(client);
+	ARG_UNUSED(r);
+	char addr[16];
+	uint32_t ip, mask;
+
+	netcfg_bootloader_addr(addr, &ip, &mask);
+	if (evse_task_update_orderly(ip, mask) != 0) {
+		respond_error(rsp, HTTP_409_CONFLICT, "Neustart oder Update laeuft bereits");
+		return;
+	}
+	int n = snprintf(out, sizeof(out), "{\"address\":\"%s\",\"wait_s\":120,\"upload_s\":30}",
+			 addr);
+
+	respond(rsp, HTTP_202_ACCEPTED, n);
+}
+
 static void system_info(struct http_client_ctx *client, struct res *r,
 			struct http_response_ctx *rsp)
 {
@@ -755,6 +775,7 @@ JSON_RESOURCE(system_config_r, "/system/config", BIT(HTTP_GET) | BIT(HTTP_POST),
 JSON_RESOURCE(system_config_info_r, "/system/config_info", BIT(HTTP_GET), system_config_info,
 	      false, 0);
 JSON_RESOURCE(system_restart_r, "/system/restart", BIT(HTTP_POST), system_restart, false, 16);
+JSON_RESOURCE(system_update_r, "/system/update", BIT(HTTP_POST), system_update, false, 16);
 
 /* ------------------------------------------------ /mqtt/state (SOLL-MQTT-30) */
 

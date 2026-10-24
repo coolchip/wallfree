@@ -412,6 +412,44 @@ void hw_fault_note(unsigned int reason, uint32_t pc)
 	posix_print_warning("SIM: Fehler %u bei pc 0x%08x\n", reason, pc);
 }
 
+/*
+ * Bootloader: Ist WALLFREE_SIM_BOOTLOADER gesetzt (Pfad zu scripts/bootloader-sim.py),
+ * uebernimmt dieses Skript den HTTP-Port wie der Update-Betrieb des Original-
+ * Bootloaders und startet danach die Simulation mit dem Ergebnis in BKP12 neu.
+ * Sonst gilt das Update sofort als fehlgeschlagen (BKP12 = Modus << 8).
+ */
+#define BOOTLOADER_ENV "WALLFREE_SIM_BOOTLOADER"
+#define BKP12_ENV      "WALLFREE_SIM_BKP12"
+
+FUNC_NORETURN void hw_bootloader_handover(uint32_t ip, uint32_t mask)
+{
+	char v[32];
+	const char *mock = nsi_host_getenv(BOOTLOADER_ENV);
+
+	hw_safe_state_regs();
+	snprintf(v, sizeof(v), "%x:%x", WF_RSTF_SFT | WF_RSTF_PIN,
+		 wf_reset_bkp_value(WF_RST_UPDATE));
+	(void)nsi_host_setenv(RESET_ENV, v, 1);
+	posix_print_warning("SIM: Uebergabe an den Bootloader (IP 0x%08x, Maske 0x%08x)\n", ip,
+			    mask);
+	if (mock == NULL || mock[0] == '\0') {
+		(void)nsi_host_setenv(BKP12_ENV, "200", 1);
+		restart(v);
+	}
+	model_save();
+	wf_sim_host_exec_bootloader(mock, hw_sim_http_port());
+	CODE_UNREACHABLE;
+}
+
+uint32_t hw_update_result_take(void)
+{
+	const char *v = nsi_host_getenv(BKP12_ENV);
+	uint32_t r = v != NULL ? (uint32_t)strtoul(v, NULL, 16) : 0;
+
+	(void)nsi_host_setenv(BKP12_ENV, "", 1);
+	return r;
+}
+
 FUNC_NORETURN void hw_reset_with(enum wf_reset code)
 {
 	char v[32];

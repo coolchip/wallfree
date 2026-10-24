@@ -14,6 +14,7 @@
  *
  * Nur gebaut, auf Hardware nicht ausgefuehrt.
  */
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <zephyr/kernel.h>
@@ -156,6 +157,37 @@ static bool net_connected(void)
 	return iface != NULL && net_if_is_carrier_ok(iface) &&
 	       net_if_ipv4_get_global_addr(iface, NET_ADDR_PREFERRED) != NULL;
 #endif
+}
+
+void netcfg_ipv4(uint32_t *ip, uint32_t *mask)
+{
+	*ip = 0;
+	*mask = 0;
+#if !defined(CONFIG_NET_NATIVE_OFFLOADED_SOCKETS)
+	struct net_if *iface = net_if_get_default();
+	struct net_in_addr *a = NULL;
+
+	if (iface != NULL) {
+		a = net_if_ipv4_get_global_addr(iface, NET_ADDR_PREFERRED);
+	}
+	if (a != NULL) {
+		struct net_in_addr m = net_if_ipv4_get_netmask_by_addr(iface, a);
+
+		/* s_addr liegt in Netzbyteordnung im Speicher: als uint32_t auf dem
+		 * Cortex-M3 (little-endian) ist das erste Oktett das niederwertigste
+		 * Byte, wie lwIP im Bootloader es erwartet */
+		*ip = a->s_addr;
+		*mask = m.s_addr;
+	}
+#endif
+}
+
+void netcfg_bootloader_addr(char out[16], uint32_t *ip, uint32_t *mask)
+{
+	netcfg_ipv4(ip, mask);
+	uint32_t a = *ip != 0 ? *ip : 0x0800A8C0u; /* 192.168.0.8 des Bootloaders */
+
+	snprintf(out, 16, "%u.%u.%u.%u", a & 0xFF, (a >> 8) & 0xFF, (a >> 16) & 0xFF, a >> 24);
 }
 
 static void netled_fn(struct k_work *w)

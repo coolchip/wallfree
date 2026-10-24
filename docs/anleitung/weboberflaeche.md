@@ -438,12 +438,36 @@ Sie es deshalb nur in einem vertrauenswürdigen Netz.
 | --- | --- |
 | Firmware | Stand der Firmware |
 | Laufzeit | Zeit seit dem letzten Start |
-| Letzter Reset | Grund des letzten Starts: `power_on` Einschalten, `user_restart` Neustart über Oberfläche oder Wartungszugang, `factory_reset` nach Werksreset, `reset_pin` Reset-Taster, `brownout` Unterspannung, `watchdog` / `window_watchdog` / `supervision_limit` / `interface_hang` die Überwachung hat neu gestartet, `fault` Programmfehler |
+| Letzter Reset | Grund des letzten Starts: `power_on` Einschalten, `user_restart` Neustart über Oberfläche oder Wartungszugang, `update` nach einem Firmware-Update, `factory_reset` nach Werksreset, `reset_pin` Reset-Taster, `brownout` Unterspannung, `watchdog` / `window_watchdog` / `supervision_limit` / `interface_hang` die Überwachung hat neu gestartet, `fault` Programmfehler |
+| Letztes Update | nur nach einem Firmware-Update: erfolgreich oder fehlgeschlagen |
 
 **Neu starten** startet die Steuerung neu, z. B. damit geänderte Netzwerk- oder
 Zählereinstellungen wirken. Ein laufender Ladevorgang wird vorher geordnet beendet. Die Seite
 lädt nach etwa 25 Sekunden neu. Verlauf und Protokolle beginnen danach leer; alle
 Einstellungen bleiben erhalten.
+
+### 8.1 Firmware-Update
+
+1. Unter **Firmware-Update** die Firmware-Datei (`.bin`) auswählen. Die Seite prüft sie sofort
+   und zeigt bei einer Wallfree-Datei deren Version. Eine ungeeignete Datei wird abgelehnt.
+2. **Update starten** und die Rückfrage bestätigen. Ein laufender Ladevorgang wird geordnet
+   beendet.
+3. Die Seite zeigt den Fortschritt: Übergabe an den Bootloader, Warten auf den Bootloader,
+   Hochladen, Neustart, Ergebnis. Das dauert etwa eine Minute. Die Seite in dieser Zeit **nicht
+   schließen**; die Anzeige „getrennt“ im Kopf ist dabei normal.
+4. Nach „Update erfolgreich“ lädt die Seite neu. Unter System steht dann die neue Firmware und
+   „Letztes Update: erfolgreich“; die Übersicht nennt das Update unter den letzten Ereignissen.
+
+Die Einstellungen bleiben bei einem Update erhalten. Die Datei geht an den Bootloader der
+Steuerung, ein eigenes kleines Programm, das unter derselben Adresse antwortet und die Firmware
+annimmt. Er prüft den Inhalt nicht; deshalb prüft die Seite vorher. Eine Datei, die keine
+Wallfree-Firmware ist (z. B. die Firmware des Herstellers), spielt die Seite nur nach einer
+ausdrücklichen Rückfrage auf; danach ist diese Oberfläche nicht mehr erreichbar.
+
+Bricht das Update ab (z. B. Seite geschlossen, Netz unterbrochen), wartet der Bootloader bis zu
+dreimal 2 Minuten auf die Datei und startet dann wieder die bisherige Firmware. In dieser Zeit
+zeigt er unter der Adresse der Steuerung eine einfache Seite, auf der sich die Datei auch von Hand
+hochladen lässt. Ein Fahrzeug sollte während des Updates nicht angesteckt sein.
 
 ## 9 Störungen und Abhilfe
 
@@ -455,7 +479,8 @@ Einstellungen bleiben erhalten.
 | „zu viele Fehlversuche“ | Sperre nach falschen Anmeldungen ([Abschnitt 3](#3-erste-anmeldung)). Warten (höchstens 5 Minuten) und dann richtig anmelden. Auch Programme mit veralteten Zugangsdaten (z. B. ein Energiemanagement) lösen die Sperre aus; dort die Zugangsdaten anpassen. |
 | Fahrzeug lädt nicht | Übersicht: Zeile unter dem Ring („Vorgabe: Laden aus“, „Laden gesperrt“) und Kachel Fehler prüfen; Insights › Fehler. Bei „Wartet auf Freigabe“ fehlt die Freigabe ([10.4](#104-freigabe-und-verfügbarkeit)). |
 | Zähler „gestört“ | [7.4](#74-zähler) |
-| Passwort vergessen / Steuerung unerreichbar | **Werksreset:** Reset-Taster der Steuerung beim Einschalten gedrückt halten, bis die Power-LED nach 5 Sekunden schnell blinkt, dann loslassen. Alle Einstellungen und die Zugangsdaten sind danach im Werkszustand (`admin` / `wallfree`, Netzwerk per DHCP). |
+| Firmware-Update fehlgeschlagen | Unter System steht „Letztes Update: fehlgeschlagen“; es läuft die bisherige Firmware. Update wiederholen. Meldet die Seite „Der Bootloader antwortet nicht“, die genannte Adresse im Browser öffnen und die Datei dort innerhalb von 2 Minuten von Hand hochladen. |
+| Passwort vergessen / Steuerung unerreichbar | **Werksreset:** Reset-Taster der Steuerung gedrückt halten. Die Steuerung startet neu, die Power-LED blinkt langsam; nach 5 Sekunden blinkt sie schnell, dann loslassen (geht auch beim Einschalten). Alle Einstellungen und die Zugangsdaten sind danach im Werkszustand (`admin` / `wallfree`, Netzwerk per DHCP). Kurzes Drücken startet die Steuerung nur neu. |
 
 ## 10 Anhang
 

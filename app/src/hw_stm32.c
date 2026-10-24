@@ -437,3 +437,33 @@ FUNC_NORETURN void hw_reset_with(enum wf_reset code)
 	NVIC_SystemReset();
 	CODE_UNREACHABLE;
 }
+
+/* ------------------------------------------------ Bootloader (SOLL-BOOT-30..33) */
+
+/* Bedeutung: wallbe2 docs/bootloader.md, Abschnitt Update-Betrieb */
+#define BL_MODE_WEB  2
+#define BL_ATTEMPTS  3
+
+FUNC_NORETURN void hw_bootloader_handover(uint32_t ip, uint32_t mask)
+{
+	hw_safe_state_regs();
+	bkp_access();
+	LL_RTC_BAK_SetRegister(RTC, LL_RTC_BKP_DR10, BL_MODE_WEB);
+	LL_RTC_BAK_SetRegister(RTC, LL_RTC_BKP_DR11, BL_ATTEMPTS);
+	LL_RTC_BAK_SetRegister(RTC, LL_RTC_BKP_DR15, 0);
+	LL_RTC_BAK_SetRegister(RTC, LL_RTC_BKP_DR13, ip);
+	LL_RTC_BAK_SetRegister(RTC, LL_RTC_BKP_DR14, mask);
+	LL_RTC_BAK_SetRegister(RTC, RESET_BKP, wf_reset_bkp_value(WF_RST_UPDATE));
+	__disable_irq();
+	NVIC_SystemReset();
+	CODE_UNREACHABLE;
+}
+
+uint32_t hw_update_result_take(void)
+{
+	bkp_access();
+	uint32_t v = LL_RTC_BAK_GetRegister(RTC, LL_RTC_BKP_DR12);
+
+	LL_RTC_BAK_SetRegister(RTC, LL_RTC_BKP_DR12, 0);
+	return v;
+}

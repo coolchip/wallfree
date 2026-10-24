@@ -31,6 +31,13 @@ void evse_release(void);
  */
 int evse_task_reboot_orderly(enum wf_reset code);
 
+/**
+ * Update-Uebergabe (SOLL-BOOT-30): wie der geordnete Neustart, am Ende aber an den
+ * Bootloader mit @p ip / @p mask (netcfg_ipv4). Kehrt sofort zurueck.
+ * @return 0 oder -EALREADY
+ */
+int evse_task_update_orderly(uint32_t ip, uint32_t mask);
+
 /** IWDG gleich zu Beginn von main starten (SOLL-BOOT-03). @return 0 oder Fehler */
 int evse_task_wdt_start(void);
 
