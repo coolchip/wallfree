@@ -315,12 +315,12 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   Oktett, z. B. 192.168.0.x. Klaeren, ob fehlend = 0 gilt (Code der Originalfirmware), dann
   ggf. Import anpassen.
 - **Hardwarepruefung auf dem Testgerät in Stufen** (Steuerung ueber Shell/API von Wallfree, Nutzer
-  beobachtet, keine Pruefspitzen unter Netzspannung): A) Eingaenge (Schluesselschalter an EN ->
-  `inputs`, Ladeerlaubnis), Ausgaenge ER/LR/VR/CR ueber Register-Ausgaenge (Codes 30..33, danach
-  Werkseinstellung zurueck), LEDs der Steuerung; B) nur Verriegelungsmotor anklemmen, Zyklus per
-  `lock_state` 1/0 in S1, LD-Rueckmeldung beobachten (Dauersignal oder Impuls); C) CP-PWM und
-  Schuetz erst mit Pruefstecker/EV-Simulator (H2). Offen vor A: was noch angeschlossen ist
-  (Front-LEDs, Schluesselschalter), ob ein Pruefstecker vorhanden ist. Naechstes Abbild bringt das
-  Blitz-Symbol im Kopf mit.
+  beobachtet und misst; unter Spannung nur an den Klemmen, nie direkt auf der Platine, Nutzer
+  2026-10-24): A) Eingaenge (Schluesselschalter an EN -> `inputs`, Ladeerlaubnis), Ausgaenge
+  ER/LR/VR/CR ueber Register-Ausgaenge (Codes 30..33, danach Werkseinstellung zurueck) mit
+  Spannung an Klemme gegen GND, LEDs der Steuerung und Front-LEDs; B) nur Verriegelungsmotor
+  anklemmen, Zyklus per `lock_state` 1/0 in S1, LD-Rueckmeldung beobachten (Dauersignal oder
+  Impuls); C) CP-PWM und Schuetz erst mit Pruefstecker/EV-Simulator (H2, keiner vorhanden).
+  Angeschlossen: Front-LEDs und Schluesselschalter. Abbild fuer A: `1da691a` (mit Blitz-Symbol).
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
   (bisher nur ueber die API getestet).
