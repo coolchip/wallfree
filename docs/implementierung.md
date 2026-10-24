@@ -17,7 +17,7 @@ Tests: [Test und Simulation](test-und-simulation.md).
 | Weboberflaeche (`web/`) | fertig (Bereiche, Verlauf), Browser-Durchlauf in der Simulation |
 | evcc-Anbindung | gegen die Simulation geprueft (evcc 0.317.2) |
 | Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) | auf dem Testgerät gestartet: Takt, Bootloader-Start, Ethernet/PHY, DIP/Drehschalter, CP-Messung (Ruhe, A, F), RCM-Selbsttest, alle fuenf Eingaenge, Ausgaenge ER/LR/VR/CR (je 12 V), Verriegelung mit LD, Power-/Error-LED, Parameterspeicher, Reset-Taster/Werksreset; Schuetz, PWM, Connect-/Ready-LED (nur kurz bzw. erst mit Fahrzeug) noch ungeprueft |
-| Update-Uebergabe an den Bootloader (SOLL-SH-10, SOLL-BOOT-30..34) | Bootloader analysiert (Update-Betrieb belegt, SOLL-BOOT-31); Umsetzung offen, SOLL-BOOT-32/33 zu bestaetigen |
+| Update-Uebergabe an den Bootloader (SOLL-SH-10, SOLL-BOOT-30..34) | Bootloader analysiert (Update-Betrieb belegt, SOLL-BOOT-31); Umsetzung laeuft (SOLL-BOOT-32/33 bestaetigt) |
 
 ## Module der Ladelogik und Bausteine
 
