@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Schaltplan Pruefstecker (Fahrzeugnachbildung), siehe docs/pruefstecker.md -->
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="840" viewBox="0 0 900 840"
+     font-family="DejaVu Sans, Arial, sans-serif" font-size="14">
+  <rect width="900" height="840" fill="#ffffff"/>
+  <g stroke="#000000" stroke-width="2" fill="none">
+    <!-- Schienen CP und PE -->
+    <line x1="72" y1="60" x2="788" y2="60"/>
+    <line x1="72" y1="520" x2="788" y2="520"/>
+
+    <!-- S4 Taster CP-PE (Zustand E) -->
+    <line x1="140" y1="60" x2="140" y2="250"/>
+    <line x1="140" y1="300" x2="140" y2="520"/>
+    <line x1="152" y1="246" x2="152" y2="304"/>
+    <line x1="152" y1="275" x2="172" y2="275"/>
+    <line x1="172" y1="265" x2="172" y2="285"/>
+
+    <!-- Zweig Fahrzeug: S1, D1 (Anode oben), S5 parallel zu D1 -->
+    <line x1="320" y1="60" x2="320" y2="110"/>
+    <line x1="320" y1="160" x2="337" y2="114"/>
+    <line x1="320" y1="160" x2="320" y2="215"/>
+    <polygon points="302,215 338,215 320,250"/>
+    <line x1="302" y1="250" x2="338" y2="250"/>
+    <line x1="320" y1="250" x2="320" y2="320"/>
+    <line x1="320" y1="190" x2="440" y2="190"/>
+    <line x1="440" y1="190" x2="440" y2="210"/>
+    <line x1="440" y1="260" x2="457" y2="214"/>
+    <line x1="440" y1="260" x2="440" y2="285"/>
+    <line x1="440" y1="285" x2="320" y2="285"/>
+
+    <!-- Sammelleitung hinter der Diode -->
+    <line x1="320" y1="320" x2="660" y2="320"/>
+
+    <!-- R2 2,74 kOhm -->
+    <line x1="320" y1="320" x2="320" y2="370"/>
+    <rect x="310" y="370" width="20" height="70"/>
+    <line x1="320" y1="440" x2="320" y2="520"/>
+
+    <!-- S2 + R3 (Zustand C) -->
+    <line x1="490" y1="320" x2="490" y2="340"/>
+    <line x1="490" y1="390" x2="507" y2="344"/>
+    <line x1="490" y1="390" x2="490" y2="410"/>
+    <rect x="480" y="410" width="20" height="70"/>
+    <line x1="490" y1="480" x2="490" y2="520"/>
+
+    <!-- S3 + R4 (Zustand D) -->
+    <line x1="660" y1="320" x2="660" y2="340"/>
+    <line x1="660" y1="390" x2="677" y2="344"/>
+    <line x1="660" y1="390" x2="660" y2="410"/>
+    <rect x="650" y="410" width="20" height="70"/>
+    <line x1="660" y1="480" x2="660" y2="520"/>
+
+    <!-- PP: Drehschalter S6 auf Widerstaende nach PE -->
+    <line x1="72" y1="655" x2="180" y2="655"/>
+    <line x1="120" y1="655" x2="120" y2="772"/>
+    <line x1="180" y1="655" x2="256" y2="642"/>
+    <line x1="270" y1="610" x2="320" y2="610"/>
+    <rect x="320" y="600" width="70" height="20"/>
+    <line x1="390" y1="610" x2="540" y2="610"/>
+    <line x1="270" y1="640" x2="320" y2="640"/>
+    <rect x="320" y="630" width="70" height="20"/>
+    <line x1="390" y1="640" x2="540" y2="640"/>
+    <line x1="270" y1="670" x2="320" y2="670"/>
+    <rect x="320" y="660" width="70" height="20"/>
+    <line x1="390" y1="670" x2="540" y2="670"/>
+    <line x1="270" y1="700" x2="320" y2="700"/>
+    <rect x="320" y="690" width="70" height="20"/>
+    <line x1="390" y1="700" x2="540" y2="700"/>
+    <line x1="270" y1="730" x2="320" y2="730"/>
+    <rect x="320" y="720" width="70" height="20"/>
+    <line x1="390" y1="730" x2="540" y2="730"/>
+    <line x1="540" y1="520" x2="540" y2="730"/>
+  </g>
+
+  <!-- Schaltkontakte und Klemmen -->
+  <g stroke="#000000" stroke-width="2" fill="#ffffff">
+    <circle cx="64" cy="60" r="8"/>
+    <circle cx="64" cy="520" r="8"/>
+    <circle cx="64" cy="655" r="8"/>
+    <circle cx="796" cy="60" r="8"/>
+    <circle cx="796" cy="520" r="8"/>
+    <circle cx="120" cy="780" r="8"/>
+    <circle cx="140" cy="250" r="4"/><circle cx="140" cy="300" r="4"/>
+    <circle cx="320" cy="110" r="4"/><circle cx="320" cy="160" r="4"/>
+    <circle cx="440" cy="210" r="4"/><circle cx="440" cy="260" r="4"/>
+    <circle cx="490" cy="340" r="4"/><circle cx="490" cy="390" r="4"/>
+    <circle cx="660" cy="340" r="4"/><circle cx="660" cy="390" r="4"/>
+    <circle cx="180" cy="655" r="4"/>
+    <circle cx="262" cy="580" r="4"/>
+    <circle cx="262" cy="610" r="4"/>
+    <circle cx="262" cy="640" r="4"/>
+    <circle cx="262" cy="670" r="4"/>
+    <circle cx="262" cy="700" r="4"/>
+    <circle cx="262" cy="730" r="4"/>
+  </g>
+  <!-- Verbindungspunkte -->
+  <g fill="#000000">
+    <circle cx="140" cy="60" r="4"/><circle cx="320" cy="60" r="4"/>
+    <circle cx="140" cy="520" r="4"/><circle cx="320" cy="520" r="4"/>
+    <circle cx="490" cy="520" r="4"/><circle cx="540" cy="520" r="4"/>
+    <circle cx="660" cy="520" r="4"/>
+    <circle cx="320" cy="190" r="4"/><circle cx="320" cy="285" r="4"/>
+    <circle cx="320" cy="320" r="4"/><circle cx="490" cy="320" r="4"/>
+    <circle cx="120" cy="655" r="4"/>
+    <circle cx="540" cy="640" r="4"/><circle cx="540" cy="670" r="4"/>
+    <circle cx="540" cy="700" r="4"/><circle cx="540" cy="610" r="4"/>
+  </g>
+
+  <g fill="#000000">
+    <text x="20" y="40" font-weight="bold">CP</text>
+    <text x="20" y="505" font-weight="bold">PE</text>
+    <text x="20" y="640" font-weight="bold">PP</text>
+    <text x="16" y="82" font-size="11">Stecker</text>
+    <text x="16" y="542" font-size="11">Stecker</text>
+    <text x="16" y="677" font-size="11">Stecker</text>
+    <text x="716" y="44">Messbuchse CP</text>
+    <text x="716" y="505">Messbuchse PE</text>
+    <text x="136" y="808">Messbuchse PP</text>
+
+    <text x="182" y="262">S4 Taster</text>
+    <text x="182" y="280">"E" (CP-PE)</text>
+    <text x="345" y="132">S1 "Fahrzeug"</text>
+    <text x="345" y="150" font-size="12">aus = A</text>
+    <text x="294" y="230" text-anchor="end">D1 1N4007</text>
+    <text x="294" y="248" font-size="12" text-anchor="end">Anode oben</text>
+    <text x="465" y="232">S5 "Diode</text>
+    <text x="465" y="250">ueberbruecken"</text>
+    <text x="302" y="400" text-anchor="end">R2</text>
+    <text x="302" y="418" text-anchor="end">2,74 kOhm</text>
+    <text x="515" y="362">S2 "laden"</text>
+    <text x="512" y="442">R3</text>
+    <text x="512" y="460">1,3 kOhm</text>
+    <text x="685" y="362">S3 "Belueftung"</text>
+    <text x="682" y="442">R4</text>
+    <text x="682" y="460">270 Ohm</text>
+
+    <text x="150" y="690">S6</text>
+    <text x="150" y="708" font-size="12">Drehschalter</text>
+    <text x="276" y="584" font-size="12">1 offen (kein Kabel)</text>
+    <text x="400" y="604" font-size="12">1,5 kOhm (13 A)</text>
+    <text x="400" y="634" font-size="12">680 Ohm (20 A)</text>
+    <text x="400" y="664" font-size="12">220 Ohm (32 A)</text>
+    <text x="400" y="694" font-size="12">100 Ohm (63 A)</text>
+    <text x="400" y="724" font-size="12">47 Ohm (ungueltig)</text>
+
+    <text x="600" y="600" font-weight="bold">Stecker Typ 2</text>
+    <text x="600" y="622">bestueckt: PE, CP, PP</text>
+    <text x="600" y="644">L1, L2, L3, N: leer</text>
+    <text x="600" y="666">(keine Netzspannung</text>
+    <text x="600" y="686">im Pruefstecker)</text>
+    <text x="600" y="730" font-size="12">Widerstaende 1 %, 0,25 W</text>
+    <text x="600" y="748" font-size="12">S1, S2, S3, S5 Kippschalter</text>
+  </g>
+</svg>

@@ -23,26 +23,7 @@ Werte der Fahrzeugseite nach IEC 61851-1 Anhang A (Norm nicht im Projekt; Werte 
 veroeffentlicht und ueber die Bandgrenzen in [SOLL-CP-01](soll-spezifikation.md#4-cp--und-pp-auswertung)
 gegengeprueft).
 
-```
- CP o----+----------------------+------------- Messbuchse CP
-         |                      |
-       [S4] Taster "E"       [S1] "Fahrzeug"      (aus = A)
-         |                      |
-         |                     -+-
-         |                     \ /  D1 1N4007, Anode Richtung CP
-         |                     -+-   [S5] parallel zu D1: "Diode ueberbruecken"
-         |                      |
-         |         +------------+------------+
-         |         |            |            |
-         |      [R2 2,74k]  [S2]"laden"  [S3]"Belueftung"
-         |         |            |            |
-         |         |        [R3 1,3k]    [R4 270]
-         |         |            |            |
- PE o----+---------+------------+------------+---- Messbuchse PE
-
- PP o----[S6 Drehschalter]-------------------------- Messbuchse PP
-           offen | 1,5k | 680 | 220 | 100 | 47     (jeweils nach PE)
-```
+![Schaltplan Pruefstecker](bilder/pruefstecker.svg)
 
 | Stellung | CP gegen PE (Fahrzeugseite) | erwarteter CP-Pegel (positives Plateau) |
 | --- | --- | --- |
@@ -117,9 +98,10 @@ Schalter am Pruefstecker und misst an CP/PE (Messbuchsen) bzw. an grossen Klemme
 Schritt nennt Claude Aktion und Beobachtungspunkte. Abbruch: unerwartetes Schuetzklicken,
 Geruch, Motor laeuft dauerhaft -> F1 aus.
 
-Vor C0 zu klaeren: Was ist bei "Schuetz abgeklemmt" getrennt (Spule, Hauptkontakte oder
-beides)? Hat die Steckdose eine Notentriegelung, falls der Stecker verriegelt bleibt? Ist ein
-Oszilloskop vorhanden (sonst Pegel ueber `cp_pos`/`cp_neg` und Multimeter-Mittelwert)?
+Rahmen am Testgerät (Nutzer 2026-10-24): "Schuetz abgeklemmt" heisst **Spule abgeklemmt**; die
+Steckdose hat eine **Notentriegelung**; ein **Oszilloskop** ist vorhanden (CP-PWM, Pegel und
+Reaktionszeiten direkt messen, Tastkopf an den Messbuchsen CP/PE des Pruefsteckers).
+`unlock_check` bleibt aus.
 
 **C0 Freigabe und Vorbereitung.** Freigabe Stufe C in wallbe2/AGENTS.md (Wortlaut stimmt der
 Nutzer ab). Pruefstecker nach Abschnitt 4 geprueft. Schuetzspule weiter abgeklemmt.
