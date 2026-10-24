@@ -365,7 +365,7 @@ void hw_iwdg_long(bool on)
 
 /* ------------------------------------------------ Resetgrund (SOLL-RT-14) */
 
-/* BKP10/11/13/14/15 sind fuer die Bootloader-Uebergabe reserviert (SOLL-BOOT-30) */
+/* BKP10..16 nutzt der Bootloader (Uebergabe SOLL-BOOT-30, Ergebnis, IWDG-Zaehler) */
 #define RESET_BKP LL_RTC_BKP_DR19
 
 static void bkp_access(void)
