@@ -395,6 +395,11 @@ void hw_reset_take(uint32_t *flags, uint32_t *bkp)
 	(void)nsi_host_setenv(RESET_ENV, "", 1);
 }
 
+void hw_fault_note(unsigned int reason, uint32_t pc)
+{
+	posix_print_warning("SIM: Fehler %u bei pc 0x%08x\n", reason, pc);
+}
+
 FUNC_NORETURN void hw_reset_with(enum wf_reset code)
 {
 	char v[32];

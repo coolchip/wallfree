@@ -54,6 +54,13 @@ void hw_contactor_off_regs(void);
 FUNC_NORETURN void hw_reset_with(enum wf_reset code);
 
 /**
+ * Fehlerort fuer die Diagnose ohne Log (z. B. Absturz vor main): Programmzaehler in
+ * Backup-Register 17, 0xFA00 << 16 | Grund in Register 18; bleiben bis zum naechsten
+ * Fehler oder Stromausfall stehen und sind per SWD lesbar.
+ */
+void hw_fault_note(unsigned int reason, uint32_t pc);
+
+/**
  * Beim Start: Reset-Flags (RCC_CSR) und Code aus Backup-Register 19 lesen
  * und beide loeschen. @p flags als WF_RSTF_*.
  */

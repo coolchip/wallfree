@@ -365,7 +365,8 @@ void hw_iwdg_long(bool on)
 
 /* ------------------------------------------------ Resetgrund (SOLL-RT-14) */
 
-/* BKP10..16 nutzt der Bootloader (Uebergabe SOLL-BOOT-30, Ergebnis, IWDG-Zaehler) */
+/* BKP10..16 nutzt der Bootloader (Uebergabe SOLL-BOOT-30, Ergebnis, IWDG-Zaehler);
+ * BKP17/18 Fehlerort (hw_fault_note), BKP19 Resetgrund */
 #define RESET_BKP LL_RTC_BKP_DR19
 
 static void bkp_access(void)
@@ -391,6 +392,13 @@ void hw_reset_take(uint32_t *flags, uint32_t *bkp)
 	bkp_access();
 	*bkp = LL_RTC_BAK_GetRegister(RTC, RESET_BKP);
 	LL_RTC_BAK_SetRegister(RTC, RESET_BKP, 0);
+}
+
+void hw_fault_note(unsigned int reason, uint32_t pc)
+{
+	bkp_access();
+	LL_RTC_BAK_SetRegister(RTC, LL_RTC_BKP_DR17, pc);
+	LL_RTC_BAK_SetRegister(RTC, LL_RTC_BKP_DR18, 0xFA000000u | (reason & 0xFFFFu));
 }
 
 FUNC_NORETURN void hw_reset_with(enum wf_reset code)

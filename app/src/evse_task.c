@@ -144,9 +144,14 @@ static void fail_safe_and_reboot(const char *why)
 
 void k_sys_fatal_error_handler(unsigned int reason, const struct arch_esf *esf)
 {
-	ARG_UNUSED(esf);
 	/* SOLL-RT-21: zuerst Schuetz aus und CP -12 V, dann Neustart */
 	hw_safe_state_regs();
+#ifdef CONFIG_ARM
+	hw_fault_note(reason, esf != NULL ? esf->basic.pc : 0);
+#else
+	ARG_UNUSED(esf);
+	hw_fault_note(reason, 0);
+#endif
 	LOG_PANIC();
 	LOG_ERR("Fataler Fehler %u, Neustart", reason);
 	hw_reset_with(WF_RST_FAULT);
