@@ -282,7 +282,7 @@ Der Reiter zeigt zwei Tabellen: **Konfiguration** (dauerhaft gespeichert) und
 Bereich und ein Feld für den neuen Wert mit **OK** (oder Eingabetaste). Im leeren Feld steht
 grau die Werkseinstellung. Funktionen der Ein- und Ausgänge, Schützüberwachung und Weckfolge
 werden aus einer Liste gewählt (Code und Bezeichnung, die Werkseinstellung ist mit „Werk“
-markiert), Ja/Nein-Werte mit einem Kästchen; übernommen wird jeweils erst mit **OK**.
+markiert; die Spalte Wert zeigt dort nur den Code), Ja/Nein-Werte mit einem Kästchen; übernommen wird jeweils erst mit **OK**.
 „Feld …“ unter der Bezeichnung nennt die Nummer des entsprechenden Parameters der
 Herstellerfirmware, zur Übertragung bestehender Einstellungen.
 

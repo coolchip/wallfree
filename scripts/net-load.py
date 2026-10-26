@@ -15,7 +15,7 @@ Stufen:
     idle    alle HTTP-Plaetze mit stummen Verbindungen belegen, Freigabe nach Zeitlimit messen
     mixed   2 WebSockets + http + churn gleichzeitig
     long    Dauerlast wie Browser + evcc (2 WebSockets, Abfrage alle 2 s, Seite alle 60 s),
-            Schnappschuss alle 5 min
+            alle 5 min Laufzeit ueber HTTP (ohne Telnet)
 """
 import argparse
 import base64
@@ -457,7 +457,11 @@ def stage_long(t, a):
     t0, ok, last = time.monotonic(), True, None
     while time.monotonic() - t0 < a.t:
         time.sleep(min(300, a.t - (time.monotonic() - t0)))
-        snap = snapshot(t, f"long {(time.monotonic() - t0) / 60:.0f} min")
+        # nur HTTP: Telnet-Ausgabe haelt unter Last HTTP und WebSocket mehrere s auf (Fallstricke)
+        i = t.info()
+        snap = {"uptime_ms": i["uptime_ms"]}
+        print(f"[long {(time.monotonic() - t0) / 60:.0f} min] Laufzeit {i['uptime_ms'] / 1000:.0f} s, "
+              f"Reset {i['reset_reason']}")
         if last and snap["uptime_ms"] < last["uptime_ms"]:
             print("long: NEUSTART")
             ok = False

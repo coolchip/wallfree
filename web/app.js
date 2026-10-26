@@ -494,9 +494,9 @@ function ParamRow({ p, value, onSaved }) {
 	};
 	return html`<tr>
 		<td title=${p.name}><${Terms} text=${opts ? p.help.split(':')[0] : p.help} />${p.field ? html`<div class="muted msg">Feld ${p.field}</div>` : ''}</td>
-		<td class=${opts ? '' : 'num'}>${value === undefined ? '–' : opts ? value + ' – ' + (opts[value] || '?')
+		<td class="num">${value === undefined ? '–' : opts ? value
 			: bool ? (value ? 'ja' : 'nein') : fmt(p.name, value) + ' ' + p.unit}</td>
-		<td class="num hide-s muted">${writable && !bool ? p.min + '…' + p.max : ''}</td>
+		<td class="num hide-s muted">${writable && !bool && !opts ? p.min + '…' + p.max : ''}</td>
 		<td>${writable && html`<div class="row">
 			${opts ? html`<select value=${edit === '' ? value : edit} onChange=${(e) => setEdit(e.target.value)}>
 					${opts.map((t, i) => html`<option value=${i}>${i} – ${t}${i === p.default ? ' (Werk)' : ''}</option>`)}</select>`
