@@ -3,8 +3,8 @@
 """Netz-Lasttest gegen eine laufende Steuerung (Testgeraet) oder die Simulation.
 
 Nur Python-Standardbibliothek; liest nur (GET, WebSocket, Telnet-Diagnose), schreibt keine
-Parameter. Vor und nach jeder Stufe ein Schnappschuss (Laufzeit, Resetgrund, `net conn`,
-`kernel thread stacks`); ein Neustart zwischen zwei Schnappschuessen gilt als Fehler.
+Parameter. Vor und nach jeder Stufe ein Schnappschuss (Laufzeit, Resetgrund, `kernel thread stacks`,
+mit Netz-Shell auch `net conn`); ein Neustart zwischen zwei Schnappschuessen gilt als Fehler.
     net-load.py HOST -u USER:PW [--http 80] [--telnet 23] STUFE [STUFE ...] [-t SEK]
 Stufen:
     snap    nur Schnappschuss
@@ -232,6 +232,7 @@ class WebSocket:
 # ---------------------------------------------------------------- Stufen
 def snapshot(t, label):
     i = t.info()
+    # net conn nur mit CONFIG_NET_SHELL (seit 2026-10-26 aus); sonst ohne TCP-Zustaende
     out = t.shell(["net conn", "kernel thread stacks"])
     tcp = out.partition("Send-Seq")[2].partition("\n\n")[0]
     states = {}
@@ -243,7 +244,7 @@ def snapshot(t, label):
         r"0x[0-9a-f]+\s+(.+?)\s+\(real size\s+(\d+)\):\s+unused\s+(\d+)", out)}
     used = ", ".join(f"{k} {sz - un}/{sz}" for k, (sz, un) in sorted(stacks.items()))
     print(f"[{label}] Laufzeit {i['uptime_ms'] / 1000:.0f} s, Reset {i['reset_reason']}, "
-          f"Firmware {i['firmware']}, TCP {states or 0}")
+          f"Firmware {i['firmware']}" + (f", TCP {states}" if ctx else ""))
     print(f"[{label}] Stacks: {used}")
     return {"uptime_ms": i["uptime_ms"], "stacks": stacks, "shell": out}
 

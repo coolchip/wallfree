@@ -100,7 +100,7 @@ Gemessene Einsparmoeglichkeiten (jeweils einzeln gebaut, Basis 295 KB):
 
 | Massnahme | Ersparnis | Bemerkung |
 | --- | --- | --- |
-| `CONFIG_NET_SHELL=n` | 43 KB | Netz-Kommandos der Shell |
+| **umgesetzt:** `CONFIG_NET_SHELL=n` | 43 KB (gemessen 2026-10-26: 44 KB) | Netz-Kommandos der Shell |
 | Assert-Texte weg (`ASSERT_VERBOSE=n`, `ASSERT_NO_*_INFO=y`) | 32 KB | Pruefungen bleiben; bei Ausloesung erscheint **gar nichts** im Log (ohne `ASSERT_VERBOSE` druckt Zephyr auch Datei und Zeile nicht) |
 | **umgesetzt:** Ausdruck und Meldung weg, Datei und Zeile bleiben (`ASSERT_NO_COND_INFO=y`, `ASSERT_NO_MSG_INFO=y`) | 18,2 KB (gemessen 2026-10-21 auf 325,7 KB) | Pruefungen bleiben; bei Ausloesung `ASSERTION FAIL @ Datei:Zeile` |
 | `CONFIG_LTO=y` | 24 KB | geprueft: Interrupttabelle, HTTP-Ressourcen und Fault-Handler korrekt; Fehlersuche schwerer |
@@ -111,10 +111,9 @@ Gemessene Einsparmoeglichkeiten (jeweils einzeln gebaut, Basis 295 KB):
 
 **Entscheidung (Nutzer 2026-10-21):** Assert-Ausdruck und -Meldung sind entfernt, Datei und
 Zeile bleiben (siehe Tabelle). Die Netz-Shell (`net iface`, `ping`, `arp`, `conn`, `mem` ...)
-bleibt bis nach H1: Damit wird beim ersten Probelauf das Netz angesehen (Link, PHY-Takt,
-Adressen, Sockets, Netzpuffer); danach kann sie weg. Die Telnet-Shell selbst mit den
-`evse`-Kommandos bleibt in jedem Fall. Weitere Reihenfolge, wenn es wieder knapp wird:
-Netz-Shell (nach H1), LTO, Shell-Hilfe. TLS (mbedTLS) passt neben P1
+ist entfernt (Nutzer 2026-10-26), nachdem sie bei der Inbetriebnahme und im Netz-Lasttest auf
+Das Testgerät gebraucht wurde. Die Telnet-Shell selbst mit den `evse`- und `kernel`-Kommandos bleibt.
+Weitere Reihenfolge, wenn es wieder knapp wird: LTO, Shell-Hilfe. TLS (mbedTLS) passt neben P1
 voraussichtlich nicht (nicht gemessen); dann Speicherort und Budget neu bewerten.
 
 **Zaehleranbindung Modbus RTU (F28), umgesetzt 2026-10-21:** UART4 mit RS-485-Freigabe PC12,

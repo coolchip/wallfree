@@ -237,7 +237,7 @@ unterbrochene Verdichten wie ein Erststart aus. Getestetes Verhalten bei Stromau
 
 ## Ressourcen
 
-Stand 2026-10-21, `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B: **313 920 B Flash** (95,8 % von 320 KB), **112 940 B RAM** (86,2 %).
+Stand 2026-10-26, `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B, ohne Netz-Shell, 12 Netz-Kontexte: **277 852 B Flash** (84,8 % von 320 KB), **112 748 B RAM** (86,0 %).
 Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudget).
 
 | Anteil (gemessen beim Hinzufuegen) | Flash | RAM |
@@ -253,17 +253,17 @@ Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudge
 | Verlauf (Ringpuffer 1,2 KB) und Gliederung der Weboberflaeche in Bereiche (gzip +2,9 KB) | 5,3 KB | 1,5 KB |
 | Energiezaehler: UART-Treiber 2,1 KB, Zephyr-Modbus 2,7 KB, Interrupttabelle 1 KB, Zaehlermodul 1,4 KB, JSON/API/Shell/Parameter 2,9 KB, Weboberflaeche 1,4 KB, Rest (Treiberanteile) | 15,2 KB | 3,9 KB (Stack 1,3 KB, Modbus-Kontext 1 KB, Zaehlerzustand, WebSocket-Rahmen) |
 
-Reserve rund **13,4 KB Flash und 17,7 KB RAM**. Der RAM ist bis auf die Stacks statisch belegt
+Reserve rund **44 KB Flash und 17,9 KB RAM**. Der RAM ist bis auf die Stacks statisch belegt
 (kein Wachstum zur Laufzeit); Stacks haben MPU-Schutz (Ueberlauf -> Fault -> sicherer Zustand),
 ihre tatsaechliche Auslastung wird in H1 mit `kernel thread stacks` gemessen. Weitere
-Einsparungen in der [Architektur](architektur.md#5-speicherbudget) (Netz-Shell erst nach H1).
+Einsparungen in der [Architektur](architektur.md#5-speicherbudget).
 Beim RAM (Heap umgesetzt, Nutzer 2026-10-21):
 
 | Kandidat | Ersparnis | Befund |
 | --- | --- | --- |
 | **umgesetzt:** System-Heap (`CONFIG_HEAP_MEM_POOL_SIZE`) 16 KB -> 512 B | 15,9 KB | einziger Verweis auf `k_malloc` ist `websocket_send_msg` beim Maskieren, das nur die Client-Seite tut (Server: `is_client = 0`); Bau mit Heap 0 scheitert nur an diesem Verweis. Die 512 B halten ihn aufloesbar und fangen einen unerwarteten kleinen Nutzer ab. Kommt eine Zephyr-Funktion mit Heap-Bedarf hinzu (z. B. DNS, `HEAP_MEM_POOL_ADD_SIZE_*`), erneut pruefen |
 | Thread-Stacks | je nach Messung | Testgerät (`87b9bef`, 2 h, mit Parameter speichern, Verriegeln, API, ohne Browser/evcc/MQTT): knapp `shell_telnet` 1720/2048, `sysworkq` 800/1024; reichlich `logging` 208/2048, `mqtt` 584/2048 (MQTT aus), `IRQ` 320/2048, `evse_logic` 648/2048, `evse_prot` 192/1024. Erst nach Messung unter Last (Browser, evcc, MQTT) aendern; die Simulation (64 Bit) ist nicht aussagekraeftig |
-| `NET_MAX_CONN` 10 -> 8 | ~1,3 KB | 672 B je TCP-Verbindung; Bedarf: 4 HTTP, Telnet, MQTT, Listener, TIME_WAIT |
+| `NET_MAX_CONN`/`NET_MAX_CONTEXTS` | – | **erhoeht 10 -> 12** (Nutzer 2026-10-26): im Lasttest 8..9 von 10 belegt (Browser, 2 WebSockets, Abfrager, Telnet, 2 Listener), dazu MQTT und TIME_WAIT; 672 B je TCP-Verbindung |
 | Ethernet-DMA-Puffer (2 x 6 KB) | – | Anzahl fest im HAL-Treiber (4 + 4) |
 
 ## Annahmen der Hardwareschicht (in H1 zu pruefen)
@@ -394,13 +394,12 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   nachkommen (je 10 s Inaktivitaetsfrist, im Test 33 s; Laden unberuehrt); bei Browser + 2
   WebSockets + Abfrager + Telnet sind 8..9 von 10 Netz-Kontexten belegt (`NET_MAX_CONTEXTS`, mit
   MQTT knapp). Thread-Stacks unter Last unveraendert gegenueber der Messung ohne Last (Ressourcen).
-- **Flash-Platz** (Nutzerfrage 2026-10-25, kurz beantwortet, Pruefung offen): Die Anwendung nutzt
-  mit 320 KB bereits Sektor 4..6 ganz, mehr loescht der Bootloader nicht. Sektor 7 (128 KB, davon
-  wenige hundert Byte Parameter) kaeme nur fuer Daten in Frage, die Wallfree selbst schreibt (z. B.
-  die Weboberflaeche), mit eigenem Aktualisierungsweg und Verdichten; Sektor 3 (16 KB) nur bei
-  Verzicht auf die Originalparameter (Rueckweg, Import). Hebel stattdessen (ROM-Bericht `f6849a2`,
-  97,6 %, 7,9 KB frei): Netzwerk-Shellbefehle `CONFIG_NET_SHELL` 17 KB (abschalten oder
-  einschraenken, Entscheidung Nutzer), `app.js` minifizieren (gzip 15,8 KB, geschaetzt 4..5 KB
-  weniger), allgemeine Shell 20 KB entfaellt erst mit Telnet. Netzstack und HTTP (~120 KB) noetig.
+- **Flash-Platz**: Die Anwendung darf hoechstens 320 KB belegen (Sektor 4..6, mehr loescht der
+  Bootloader nicht). Netz-Shell entfernt (Nutzer 2026-10-26): 277 852 B (84,8 %), 44 KB frei.
+  Sektor 7 (128 KB, davon wenige hundert Byte Parameter) kaeme nur fuer Daten in Frage, die
+  Wallfree selbst schreibt (z. B. die Weboberflaeche), mit eigenem Aktualisierungsweg und
+  Verdichten; Sektor 3 (16 KB) nur bei Verzicht auf die Originalparameter (Rueckweg, Import).
+  Weitere Hebel: `app.js` minifizieren (gzip 15,8 KB, geschaetzt 4..5 KB weniger), allgemeine
+  Shell 20 KB entfaellt erst mit Telnet. Netzstack und HTTP (~120 KB) noetig.
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
   (bisher nur ueber die API getestet).
