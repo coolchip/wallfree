@@ -400,8 +400,10 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   JSON angenommen, 3 A mit Meldung abgelehnt, ohne `mqtt_commands` wirkungslos, gespeicherter
   (retained) Befehl nach Neuverbindung verworfen; Broker-Neustart -> nach 4 s wieder verbunden.
   `long` 30 min mit MQTT: kein Neustart, WebSocket-Luecke hoechstens 2,1 s, MQTT-Verbindung die
-  ganze Zeit gehalten (ohne Zustandsaenderung keine Nachrichten, wie festgelegt). Last Will auf
-  der Steuerung noch offen (braucht einen Neustart).
+  ganze Zeit gehalten (ohne Zustandsaenderung keine Nachrichten, wie festgelegt). Last Will:
+  nach Neustart ueber die API meldete der Broker `online` = `false` beim Uebernehmen der alten
+  Sitzung durch die neue Verbindung (nach 11 s), danach `online` = `true`; Abschalten von
+  `mqtt_enable` sendet `online` = `false`. Danach MQTT auf dem Testgerät wieder aus.
 - **Flash-Platz**: Die Anwendung darf hoechstens 320 KB belegen (Sektor 4..6, mehr loescht der
   Bootloader nicht). Netz-Shell entfernt (Nutzer 2026-10-26): 277 852 B (84,8 %), 44 KB frei.
   Sektor 7 (128 KB, davon wenige hundert Byte Parameter) kaeme nur fuer Daten in Frage, die
