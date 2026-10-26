@@ -262,7 +262,7 @@ Beim RAM (Heap umgesetzt, Nutzer 2026-10-21):
 | Kandidat | Ersparnis | Befund |
 | --- | --- | --- |
 | **umgesetzt:** System-Heap (`CONFIG_HEAP_MEM_POOL_SIZE`) 16 KB -> 512 B | 15,9 KB | einziger Verweis auf `k_malloc` ist `websocket_send_msg` beim Maskieren, das nur die Client-Seite tut (Server: `is_client = 0`); Bau mit Heap 0 scheitert nur an diesem Verweis. Die 512 B halten ihn aufloesbar und fangen einen unerwarteten kleinen Nutzer ab. Kommt eine Zephyr-Funktion mit Heap-Bedarf hinzu (z. B. DNS, `HEAP_MEM_POOL_ADD_SIZE_*`), erneut pruefen |
-| Thread-Stacks | je nach Messung | Testgerät (`87b9bef`, 2 h, mit Parameter speichern, Verriegeln, API, ohne Browser/evcc/MQTT): knapp `shell_telnet` 1720/2048, `sysworkq` 800/1024; reichlich `logging` 208/2048, `mqtt` 584/2048 (MQTT aus), `IRQ` 320/2048, `evse_logic` 648/2048, `evse_prot` 192/1024. Erst nach Messung unter Last (Browser, evcc, MQTT) aendern; die Simulation (64 Bit) ist nicht aussagekraeftig |
+| Thread-Stacks | je nach Messung | Testgerät (`87b9bef`, 2 h, mit Parameter speichern, Verriegeln, API, ohne Browser/evcc/MQTT): knapp `shell_telnet` 1720/2048, `sysworkq` 800/1024; reichlich `logging` 208/2048, `mqtt` 584/2048 (MQTT aus), `IRQ` 320/2048, `evse_logic` 648/2048, `evse_prot` 192/1024. Unter Last (`a8311ae`, 30 min Browser-Last, 2 WebSockets, MQTT an): `http_server_tid` 2120/4096, `mqtt` 1120/2048, `shell_telnet` 1688/2048, `sysworkq` 800/1024, `ws_push` 1096/2048, `rx_q` 912/1536, die uebrigen unveraendert; kein Stack ueber 82 %. Die Simulation (64 Bit) ist nicht aussagekraeftig |
 | `NET_MAX_CONN`/`NET_MAX_CONTEXTS` | – | **erhoeht 10 -> 12** (Nutzer 2026-10-26): im Lasttest 8..9 von 10 belegt (Browser, 2 WebSockets, Abfrager, Telnet, 2 Listener), dazu MQTT und TIME_WAIT; 672 B je TCP-Verbindung |
 | Ethernet-DMA-Puffer (2 x 6 KB) | – | Anzahl fest im HAL-Treiber (4 + 4) |
 
@@ -393,7 +393,15 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   ohne Neustart. Grenzen: Stumme Verbindungen blockieren die Weboberflaeche, solange sie
   nachkommen (je 10 s Inaktivitaetsfrist, im Test 33 s; Laden unberuehrt); bei Browser + 2
   WebSockets + Abfrager + Telnet sind 8..9 von 10 Netz-Kontexten belegt (`NET_MAX_CONTEXTS`, mit
-  MQTT knapp). Thread-Stacks unter Last unveraendert gegenueber der Messung ohne Last (Ressourcen).
+  MQTT knapp; erhoeht auf 12, Netz-Shell entfernt: `c5e5690`, `mixed` bestanden). Thread-Stacks
+  unter Last unveraendert gegenueber der Messung ohne Last (Ressourcen).
+- **MQTT auf dem Testgerät (`a8311ae`, 2026-10-26, Mosquitto 2.1 auf dem PC, ohne Anmeldung): Verbindung
+  sofort nach `mqtt_enable`; Online, Zustand, Sollstrom, Grenzen retained; Befehl als Zahl und als
+  JSON angenommen, 3 A mit Meldung abgelehnt, ohne `mqtt_commands` wirkungslos, gespeicherter
+  (retained) Befehl nach Neuverbindung verworfen; Broker-Neustart -> nach 4 s wieder verbunden.
+  `long` 30 min mit MQTT: kein Neustart, WebSocket-Luecke hoechstens 2,1 s, MQTT-Verbindung die
+  ganze Zeit gehalten (ohne Zustandsaenderung keine Nachrichten, wie festgelegt). Last Will auf
+  der Steuerung noch offen (braucht einen Neustart).
 - **Flash-Platz**: Die Anwendung darf hoechstens 320 KB belegen (Sektor 4..6, mehr loescht der
   Bootloader nicht). Netz-Shell entfernt (Nutzer 2026-10-26): 277 852 B (84,8 %), 44 KB frei.
   Sektor 7 (128 KB, davon wenige hundert Byte Parameter) kaeme nur fuer Daten in Frage, die
