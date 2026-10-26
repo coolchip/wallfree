@@ -21,6 +21,9 @@ import tempfile
 import threading
 import time
 import unittest
+import urllib.request
+import urllib.error
+import zlib
 
 import wfsim
 from wfsim import FACTORY, Digest, Sim
@@ -805,8 +808,11 @@ class T6Update(SimCase):
         cls.sim.start()
 
     def image(self, sp=0x20020000, size=100000):
+        """Testabbild mit Anhang wie scripts/image-trailer.py (SOLL-BOOT-35)"""
         body = bytes((i * 7 + 3) & 0xFF for i in range(size)) + b"WALLFREE-IMAGE:test\0"
-        return struct.pack("<II", sp, 0x08010201) + body
+        data = struct.pack("<II", sp, 0x08010201) + body
+        return data + struct.pack("<IIII", 0x474D4957, len(data), zlib.crc32(data),
+                                  ~0x474D4957 & 0xFFFFFFFF)
 
     def update(self, data, *args):
         path = os.path.join(self.tmp, "image.bin")
@@ -831,9 +837,10 @@ class T6Update(SimCase):
         info = self.sim.get_json("/system/info", self.auth)
         self.assertEqual(info["reset_reason"], "update")
         self.assertEqual(info["update_result"], {"mode": 2, "ok": True})
+        self.assertEqual(info["image"], {"crc": f"{zlib.crc32(data[:-16]):08x}", "ok": True})
         self.assertEqual(len(self.update_events()), 1)
         self.assertTrue(self.update_events()[0]["ok"])
-        self.assertIn("bootloader-sim: 100028 Byte empfangen, gueltig", self.sim.log_text())
+        self.assertIn("bootloader-sim: 100044 Byte empfangen, gueltig", self.sim.log_text())
 
     def test_02_shell_und_ungueltiges_abbild(self):
         boots = self.sim.boots()
@@ -869,9 +876,107 @@ class T6Update(SimCase):
         self.assertIn("Uebergabe an den Bootloader", log)
         self.assertNotIn("nach Fristablauf", log)
         self.sim.wait_up()
+        time.sleep(1)  # Telnet-Shell direkt nach dem Neustart noch nicht bereit
         self.shell("sim car A")
 
-    def test_05_ohne_bootloader(self):
+    def raw_upload(self, data, filler=700):
+        """Upload wie ein Browser: viele Kopfzeilen nach Content-Length (filler Byte)."""
+        b = b"----WebKitFormBoundaryTEST"
+        body = (b"--" + b + b'\r\nContent-Disposition: form-data; name="datafile"; '
+                b'filename="x.bin"\r\nContent-Type: application/octet-stream\r\n\r\n' + data +
+                b"\r\n--" + b + b"--\r\n")
+        head = (f"POST /upload.cgi HTTP/1.1\r\nHost: x\r\nContent-Length: {len(body)}\r\n"
+                f"X-Filler: {'x' * filler}\r\nContent-Type: multipart/form-data; "
+                f"boundary={b.decode()}\r\n\r\n").encode()
+        return head + body
+
+    def wait_bootloader(self, timeout=30):
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < timeout:
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{self.sim.http_port}/system/info",
+                                            timeout=1) as r:
+                    if not r.read(1).startswith(b"{"):
+                        return
+            except urllib.error.HTTPError:
+                pass  # 401 = Wallfree
+            except OSError:
+                pass
+            time.sleep(0.3)
+        self.fail("Bootloader antwortet nicht")
+
+    def send(self, req):
+        with socket.create_connection(("127.0.0.1", self.sim.http_port), timeout=30) as c:
+            c.sendall(req)
+            try:
+                c.recv(1000)
+            except OSError:
+                pass
+
+    def test_05_abgeschnitten(self):
+        """Erstes Paket mit Daten und Content-Length nicht zuletzt: der Bootloader endet zu frueh
+        und meldet trotzdem Erfolg; Wallfree erkennt das Abbild als ungueltig und sperrt das
+        Laden (SOLL-BOOT-35)."""
+        self.sim.stop()
+        self.sim.env["WALLFREE_SIM_BOOTLOADER_SEG"] = "mss"
+        self.sim.start()
+        size = 100000
+        while True:  # Endmarke ganz im letzten Paket, das kuerzer ist als die zu viel
+            data = self.image(size=size)  # gezaehlten Kopfzeilen
+            if 60 < len(self.raw_upload(data)) % 1426 < 300:
+                break
+            size += 4
+        boots = self.sim.boots()
+        self.assertEqual(self.sim.request("POST", "/system/update", b"", auth=self.auth).status,
+                         202)
+        self.wait_bootloader()
+        self.send(self.raw_upload(data))
+        self.sim.wait_restart(boots, timeout=40)
+        with open(self.out, "rb") as f:
+            got = f.read()
+        self.assertLess(len(got), len(data), "abgeschnitten wie im Original")
+        self.assertEqual(got, data[:len(got)])
+        info = self.sim.get_json("/system/info", self.auth)
+        self.assertEqual(info["update_result"], {"mode": 2, "ok": True}, "Bootloader: Erfolg")
+        self.assertFalse(info["image"]["ok"])
+        self.assertIn("INTERNAL", self.sim.get_json("/evse/errors", self.auth)["active"])
+        self.sim.wait_up()
+        time.sleep(1)  # Telnet-Shell direkt nach dem Neustart noch nicht bereit
+        self.shell("sim car C")
+        time.sleep(3)
+        self.assertEqual(self.sim.state(self.auth)["contactor_state"], 0, "kein Laden")
+        self.shell("sim car A")
+        self.sim.env.pop("WALLFREE_SIM_BOOTLOADER_SEG")
+
+    def test_06_get_bricht_upload_ab(self):
+        """Wie am Testgeraet: eine andere Anfrage waehrend des Uploads bricht ihn ab, der Bereich ist
+        geloescht, der Bootloader bleibt im Update-Betrieb; ein neuer Upload stellt her."""
+        self.sim.stop()
+        self.sim.env["WALLFREE_SIM_BOOTLOADER_RATE"] = "20000"  # 100 KB etwa 5 s
+        self.sim.start()
+        data = self.image()
+        boots = self.sim.boots()
+        self.assertEqual(self.sim.request("POST", "/system/update", b"", auth=self.auth).status,
+                         202)
+        self.wait_bootloader()
+        up = threading.Thread(target=self.send, args=(self.raw_upload(data, filler=0),))
+        up.start()
+        time.sleep(4)  # Loeschen 2,3 s, dann laufen Daten
+        urllib.request.urlopen(f"http://127.0.0.1:{self.sim.http_port}/system/info",
+                               timeout=5).read()
+        up.join()
+        self.assertIn("Upload abgebrochen", self.sim.log_text())
+        time.sleep(1)
+        self.assertEqual(self.sim.boots(), boots, "keine Firmware gestartet")
+        r = self.update(data, "--upload-only")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.sim.wait_restart(boots, timeout=40)
+        info = self.sim.get_json("/system/info", self.auth)
+        self.assertEqual(info["update_result"], {"mode": 2, "ok": True})
+        self.assertTrue(info["image"]["ok"])
+        self.sim.env.pop("WALLFREE_SIM_BOOTLOADER_RATE")
+
+    def test_07_ohne_bootloader(self):
         self.sim.stop()
         self.sim.env.pop("WALLFREE_SIM_BOOTLOADER")
         self.sim.start()

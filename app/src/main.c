@@ -136,6 +136,13 @@ int main(void)
 	uint8_t upd_mode;
 	bool upd_ok;
 
+	uint32_t img_crc;
+
+	if (sysinfo_image(&img_crc) == 0) {
+		/* SOLL-BOOT-35: ungueltiges Abbild -> Klasse P, kein Laden bis zum naechsten Start */
+		evse_acquire()->errors |= EVSE_ERR_INTERNAL;
+		evse_release();
+	}
 	if (sysinfo_update_result(&upd_mode, &upd_ok)) {
 		/* SOLL-BOOT-33 */
 		evse_task_event_push((struct wf_event){

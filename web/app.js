@@ -4,7 +4,13 @@ import { html, render, useState, useEffect, useRef } from './vendor.js';
 
 // ------------------------------------------------------------ API
 
+// Firmware-Update: Der Bootloader bricht einen Upload bei jeder anderen Anfrage ab (ein
+// gemeinsamer Zustand fuer alle Verbindungen, wallbe2 docs/bootloader.md). Waehrend des
+// Updates stellt die Seite deshalb keine Anfragen ausser denen des Update-Ablaufs.
+let quiet = false;
+
 async function api(path, opts) {
+	if (quiet) throw new Error('Update läuft');
 	const r = await fetch(path, Object.assign({ cache: 'no-store' }, opts));
 	let j = null;
 	try { j = await r.json(); } catch (e) { /* leer */ }
@@ -113,6 +119,7 @@ function useLive() {
 		};
 		const connect = () => {
 			if (ws) return;
+			if (quiet) { later(3000); return; }
 			const opened = Date.now();
 			let got = false;
 			const w = ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
@@ -572,8 +579,29 @@ const dur = (ms) => {
 // Datei als Formular an /upload.cgi an und startet danach die neue Firmware.
 const IMAGE_MAX = 0x50000; // Sektor 4..6 (320 KB), mehr loescht der Bootloader nicht
 const TAG = 'WALLFREE-IMAGE:';
+const TRAILER_MAGIC = 0x474D4957; // Anhang des Builds (SOLL-BOOT-35, scripts/image-trailer.py)
 
-// Vorpruefung: was der Bootloader selbst nicht prueft. @return {version|null} oder Fehlertext
+// CRC32 (IEEE) wie zlib und die Firmware
+function crc32(b) {
+	let c = ~0;
+	for (let i = 0; i < b.length; i++) {
+		c ^= b[i];
+		for (let k = 0; k < 8; k++) c = c & 1 ? (c >>> 1) ^ 0xEDB88320 : c >>> 1;
+	}
+	return (~c >>> 0).toString(16).padStart(8, '0');
+}
+
+// Anhang: Kennung, Laenge, CRC32, invertierte Kennung. @return CRC (hex), 'bad' oder null
+function trailer(buf) {
+	if (buf.byteLength < 24) return null;
+	const dv = new DataView(buf), o = buf.byteLength - 16;
+	if (dv.getUint32(o, true) !== TRAILER_MAGIC || dv.getUint32(o + 12, true) !== (~TRAILER_MAGIC >>> 0)) return null;
+	const crc = crc32(new Uint8Array(buf, 0, o));
+	return dv.getUint32(o + 4, true) === o && parseInt(crc, 16) === dv.getUint32(o + 8, true) ? crc : 'bad';
+}
+
+// Vorpruefung: was der Bootloader selbst nicht prueft. @return {version, crc} (fremd: beide
+// null) oder Fehlertext
 function checkImage(buf) {
 	if (buf.byteLength < 8) return 'Datei zu klein';
 	if (buf.byteLength > IMAGE_MAX) return 'Datei zu groß (höchstens 320 KB)';
@@ -582,13 +610,18 @@ function checkImage(buf) {
 		return 'Kein Firmware-Abbild für die Adresse 0x08010000';
 	}
 	const b = new Uint8Array(buf), t = new TextEncoder().encode(TAG);
+	let version = null;
 	outer: for (let i = 0; i + t.length < b.length; i++) {
 		for (let k = 0; k < t.length; k++) if (b[i + k] !== t[k]) continue outer;
-		let j = i + t.length, v = '';
-		while (j < b.length && b[j] && v.length < 40) v += String.fromCharCode(b[j++]);
-		return { version: v };
+		let j = i + t.length;
+		version = '';
+		while (j < b.length && b[j] && version.length < 40) version += String.fromCharCode(b[j++]);
+		break;
 	}
-	return { version: null };
+	const crc = trailer(buf);
+	if (crc === 'bad') return 'Datei beschädigt oder unvollständig (Prüfsumme falsch)';
+	if (version !== null && crc === null) return 'Wallfree-Abbild ohne Prüfsumme (zu alt), nicht verwendbar';
+	return { version, crc };
 }
 
 // Wer antwortet unter der eigenen Adresse? 'wallfree', 'bootloader' oder 'weg'
@@ -616,9 +649,11 @@ function Update({ onBusy }) {
 	const [step, setStep] = useState(-1);
 	const [msg, setMsg] = useState(null);
 	const busy = step >= 0 && step < 5;
+	// nach Erfolg bis zum Neuladen: die Live-Verbindung steht dann noch nicht wieder
+	const hold = busy || (step === 5 && msg && msg.ok);
 	// Kopfzeile und Ausgrauen (Main); Schliessen des Tabs braeche den Upload ab
+	useEffect(() => { onBusy(hold); }, [hold]);
 	useEffect(() => {
-		onBusy(busy);
 		const warn = (ev) => { ev.preventDefault(); ev.returnValue = ''; };
 		if (busy) addEventListener('beforeunload', warn);
 		return () => removeEventListener('beforeunload', warn);
@@ -635,12 +670,15 @@ function Update({ onBusy }) {
 		const c = file.check, ver = c.version;
 		const foreign = 'Kein Wallfree-Abbild (z. B. Originalfirmware). Danach ist diese ' +
 			'Weboberfläche nicht mehr erreichbar. Wirklich aufspielen?';
-		if (!confirm(ver ? 'Firmware ' + ver + ' aufspielen? Ein laufender Ladevorgang wird beendet.'
-			: foreign)) return;
+		const others = '\n\nVorher evcc und andere Programme anhalten, die die Wallbox abfragen, und ' +
+			'weitere Browser-Tabs schließen: Jede Anfrage während des Hochladens bricht das Update ab.';
+		if (!confirm((ver ? 'Firmware ' + ver + ' aufspielen? Ein laufender Ladevorgang wird beendet.'
+			: foreign) + others)) return;
 		setMsg(null);
 		try {
 			setStep(0);
 			const r = await post('/system/update', {});
+			quiet = true;
 			setStep(1);
 			if (!await waitFor('bootloader', 60)) {
 				throw new Error('Der Bootloader antwortet nicht. Er wartet unter http://' + r.address +
@@ -662,14 +700,20 @@ function Update({ onBusy }) {
 				return;
 			}
 			if (!await waitFor('wallfree', 180)) throw new Error('Wallfree meldet sich nicht zurück.');
+			quiet = false;
 			setStep(4);
 			const si = await api('/system/info');
-			const ok = si.update_result && si.update_result.ok && si.firmware === ver;
+			// SOLL-BOOT-35: erst die Pruefsumme der laufenden Firmware belegt das ganze Abbild
+			const ok = si.update_result && si.update_result.ok && si.image && si.image.ok &&
+				si.image.crc === c.crc;
 			setStep(5);
 			setMsg({ ok, text: ok ? 'Update erfolgreich, Firmware ' + si.firmware + '. Seite lädt neu …'
+				: si.image && !si.image.ok ? 'Update unvollständig angekommen: Die Firmware ist ' +
+					'beschädigt, Laden ist gesperrt. Bitte das Update wiederholen.'
 				: 'Update fehlgeschlagen, es läuft Firmware ' + si.firmware + '.' });
 			if (ok) setTimeout(() => location.reload(), 3000);
 		} catch (e) {
+			quiet = false;
 			setStep(-1);
 			setMsg({ ok: false, text: e.message });
 		}
@@ -679,7 +723,7 @@ function Update({ onBusy }) {
 		<div class="row"><input type="file" accept=".bin" disabled=${busy} onChange=${pick} /></div>
 		${c && html`<p class=${typeof c === 'string' ? 'bad msg' : c.version ? 'msg' : 'warn msg'}>
 			${typeof c === 'string' ? c : c.version ? 'Wallfree ' + c.version + ', ' +
-			Math.round(file.buf.byteLength / 1024) + ' KB' : 'Kein Wallfree-Abbild (z. B. Originalfirmware)'}</p>`}
+			Math.round(file.buf.byteLength / 1024) + ' KB, Prüfsumme ' + c.crc : 'Kein Wallfree-Abbild (z. B. Originalfirmware)'}</p>`}
 		${step >= 0 && html`<ol class="msg">${STEPS.map((s, i) => html`<li
 			class=${i < step ? 'ok' : i === step ? '' : 'muted'}>${s}${i === step && busy ? ' …' : ''}</li>`)}</ol>`}
 		${busy && html`<p class="warn msg">Die Steuerung ist während des Updates etwa eine Minute nicht
@@ -688,7 +732,8 @@ function Update({ onBusy }) {
 			onClick=${run}>Update starten</button></div>
 		<${Msg} m=${msg} />
 		<p class="muted msg">Die Datei geht an den Bootloader der Steuerung; ohne Upload startet er nach
-			2 min wieder die bisherige Firmware. Die Einstellungen bleiben erhalten.</p>
+			2 min wieder die bisherige Firmware. Die Einstellungen bleiben erhalten. Während des Updates
+			darf nichts anderes die Wallbox abfragen (evcc anhalten, andere Tabs schließen).</p>
 	<//>`;
 }
 
@@ -706,6 +751,8 @@ function SystemPage({ onBusy }) {
 			<tr><td>Firmware</td><td class="num">${si.firmware}</td></tr>
 			<tr><td>Laufzeit</td><td class="num">${dur(si.uptime_ms)}</td></tr>
 			<tr><td>Letzter Reset</td><td class="num">${si.reset_reason}</td></tr>
+			${si.image && html`<tr><td>Prüfsumme</td><td class="num ${si.image.ok ? '' : 'bad'}">
+				${si.image.crc}${si.image.ok ? '' : ' – beschädigt, Laden gesperrt'}</td></tr>`}
 			${si.update_result && html`<tr><td>Letztes Update</td><td class="num ${si.update_result.ok ? 'ok' : 'bad'}">
 				${si.update_result.ok ? 'erfolgreich' : 'fehlgeschlagen'}</td></tr>`}
 		</table>`}

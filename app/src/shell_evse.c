@@ -449,6 +449,12 @@ static int cmd_boot(const struct shell *sh, size_t argc, char **argv)
 		    (r[4] >> 16) & 0xFF, r[4] >> 24, r[5] & 0xFF, (r[5] >> 8) & 0xFF,
 		    (r[5] >> 16) & 0xFF, r[5] >> 24, r[6]);
 	shell_print(sh, "BKP16    %u Starts mit IWDG-Flag (Bootloader, bis Stromausfall)", r[7]);
+
+	uint32_t crc;
+	int ok = sysinfo_image(&crc);
+
+	shell_print(sh, "Abbild   %s, CRC32 %08x",
+		    ok > 0 ? "gueltig" : ok == 0 ? "UNGUELTIG" : "nicht pruefbar", crc);
 	return 0;
 }
 

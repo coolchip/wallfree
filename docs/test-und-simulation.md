@@ -6,7 +6,7 @@ Stand: 2026-10-21. Alle Tests laufen auf dem PC. Sie belegen nichts ueber die re
 | Ebene | Umfang | Stand |
 | --- | --- | --- |
 | PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezaehler, MQTT ohne Netz | 219 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zaehler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
-| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zaehler, lokalen MQTT-Broker | 46 Tests, alle bestanden, ca. 155 s |
+| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zaehler, lokalen MQTT-Broker | 48 Tests, alle bestanden, ca. 195 s |
 | Browser-Durchlauf | Weboberflaeche in headless Chrome gegen die Simulation | ohne Zaehler 11, mit Zaehler 13 Pruefungen bestanden |
 | MQTT im LAN | Simulation gegen Mosquitto 2.1.2 im Heimnetz (von Hand, 2026-10-21) | Zustaende, Zaehlerwerte (etwa 1/s), Ereignisse, Befehl Ladestrom, `online` true/false |
 | evcc | evcc 0.317.2 mit Vorlage `tinkerforge-warp-ws` gegen die Simulation | Laden, Aus/Sofort, Abstecken, Neustart; mit Zaehler Leistung, Zaehlerstand, Phasenstroeme und -spannungen |
@@ -55,7 +55,7 @@ Ohne Simulation zeigt `scripts/web-preview.py` die Oberflaeche mit Attrappen der
 | Aktor, Schuetz | Fahrt 200 ms, LD gepulst/permanent/keine, Klemmen; Sense 50 Hz bei Schuetz ein oder verschweisst |
 | IWDG | Software-Zeitgeber in simulierter Zeit (250 ms, beim Flash-Loeschen 32 s) |
 | Reset | Prozess startet sich per `execv` neu ([sim_host.c](../app/src/sim_host.c)); Flags/BKP19 und der physische Modellzustand (Fahrzeug bleibt angesteckt, Aktorstellung) gehen ueber Umgebungsvariablen mit; neuer Prozess = Einschalten |
-| Bootloader | bei der Update-Uebergabe startet der Prozess [scripts/bootloader-sim.py](../scripts/bootloader-sim.py) (Pfad in `WALLFREE_SIM_BOOTLOADER`, `sim-run.sh` setzt ihn): gleicher Port, Upload-Regeln und Fristen des Originals, danach Neustart mit dem Ergebnis in BKP12; ohne Variable gilt das Update sofort als fehlgeschlagen |
+| Bootloader | bei der Update-Uebergabe startet der Prozess [scripts/bootloader-sim.py](../scripts/bootloader-sim.py) (Pfad in `WALLFREE_SIM_BOOTLOADER`, `sim-run.sh` setzt ihn): gleicher Port, Fristen des Originals, Empfang Paket fuer Paket mit dessen Zaehlweise (einschliesslich der Schwachstelle beim ersten Paket, Aufteilung `WALLFREE_SIM_BOOTLOADER_SEG`), gemeinsamer Upload-Zustand (jedes GET bricht einen Upload ab, danach bleibt er im Update-Betrieb), Loeschpause und Tempo wie am Testgerät gemessen (`_ERASE_S`, `_RATE`); danach Neustart mit dem Ergebnis in BKP12 und dem Zustand des Abbilds (`WALLFREE_SIM_IMAGE`); ohne Variable gilt das Update sofort als fehlgeschlagen. `--image-bad` laesst die Pruefung des eigenen Abbilds scheitern |
 | Flash | Zephyr-Flash-Simulator mit Datei (`--flash=`), Partitionen an den Stellen von Sektor 3 und 7 ([Overlay](../app/boards/native_sim_native_64.overlay)) |
 | Netz | Host-Sockets (`NET_NATIVE_OFFLOADED_SOCKETS`), keine Adress-/DHCP-Konfiguration; ohne MAC sind `uid` und MQTT-Praefix `000000`, der Hostname `wallfree-000000`; ein MQTT-Broker ist ueber 127.0.0.1 oder das LAN des PCs erreichbar |
 | Energiezaehler | hinter `meter_bus.h` statt Zephyr-Modbus: Antworten des konfigurierten Modells aus `meter_sim_encode`; 230/230,7/231,4 V, Strom = Strom des Tastgrads bei Schuetz ein und Fahrzeug C/D, Energie integriert; Stoerungen `sim meter off` (keine Antwort, 500 ms), `frame`, `flaky` (jede zweite Anfrage ohne Antwort), `bad` (Spannung ausserhalb der Grenze), `energy <Wh>` |
@@ -70,7 +70,7 @@ Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](.
 | T1Api (Ereignisse, LED, Protokoll) | Ereignisse beim Sollstrom 0 und wieder ein (`seq`/`t_ms` steigend, Logzeile); Netzwerk-LED an, bei `sim link 0` 1 Hz; `/system/log`: ohne Anmeldung 401, Fehlversuch mit Absender, `count` und Zeit, Ereignisse enthalten, Antwort > 1,5 KB in Teilen | SOLL-ERR-10/11, SOLL-LED-06 |
 | T2Faults | Fehlerstrom beim Laden: Schuetz aus, `error_state` 3, Ereignisse (RCM, Schuetz aus, S9); Messbloecke stehen -> Reset `supervision_limit`; Reset-Taster 6 s beim Start -> Werkszugang wieder aktiv | SOLL-PROT-01/05, SOLL-RT-10/14, SOLL-BOOT-20, SOLL-ERR-10 |
 | T5Mqtt | gegen einen lokalen Mosquitto (Test wird ohne `mosquitto` uebersprungen): Werkszustand aus, Einschalten nur mit Broker, Verbinden ohne Neustart, Passwort `null`; neuer Abonnent erhaelt `online` und die Zustaende retained; Aenderung und Ereignis (nicht retained); Befehl ohne `mqtt_commands` wirkungslos; mit Befehlen Zahl und JSON angenommen, 3 A abgelehnt mit Text; gespeicherter Befehl nach Neuverbindung ignoriert; Broker-Neustart -> Neuverbindung, Laden unberuehrt; Abschalten sendet `online` = `false`; harter Abbruch -> Last Will | SOLL-MQTT-01..04/10/11/20..22/30/31 |
-| T6Update | mit Ersatz-Bootloader: `scripts/update.sh` ueber die API -> Bootloader erhaelt genau die Datei, Resetgrund `update`, `update_result` ok, Ereignis `update`; `evse bootloader` und Upload von Hand mit ungueltigem Start-SP -> fehlgeschlagen; ohne Upload Zeitablauf -> fehlgeschlagen, zweite Anforderung 409; Update waehrend des Ladens geordnet; ohne Bootloader -> fehlgeschlagen | SOLL-BOOT-30..33, SOLL-SH-10 |
+| T6Update | mit Ersatz-Bootloader: `scripts/update.sh` ueber die API -> Bootloader erhaelt genau die Datei, Resetgrund `update`, `update_result` ok, `image` mit CRC der Datei, Ereignis `update`; `evse bootloader` und Upload von Hand mit ungueltigem Start-SP -> fehlgeschlagen; ohne Upload Zeitablauf -> fehlgeschlagen, zweite Anforderung 409; Update waehrend des Ladens geordnet; Upload wie ein Browser mit zu kurzem letzten Paket -> Bootloader meldet Erfolg, Abbild abgeschnitten, `image.ok` false, ERR-INTERNAL, kein Laden; GET waehrend des Uploads -> Abbruch, Bootloader bleibt, zweiter Upload stellt her; ohne Bootloader -> fehlgeschlagen | SOLL-BOOT-30..35, SOLL-SH-10 |
 | T3ZephyrTelnet | harter Telnet-Abbruch: HTTP, WebSocket, neue Telnet-Sitzung, geordneter Neustart und Logausgabe laufen weiter | SOLL-RT-11 |
 
 ### Abweichungen der Simulation von der Steuerung
@@ -84,8 +84,10 @@ Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](.
   statt 4 HTTP-Client-Plaetze und 24 statt 16 Deskriptoren
   ([native_sim_native_64.conf](../app/boards/native_sim_native_64.conf)).
 - Das Modellfahrzeug bleibt in C, wenn die PWM endet (ein echtes Fahrzeug geht nach B).
-- Ersatz-Bootloader: nur ein Versuch statt BKP11, das hochgeladene Abbild wird nicht ausgefuehrt
-  (die Simulation startet wieder mit derselben Firmware); die Uebergabe schreibt keine IP (0).
+- Ersatz-Bootloader: nur ein Versuch statt BKP11, kein Wechsel auf 192.168.0.8; das hochgeladene
+  Abbild wird nicht ausgefuehrt (die Simulation startet wieder mit derselben Firmware, meldet aber
+  dessen Pruefsumme); die Uebergabe schreibt keine IP (0); der Empfang nimmt die Anfrage am Stueck
+  und teilt sie danach in Pakete, die echte Aufteilung des Senders ist nicht nachgebildet.
 
 ## Browser-Durchlauf
 
@@ -107,8 +109,10 @@ Zugangsdaten-Seite, Parameter schreiben, Netz/System.
 ### Firmware-Update im Browser
 
 `node scripts/web-update-check.mjs <port> <user> <passwort> <ausgabe>` gegen eine Simulation mit
-Ersatz-Bootloader (`sim-run.sh` setzt `WALLFREE_SIM_BOOTLOADER`): erzeugt Testabbilder mit der
-Kennung der laufenden Version, prueft die Vorpruefung (ungueltige Datei abgelehnt, Wallfree mit
+Ersatz-Bootloader (`sim-run.sh` setzt `WALLFREE_SIM_BOOTLOADER`; mit
+`WALLFREE_SIM_BOOTLOADER_RATE=5000` dauert der Upload etwa 12 s, dann faellt jede Abfrage der
+Seite in den Upload und braeche ihn ab): erzeugt Testabbilder mit der Kennung der laufenden
+Version und Anhang, prueft die Vorpruefung (ungueltige Datei abgelehnt, Wallfree mit
 Version erkannt), die Rueckfrage, waehrend des Ablaufs Kopf "Update laeuft" ohne Ausgrauen, den
 Ablauf bis "Update erfolgreich" und nach dem Neuladen
 "Letztes Update: erfolgreich" (Simulation 2026-10-24: bestanden).

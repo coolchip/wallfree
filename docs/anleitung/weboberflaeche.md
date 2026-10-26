@@ -439,6 +439,7 @@ Sie es deshalb nur in einem vertrauenswürdigen Netz.
 | Firmware | Stand der Firmware |
 | Laufzeit | Zeit seit dem letzten Start |
 | Letzter Reset | Grund des letzten Starts: `power_on` Einschalten, `user_restart` Neustart über Oberfläche oder Wartungszugang, `update` nach einem Firmware-Update, `factory_reset` nach Werksreset, `reset_pin` Reset-Taster, `brownout` Unterspannung, `watchdog` / `window_watchdog` / `supervision_limit` / `interface_hang` die Überwachung hat neu gestartet, `fault` Programmfehler |
+| Prüfsumme | Prüfsumme der laufenden Firmware; „beschädigt, Laden gesperrt“, wenn sie nicht stimmt (z. B. nach einem unvollständigen Update) |
 | Letztes Update | nur nach einem Firmware-Update: erfolgreich oder fehlgeschlagen |
 
 **Neu starten** startet die Steuerung neu, z. B. damit geänderte Netzwerk- oder
@@ -448,15 +449,20 @@ Einstellungen bleiben erhalten.
 
 ### 8.1 Firmware-Update
 
-1. Unter **Firmware-Update** die Firmware-Datei (`.bin`) auswählen. Die Seite prüft sie sofort
-   und zeigt bei einer Wallfree-Datei deren Version. Eine ungeeignete Datei wird abgelehnt.
-2. **Update starten** und die Rückfrage bestätigen. Ein laufender Ladevorgang wird geordnet
+1. **Vorher alles anhalten, was die Wallbox abfragt** (z. B. evcc, Home Assistant) und andere
+   Browser-Tabs mit der Wallbox schließen. Jede andere Anfrage während des Hochladens bricht das
+   Update ab; die Steuerung bleibt dann ohne Firmware im Update-Betrieb (siehe unten).
+2. Unter **Firmware-Update** die Firmware-Datei (`.bin`) auswählen. Die Seite prüft sie sofort
+   und zeigt bei einer Wallfree-Datei Version und Prüfsumme. Eine ungeeignete oder beschädigte
+   Datei wird abgelehnt.
+3. **Update starten** und die Rückfrage bestätigen. Ein laufender Ladevorgang wird geordnet
    beendet.
-3. Die Seite zeigt den Fortschritt: Übergabe an den Bootloader, Warten auf den Bootloader,
+4. Die Seite zeigt den Fortschritt: Übergabe an den Bootloader, Warten auf den Bootloader,
    Hochladen, Neustart, Ergebnis. Das dauert etwa eine Minute. Die Steuerung ist in dieser Zeit
    nicht erreichbar; im Kopf steht „Update läuft …“. Die Seite **nicht schließen** (der Browser
    fragt sonst nach).
-4. Nach „Update erfolgreich“ lädt die Seite neu. Unter System steht dann die neue Firmware und
+5. Nach „Update erfolgreich“ lädt die Seite neu. Erfolgreich heißt: Die Prüfsumme der laufenden
+   Firmware stimmt mit der Datei überein. Unter System steht dann die neue Firmware und
    „Letztes Update: erfolgreich“; die Übersicht nennt das Update unter den letzten Ereignissen.
 
 Die Einstellungen bleiben bei einem Update erhalten. Die Datei geht an den Bootloader der
@@ -465,10 +471,14 @@ annimmt. Er prüft den Inhalt nicht; deshalb prüft die Seite vorher. Eine Datei
 Wallfree-Firmware ist (z. B. die Firmware des Herstellers), spielt die Seite nur nach einer
 ausdrücklichen Rückfrage auf; danach ist diese Oberfläche nicht mehr erreichbar.
 
-Bricht das Update ab (z. B. Seite geschlossen, Netz unterbrochen), wartet der Bootloader bis zu
-dreimal 2 Minuten auf die Datei und startet dann wieder die bisherige Firmware. In dieser Zeit
-zeigt er unter der Adresse der Steuerung eine einfache Seite, auf der sich die Datei auch von Hand
-hochladen lässt. Ein Fahrzeug sollte während des Updates nicht angesteckt sein.
+Bricht das Update ab, bevor die Übertragung begonnen hat, wartet der Bootloader bis zu dreimal
+2 Minuten auf die Datei und startet dann wieder die bisherige Firmware. Bricht es **während** der
+Übertragung ab (z. B. andere Anfrage, Seite geschlossen, Netz unterbrochen), ist die bisherige
+Firmware schon gelöscht: Der Bootloader bleibt im Update-Betrieb, erst unter der bisherigen
+Adresse, danach unter **192.168.0.8**, und wartet auf eine Datei. Sie lässt sich dort auf seiner
+einfachen Seite von Hand hochladen (PC dazu im Netz 192.168.0.x). Kommt die Firmware unvollständig
+an, startet sie, sperrt aber das Laden („Prüfsumme … beschädigt“); dann das Update wiederholen.
+Ein Fahrzeug sollte während des Updates nicht angesteckt sein.
 
 ## 9 Störungen und Abhilfe
 
@@ -480,7 +490,7 @@ hochladen lässt. Ein Fahrzeug sollte während des Updates nicht angesteckt sein
 | „zu viele Fehlversuche“ | Sperre nach falschen Anmeldungen ([Abschnitt 3](#3-erste-anmeldung)). Warten (höchstens 5 Minuten) und dann richtig anmelden. Auch Programme mit veralteten Zugangsdaten (z. B. ein Energiemanagement) lösen die Sperre aus; dort die Zugangsdaten anpassen. |
 | Fahrzeug lädt nicht | Übersicht: Zeile unter dem Ring („Vorgabe: Laden aus“, „Laden gesperrt“) und Kachel Fehler prüfen; Insights › Fehler. Bei „Wartet auf Freigabe“ fehlt die Freigabe ([10.4](#104-freigabe-und-verfügbarkeit)). |
 | Zähler „gestört“ | [7.4](#74-zähler) |
-| Firmware-Update fehlgeschlagen | Unter System steht „Letztes Update: fehlgeschlagen“; es läuft die bisherige Firmware. Update wiederholen. Meldet die Seite „Der Bootloader antwortet nicht“, die genannte Adresse im Browser öffnen und die Datei dort innerhalb von 2 Minuten von Hand hochladen. |
+| Firmware-Update fehlgeschlagen | Unter System steht „Letztes Update: fehlgeschlagen“; es läuft die bisherige Firmware. Update wiederholen, vorher evcc und andere Abfragen anhalten. Steht die Steuerung danach im Update-Betrieb (alle LEDs der Steuerung an oder blinkend, Weboberfläche nicht erreichbar), die Seite des Bootloaders unter der bisherigen Adresse oder unter 192.168.0.8 öffnen und die Datei dort hochladen ([8.1](#81-firmware-update)). |
 | Passwort vergessen / Steuerung unerreichbar | **Werksreset:** Reset-Taster der Steuerung gedrückt halten. Die Steuerung startet neu, die Power-LED blinkt langsam; nach 5 Sekunden blinkt sie schnell, dann loslassen (geht auch beim Einschalten). Alle Einstellungen und die Zugangsdaten sind danach im Werkszustand (`admin` / `wallfree`, Netzwerk per DHCP). Kurzes Drücken startet die Steuerung nur neu. |
 
 ## 10 Anhang

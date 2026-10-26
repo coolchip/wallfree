@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* Systeminformationen, siehe sysinfo.h. Nur gebaut. */
+#include <stdio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include "hw.h"
@@ -20,6 +21,8 @@ static enum wf_reset reason;
 static uint32_t flags;
 static uint32_t update_result; /* BKP12: Modus << 8 | Erfolg, 0 = keins */
 static uint32_t boot_regs[HW_BOOT_REGS];
+static int image_ok; /* SOLL-BOOT-35: 1 gueltig, 0 ungueltig, -1 nicht pruefbar */
+static uint32_t image_crc;
 
 void sysinfo_init(void)
 {
@@ -29,12 +32,22 @@ void sysinfo_init(void)
 	hw_reset_take(&flags, &bkp);
 	reason = wf_reset_classify(flags, bkp);
 	update_result = hw_update_result_take();
+	image_ok = hw_image_check(&image_crc);
 	LOG_INF("Wallfree %s, Resetgrund %s (Flags 0x%02x)", sysinfo_version(),
 		wf_reset_name(reason), flags);
+	if (image_ok == 0) {
+		LOG_ERR("Abbild ungueltig (CRC %08x passt nicht zum Anhang): kein Laden", image_crc);
+	}
 	if (update_result != 0) {
 		LOG_INF("Update (Modus %u): %s", (update_result >> 8) & 0xFF,
 			(update_result & 1) ? "erfolgreich" : "fehlgeschlagen");
 	}
+}
+
+int sysinfo_image(uint32_t *crc)
+{
+	*crc = image_crc;
+	return image_ok;
 }
 
 const uint32_t *sysinfo_boot_regs(void)
@@ -75,6 +88,20 @@ void sysinfo_json(struct wf_jbuf *b)
 	wf_jb_int(b, flags);
 	wf_jb_key(b, "uptime_ms", false);
 	wf_jb_int(b, k_uptime_get());
+	wf_jb_key(b, "image", false);
+	if (image_ok < 0) {
+		wf_jb_raw(b, "null");
+	} else {
+		char crc[9];
+
+		snprintf(crc, sizeof(crc), "%08x", image_crc);
+		wf_jb_raw(b, "{");
+		wf_jb_key(b, "crc", true);
+		wf_jb_str(b, crc);
+		wf_jb_key(b, "ok", false);
+		wf_jb_raw(b, image_ok ? "true" : "false");
+		wf_jb_raw(b, "}");
+	}
 	wf_jb_key(b, "update_result", false);
 	if (update_result == 0) {
 		wf_jb_raw(b, "null");

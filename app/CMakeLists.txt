@@ -4,6 +4,13 @@
 cmake_minimum_required(VERSION 3.20.0)
 list(APPEND BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 list(APPEND ZEPHYR_EXTRA_MODULES ${CMAKE_CURRENT_SOURCE_DIR}/..)
+# SOLL-BOOT-35: Anhang mit Laenge und CRC32 an zephyr.bin; nur dieses Abbild flashen
+# (zephyr.hex/.elf haben ihn nicht, die Firmware verweigert dann das Laden). Vor
+# find_package, weil Zephyr die Liste dort schon auswertet; fuer native_sim gibt es keine
+# zephyr.bin, das Skript tut dann nichts.
+set_property(GLOBAL APPEND PROPERTY extra_post_build_commands
+  COMMAND python3 -I ${CMAKE_CURRENT_SOURCE_DIR}/../scripts/image-trailer.py --if-exists
+  ${CMAKE_BINARY_DIR}/zephyr/zephyr.bin)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(wallfree)
 target_sources(app PRIVATE

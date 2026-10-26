@@ -86,6 +86,13 @@ FUNC_NORETURN void hw_bootloader_handover(uint32_t ip, uint32_t mask);
 /** Beim Start: BKP12 (Ergebnis eines Updates, SOLL-BOOT-33) lesen und loeschen. */
 uint32_t hw_update_result_take(void);
 
+/**
+ * SOLL-BOOT-35: CRC32 ueber das eigene Abbild (Laenge _flash_used) und Vergleich mit dem
+ * Anhang des Builds. @return 1 gueltig, 0 Anhang fehlt oder CRC falsch, -1 nicht pruefbar
+ * (Simulation)
+ */
+int hw_image_check(uint32_t *crc);
+
 #define HW_BOOT_REGS 8
 /**
  * Diagnose, vor hw_reset_take() und hw_update_result_take(): RCC_CSR roh, dann BKP10..16 des

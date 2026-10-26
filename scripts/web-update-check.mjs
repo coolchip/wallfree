@@ -5,9 +5,12 @@
 // Zugangsdaten muessen bereits geaendert sein.
 //   node scripts/web-update-check.mjs <http-port> <user> <passwort> <ausgabeverzeichnis>
 // Prueft: Vorpruefung (Wallfree-Abbild mit Version, ungueltige Datei), Ablauf bis
-// "Update erfolgreich". Ergebnis: Screenshots, update.json, Exitcode 1 bei Fehlschlag.
+// "Update erfolgreich" (Pruefsumme verglichen, SOLL-BOOT-35). Mit langsamem Ersatz-Bootloader
+// (WALLFREE_SIM_BOOTLOADER_RATE=5000) prueft der Lauf auch, dass die Seite waehrend des Uploads
+// nichts anderes abfragt (das braeche ihn ab). Ergebnis: Screenshots, update.json, Exitcode 1.
 import { spawn } from 'node:child_process';
 import { writeFileSync, mkdtempSync } from 'node:fs';
+import { crc32 } from 'node:zlib';
 
 const [port, user, pass, outdir] = process.argv.slice(2);
 const base = `http://127.0.0.1:${port}/`;
@@ -52,15 +55,20 @@ const shot = async (name) => {
 const text = () => evalJs('document.body.innerText');
 const click = (label) => evalJs(`(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === ${JSON.stringify(label)}); if (!b) return false; b.click(); return true; })()`);
 
-// Testabbild: gueltiger Start, Kennung mit der laufenden Version (die Simulation bleibt
-// nach dem Update dieselbe Firmware, die Oberflaeche vergleicht die Version)
+// Testabbild: gueltiger Start, Kennung mit der laufenden Version, Anhang mit Laenge und CRC32
+// wie scripts/image-trailer.py (SOLL-BOOT-35); die Simulation meldet danach die CRC der Datei
 function image(version, sp = 0x20020000) {
 	const tag = Buffer.from('WALLFREE-IMAGE:' + version + '\0');
-	const b = Buffer.alloc(60000 + tag.length);
+	const n = (60000 + tag.length + 3) & ~3;
+	const b = Buffer.alloc(n + 16);
 	for (let i = 8; i < 60000; i++) b[i] = (i * 13) & 0xff;
 	b.writeUInt32LE(sp, 0);
 	b.writeUInt32LE(0x08010201, 4);
 	tag.copy(b, 60000);
+	b.writeUInt32LE(0x474D4957, n);
+	b.writeUInt32LE(n, n + 4);
+	b.writeUInt32LE(crc32(b.subarray(0, n)) >>> 0, n + 8);
+	b.writeUInt32LE(~0x474D4957 >>> 0, n + 12);
 	const f = `${outdir}/test-${sp.toString(16)}.bin`;
 	writeFileSync(f, b);
 	return f;
@@ -91,7 +99,7 @@ out.started = await click('Update starten');
 let t = '';
 const head = "(() => document.querySelector('header .grow').innerText.trim() + '|' + document.querySelector('main').className)()";
 out.heads = [];
-for (let i = 0; i < 90 && !/Update (erfolgreich|fehlgeschlagen)|antwortet nicht|meldet sich nicht/.test(t); i++) {
+for (let i = 0; i < 120 && !/Update (erfolgreich|fehlgeschlagen)|antwortet nicht|meldet sich nicht/.test(t); i++) {
 	await sleep(1000);
 	t = await text();
 	out.heads.push(await evalJs(head));

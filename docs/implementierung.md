@@ -70,13 +70,17 @@ TIM1 und ADC1 stehen nicht im Board-Devicetree, weil die Anwendung sie direkt st
 | [auth.c](../app/src/auth.c) | Zugangsdaten (HA1), Werkszugang, Passwortaenderung, Nonce-Geheimnis je Start | SOLL-API-07 |
 | [netcfg.c](../app/src/netcfg.c) | Netz-/Systemparameter, Hostname, DHCP oder feste Adresse, Telnet; Aendern (atomar), Import; `mqtt_*` sofort in die laufende Konfiguration und MQTT neu verbinden; Netzwerk-LED PC2 | 10.1, F20, F25, SOLL-LED-06, SOLL-MQTT-31 |
 | [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `param list/get/set`, `current`, `enable`, `avail`, `pause`, `pwm5`, `lock`, `unlock`, `errors [clear]`, `selftest`, `reboot`, `bootloader`, `boot` (Diagnose: RCC_CSR und BKP10..16 beim Start), `ack`, `nvm`, `meter`, `mqtt`, `sys list/set`, `factory-reset confirm`, `import-original` | SOLL-SH-01..11/19/20, SOLL-MTR-33, SOLL-MQTT-32 |
-| [sysinfo.c](../app/src/sysinfo.c) | Resetgrund, Firmwarestand (`git describe`, im Abbild als `WALLFREE-IMAGE:<version>`), Laufzeit, Ergebnis eines Updates (BKP12); `GET /system/info` | SOLL-RT-14, SOLL-BOOT-32/33 |
+| [sysinfo.c](../app/src/sysinfo.c) | Resetgrund, Firmwarestand (`git describe`, im Abbild als `WALLFREE-IMAGE:<version>`), Laufzeit, Ergebnis eines Updates (BKP12), Pruefung des eigenen Abbilds (CRC32 gegen den Anhang, ungueltig -> ERR-INTERNAL); `GET /system/info` | SOLL-RT-14, SOLL-BOOT-32/33/35 |
 | [meter_task.c](../app/src/meter_task.c) | Zaehlerthread (niedrigste Anwendungsprioritaet, Stack 1280 B, nicht ueberwacht), nur mit `meter_type` != 0; Momentaufnahme unter Sperre, Bus ohne Sperre; Ereignisse in den gemeinsamen Ringpuffer | SOLL-MTR-01/03/10..14 |
 | [mqtt_task.c](../app/src/mqtt_task.c) | MQTT-Thread (niedrigste Anwendungsprioritaet, Stack 2048 B, nicht ueberwacht): Verbinden mit Last Will, Neuverbindung 1..60 s, Takt 100 ms fuer Zustaende und Ereignisse, Befehl `evse/external_current_update`, Status | SOLL-MQTT-01..04/10..12/20..23/30 |
 | [meter_bus_modbus.c](../app/src/meter_bus_modbus.c) | nur Steuerung: Zephyr-Modbus-Client auf UART4 (`modbus0`, DE an PC12), Baudrate/Format aus den Parametern, Fehler auf Timeout/Rahmen/Ausnahme abgebildet | SOLL-MTR-02/04, F29 |
 | [web/](../web/) | Werkszugang -> Zugangsdaten festlegen; Uebersicht: Zustand, Fahrzeug, Fehler, Zaehler (Leistung, Zaehlerstand), Ladestrom als Ring mit Vorgabe-Tasten, letzte Ereignisse; Insights: Verlauf, Ladestrom als Wertetabelle, Fehler mit Quittierung, Zaehlerwerte mit Fehlerzaehlern, Zugriffsprotokoll, Status der Ladelogik; Einstellungen: Laden (Parameter mit Bereich, Default, Herkunftsfeld, Hilfetext), Netzwerk, MQTT, Zaehler (je mit Zustand, Passwortfeld nur schreibbar), Zugang; System: Firmware, Laufzeit, Resetgrund, letztes Update, Neustart, Firmware-Update (Vorpruefung der Datei, Ablauf mit Fortschritt) | SOLL-API-31/33, SOLL-ERR-10/11, SOLL-MTR-32, SOLL-MQTT-32 |
 | [history.c](../lib/api/history.c), [history_task.c](../app/src/history_task.c) | Verlauf: Mittelwerte je 10 min im Ringpuffer (RAM), Ausgabe in Teilen; Abtastung je Sekunde auf der Systemworkqueue | SOLL-API-33 |
 | [hw_sim.c](../app/src/hw_sim.c), [sim_host.c](../app/src/sim_host.c) | nur `native_sim`: Hardwaremodell mit simuliertem Zaehler hinter `meter_bus.h` und Neustart per `execv` ([Test und Simulation](test-und-simulation.md)) | – |
+
+Abbild: Der Build haengt an `zephyr.bin` 16 Byte an (Kennung, Laenge, CRC32, [image-trailer.py](../scripts/image-trailer.py),
+SOLL-BOOT-35) und bricht ueber 320 KB ab. **Nur `zephyr.bin` flashen**; `.hex`/`.elf` haben den
+Anhang nicht, Wallfree sperrt dann das Laden.
 
 Am Build geprueft: Systemtakt 100 MHz, Ladeadresse `0x08010000`, Interrupttabelle (TIM1_UP ->
 `tim1_up_isr`, DMA2_Stream0 -> `dma2_s0_isr`, EXTI0/3/4/9_5 -> GPIO-Treiber, ETH ->
@@ -157,8 +161,9 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Punkt | Umsetzung | Grund |
 | --- | --- | --- |
 | Neustart | nur geordnet: `evse_request_shutdown` (wirkt wie fehlende Verfuegbarkeit -> S7 mit 5-s-Frist -> S10), warten bis Schuetz aus, hoechstens 15 s, dann sicherer Zustand und Reset; gilt fuer Shell, HTTP und Werksreset. `kernel reboot` ist entfernt | SOLL-RT-22, SOLL-SH-20 |
+| Abbild ungueltig (SOLL-BOOT-35) | ERR-INTERNAL beim Start (Klasse P, kein Laden, loescht sich nur durch Neustart mit gueltigem Abbild), Logmeldung, `image.ok = false`; CRC mit `nvm_crc32` (bitweise, etwa 150 ms beim Start, vor dem IWDG von Wallfree) **(zu bestaetigen)** | SOLL-BOOT-35 |
 | Update-Uebergabe | wie der Neustart geordnet (Ladeende, hoechstens 15 s), dann BKP10..15 und Reset statt BKP19-Reset allein; IP/Maske der aktuellen Adresse, ohne Adresse 0 (Bootloader: 192.168.0.8); eine zweite Anforderung waehrend Neustart/Update -> 409 bzw. Meldung **(zu bestaetigen)** | SOLL-BOOT-30/31 |
-| Update in der Weboberflaeche | Vorpruefung: hoechstens 320 KB (Sektor 4..6), Start-SP wie die Bootloader-Pruefung, Reset-Vektor ungerade in `0x08010000..0x0806FFFF`, Kennung `WALLFREE-IMAGE:` mit Version. Wer antwortet, zeigt `GET /system/info` ohne eigene Auswertung des Bootloader-Textes: JSON = Wallfree (auch 401), sonst HTML = Bootloader. Fristen: bis 60 s auf den Bootloader, Upload 30 s (wie der Bootloader), bis 180 s auf Wallfree; Erfolg = `update_result.ok` und Version gleich der Kennung der Datei; die Antwort des Bootloaders auf den Upload wird nicht ausgewertet (er startet 1 s danach neu). Fremdes Abbild: nach dem Upload Ende ohne Ergebnis **(zu bestaetigen)** | SOLL-BOOT-32 |
+| Update in der Weboberflaeche | Vorpruefung: hoechstens 320 KB (Sektor 4..6), Start-SP wie die Bootloader-Pruefung, Reset-Vektor ungerade in `0x08010000..0x0806FFFF`, Kennung `WALLFREE-IMAGE:` mit Version. Wer antwortet, zeigt `GET /system/info` ohne eigene Auswertung des Bootloader-Textes: JSON = Wallfree (auch 401), sonst HTML = Bootloader. Fristen: bis 60 s auf den Bootloader, Upload 30 s (wie der Bootloader), bis 180 s auf Wallfree; Erfolg = `update_result.ok` und Version gleich der Kennung der Datei; die Antwort des Bootloaders auf den Upload wird nicht ausgewertet (er startet 1 s danach neu). Erfolg = `update_result.ok`, `image.ok` und `image.crc` gleich dem Anhang der Datei; eine Datei mit Wallfree-Kennung ohne gueltigen Anhang wird abgelehnt. Ab der Uebergabe bis Wallfree zurueck stellt die Seite keine Anfragen ausser denen des Ablaufs (auch kein WebSocket). Fremdes Abbild: nach dem Upload Ende ohne Ergebnis **(zu bestaetigen)** | SOLL-BOOT-32/35 |
 | Log vor Neustart | Meldung, dann 200 ms fuer den Log-Thread, dann Reset (bei Fristablauf Schuetz sofort per Register aus); kein `LOG_PANIC` in Thread-Neustartpfaden; Meldungen der Ueberwachung koennen verloren gehen (Grund steht in BKP19) | `LOG_PANIC` blockiert mit verbundenem Telnet-Client die Systemworkqueue (Fallstricke) |
 | Quittieren | `evse errors clear` / `POST /evse/errors/ack` quittiert nur ERR-CONTACTOR (F14); die Ausgabe nennt fuer alle anderen die Ruecksetzbedingung | SOLL-ERR-03 |
 | Selbsttest auf Anforderung | `evse selftest` nur in S1, CP A, Schuetz aus | SOLL-SH-07 |
@@ -346,23 +351,17 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 - Ausgangsfunktionen auf dem Testgerät: Mit den Defaults (VR 16, CR 17) bleibt die Front-LED im Leerlauf
   dunkel; das Original hatte CR = 9 (Testgerät) bzw. 40 (zweites Gerät), also gruen im Leerlauf. Ob das Testgerät
   per Parameter CR = 40 (oder 9) bekommt, entscheidet der Nutzer (Konfiguration, SOLL-GEN-02).
-- **Update auf dem Testgerät (Freigabe wallbe2/AGENTS.md 2026-10-26). Versuch 1 (`07ae5ce`, nach SWD
-  dasselbe Abbild ueber die Weboberflaeche): Bootloader meldete Erfolg, Resetgrund `watchdog`
-  (IWDG- und Software-Flag), Ursache des IWDG-Flags offen. **Versuch 2 (2026-10-26, geordnet):**
-  Ausgangszustand `f6849a2` nach Kaltstart (BKP leer), Ziel `b20ac41` ueber die Weboberflaeche,
-  Zeitleiste mit `scripts/update-watch.py`: 11:50:54 Uebergabe, 11:51:02 Bootloader unter der
-  bisherigen Adresse, 11:51:30 weg (28 s nach Beginn des Uploads), 11:51:33 wieder da, danach in
-  Abstaenden; die Seite blieb bei "4. Neustart" (Upload nach 30 s abgebrochen). Kein startbares
-  Programm mehr (Sektor 4..6 geloescht, Vektortabelle nicht geschrieben); Wiederherstellung per SWD
-  ohne Stromausfall. `evse boot` danach: BKP10 0, BKP11 0 (alle Versuche verbraucht), BKP12 `0x200`
-  (Modus 2, fehlgeschlagen), BKP16 0, RCC_CSR nur Software + Pin (kein IWDG). Parameter in Sektor 7
-  unversehrt. **Hypothese:** Die Uebertragung dauert knapp um die 30-s-Grenze des Bootloaders
-  (byteweises Programmieren mit Vergleich je Byte, Loeschen von Sektor 4..6 im ersten Paket, kleines
-  TCP-Fenster von lwIP 1.3.1); Versuch 1 lag knapp darunter. Naechste Schritte: Dauer eines Uploads
-  messen (z. B. `curl` mit Zeitangabe), Bootloader-Empfang auf Fenster und Ablauf pruefen;
-  Weboberflaeche: bei Fehlschlag automatisch erneut hochladen, solange der Bootloader Versuche hat,
-  und Fehlschlag klar melden. Die Anzeige waehrend des Updates (nicht grau, "Update laeuft") hat
-  funktioniert. Rueckweg zur Originalfirmware: eigene Freigabe noetig.
+- **Update auf dem Testgerät (Freigabe wallbe2/AGENTS.md 2026-10-26). Versuch 1 (`07ae5ce`): Bootloader
+  meldete Erfolg, Vollstaendigkeit unbekannt, IWDG-Flag ungeklaert. Versuch 2 und 3 (2026-10-26)
+  brachen ab, Ursache im Mitschnitt von Versuch 3 belegt: Die Weboberflaeche fragte waehrend des
+  Uploads `/system/info` ab; der Bootloader haelt den Upload-Zustand fuer alle Verbindungen
+  gemeinsam und bricht ihn bei jedem `GET` ab, nachdem er Sektor 4..6 geloescht hat (Auslesen per
+  SWD: bis zum Abbruch fehlerfrei geschrieben, [wallbe2 Bootloader](../../wallbe2/docs/bootloader.md#update-betrieb-bootloader-box-t-firmware-081)).
+  Tempo im Mitschnitt: Loeschen etwa 2,3 s, dann etwa 65 KB/s; die 30-s-Grenze ist unkritisch.
+  Abhilfe: Die Seite fragt waehrend des Updates nichts ab und warnt vor anderen Abfragen (evcc);
+  Wallfree prueft das eigene Abbild (SOLL-BOOT-35), die Seite wertet nur eine passende Pruefsumme
+  als Erfolg. In der Simulation mit nachgebildetem Bootloader (gemeinsamer Zustand, Zaehlung,
+  Tempo) geprueft; auf dem Testgerät ausstehend. Rueckweg zur Originalfirmware: eigene Freigabe noetig.
 - **Flash-Platz** (Nutzerfrage 2026-10-25, kurz beantwortet, Pruefung offen): Die Anwendung nutzt
   mit 320 KB bereits Sektor 4..6 ganz, mehr loescht der Bootloader nicht. Sektor 7 (128 KB, davon
   wenige hundert Byte Parameter) kaeme nur fuer Daten in Frage, die Wallfree selbst schreibt (z. B.

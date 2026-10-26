@@ -55,6 +55,7 @@ static uint32_t opt_dip;
 static uint32_t opt_rotary;
 static uint32_t opt_reset_ms;
 static uint32_t opt_http_port;
+static bool opt_image_bad; /* SOLL-BOOT-35 pruefen: Abbild als ungueltig melden */
 
 static void sim_options(void)
 {
@@ -67,6 +68,8 @@ static void sim_options(void)
 		 .descript = "Reset-Taster beim Start so lange gedrueckt halten (5000 = Werksreset)"},
 		{.option = "http-port", .name = "port", .type = 'u', .dest = &opt_http_port,
 		 .descript = "TCP-Port des HTTP-Servers, Default CONFIG_WALLFREE_HTTP_PORT"},
+		{.is_switch = true, .option = "image-bad", .type = 'b', .dest = &opt_image_bad,
+		 .descript = "Pruefung des eigenen Abbilds schlaegt fehl (SOLL-BOOT-35)"},
 		ARG_TABLE_ENDMARKER,
 	};
 
@@ -439,6 +442,24 @@ FUNC_NORETURN void hw_bootloader_handover(uint32_t ip, uint32_t mask)
 	model_save();
 	wf_sim_host_exec_bootloader(mock, hw_sim_http_port());
 	CODE_UNREACHABLE;
+}
+
+/* SOLL-BOOT-35: Das Programm der Simulation hat keinen Anhang. Nach einem Update meldet der
+ * Ersatz-Bootloader in WALLFREE_SIM_IMAGE, ob das empfangene Abbild gueltig war
+ * ("ok:<crc>"/"bad:<crc>"); --image-bad erzwingt ein ungueltiges. Sonst nicht pruefbar. */
+int hw_image_check(uint32_t *crc)
+{
+	const char *v = nsi_host_getenv("WALLFREE_SIM_IMAGE");
+
+	*crc = 0;
+	if (opt_image_bad) {
+		return 0;
+	}
+	if (v == NULL || strlen(v) < 4) {
+		return -1;
+	}
+	*crc = (uint32_t)strtoul(v + 3, NULL, 16);
+	return strncmp(v, "ok:", 3) == 0;
 }
 
 void hw_boot_regs(uint32_t out[HW_BOOT_REGS])

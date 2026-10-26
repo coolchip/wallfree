@@ -13,11 +13,13 @@
  *
  * Nur gebaut, nicht auf Hardware ausgefuehrt.
  */
+#include <string.h>
 #include <zephyr/drivers/watchdog.h>
 #include <zephyr/init.h>
 #include <zephyr/irq.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <wallfree/nvm/nvm.h>
 #include <stm32_ll_adc.h>
 #include <stm32_ll_bus.h>
 #include <stm32_ll_dma.h>
@@ -457,6 +459,24 @@ FUNC_NORETURN void hw_bootloader_handover(uint32_t ip, uint32_t mask)
 	__disable_irq();
 	NVIC_SystemReset();
 	CODE_UNREACHABLE;
+}
+
+/* ------------------------------------------------ Abbild (SOLL-BOOT-35) */
+
+/* Format: scripts/image-trailer.py */
+#define IMAGE_MAGIC 0x474D4957u
+extern char _flash_used[]; /* Linker: Laenge des Abbilds ab __rom_region_start */
+extern char __rom_region_start[];
+
+int hw_image_check(uint32_t *crc)
+{
+	const uint8_t *base = (const uint8_t *)__rom_region_start;
+	size_t len = (size_t)_flash_used;
+	uint32_t t[4];
+
+	memcpy(t, base + len, sizeof(t));
+	*crc = nvm_crc32(0, base, len);
+	return t[0] == IMAGE_MAGIC && t[1] == len && t[2] == *crc && t[3] == ~IMAGE_MAGIC;
 }
 
 void hw_boot_regs(uint32_t out[HW_BOOT_REGS])
