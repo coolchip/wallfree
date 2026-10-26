@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Zeitleiste eines Firmware-Updates auf der Steuerung (SOLL-BOOT-30..33) mitschreiben.
 
-Fragt alle 0,5 s GET /system/info ohne Anmeldung ab und protokolliert jeden Wechsel, wer
-antwortet: "wallfree" (JSON, auch 401), "bootloader" (HTML) oder "weg"; dazu laufend das
-Log der Telnet-Shell, solange Wallfree laeuft (Port 23, anders mit WALLFREE_TELNET_PORT, in der
+Ohne HTTP: Der Bootloader bricht einen Upload bei jeder anderen HTTP-Anfrage ab (wallbe2
+docs/bootloader.md). Zustand alle 0,5 s: "wallfree" (Telnet-Shell verbunden), "erreichbar"
+(antwortet auf Ping, keine Shell: Bootloader oder Start) oder "weg"; dazu laufend das Log der
+Telnet-Shell, solange Wallfree laeuft (Port 23, anders mit WALLFREE_TELNET_PORT, in der
 Simulation 2323). Beenden mit Strg+C.
     python3 -I scripts/update-watch.py 192.168.1.50[:port] [datei.log]
 """
@@ -13,13 +14,13 @@ import re
 import socket
 import sys
 import threading
+import subprocess
 import time
-import urllib.error
-import urllib.request
 
 T0 = time.monotonic()
 lock = threading.Lock()
 out = None
+shell_up = False
 
 
 def log(msg):
@@ -32,18 +33,16 @@ def log(msg):
 
 
 def probe(host):
-    try:
-        with urllib.request.urlopen(f"http://{host}/system/info", timeout=0.8) as r:
-            body = r.read(200)
-    except urllib.error.HTTPError as e:
-        body = e.read(200)
-    except OSError:
-        return "weg"
-    return "wallfree" if body.lstrip().startswith(b"{") else "bootloader" if body else "weg"
+    if shell_up:
+        return "wallfree"
+    r = subprocess.run(["ping", "-c1", "-W1", host.split(":")[0]], stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL)
+    return "erreichbar" if r.returncode == 0 else "weg"
 
 
 def telnet(host):
     """Log der Shell mitschreiben; nach Abbruch erneut verbinden."""
+    global shell_up
     while True:
         try:
             s = socket.create_connection(
@@ -51,7 +50,13 @@ def telnet(host):
         except OSError:
             time.sleep(1)
             continue
+        # harter Reset schliesst die Verbindung nicht: Keepalive erkennt das nach etwa 3 s
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        s.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 1)
+        s.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 1)
+        s.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 2)
         log("telnet: verbunden")
+        shell_up = True
         s.settimeout(None)
         buf = b""
         try:
@@ -67,6 +72,7 @@ def telnet(host):
                         log("log: " + t)
         except OSError:
             pass
+        shell_up = False
         log("telnet: getrennt")
         s.close()
         time.sleep(1)

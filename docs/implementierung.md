@@ -353,7 +353,8 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   per Parameter CR = 40 (oder 9) bekommt, entscheidet der Nutzer (Konfiguration, SOLL-GEN-02).
 - **Update auf dem Testgerät (Freigabe wallbe2/AGENTS.md 2026-10-26). Versuch 1 (`07ae5ce`): Bootloader
   meldete Erfolg, Vollstaendigkeit unbekannt, IWDG-Flag ungeklaert. Versuch 2 und 3 (2026-10-26)
-  brachen ab, Ursache im Mitschnitt von Versuch 3 belegt: Die Weboberflaeche fragte waehrend des
+  brachen ab (bei Versuch 2 fragte zusaetzlich das damalige `update-watch.py` alle 0,5 s per HTTP
+  ab; es nutzt jetzt nur Ping und Telnet), Ursache im Mitschnitt von Versuch 3 belegt: Die Weboberflaeche fragte waehrend des
   Uploads `/system/info` ab; der Bootloader haelt den Upload-Zustand fuer alle Verbindungen
   gemeinsam und bricht ihn bei jedem `GET` ab, nachdem er Sektor 4..6 geloescht hat (Auslesen per
   SWD: bis zum Abbruch fehlerfrei geschrieben, [wallbe2 Bootloader](../../wallbe2/docs/bootloader.md#update-betrieb-bootloader-box-t-firmware-081)).
