@@ -17,7 +17,7 @@ Tests: [Test und Simulation](test-und-simulation.md).
 | Weboberflaeche (`web/`) | fertig (Bereiche, Verlauf), Browser-Durchlauf in der Simulation |
 | evcc-Anbindung | gegen die Simulation geprueft (evcc 0.317.2) |
 | Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) | auf dem Testgerät gestartet: Takt, Bootloader-Start, Ethernet/PHY, DIP/Drehschalter, CP-Messung (Ruhe, A, F), RCM-Selbsttest, alle fuenf Eingaenge, Ausgaenge ER/LR/VR/CR (je 12 V), Verriegelung mit LD, Power-/Error-LED, Parameterspeicher, Reset-Taster/Werksreset; Schuetz, PWM, Connect-/Ready-LED (nur kurz bzw. erst mit Fahrzeug) noch ungeprueft |
-| Update ueber den Bootloader (SOLL-SH-10, SOLL-BOOT-30..34) | umgesetzt: Uebergabe (Shell, API), Upload aus der Weboberflaeche, Ergebnis; in der Simulation mit Ersatz-Bootloader Ende-zu-Ende und im Browser geprueft; auf dem Testgerät einmal ueber die Weboberflaeche erfolgreich (`07ae5ce`, 2026-10-24) |
+| Update ueber den Bootloader (SOLL-SH-10, SOLL-BOOT-30..35) | umgesetzt und auf dem Testgerät geprueft (Weboberflaeche, 20 s, Pruefsumme des Abbilds); Simulation mit nachgebildetem Bootloader Ende-zu-Ende und im Browser |
 
 ## Module der Ladelogik und Bausteine
 
@@ -374,8 +374,9 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   2026-10-26): Wallfree verwendet die Geraete-MAC aus dem OTP, auf dem Testgerät geprueft (`1722fe6`,
   `xx:xx:xx:a1:b2:c3`, neue DHCP-Adresse `192.168.1.22`, Hostname `wallfree-a1b2c3`), Anzeige im
   Bereich System; Anzeige des Updates mit drei Stufen und Zeit statt technischer Schritte;
-  Abstand der Aktionsknoepfe. Offen: Update ueber die Weboberflaeche mit stabiler MAC (erwartet
-  etwa 1 min statt 3). Rueckweg zur Originalfirmware: eigene
+  Abstand der Aktionsknoepfe. **Versuch 5** (2026-10-26, `1722fe6` -> `477bb1b` ueber die
+  Weboberflaeche, gleiche MAC): erfolgreich in 20 s (Anzeige 0:16), ohne IWDG, Pruefsumme
+  `1d256b1d` gueltig; das Update ueber die Weboberflaeche gilt auf dem Testgerät als geprueft. Rueckweg zur Originalfirmware: eigene
   Freigabe noetig.
 - **Flash-Platz** (Nutzerfrage 2026-10-25, kurz beantwortet, Pruefung offen): Die Anwendung nutzt
   mit 320 KB bereits Sektor 4..6 ganz, mehr loescht der Bootloader nicht. Sektor 7 (128 KB, davon
