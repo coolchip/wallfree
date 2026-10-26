@@ -365,8 +365,16 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   Tempo) geprueft. Auf dem Testgerät: `b7b832c` per SWD, Pruefung des eigenen Abbilds gueltig (CRC
   `fe83bae3` wie im Anhang); Update ueber die Weboberflaeche damit noch ausstehend. BKP16 stand
   danach auf 4 (IWDG-Resets im Bootloader waehrend des abgebrochenen Versuchs, wallbe2
-  Bootloader); vor dem naechsten Versuch Kaltstart, damit der Zaehler bei 0 beginnt. Rueckweg
-  zur Originalfirmware: eigene Freigabe noetig.
+  Bootloader); vor dem naechsten Versuch Kaltstart, damit der Zaehler bei 0 beginnt. **Versuch 4
+  (2026-10-26, `b7b832c` -> `8bce057` ueber die Weboberflaeche): erfolgreich**, Pruefsumme
+  `33b63f11` gueltig. Dauer fast 3 min, Upload selbst etwa 8 s; die Wartezeiten entstehen durch
+  verschiedene MAC-Adressen von Bootloader (Geraete-MAC) und Wallfree (von Zephyr erzeugt), der PC
+  haelt den ARP-Eintrag, und durch einen IWDG-Reset beim ersten Start des Bootloaders im
+  Update-Betrieb (wallbe2 Bootloader). Normaler Neustart: etwa 5 s. Geplant: Wallfree verwendet
+  die Geraete-MAC (Entscheidung Nutzer, Folge: neue DHCP-Adresse, neuer Hostname); Anzeige des
+  Updates vereinfachen (drei Stufen, Zeit, keine technischen Schritte, Nutzer 2026-10-26);
+  Abstand der Knoepfe "Neu starten"/"Update starten" zum Element darueber (Nutzer). Rueckweg zur
+  Originalfirmware: eigene Freigabe noetig.
 - **Flash-Platz** (Nutzerfrage 2026-10-25, kurz beantwortet, Pruefung offen): Die Anwendung nutzt
   mit 320 KB bereits Sektor 4..6 ganz, mehr loescht der Bootloader nicht. Sektor 7 (128 KB, davon
   wenige hundert Byte Parameter) kaeme nur fuer Daten in Frage, die Wallfree selbst schreibt (z. B.
