@@ -109,7 +109,8 @@ Zugangsdaten-Seite, Parameter schreiben, Netz/System.
 `node scripts/web-update-check.mjs <port> <user> <passwort> <ausgabe>` gegen eine Simulation mit
 Ersatz-Bootloader (`sim-run.sh` setzt `WALLFREE_SIM_BOOTLOADER`): erzeugt Testabbilder mit der
 Kennung der laufenden Version, prueft die Vorpruefung (ungueltige Datei abgelehnt, Wallfree mit
-Version erkannt), die Rueckfrage und den Ablauf bis "Update erfolgreich" und nach dem Neuladen
+Version erkannt), die Rueckfrage, waehrend des Ablaufs Kopf "Update laeuft" ohne Ausgrauen, den
+Ablauf bis "Update erfolgreich" und nach dem Neuladen
 "Letztes Update: erfolgreich" (Simulation 2026-10-24: bestanden).
 
 ## Bilder und PDF der Anleitung

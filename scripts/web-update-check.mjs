@@ -89,10 +89,13 @@ out.good = await text();
 await shot('1-update-auswahl');
 out.started = await click('Update starten');
 let t = '';
+const head = "(() => document.querySelector('header .grow').innerText.trim() + '|' + document.querySelector('main').className)()";
+out.heads = [];
 for (let i = 0; i < 90 && !/Update (erfolgreich|fehlgeschlagen)|antwortet nicht|meldet sich nicht/.test(t); i++) {
 	await sleep(1000);
 	t = await text();
-	if (i === 8) await shot('2-update-laeuft');
+	out.heads.push(await evalJs(head));
+	if (i === 1) await shot('2-update-laeuft');
 }
 out.done = t;
 out.dialogs = dialogs;
@@ -108,6 +111,8 @@ const checks = [
 	['Vorpruefung erkennt Wallfree mit Version', out.good.includes('Wallfree ' + version)],
 	['Rueckfrage nennt die Version', dialogs.length === 1 && dialogs[0].includes(version)],
 	['Ablauf bis Erfolg', out.done.includes('Update erfolgreich')],
+	['waehrend des Updates: Kopf "Update laeuft", nie ausgegraut',
+		out.heads.some((h) => h.startsWith('Update läuft')) && !out.heads.some((h) => h.endsWith('|offline'))],
 	['nach Neuladen: letztes Update erfolgreich', out.after.includes('Letztes Update') && out.after.includes('erfolgreich')],
 ];
 let fail = 0;

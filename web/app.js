@@ -611,10 +611,19 @@ async function waitFor(what, seconds) {
 const STEPS = ['Übergabe an den Bootloader', 'Warten auf den Bootloader', 'Hochladen',
 	'Neustart', 'Ergebnis'];
 
-function Update() {
+function Update({ onBusy }) {
 	const [file, setFile] = useState(null); // {name, buf, check}
 	const [step, setStep] = useState(-1);
 	const [msg, setMsg] = useState(null);
+	const busy = step >= 0 && step < 5;
+	// Kopfzeile und Ausgrauen (Main); Schliessen des Tabs braeche den Upload ab
+	useEffect(() => {
+		onBusy(busy);
+		const warn = (ev) => { ev.preventDefault(); ev.returnValue = ''; };
+		if (busy) addEventListener('beforeunload', warn);
+		return () => removeEventListener('beforeunload', warn);
+	}, [busy]);
+	useEffect(() => () => onBusy(false), []);
 	const pick = async (ev) => {
 		const f = ev.target.files[0];
 		setMsg(null);
@@ -665,7 +674,6 @@ function Update() {
 			setMsg({ ok: false, text: e.message });
 		}
 	};
-	const busy = step >= 0 && step < 5;
 	const c = file && file.check;
 	return html`<${Card} title="Firmware-Update">
 		<div class="row"><input type="file" accept=".bin" disabled=${busy} onChange=${pick} /></div>
@@ -674,6 +682,8 @@ function Update() {
 			Math.round(file.buf.byteLength / 1024) + ' KB' : 'Kein Wallfree-Abbild (z. B. Originalfirmware)'}</p>`}
 		${step >= 0 && html`<ol class="msg">${STEPS.map((s, i) => html`<li
 			class=${i < step ? 'ok' : i === step ? '' : 'muted'}>${s}${i === step && busy ? ' …' : ''}</li>`)}</ol>`}
+		${busy && html`<p class="warn msg">Die Steuerung ist während des Updates etwa eine Minute nicht
+			erreichbar, das ist normal. Diese Seite bitte offen lassen.</p>`}
 		<div class="row msg"><button class="primary" disabled=${!c || typeof c === 'string' || busy}
 			onClick=${run}>Update starten</button></div>
 		<${Msg} m=${msg} />
@@ -682,7 +692,7 @@ function Update() {
 	<//>`;
 }
 
-function SystemPage() {
+function SystemPage({ onBusy }) {
 	const [si, setSi] = useState(null);
 	const [msg, setMsg] = useState(null);
 	useEffect(() => {
@@ -702,7 +712,7 @@ function SystemPage() {
 		<div class="row msg"><button onClick=${() => restart(setMsg)}>Neu starten</button></div>
 		<${Msg} m=${msg} />
 	<//>
-	<${Update} />`;
+	<${Update} onBusy=${onBusy} />`;
 }
 
 function Credentials({ first }) {
@@ -915,18 +925,21 @@ const Logo = () => html`<h1 class="logo"><a href="#/"><svg viewBox="0 0 32 32" a
 function Main() {
 	const live = useLive();
 	const [a, sub] = useRoute();
+	// Firmware-Update: die Steuerung ist absichtlich weg, die Seite bleibt bedienbar
+	const [updating, setUpdating] = useState(false);
 	const area = AREAS.some(([k]) => k === a) ? a : '';
-	const dot = live.online ? 'ok' : live.online === false ? 'bad' : '';
-	const conn = live.online ? 'verbunden' : live.online === false ? 'getrennt' : '…';
+	const dot = updating ? 'warn' : live.online ? 'ok' : live.online === false ? 'bad' : '';
+	const conn = updating ? 'Update läuft …' : live.online ? 'verbunden'
+		: live.online === false ? 'getrennt' : '…';
 	return html`
 		<header>
 			<${Logo} /><span class="grow muted" title=${live.mode === 'live' ? 'live (WebSocket)' : live.mode === 'poll' ? 'Abfrage alle 2 s' : ''}><span class="dot ${dot}"></span> ${conn}</span>
 			<nav class="top">${AREAS.map(([k, t]) => html`<a href=${'#/' + k} class=${area === k ? 'sel' : ''}>${t}</a>`)}</nav>
 		</header>
-		<main class=${live.online === false ? 'offline' : ''}>
+		<main class=${live.online === false && !updating ? 'offline' : ''}>
 			${area === 'insights' ? html`<${Insights} live=${live} />`
 				: area === 'einstellungen' ? html`<${Settings} sub=${sub} live=${live} />`
-				: area === 'system' ? html`<${SystemPage} />`
+				: area === 'system' ? html`<${SystemPage} onBusy=${setUpdating} />`
 				: html`<${Overview} live=${live} />`}
 		</main>`;
 }

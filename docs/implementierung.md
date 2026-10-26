@@ -347,12 +347,12 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   dunkel; das Original hatte CR = 9 (Testgerät) bzw. 40 (zweites Gerät), also gruen im Leerlauf. Ob das Testgerät
   per Parameter CR = 40 (oder 9) bekommt, entscheidet der Nutzer (Konfiguration, SOLL-GEN-02).
 - Update auf dem Testgerät (`07ae5ce`, erst SWD, dann dasselbe Abbild ueber die Weboberflaeche): Bootloader
-  meldet Erfolg (BKP12 Modus 2, ok), Modul-LEDs im Update-Betrieb alle an. Offen: (1) Waehrend des
-  Updates graut die Seite wie bei einem Verbindungsabbruch aus und zeigt "getrennt"; Fortschritt
-  und Ergebnis waren nicht erkennbar (Nutzer: wirkt kaputt). Vorschlag: waehrend des Updates
-  bedienbar bleiben, im Kopf "Update laeuft". (2) Nach dem Update standen IWDG- und
+  meldet Erfolg (BKP12 Modus 2, ok), Modul-LEDs im Update-Betrieb alle an. Die Seite graute dabei
+  wie bei einem Verbindungsabbruch aus (Nutzer: wirkt kaputt); jetzt bleibt sie bedienbar, der Kopf
+  zeigt "Update laeuft", ein Hinweis erklaert die Unterbrechung, Schliessen des Tabs fragt nach
+  (in der Simulation geprueft, auf dem Testgerät noch nicht). Offen: (1) Nach dem Update standen IWDG- und
   Software-Reset-Flag (Resetgrund `watchdog`); wo im Ablauf der Watchdog ausloest, ist zu klaeren.
-  (3) Rueckweg zur Originalfirmware ueber den Bootloader, Freigabe offen.
+  (2) Rueckweg zur Originalfirmware ueber den Bootloader, Freigabe offen.
 - **FLASH_SR-Fehlerbits beim Start** (Nutzerwunsch 2026-10-25, noch nicht bearbeitet): verstaendlich
   erklaeren, was PGPERR/PGSERR bedeuten, warum der Zephyr-Treiber deshalb die erste Speicherung
   scheitern liess, was Wallfree jetzt tut und woher die Bits stammen koennen (sie stehen schon

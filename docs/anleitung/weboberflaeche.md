@@ -453,8 +453,9 @@ Einstellungen bleiben erhalten.
 2. **Update starten** und die Rückfrage bestätigen. Ein laufender Ladevorgang wird geordnet
    beendet.
 3. Die Seite zeigt den Fortschritt: Übergabe an den Bootloader, Warten auf den Bootloader,
-   Hochladen, Neustart, Ergebnis. Das dauert etwa eine Minute. Die Seite in dieser Zeit **nicht
-   schließen**; die Anzeige „getrennt“ im Kopf ist dabei normal.
+   Hochladen, Neustart, Ergebnis. Das dauert etwa eine Minute. Die Steuerung ist in dieser Zeit
+   nicht erreichbar; im Kopf steht „Update läuft …“. Die Seite **nicht schließen** (der Browser
+   fragt sonst nach).
 4. Nach „Update erfolgreich“ lädt die Seite neu. Unter System steht dann die neue Firmware und
    „Letztes Update: erfolgreich“; die Übersicht nennt das Update unter den letzten Ereignissen.
 
