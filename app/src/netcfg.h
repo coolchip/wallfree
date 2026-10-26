@@ -16,6 +16,9 @@ void netcfg_init(void);
 /** Letzte 3 Byte der MAC als 6 Hexziffern (uid, Hostname, MQTT-Praefix). */
 void netcfg_uid(char out[7]);
 
+/** MAC-Adresse der Schnittstelle als "aa:bb:cc:dd:ee:ff", leer ohne Schnittstelle. */
+void netcfg_mac(char out[18]);
+
 /** Laufende und gespeicherte (beim naechsten Start wirksame) Konfiguration. */
 void netcfg_get(struct wf_sysconf *active, struct wf_sysconf *saved);
 

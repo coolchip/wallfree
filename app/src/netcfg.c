@@ -102,6 +102,18 @@ static void use_device_mac(struct net_if *iface)
 }
 #endif
 
+void netcfg_mac(char out[18])
+{
+	struct net_if *iface = net_if_get_default();
+	struct net_linkaddr *ll = iface ? net_if_get_link_addr(iface) : NULL;
+
+	out[0] = '\0';
+	if (ll != NULL && ll->len == 6) {
+		snprintk(out, 18, "%02x:%02x:%02x:%02x:%02x:%02x", ll->addr[0], ll->addr[1],
+			 ll->addr[2], ll->addr[3], ll->addr[4], ll->addr[5]);
+	}
+}
+
 static void apply(const struct wf_sysconf *c)
 {
 	char host[WF_HOSTNAME_MAX + 1];

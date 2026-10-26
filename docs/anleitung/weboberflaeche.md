@@ -439,6 +439,7 @@ Sie es deshalb nur in einem vertrauenswürdigen Netz.
 | Firmware | Stand der Firmware |
 | Laufzeit | Zeit seit dem letzten Start |
 | Letzter Reset | Grund des letzten Starts: `power_on` Einschalten, `user_restart` Neustart über Oberfläche oder Wartungszugang, `update` nach einem Firmware-Update, `factory_reset` nach Werksreset, `reset_pin` Reset-Taster, `brownout` Unterspannung, `watchdog` / `window_watchdog` / `supervision_limit` / `interface_hang` die Überwachung hat neu gestartet, `fault` Programmfehler |
+| MAC-Adresse | Hardware-Adresse der Netzwerkschnittstelle (vom Hersteller vergeben, wie in der Originalfirmware); unter ihr kennt der Router die Wallbox, z. B. für eine feste IP-Adresse |
 | Prüfsumme | Prüfsumme der laufenden Firmware; „beschädigt, Laden gesperrt“, wenn sie nicht stimmt (z. B. nach einem unvollständigen Update) |
 | Letztes Update | nur nach einem Firmware-Update: erfolgreich oder fehlgeschlagen |
 

@@ -768,6 +768,7 @@ function SystemPage({ onBusy }) {
 			<tr><td>Firmware</td><td class="num">${si.firmware}</td></tr>
 			<tr><td>Laufzeit</td><td class="num">${dur(si.uptime_ms)}</td></tr>
 			<tr><td>Letzter Reset</td><td class="num">${si.reset_reason}</td></tr>
+			${si.mac && html`<tr><td>MAC-Adresse</td><td class="num">${si.mac}</td></tr>`}
 			${si.image && html`<tr><td>Prüfsumme</td><td class="num ${si.image.ok ? '' : 'bad'}">
 				${si.image.crc}${si.image.ok ? '' : ' – beschädigt, Laden gesperrt'}</td></tr>`}
 			${si.update_result && html`<tr><td>Letztes Update</td><td class="num ${si.update_result.ok ? 'ok' : 'bad'}">

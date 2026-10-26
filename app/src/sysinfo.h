@@ -29,7 +29,7 @@ const uint32_t *sysinfo_boot_regs(void);
 
 /**
  * {"firmware": ..., "reset_reason": ..., "reset_flags": n, "uptime_ms": n,
- *  "image": null | {"crc": "hex", "ok": bool}, "update_result": null | {"mode": n, "ok": bool}}
+ *  "mac": "aa:bb:..", "image": null | {"crc": "hex", "ok": bool}, "update_result": null | {"mode": n, "ok": bool}}
  */
 void sysinfo_json(struct wf_jbuf *b);
 

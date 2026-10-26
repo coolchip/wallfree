@@ -4,6 +4,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include "hw.h"
+#include "netcfg.h"
 #include "sysinfo.h"
 
 LOG_MODULE_REGISTER(sysinfo, LOG_LEVEL_INF);
@@ -88,6 +89,11 @@ void sysinfo_json(struct wf_jbuf *b)
 	wf_jb_int(b, flags);
 	wf_jb_key(b, "uptime_ms", false);
 	wf_jb_int(b, k_uptime_get());
+	char mac[18];
+
+	netcfg_mac(mac);
+	wf_jb_key(b, "mac", false);
+	wf_jb_str(b, mac);
 	wf_jb_key(b, "image", false);
 	if (image_ok < 0) {
 		wf_jb_raw(b, "null");

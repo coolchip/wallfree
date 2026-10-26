@@ -371,9 +371,11 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   verschiedene MAC-Adressen von Bootloader (Geraete-MAC) und Wallfree (von Zephyr erzeugt), der PC
   haelt den ARP-Eintrag, und durch einen IWDG-Reset beim ersten Start des Bootloaders im
   Update-Betrieb (wallbe2 Bootloader). Normaler Neustart: etwa 5 s. Umgesetzt (Nutzer
-  2026-10-26), auf dem Testgerät noch zu pruefen: Wallfree verwendet die Geraete-MAC aus dem OTP (Folge:
-  neue DHCP-Adresse, Hostname `wallfree-a1b2c3`); Anzeige des Updates mit drei Stufen und Zeit
-  statt technischer Schritte; Abstand der Aktionsknoepfe. Rueckweg zur Originalfirmware: eigene
+  2026-10-26): Wallfree verwendet die Geraete-MAC aus dem OTP, auf dem Testgerät geprueft (`1722fe6`,
+  `xx:xx:xx:a1:b2:c3`, neue DHCP-Adresse `192.168.1.22`, Hostname `wallfree-a1b2c3`), Anzeige im
+  Bereich System; Anzeige des Updates mit drei Stufen und Zeit statt technischer Schritte;
+  Abstand der Aktionsknoepfe. Offen: Update ueber die Weboberflaeche mit stabiler MAC (erwartet
+  etwa 1 min statt 3). Rueckweg zur Originalfirmware: eigene
   Freigabe noetig.
 - **Flash-Platz** (Nutzerfrage 2026-10-25, kurz beantwortet, Pruefung offen): Die Anwendung nutzt
   mit 320 KB bereits Sektor 4..6 ganz, mehr loescht der Bootloader nicht. Sektor 7 (128 KB, davon
