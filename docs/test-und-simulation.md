@@ -117,6 +117,17 @@ Version erkannt), die Rueckfrage, waehrend des Ablaufs Kopf "Update laeuft" ohne
 Ablauf bis "Update erfolgreich" und nach dem Neuladen
 "Letztes Update: erfolgreich" (Simulation 2026-10-24: bestanden).
 
+## Netz-Lasttest
+
+`python3 -I scripts/net-load.py HOST -u USER:PW STUFE ... [-t SEK] [-n ABFRAGER]` gegen die
+Steuerung oder die Simulation (`--http`, `--telnet` fuer andere Ports). Liest nur (GET, WebSocket,
+Telnet-Diagnose). Stufen: `http` (parallele Abfragen, je eine Verbindung), `keep` (Keep-Alive),
+`ws` (4 WebSockets, 3 erlaubt, Takt `evse/state`), `churn` (Aufbau ohne Anfrage, RST, halbe
+Anfrage), `idle` (stumme Verbindungen belegen die HTTP-Plaetze), `mixed` (alles zugleich),
+`long` (Browser + evcc, Schnappschuss alle 5 min). Vor und nach jeder Stufe Laufzeit, Resetgrund,
+TCP-Zustaende und Stack-Auslastung; ein Neustart gilt als Fehler. Die Simulation taugt nur zum
+Pruefen des Skripts: unter Volllast laeuft ihre Uhr langsamer als die Wanduhr.
+
 ## Bilder und PDF der Anleitung
 
 `scripts/doc-screenshots.sh` erzeugt die Bilder in `docs/anleitung/bilder/` (etwa 8 min): eigener
