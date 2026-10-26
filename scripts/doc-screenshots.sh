@@ -13,7 +13,9 @@ for p in 8097 2324; do
 	if ss -ltn "sport = :$p" | grep -q LISTEN; then echo "Port $p belegt (andere Simulation?)"; exit 1; fi
 done
 rm -f "$OUT/flash.bin"
-"$OUT/zephyr/zephyr.exe" --flash="$OUT/flash.bin" --http-port=8097 --rt-ratio=60 >"$OUT/sim.log" 2>&1 &
+# System-Seite: Pruefsumme und "Letztes Update" (Modus 2, erfolgreich) wie nach einem Update
+WALLFREE_SIM_IMAGE=ok:6f1947bf WALLFREE_SIM_BKP12=201 \
+	"$OUT/zephyr/zephyr.exe" --flash="$OUT/flash.bin" --http-port=8097 --rt-ratio=60 >"$OUT/sim.log" 2>&1 &
 SIM=$!
 trap 'kill $SIM 2>/dev/null' EXIT
 sleep 3

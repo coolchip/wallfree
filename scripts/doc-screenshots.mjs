@@ -17,9 +17,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const HOUR = process.env.DOC_QUICK ? 1000 : 60000; // 1 h Simulationszeit bei --rt-ratio=60
 
 const dbg = 9355;
-const chrome = spawn('google-chrome-stable', ['--headless=new', `--remote-debugging-port=${dbg}`,
+const chrome = spawn('google-chrome-stable', ['--headless=new', '--lang=de-DE', `--remote-debugging-port=${dbg}`,
 	`--user-data-dir=${mkdtempSync(tmpdir() + '/wf-doc-')}`, '--no-first-run', '--hide-scrollbars',
-	'--force-color-profile=srgb', 'about:blank'], { stdio: 'ignore' });
+	'--force-color-profile=srgb', 'about:blank'], { stdio: 'ignore', env: { ...process.env, LANGUAGE: 'de', LANG: 'de_DE.UTF-8', LC_ALL: 'de_DE.UTF-8' } });
 let targets;
 for (let i = 0; i < 50; i++) {
 	try { targets = await (await fetch(`http://127.0.0.1:${dbg}/json`)).json(); break; } catch { await sleep(200); }
