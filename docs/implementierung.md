@@ -361,7 +361,9 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   mit 320 KB bereits Sektor 4..6 ganz, mehr loescht der Bootloader nicht. Sektor 7 (128 KB, davon
   wenige hundert Byte Parameter) kaeme nur fuer Daten in Frage, die Wallfree selbst schreibt (z. B.
   die Weboberflaeche), mit eigenem Aktualisierungsweg und Verdichten; Sektor 3 (16 KB) nur bei
-  Verzicht auf die Originalparameter (Rueckweg, Import). Naheliegender Hebel: Code und
-  Weboberflaeche verkleinern (Flash 97,3 % mit `07ae5ce`).
+  Verzicht auf die Originalparameter (Rueckweg, Import). Hebel stattdessen (ROM-Bericht `f6849a2`,
+  97,6 %, 7,9 KB frei): Netzwerk-Shellbefehle `CONFIG_NET_SHELL` 17 KB (abschalten oder
+  einschraenken, Entscheidung Nutzer), `app.js` minifizieren (gzip 15,8 KB, geschaetzt 4..5 KB
+  weniger), allgemeine Shell 20 KB entfaellt erst mit Telnet. Netzstack und HTTP (~120 KB) noetig.
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
   (bisher nur ueber die API getestet).
