@@ -570,13 +570,13 @@ const dur = (ms) => {
 // waehrend die Steuerung an den Original-Bootloader uebergibt. Der antwortet unter derselben
 // Adresse auf jedes GET mit HTML (Wallfree immer mit JSON, auch ohne Anmeldung), nimmt die
 // Datei als Formular an /upload.cgi an und startet danach die neue Firmware.
-const IMAGE_MAX = 0x60000; // Sektor 4..6, mehr loescht der Bootloader nicht
+const IMAGE_MAX = 0x50000; // Sektor 4..6 (320 KB), mehr loescht der Bootloader nicht
 const TAG = 'WALLFREE-IMAGE:';
 
 // Vorpruefung: was der Bootloader selbst nicht prueft. @return {version|null} oder Fehlertext
 function checkImage(buf) {
 	if (buf.byteLength < 8) return 'Datei zu klein';
-	if (buf.byteLength > IMAGE_MAX) return 'Datei zu groß (höchstens 384 KB)';
+	if (buf.byteLength > IMAGE_MAX) return 'Datei zu groß (höchstens 320 KB)';
 	const dv = new DataView(buf), sp = dv.getUint32(0, true), rv = dv.getUint32(4, true);
 	if ((sp & 0x2FF00000) !== 0x20000000 || !(rv & 1) || rv < 0x08010000 || rv >= 0x08070000) {
 		return 'Kein Firmware-Abbild für die Adresse 0x08010000';

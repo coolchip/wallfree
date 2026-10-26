@@ -21,7 +21,7 @@ host=$1
 image=$2
 [ -f "$image" ] || { echo "Datei fehlt: $image" >&2; exit 2; }
 size=$(wc -c < "$image")
-[ "$size" -le 393216 ] || { echo "Abbild zu gross ($size Byte, hoechstens 384 KB)" >&2; exit 2; }
+[ "$size" -le 327680 ] || { echo "Abbild zu gross ($size Byte, hoechstens 320 KB)" >&2; exit 2; }
 [ $only -eq 1 ] || [ -n "$creds" ] || { echo "Zugangsdaten fehlen (-u)" >&2; exit 2; }
 
 # Antwort auf GET /system/info ohne Anmeldung: "wallfree" (JSON, auch 401), "bootloader" (HTML)

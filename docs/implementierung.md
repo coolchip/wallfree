@@ -158,7 +158,7 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | --- | --- | --- |
 | Neustart | nur geordnet: `evse_request_shutdown` (wirkt wie fehlende Verfuegbarkeit -> S7 mit 5-s-Frist -> S10), warten bis Schuetz aus, hoechstens 15 s, dann sicherer Zustand und Reset; gilt fuer Shell, HTTP und Werksreset. `kernel reboot` ist entfernt | SOLL-RT-22, SOLL-SH-20 |
 | Update-Uebergabe | wie der Neustart geordnet (Ladeende, hoechstens 15 s), dann BKP10..15 und Reset statt BKP19-Reset allein; IP/Maske der aktuellen Adresse, ohne Adresse 0 (Bootloader: 192.168.0.8); eine zweite Anforderung waehrend Neustart/Update -> 409 bzw. Meldung **(zu bestaetigen)** | SOLL-BOOT-30/31 |
-| Update in der Weboberflaeche | Vorpruefung: hoechstens 384 KB, Start-SP wie die Bootloader-Pruefung, Reset-Vektor ungerade in `0x08010000..0x0806FFFF`, Kennung `WALLFREE-IMAGE:` mit Version. Wer antwortet, zeigt `GET /system/info` ohne eigene Auswertung des Bootloader-Textes: JSON = Wallfree (auch 401), sonst HTML = Bootloader. Fristen: bis 60 s auf den Bootloader, Upload 30 s (wie der Bootloader), bis 180 s auf Wallfree; Erfolg = `update_result.ok` und Version gleich der Kennung der Datei; die Antwort des Bootloaders auf den Upload wird nicht ausgewertet (er startet 1 s danach neu). Fremdes Abbild: nach dem Upload Ende ohne Ergebnis **(zu bestaetigen)** | SOLL-BOOT-32 |
+| Update in der Weboberflaeche | Vorpruefung: hoechstens 320 KB (Sektor 4..6), Start-SP wie die Bootloader-Pruefung, Reset-Vektor ungerade in `0x08010000..0x0806FFFF`, Kennung `WALLFREE-IMAGE:` mit Version. Wer antwortet, zeigt `GET /system/info` ohne eigene Auswertung des Bootloader-Textes: JSON = Wallfree (auch 401), sonst HTML = Bootloader. Fristen: bis 60 s auf den Bootloader, Upload 30 s (wie der Bootloader), bis 180 s auf Wallfree; Erfolg = `update_result.ok` und Version gleich der Kennung der Datei; die Antwort des Bootloaders auf den Upload wird nicht ausgewertet (er startet 1 s danach neu). Fremdes Abbild: nach dem Upload Ende ohne Ergebnis **(zu bestaetigen)** | SOLL-BOOT-32 |
 | Log vor Neustart | Meldung, dann 200 ms fuer den Log-Thread, dann Reset (bei Fristablauf Schuetz sofort per Register aus); kein `LOG_PANIC` in Thread-Neustartpfaden; Meldungen der Ueberwachung koennen verloren gehen (Grund steht in BKP19) | `LOG_PANIC` blockiert mit verbundenem Telnet-Client die Systemworkqueue (Fallstricke) |
 | Quittieren | `evse errors clear` / `POST /evse/errors/ack` quittiert nur ERR-CONTACTOR (F14); die Ausgabe nennt fuer alle anderen die Ruecksetzbedingung | SOLL-ERR-03 |
 | Selbsttest auf Anforderung | `evse selftest` nur in S1, CP A, Schuetz aus | SOLL-SH-07 |
@@ -353,5 +353,16 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   bedienbar bleiben, im Kopf "Update laeuft". (2) Nach dem Update standen IWDG- und
   Software-Reset-Flag (Resetgrund `watchdog`); wo im Ablauf der Watchdog ausloest, ist zu klaeren.
   (3) Rueckweg zur Originalfirmware ueber den Bootloader, Freigabe offen.
+- **FLASH_SR-Fehlerbits beim Start** (Nutzerwunsch 2026-10-25, noch nicht bearbeitet): verstaendlich
+  erklaeren, was PGPERR/PGSERR bedeuten, warum der Zephyr-Treiber deshalb die erste Speicherung
+  scheitern liess, was Wallfree jetzt tut und woher die Bits stammen koennen (sie stehen schon
+  beim Sprung in Wallfree; Kandidaten: Bootloader ausserhalb seiner Flash-Funktionen, Ablauf beim
+  Reset/Flashen).
+- **Flash-Platz** (Nutzerfrage 2026-10-25, kurz beantwortet, Pruefung offen): Die Anwendung nutzt
+  mit 320 KB bereits Sektor 4..6 ganz, mehr loescht der Bootloader nicht. Sektor 7 (128 KB, davon
+  wenige hundert Byte Parameter) kaeme nur fuer Daten in Frage, die Wallfree selbst schreibt (z. B.
+  die Weboberflaeche), mit eigenem Aktualisierungsweg und Verdichten; Sektor 3 (16 KB) nur bei
+  Verzicht auf die Originalparameter (Rueckweg, Import). Naheliegender Hebel: Code und
+  Weboberflaeche verkleinern (Flash 97,3 % mit `07ae5ce`).
 - Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
   (bisher nur ueber die API getestet).

@@ -10,7 +10,7 @@ beschreibt:
 - jedes GET liefert eine Upload-Seite (eigener Text, kein Inhalt des Originals);
 - POST /upload.cgi: Content-Length noetig, ein nicht leerer Dateiname, die Dateidaten beginnen
   16 Byte nach "octet-stream" und enden vor dem letzten "\\r\\n--";
-- hoechstens 0x60000 Byte (Sektor 4..6); Erfolg nur mit gueltigem Start-SP;
+- hoechstens 0x50000 Byte (Sektor 4..6, 320 KB); Erfolg nur mit gueltigem Start-SP;
 - 120 s Warten auf den Beginn des Uploads, 30 s fuer die Uebertragung;
 - danach Neustart der Simulation mit dem Ergebnis in BKP12 (Modus << 8 | Erfolg).
 
@@ -25,7 +25,7 @@ import sys
 import time
 
 MODE_WEB = 2
-MAX_IMAGE = 0x60000
+MAX_IMAGE = 0x50000
 UPLOAD_S = 30
 
 PAGE = (b"<!DOCTYPE html><html><head><title>Bootloader (Simulation)</title></head><body>"
