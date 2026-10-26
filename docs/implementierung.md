@@ -309,6 +309,7 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 | Start ueber den Original-Bootloader (Testgerät, [wallbe2/docs/bootloader.md](../../wallbe2/docs/bootloader.md#startablauf-bootloader-box-t-firmware-081)) | springt nach `0x08010000`, wenn das erste Wort ein SRAM-Stack-Pointer ist, sonst keine Pruefung; IWDG laeuft dann schon (etwa 33 s, LSI-abhaengig 22..62 s), PRIMASK = 1, PLL eingestellt; zaehlt IWDG-Resets in BKP16 und geht nach dem 5. in den Update-Betrieb | Wallfree bei `0x08010000` mit Bootloader moeglich; Zephyr gibt PRIMASK beim Start des Hauptthreads frei und schaltet vor der PLL-Konfiguration auf HSI; Wallfree uebernimmt den IWDG frueh (SOLL-BOOT-03) und loescht die Reset-Flags; BKP10..16 bleiben unberuehrt |
 | Simulation: stdout blockgepuffert, wenn das Log in eine Datei geht | Meldungen erscheinen Kilobytes spaeter; sah wie ein Log-Stillstand nach Telnet-Abbruch aus (kein Befund fuer die Steuerung) | stdout zeilengepuffert |
 | Simulation: Socket-Treiber NSOS ohne `shutdown` | ruhende HTTP-Verbindungen werden nie getrennt; ein offener Browser-Tab belegte alle 4 Plaetze | in der Simulation 8 Plaetze, 24 Deskriptoren |
+| Telnet-Ausgabe bei gleichzeitigem HTTP-Verkehr (Testgerät, schon mit `477bb1b`) | `kernel thread stacks` bricht ab, die Telnet-Ausgabe haengt etwa 9 s, HTTP-Abfragen und WebSocket-Takt stehen dabei 3..5 s | Diagnose per Telnet nur ohne Last aussagekraeftig; Telnet ist Entwicklungszugang (F20). Ursache nicht untersucht |
 | Simulation: Telnet-Backend setzt kein `SO_REUSEADDR` | nach Neustart blockiert TIME_WAIT den Port | `bind` setzt es in der Simulation |
 | `twister --coverage` | bricht in dieser Version ab | `scripts/run-tests.sh --coverage` ruft gcovr direkt |
 | Umrechnung `float` -> `int64_t` auf dem Cortex-M3 (`__aeabi_f2lz`) | zieht die Double-Softfloat-Routinen nach (+3,5 KB Flash), ohne dass der Quelltext `double` enthaelt | Float32 der Zaehler ganzzahlig dekodieren (`f32_scaled` in meter.c) |
@@ -383,6 +384,16 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   aufgespielt (laeuft, Einstellungen in Sektor 3 erhalten), danach aus der Originalfirmware ueber
   den Bootloader wieder Wallfree (Parameter in Sektor 7 erhalten). Rueckweg zur Originalfirmware: eigene
   Freigabe noetig.
+- **Netz-Lasttest auf dem Testgerät (`scripts/net-load.py`, 2026-10-26, Browser-Tab offen, S1): Mit
+  `477bb1b` startete das Testgerät unter 4 parallelen HTTP-Abfragern mehrmals neu (`supervision_limit`,
+  Fallstricke: kooperative Netz-Threads). Mit `eca1ad4` (Netz-Threads preemptiv) kein Neustart:
+  `http` 83 Anfragen/s, hoechstens 123 ms; `keep` mit 2 Abfragern 41/s, mit 4 Abweisungen (Keep-Alive
+  belegt je einen der 4 HTTP-Plaetze bis 10 s); `ws` 3 Plaetze, Takt 2,0 s; `churn` 2300
+  Verbindungen in 60 s ohne Rest; `mixed` 2 min, WebSocket-Luecke hoechstens 2,1 s; `long` 30 min
+  ohne Neustart. Grenzen: Stumme Verbindungen blockieren die Weboberflaeche, solange sie
+  nachkommen (je 10 s Inaktivitaetsfrist, im Test 33 s; Laden unberuehrt); bei Browser + 2
+  WebSockets + Abfrager + Telnet sind 8..9 von 10 Netz-Kontexten belegt (`NET_MAX_CONTEXTS`, mit
+  MQTT knapp). Thread-Stacks unter Last unveraendert gegenueber der Messung ohne Last (Ressourcen).
 - **Flash-Platz** (Nutzerfrage 2026-10-25, kurz beantwortet, Pruefung offen): Die Anwendung nutzt
   mit 320 KB bereits Sektor 4..6 ganz, mehr loescht der Bootloader nicht. Sektor 7 (128 KB, davon
   wenige hundert Byte Parameter) kaeme nur fuer Daten in Frage, die Wallfree selbst schreibt (z. B.
