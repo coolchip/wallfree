@@ -361,7 +361,11 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   Abhilfe: Die Seite fragt waehrend des Updates nichts ab und warnt vor anderen Abfragen (evcc);
   Wallfree prueft das eigene Abbild (SOLL-BOOT-35), die Seite wertet nur eine passende Pruefsumme
   als Erfolg. In der Simulation mit nachgebildetem Bootloader (gemeinsamer Zustand, Zaehlung,
-  Tempo) geprueft; auf dem Testgerät ausstehend. Rueckweg zur Originalfirmware: eigene Freigabe noetig.
+  Tempo) geprueft. Auf dem Testgerät: `b7b832c` per SWD, Pruefung des eigenen Abbilds gueltig (CRC
+  `fe83bae3` wie im Anhang); Update ueber die Weboberflaeche damit noch ausstehend. BKP16 stand
+  danach auf 4 (IWDG-Resets im Bootloader waehrend des abgebrochenen Versuchs, wallbe2
+  Bootloader); vor dem naechsten Versuch Kaltstart, damit der Zaehler bei 0 beginnt. Rueckweg
+  zur Originalfirmware: eigene Freigabe noetig.
 - **Flash-Platz** (Nutzerfrage 2026-10-25, kurz beantwortet, Pruefung offen): Die Anwendung nutzt
   mit 320 KB bereits Sektor 4..6 ganz, mehr loescht der Bootloader nicht. Sektor 7 (128 KB, davon
   wenige hundert Byte Parameter) kaeme nur fuer Daten in Frage, die Wallfree selbst schreibt (z. B.
