@@ -378,7 +378,7 @@ nach einem Neustart.
 | Netzmaske (`net_netmask`) | 255.255.255.0 | Netzmaske ohne DHCP, im Heimnetz meist 255.255.255.0. |
 | Gateway (`net_gateway`) | 192.168.0.1 | Adresse des Routers ohne DHCP; 0.0.0.0 = keiner (dann ist die Steuerung nur im eigenen Netz erreichbar). |
 | Hostname (`net_hostname`) | leer | Name der Steuerung im Netz (1..32 Zeichen: Buchstaben, Ziffern, Bindestrich). Leer = `wallfree-` und das Ende der Hardwareadresse. Der Name dient auch als Kennung am MQTT-Broker. |
-| Telnet-Shell einschalten (`telnet_enable`) | an | Wartungszugang über Telnet (Port 23) **ohne Passwort**. Für den normalen Betrieb ausschalten. |
+| Telnet-Shell einschalten (`telnet_enable`) | aus | Wartungszugang über Telnet (Port 23) **ohne Passwort**. Für den normalen Betrieb ausschalten. |
 
 > **Achtung:** Eine falsche feste Adresse macht die Steuerung unerreichbar. Prüfen Sie die
 > Werte vor dem Neustart. Ist die gespeicherte Adresse in sich widersprüchlich, startet die

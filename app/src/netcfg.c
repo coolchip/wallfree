@@ -41,6 +41,7 @@ static void load(struct wf_sysconf *c)
 	const char *fix;
 
 	wf_sysconf_defaults(c);
+	c->telnet = IS_ENABLED(CONFIG_WALLFREE_TELNET_DEFAULT);
 	for (size_t i = 0; i < wf_sys_count(); i++) {
 		const struct wf_syspar *p = wf_sys_at(i);
 		int n = storage_read_raw(p->id, buf, sizeof(buf));

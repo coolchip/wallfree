@@ -80,6 +80,8 @@ Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](.
   Endlosschleife ohne Warten haelt die simulierte Zeit an (Schutzthread und IWDG eingeschlossen).
 - Netzparameter werden nicht angewandt; `/info/name` liefert `uid` 000000 (keine MAC).
 - Sektor 3 ist leer (Import aus dem Original nicht pruefbar ohne Abbild).
+- Telnet-Shell ab Werk an (`CONFIG_WALLFREE_TELNET_DEFAULT`), auf der Steuerung aus (F20): In der
+  Simulation ist sie die Bedienung des Hardwaremodells (`sim ...`).
 - Ruhende HTTP-Verbindungen werden nie getrennt (kein `shutdown` im Socket-Treiber); daher 8
   statt 4 HTTP-Client-Plaetze und 24 statt 16 Deskriptoren
   ([native_sim_native_64.conf](../app/boards/native_sim_native_64.conf)).

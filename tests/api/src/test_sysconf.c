@@ -42,7 +42,7 @@ ZTEST(api_sysconf, test_defaults_and_json)
 	wf_sys_json(&c, &b);
 	zassert_str_equal(buf, "{\"net_dhcp\":true,\"net_ip\":\"192.168.0.8\","
 			       "\"net_netmask\":\"255.255.255.0\",\"net_gateway\":\"192.168.0.1\","
-			       "\"net_hostname\":\"\",\"telnet_enable\":true,\"meter_type\":0,"
+			       "\"net_hostname\":\"\",\"telnet_enable\":false,\"meter_type\":0,"
 			       "\"meter_address\":1,\"meter_baud\":9600,\"meter_framing\":0,"
 			       "\"mqtt_enable\":false,\"mqtt_broker\":\"0.0.0.0\",\"mqtt_port\":1883,"
 			       "\"mqtt_user\":\"\",\"mqtt_password\":null,\"mqtt_prefix\":\"\","
@@ -224,8 +224,9 @@ ZTEST(api_sysconf, test_set_rules)
 	zassert_false(c.dhcp);
 	zassert_not_null(set("net_dhcp", N(2)));
 	zassert_not_null(set("net_dhcp", S("ja")));
-	zassert_is_null(set("telnet_enable", (struct wf_jval){.type = WF_J_BOOL, .num = 0}));
-	zassert_false(c.telnet);
+	zassert_false(c.telnet, "F20: ab Werk aus");
+	zassert_is_null(set("telnet_enable", (struct wf_jval){.type = WF_J_BOOL, .num = 1}));
+	zassert_true(c.telnet);
 
 	zassert_is_null(set("net_ip", S("10.1.2.3")));
 	zassert_equal(c.ip, 0x0A010203);

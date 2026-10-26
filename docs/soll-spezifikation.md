@@ -681,7 +681,7 @@ abgelehnt (E14). Namen sind Vorschlaege (WARP-angelehnt, englisch).
 | `external_current_default` | mA | 0, 6000..80000 | 80000 | ja | – | nein | F12 |
 | `enable_register_default` | 0/1 | 0..1 | 0 | ja | – (neu, F19) | nein | F19 |
 | `net_dhcp`, `net_ip`, `net_netmask`, `net_gateway`, `net_hostname` | – | IPv4 / Text | DHCP an (F25), statisch 192.168.0.8/24, 192.168.0.1, `wallfree-<MAC-Ende>` | ja | 404 (DHCP), 315..318 / 319..322 / 323..326 (IP / Maske / Gateway), laut Original-Webseite `lan.html` | nein | F25 |
-| `telnet_enable` | 0/1 | 0..1 | 1 | ja | – | nein | F20 (spaeter Default 0 oder Telnet entfernen) |
+| `telnet_enable` | 0/1 | 0..1 | 0 | ja | – | nein | F20 (ab Werk aus, Nutzer 2026-10-26) |
 | `web_user`, `web_password` | Text | Benutzer 1..32 Zeichen, Passwort 8..64 Zeichen (gespeichert als Hash) | `admin` / Default-Passwort, **Aenderung beim ersten Zugriff erzwungen** | ja | – | nein | F20 |
 | `unlock_check` | 0/1 | 0..1 | 0 | ja | – | ja | F27 |
 | `meter_type` | Code | 0 kein Zaehler, 1 ABB B23, 2 Eastron SDM630, 3 Eastron SDM72D-M V2, 4 Eastron SDM72D-M (V1) | 0 | ja | – | ja | F28, SOLL-MTR-01 |
@@ -879,7 +879,7 @@ nacheinander; gesendet wird ein Objekt je Rahmen (auch fuer Browser einfach).
 | SOLL-SH-09 | `evse import-original` | einmalige Uebernahme aus Sektor 3 (SOLL-NVM-10), nur im sicheren Zustand |
 | SOLL-SH-10 | `evse bootloader` | Update-Uebergabe (SOLL-BOOT-30) |
 | SOLL-SH-11 | `evse reboot` | Neustart nach SOLL-RT-22 (HTTP: `POST /system/restart`). Zephyrs `kernel reboot` ist entfernt (`CONFIG_REBOOT=n`), weil es die Wartezeit umgehen wuerde (SOLL-SH-20) |
-| SOLL-SH-19 | Telnet-Shell ohne Anmeldung, Default **an** (`telnet_enable` = 1, F20); spaeter wird Telnet entfernt oder per Default abgeschaltet. |
+| SOLL-SH-19 | Telnet-Shell ohne Anmeldung, Default **aus** (`telnet_enable` = 0, F20, Nutzer 2026-10-26); in der Weboberflaeche einschaltbar, wirkt nach Neustart. Telnet bleibt in der Firmware (Diagnose). |
 | SOLL-SH-20 | Shell-Kommandos sind gegenueber dem Schutzpfad nicht privilegiert: kein Kommando kann Schutzfunktionen abschalten, das Schuetz direkt einschalten oder Aktorimpulse ausserhalb der Ablaufregeln ausloesen. | AG Sicherheitsgrenzen |
 
 ### 12.4 Update ueber den Bootloader
@@ -1103,7 +1103,7 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 | F17 | D6 ohne LD-Eingang | Konfigurationsfehler | sichtbarer Fehler statt still fehlschlagender Verriegelung | SOLL-LOCK-03 |
 | F18 | Eingangscode 18 | wie Code 1 | Portal nicht im Umfang | 9.1 |
 | F19 | Startwert Freigabe 400 | Parameter `enable_register_default`, Default 0 | wie Original, aber einstellbar | SOLL-EN-03 |
-| F20 | Zugriffsschutz | Web/API von Anfang an mit Benutzer/Passwort (Default mit Aenderungszwang); Telnet offen, Default an, spaeter entfernen/aus | die API steuert das Laden; Telnet nur fuer die Entwicklung | SOLL-API-07, SOLL-SH-19 |
+| F20 | Zugriffsschutz | Web/API von Anfang an mit Benutzer/Passwort (Default mit Aenderungszwang); Telnet offen, ab Werk aus (Nutzer 2026-10-26; bleibt fuer Diagnose in der Firmware) | die API steuert das Laden; Telnet nur fuer die Entwicklung | SOLL-API-07, SOLL-SH-19 |
 | F21 | Pause persistent | nein | wie Original (468 nur im RAM); eine Pause soll keinen Neustart ueberdauern | 10.2 |
 | F22 | Typ in `/info/name` | `warp2` | bei `warp3`/`warp4` wuerde evcc eine nicht vorhandene Phasenumschaltung bedienen | SOLL-API-01 |
 | F23 | D/E/F an evcc | ehrlich 3/4 | evcc soll einen Fehler melden statt eines falschen Zustands | 12.1 |

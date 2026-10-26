@@ -37,7 +37,7 @@ void wf_sysconf_defaults(struct wf_sysconf *c)
 	c->ip = IP(192, 168, 0, 8);         /* wie Original */
 	c->netmask = IP(255, 255, 255, 0);
 	c->gateway = IP(192, 168, 0, 1);
-	c->telnet = true;                   /* F20, spaeter Default aus */
+	c->telnet = false;                  /* F20: ab Werk aus (Nutzer 2026-10-26) */
 	c->meter_addr = 1;                  /* Werkseinstellung der Eastron-Zaehler */
 	c->meter_baud = 9600;
 	c->meter_framing = WF_FRAMING_8N1;
