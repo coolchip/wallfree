@@ -346,17 +346,23 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 - Ausgangsfunktionen auf dem Testgerät: Mit den Defaults (VR 16, CR 17) bleibt die Front-LED im Leerlauf
   dunkel; das Original hatte CR = 9 (Testgerät) bzw. 40 (zweites Gerät), also gruen im Leerlauf. Ob das Testgerät
   per Parameter CR = 40 (oder 9) bekommt, entscheidet der Nutzer (Konfiguration, SOLL-GEN-02).
-- Update auf dem Testgerät (`07ae5ce`, erst SWD, dann dasselbe Abbild ueber die Weboberflaeche): Bootloader
-  meldet Erfolg (BKP12 Modus 2, ok), Modul-LEDs im Update-Betrieb alle an. Die Seite graute dabei
-  wie bei einem Verbindungsabbruch aus (Nutzer: wirkt kaputt); jetzt bleibt sie bedienbar, der Kopf
-  zeigt "Update laeuft", ein Hinweis erklaert die Unterbrechung, Schliessen des Tabs fragt nach
-  (in der Simulation geprueft, auf dem Testgerät noch nicht). Offen: (1) Nach dem Update standen IWDG- und
-  Software-Reset-Flag (Resetgrund `watchdog`); wo im Ablauf der Watchdog ausloest, ist zu klaeren.
-  Ausgeschlossen: Wallfrees 250-ms-IWDG laeuft nicht in den Bootloader weiter (ein Software-Reset
-  setzt den IWDG zurueck, RM0033 5.1.1/17). Naechster Schritt: nach dem naechsten Update
-  `evse boot` lesen; BKP16 zaehlt jeden Bootloader-Start mit IWDG-Flag (das Flag bleibt bis zum
-  Start von Wallfree stehen), BKP11 zeigt, im wievielten Versuch der Upload gelang.
-  (2) Rueckweg zur Originalfirmware ueber den Bootloader, Freigabe offen.
+- **Update auf dem Testgerät (Freigabe wallbe2/AGENTS.md 2026-10-26). Versuch 1 (`07ae5ce`, nach SWD
+  dasselbe Abbild ueber die Weboberflaeche): Bootloader meldete Erfolg, Resetgrund `watchdog`
+  (IWDG- und Software-Flag), Ursache des IWDG-Flags offen. **Versuch 2 (2026-10-26, geordnet):**
+  Ausgangszustand `f6849a2` nach Kaltstart (BKP leer), Ziel `b20ac41` ueber die Weboberflaeche,
+  Zeitleiste mit `scripts/update-watch.py`: 11:50:54 Uebergabe, 11:51:02 Bootloader unter der
+  bisherigen Adresse, 11:51:30 weg (28 s nach Beginn des Uploads), 11:51:33 wieder da, danach in
+  Abstaenden; die Seite blieb bei "4. Neustart" (Upload nach 30 s abgebrochen). Kein startbares
+  Programm mehr (Sektor 4..6 geloescht, Vektortabelle nicht geschrieben); Wiederherstellung per SWD
+  ohne Stromausfall. `evse boot` danach: BKP10 0, BKP11 0 (alle Versuche verbraucht), BKP12 `0x200`
+  (Modus 2, fehlgeschlagen), BKP16 0, RCC_CSR nur Software + Pin (kein IWDG). Parameter in Sektor 7
+  unversehrt. **Hypothese:** Die Uebertragung dauert knapp um die 30-s-Grenze des Bootloaders
+  (byteweises Programmieren mit Vergleich je Byte, Loeschen von Sektor 4..6 im ersten Paket, kleines
+  TCP-Fenster von lwIP 1.3.1); Versuch 1 lag knapp darunter. Naechste Schritte: Dauer eines Uploads
+  messen (z. B. `curl` mit Zeitangabe), Bootloader-Empfang auf Fenster und Ablauf pruefen;
+  Weboberflaeche: bei Fehlschlag automatisch erneut hochladen, solange der Bootloader Versuche hat,
+  und Fehlschlag klar melden. Die Anzeige waehrend des Updates (nicht grau, "Update laeuft") hat
+  funktioniert. Rueckweg zur Originalfirmware: eigene Freigabe noetig.
 - **Flash-Platz** (Nutzerfrage 2026-10-25, kurz beantwortet, Pruefung offen): Die Anwendung nutzt
   mit 320 KB bereits Sektor 4..6 ganz, mehr loescht der Bootloader nicht. Sektor 7 (128 KB, davon
   wenige hundert Byte Parameter) kaeme nur fuer Daten in Frage, die Wallfree selbst schreibt (z. B.
