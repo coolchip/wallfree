@@ -376,7 +376,10 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   Bereich System; Anzeige des Updates mit drei Stufen und Zeit statt technischer Schritte;
   Abstand der Aktionsknoepfe. **Versuch 5** (2026-10-26, `1722fe6` -> `477bb1b` ueber die
   Weboberflaeche, gleiche MAC): erfolgreich in 20 s (Anzeige 0:16), ohne IWDG, Pruefsumme
-  `1d256b1d` gueltig; das Update ueber die Weboberflaeche gilt auf dem Testgerät als geprueft. Rueckweg zur Originalfirmware: eigene
+  `1d256b1d` gueltig; das Update ueber die Weboberflaeche gilt auf dem Testgerät als geprueft.
+  **Rueckweg geprueft** (2026-10-26): Originalfirmware 0.81 ueber die Weboberflaeche von Wallfree
+  aufgespielt (laeuft, Einstellungen in Sektor 3 erhalten), danach aus der Originalfirmware ueber
+  den Bootloader wieder Wallfree (Parameter in Sektor 7 erhalten). Rueckweg zur Originalfirmware: eigene
   Freigabe noetig.
 - **Flash-Platz** (Nutzerfrage 2026-10-25, kurz beantwortet, Pruefung offen): Die Anwendung nutzt
   mit 320 KB bereits Sektor 4..6 ganz, mehr loescht der Bootloader nicht. Sektor 7 (128 KB, davon
