@@ -1025,7 +1025,7 @@ Betrieb auf der Steuerung im LAN.
 | SOLL-NVM-03 | Persistente Schreibzugriffe im Betrieb erzeugen nur Anhaengevorgaenge (kein Loeschen). Laufzeitwerte (10.2), insbesondere `external_current`, werden nie gespeichert. | Arch §8 |
 | SOLL-NVM-04 | Verdichten (RAM-Kopie, Sektor loeschen, neu schreiben) nur im sicheren Zustand: S1 bzw. S0, CP A, Schuetz aus, IWDG verlaengert (SOLL-RT-13). Ist der Bereich im Betrieb voll, bleiben neue Werte bis zum naechsten sicheren Zustand nur im RAM (Status "Speichern ausstehend"). | Arch §3, SOLL-RT-13 |
 | SOLL-NVM-05 | Stromausfall waehrend des Verdichtens: Beim naechsten Start ist der Bereich ungueltig -> Werkseinstellungen und Meldung (wie Original); einmalige Uebernahme nach SOLL-NVM-10 erneut moeglich. | Parameterspeicher (Ausfallverhalten) |
-| SOLL-NVM-10 | Sektor 3 (Originalformat: Kopf `0x0000`, Eintraege Wert/Kennung, juengster gilt) wird nur gelesen. Auf Kommando werden die Felder 327..330, 390, 409, 412, 519..527 und die Netzwerkwerte uebernommen, jeweils mit Grenzpruefung; nicht uebernehmbare Werte werden gemeldet. Keine automatische Uebernahme. | Arch §3, [Parameterspeicher](../../wallbe2/docs/parameterspeicher.md), [ANN] Feldauswahl |
+| SOLL-NVM-10 | Sektor 3 (Originalformat: Kopf `0x0000`, Eintraege Wert/Kennung, juengster gilt) wird nur gelesen. Auf Kommando werden die Felder 327..330, 390, 409, 412, 519..527 und die Netzwerkwerte uebernommen, jeweils mit Grenzpruefung; nicht uebernehmbare Werte werden gemeldet. Ein fehlender Eintrag gilt als 0 (das Original speichert nur Abweichungen vom RAM-Startwert 0). Keine automatische Uebernahme. | Arch §3, [Parameterspeicher](../../wallbe2/docs/parameterspeicher.md), [ANN] Feldauswahl |
 
 ### 13.2 Startablauf
 

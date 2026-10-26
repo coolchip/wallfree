@@ -191,7 +191,7 @@ static int cmd_factory_reset(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
-static const char *const import_names[] = {"uebernommen", "nicht gespeichert im Original",
+static const char *const import_names[] = {"uebernommen", "uebernommen (im Original nicht gespeichert = 0)",
 					   "abgelehnt", "uebernommen, Speichern fehlgeschlagen"};
 
 static void import_report(void *ctx, uint16_t field, const char *name, int32_t value,
@@ -199,9 +199,7 @@ static void import_report(void *ctx, uint16_t field, const char *name, int32_t v
 {
 	const struct shell *sh = ctx;
 
-	if (res == EVSE_IMP_MISSING) {
-		shell_print(sh, "%4u %-22s -", field, name);
-	} else if (res == EVSE_IMP_REJECTED) {
+	if (res == EVSE_IMP_REJECTED) {
 		shell_warn(sh, "%4u %-22s %6d %s: %s", field, name, value, import_names[res],
 			   evse_param_strerror(err));
 	} else {

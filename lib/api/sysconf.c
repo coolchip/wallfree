@@ -569,20 +569,31 @@ int wf_sys_decode(struct wf_sysconf *c, uint16_t id, const void *data, size_t le
 	}
 }
 
+/*
+ * Ein fehlendes Oktett gilt als 0: Das Original speichert nur Abweichungen vom RAM-Startwert 0
+ * (wallbe2 parameterspeicher.md, Firmware 0.81). Fehlen alle vier, war die Adresse nie gesetzt.
+ * @return 0 gelesen, 1 keines der vier gespeichert, -1 ungueltig
+ */
 static int orig_ip(wf_orig_lookup_t lookup, void *ctx, uint16_t first, uint32_t *out)
 {
 	uint32_t ip = 0;
+	int found = 0;
 
 	for (uint16_t f = first; f < first + 4; f++) {
 		uint16_t v;
 
 		if (lookup(ctx, f, &v) != 0) {
-			return 1; /* nicht gespeichert */
+			v = 0;
+		} else {
+			found++;
 		}
 		if (v > 255) {
 			return -1;
 		}
 		ip = (ip << 8) | v;
+	}
+	if (found == 0) {
+		return 1;
 	}
 	*out = ip;
 	return 0;
@@ -600,15 +611,16 @@ int wf_sys_import_orig(struct wf_sysconf *c, wf_orig_lookup_t lookup, void *ctx,
 	} ips[] = {{315, 3011}, {319, 3012}, {323, 3013}};
 
 	*err = NULL;
-	if (lookup(ctx, 404, &v) == 0) {
-		/* 1-Byte-Feld im unteren Byte des Halbworts */
-		if ((v & 0xFF) > 1) {
-			*err = "DHCP-Feld 404 ungueltig";
-			return -1;
-		}
-		t.dhcp = (v & 0xFF) != 0;
-		n++;
+	/* 1-Byte-Feld im unteren Byte des Halbworts; nicht gespeichert = 0 (DHCP aus) */
+	if (lookup(ctx, 404, &v) != 0) {
+		v = 0;
 	}
+	if ((v & 0xFF) > 1) {
+		*err = "DHCP-Feld 404 ungueltig";
+		return -1;
+	}
+	t.dhcp = (v & 0xFF) != 0;
+	n++;
 	for (size_t i = 0; i < sizeof(ips) / sizeof(ips[0]); i++) {
 		uint32_t ip;
 		int r = orig_ip(lookup, ctx, ips[i].field, &ip);

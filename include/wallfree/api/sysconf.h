@@ -119,7 +119,8 @@ typedef int (*wf_orig_lookup_t)(void *ctx, uint16_t field, uint16_t *value);
 /**
  * Netzwerkwerte aus dem Original uebernehmen (Feld 404 DHCP, 315..318 IP,
  * 319..322 Netzmaske, 323..326 Gateway, Belegung laut Original-Webseite
- * lan.html). Felder ohne Eintrag behalten den bisherigen Wert.
+ * lan.html). Ein fehlender Eintrag gilt als 0 (das Original speichert nur Abweichungen von 0);
+ * fehlen alle vier Oktette einer Adresse, bleibt der bisherige Wert.
  * @return Anzahl uebernommener Werte oder -1, wenn das Ergebnis ungueltig
  *         waere (dann bleibt @p c unveraendert; Klartext in @p err)
  */

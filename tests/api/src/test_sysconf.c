@@ -354,7 +354,28 @@ ZTEST(api_sysconf, test_import)
 	const char *err;
 
 	memset(have, 0, sizeof(have));
-	zassert_equal(wf_sys_import_orig(&c, lookup, NULL, &err), 0, "nichts gespeichert");
+	/* nichts gespeichert: 404 fehlt = 0 (DHCP aus), Adressen bleiben */
+	zassert_true(c.dhcp);
+	zassert_equal(wf_sys_import_orig(&c, lookup, NULL, &err), 1);
+	zassert_false(c.dhcp);
+	zassert_equal(c.ip, 0xC0A80008, "Werkswert bleibt");
+
+	/* fehlende Oktette = 0 (Testgeraet: 317, 322, 325 fehlen) */
+	memset(have, 0, sizeof(have));
+	for (int i = 0; i < 12; i++) {
+		static const uint16_t v[12] = {192, 168, 0, 8, 255, 255, 255, 0, 192, 168, 0, 1};
+
+		if (v[i] != 0) {
+			orig[315 + i] = v[i];
+			have[315 + i] = true;
+		}
+	}
+	zassert_equal(wf_sys_import_orig(&c, lookup, NULL, &err), 4);
+	zassert_is_null(err);
+	zassert_false(c.dhcp);
+	zassert_equal(c.ip, 0xC0A80008);
+	zassert_equal(c.netmask, 0xFFFFFF00);
+	zassert_equal(c.gateway, 0xC0A80001);
 
 	orig[404] = 0;
 	have[404] = true;

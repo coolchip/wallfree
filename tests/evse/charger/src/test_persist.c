@@ -172,13 +172,18 @@ ZTEST(evse_persist, test_import)
 	sim_boot(&s);
 	int r = evse_import_orig(&s.e, &fo.fl, &n, s.now, report, NULL);
 
-	zassert_equal(r, 4, "525, 390, 412, 520");
+	/* nicht gespeichert = 0: 328..330, 519, 521..524 uebernommen, 526 (min 100) abgelehnt */
+	zassert_equal(r, 12, "525, 390, 412, 520 und acht Nullen");
 	zassert_equal(counts[EVSE_IMP_DONE], 4);
-	zassert_equal(counts[EVSE_IMP_REJECTED], 3);
+	zassert_equal(counts[EVSE_IMP_ZERO], 8);
+	zassert_equal(counts[EVSE_IMP_REJECTED], 4);
 	zassert_equal(last_err[409], EVSE_PARAM_E_UNAVAILABLE);
 	zassert_equal(last_err[527], EVSE_PARAM_E_RANGE);
 	zassert_equal(last_err[327], EVSE_PARAM_E_RANGE);
-	zassert_equal(counts[EVSE_IMP_MISSING], 16 - 7);
+	zassert_equal(last_err[526], EVSE_PARAM_E_RANGE);
+	zassert_equal(s.e.cfg.out_function[EVSE_DOUT_LR], 0, "fehlt = 0");
+	zassert_equal(stored(329), 0);
+	zassert_equal(s.e.cfg.unlock_pulse_ms, 500, "0 abgelehnt, Default bleibt");
 
 	zassert_equal(s.e.cfg.lock_pulse_ms, 1500);
 	zassert_equal(s.e.cfg.contactor_monitor, 0);

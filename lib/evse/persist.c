@@ -143,9 +143,11 @@ int evse_import_orig(struct evse *e, const struct nvm_flash *orig, struct nvm *n
 		if (r == NVM_E_IO) {
 			return NVM_E_IO;
 		}
-		if (r != NVM_OK) {
-			report(ctx, f, p->name, 0, EVSE_IMP_MISSING, 0);
-			continue;
+		/* nicht gespeichert = nie von 0 abgewichen (Original schreibt nur Aenderungen) */
+		bool zero = r != NVM_OK;
+
+		if (zero) {
+			raw = 0;
 		}
 		/* 409/412 sind im Original 1-Byte-Felder: unteres Byte des Halbworts */
 		int32_t v = (f == 409 || f == 412) ? (raw & 0xFF) : raw;
@@ -159,7 +161,7 @@ int evse_import_orig(struct evse *e, const struct nvm_flash *orig, struct nvm *n
 		if (err < 0) {
 			report(ctx, f, p->name, v, EVSE_IMP_NOT_SAVED, err);
 		} else {
-			report(ctx, f, p->name, v, EVSE_IMP_DONE, err);
+			report(ctx, f, p->name, v, zero ? EVSE_IMP_ZERO : EVSE_IMP_DONE, err);
 		}
 		done++;
 	}

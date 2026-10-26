@@ -125,7 +125,7 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Ablauf des Verdichtens | Ladelogik per Sperre angehalten, Thread-/Messueberwachung ausgesetzt, IWDG auf Maximum (~32 s); CPU steht bis zu 4 s. CP bleibt +12 V (TIM1 laeuft weiter), Schuetz aus; ein in dieser Zeit angestecktes Fahrzeug wird danach erkannt | SOLL-NVM-04, SOLL-RT-13 |
 | Ausloeser des Verdichtens | ausstehende Werte, beschaedigter Rest oder weniger als 4 KB frei; Pruefung jede Sekunde im Speicher-Thread | 128 KB reichen fuer rund 10 000 Aenderungen |
 | ungueltiger Bereich beim Start | sofort neu angelegt, Werkseinstellungen, Meldung im Log und in `evse nvm`; kein Fehlerbit der Ladelogik | SOLL-NVM-05 verlangt nur eine Meldung |
-| Import aus Sektor 3 | 409/412 aus dem unteren Byte (im Original 1-Byte-Felder); jede Uebernahme ueber `evse_param_set`; Netz: 404 (DHCP), 315..326 (IP/Maske/Gateway), alles oder nichts; Geraetename 310 wird nicht uebernommen | SOLL-NVM-10; Belegung aus `wallbe2/analysis/web/lan.html` |
+| Import aus Sektor 3 | 409/412 aus dem unteren Byte (im Original 1-Byte-Felder); jede Uebernahme ueber `evse_param_set`; ein fehlender Eintrag gilt als 0 (Shell: "im Original nicht gespeichert = 0"), auch bei 404 und einzelnen Oktetten; fehlen alle vier Oktette einer Adresse, bleibt der Wallfree-Wert; Netz: 404 (DHCP), 315..326 (IP/Maske/Gateway), alles oder nichts; Geraetename 310 wird nicht uebernommen (Nutzer 2026-10-26) | SOLL-NVM-10; Belegung aus `wallbe2/analysis/web/lan.html`; fehlend = 0: [wallbe2 Parameterspeicher](../../wallbe2/docs/parameterspeicher.md#firmware-081-box-t-schreiben-nur-bei-aenderung) |
 | Werksreset per Shell | `evse factory-reset confirm`, nur im sicheren Zustand, danach Neustart | einfachster Weg zu konsistenten Defaults |
 | Zugangsdaten | ein Eintrag (HA1 + Benutzer, Kennung 3001) | ein Stromausfall darf Benutzer und HA1 nie trennen |
 
@@ -321,12 +321,8 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 
 - H0 und H1 nur mit Freigabe ([Architektur](architektur.md#7-hardware-inbetriebnahme));
   danach Update-Uebergabe (SOLL-SH-10, SOLL-BOOT-30) und Startablauf auf der Hardware.
-- Import aus Sektor 3: Das Original speichert ein Feld nur, wenn es vom RAM-Startwert abweicht;
-  der ist in 0.81 fuer alle persistenten Felder 0, ein fehlender Eintrag bedeutet also 0
-  ([wallbe2 Parameterspeicher](../../wallbe2/docs/parameterspeicher.md#firmware-081-box-t-schreiben-nur-bei-aenderung)).
-  Heute scheitert die Netzuebernahme bei jeder Adresse mit einer 0 im Oktett (z. B. 192.168.0.x),
-  und 404/409 werden als "fehlt" gemeldet. Anpassung (fehlt = 0, sofern die Seite gueltig ist)
-  wartet auf den Nutzer.
+- Import aus Sektor 3 (fehlend = 0, umgesetzt) auf der Steuerung noch nicht ausgefuehrt; das Testgerät
+  traegt seit dem Rueckweg wieder Einstellungen der Originalfirmware in Sektor 3.
 - **Hardwarepruefung auf dem Testgerät in Stufen** (Steuerung ueber Shell/API von Wallfree, Nutzer
   beobachtet und misst; unter Spannung nur an den Klemmen, nie direkt auf der Platine, Nutzer
   2026-10-24): A) Eingaenge (Schluesselschalter an EN -> `inputs`, Ladeerlaubnis), Ausgaenge
