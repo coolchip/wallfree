@@ -111,3 +111,8 @@ main.offline { filter: grayscale(1); opacity: .5; pointer-events: none; transiti
 .h-cross { stroke: var(--fg); stroke-width: 1; stroke-dasharray: 3 3; opacity: .6; }
 .h-hit { fill: transparent; cursor: crosshair; }
 .sw.chg { background: var(--ok); } .sw.conn { background: var(--muted); opacity: .6; } .sw.err { background: var(--bad); }
+td .row select { flex: 0 1 260px; width: 260px; min-width: 120px; }
+abbr[title] { text-decoration: underline dotted; cursor: help; }
+details.terms summary { cursor: pointer; font-weight: 600; }
+details.terms table { margin-top: 8px; }
+details.terms td:first-child { white-space: nowrap; vertical-align: top; }

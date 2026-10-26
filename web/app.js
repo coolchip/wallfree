@@ -59,6 +59,73 @@ const METER_STATUS = { off: 'kein Zähler', connecting: 'verbinde …', ok: 'ver
 const METER_TYPES = ['kein Zähler', 'ABB B23', 'Eastron SDM630', 'Eastron SDM72D-M V2',
 	'Eastron SDM72D-M (V1, nur Summen)'];
 const FRAMING = ['8N1', '8E1', '8O1', '8N2'];
+// Namen der Funktionscodes nur fuer die Anzeige; das Geraet speichert die Zahl
+// (Soll-Spezifikation 9.1/9.3)
+const OUT_CODES = ['nie', 'Status A ohne Fehler', 'Status B ohne Fehler', 'B mit PWM, ohne Fehler',
+	'B ohne PWM, ohne Fehler', 'Status C', 'Status D', 'Status E oder Fehler (nicht F)', 'Status F',
+	'A oder B ohne Fehler', 'A, oder B mit PWM, ohne Fehler', 'A, oder B ohne PWM, ohne Fehler',
+	'A/B ohne Fehler oder C', 'A/B ohne Fehler oder D', 'A/B ohne Fehler, C oder D', 'E, F oder Fehler',
+	'C oder D (lädt)', 'PWM an', 'gültiger Kabelwert', 'kein gültiger Kabelwert', 'Kabel 13 A', 'Kabel 20 A',
+	'Kabel 32 A', 'Kabel 63 A', 'Kabel 13 oder 20 A', 'Kabel 13, 20 oder 32 A', 'Kabel abgewiesen',
+	'Schütz ein', 'Belüftung (Laden mit Status D)', 'Verriegelungsanforderung', 'Schnittstellen-Ausgang 1',
+	'Schnittstellen-Ausgang 2', 'Schnittstellen-Ausgang 3', 'Schnittstellen-Ausgang 4', 'Überstromfehler',
+	'Schützfehler', 'Fehler Zustand D', 'B ohne Fehler, C oder D', 'A/B bei aktivem Eingangscode 19',
+	'Freigabe und C/D (oder B nach Stromsperre)', 'wie 9, beim Start blinkend',
+	'A/B ohne Fehler, PWM aus', 'Fahrzeug pausiert (B mit PWM beim Laden)'];
+const IN_CODES = ['keine', 'EN Freigabe (Dauersignal)', 'XR Verfügbarkeit', 'LD Verriegelungsrückmeldung (Dauersignal)',
+	'ML Verriegelungswunsch (Dauersignal)', 'Schützrückmeldung Schließer (NO)', 'Schützrückmeldung Öffner (NC)',
+	'5-%-Modus', ...[6, 10, 13, 16, 20, 32, 63, 70].map((a) => 'Stromgrenze ' + a + ' A'),
+	'EN Freigabe (Taster)', 'ML Verriegelungswunsch (Taster)', 'EN Freigabe (wie 1)',
+	'Maximalstrom, Vorgabe der Schnittstelle ignorieren', 'Pause (Stromsperre)', 'Fehlereingang',
+	'LD Verriegelungsrückmeldung (Impuls)'];
+const PARAM_OPTS = {
+	contactor_monitor: ['aus', 'Spannung am Ladepunkt (Sense)', 'Rückmeldekontakt Schließer (NO)',
+		'Rückmeldekontakt Öffner (NC)', 'Energiezähler'],
+	wakeup_mode: ['einmal je Steckvorgang', 'auch nach Stromsperre'],
+};
+const paramOpts = (name) => name.startsWith('out_function_') ? OUT_CODES
+	: name.startsWith('in_function_') ? IN_CODES : PARAM_OPTS[name];
+
+// Begriffe: Erklaerung beim Zeigen (abbr) und als aufklappbare Liste
+const TERMS = [
+	['LD', 'Digitaleingang, werkseitig Rückmeldung der Steckerverriegelung'],
+	['EN', 'Digitaleingang, werkseitig Freigabe (z. B. Schlüsselschalter, mit D7)'],
+	['ML', 'Digitaleingang, werkseitig Verriegelungswunsch (mit D9)'],
+	['XR', 'Digitaleingang, werkseitig Verfügbarkeit (mit D8)'],
+	['IN', 'Digitaleingang, werkseitig Stromgrenze 16 A'],
+	['ER', 'Digitalausgang, werkseitig Fehler'],
+	['LR', 'Digitalausgang, werkseitig Verriegelungsanforderung'],
+	['VR', 'Digitalausgang, werkseitig Fahrzeug lädt (C oder D)'],
+	['CR', 'Digitalausgang, werkseitig PWM an'],
+	['CP', 'Control Pilot: Signalleitung zum Fahrzeug; Status A kein Fahrzeug, B angeschlossen, C lädt, D lädt mit Belüftung, E Fehler, F nicht verfügbar'],
+	['PWM', 'Rechtecksignal auf CP; der Tastgrad gibt dem Fahrzeug den erlaubten Strom vor'],
+	['PP', 'Proximity Pilot: Widerstand im Stecker, kodiert die Belastbarkeit des Ladekabels'],
+	['RCM', 'Fehlerstromüberwachung'],
+	['NO', 'Schließer (normally open)'],
+	['NC', 'Öffner (normally closed)'],
+	['D1..D10', 'DIP-Schalter der Steuerung (Betriebsart), z. B. D7 Freigabe über EN, D8 Verfügbarkeit über XR, D9 Verriegelung über ML, D10 Steuerung über die Schnittstelle'],
+	['S0..S10', 'Zustände der Ladelogik, z. B. S1 Bereit, S6 Laden, S10 nicht verfügbar'],
+];
+const TERM_RE = /\b(LD|EN|ML|XR|IN|ER|LR|VR|CR|CP|PWM|PP|RCM|NO|NC|D(?:10|[1-9])|S(?:10|[0-9]))\b/g;
+const termOf = (w) => (TERMS.find(([k]) => k === w) || TERMS.find(([k]) =>
+	k.includes('..') && k[0] === w[0] && /^[DS]\d/.test(w)) || [])[1];
+function Terms({ text }) {
+	const out = [];
+	let last = 0;
+	for (const m of text.matchAll(TERM_RE)) {
+		const t = termOf(m[1]);
+		if (!t) continue;
+		out.push(text.slice(last, m.index), html`<abbr title=${t}>${m[1]}</abbr>`);
+		last = m.index + m[1].length;
+	}
+	out.push(text.slice(last));
+	return out;
+}
+function Glossary() {
+	return html`<details class="card terms"><summary>Begriffe</summary><table>
+		${TERMS.map(([k, t]) => html`<tr><td><b>${k}</b></td><td>${t}</td></tr>`)}</table></details>`;
+}
+
 // Klemmen in Bitreihenfolge der Statuswerte inputs/outputs
 const DINS = ['LD', 'EN', 'ML', 'XR', 'IN'];
 const DOUTS = ['ER', 'LR', 'VR', 'CR'];
@@ -411,6 +478,8 @@ function ParamRow({ p, value, onSaved }) {
 	const [edit, setEdit] = useState('');
 	const [msg, setMsg] = useState(null);
 	const writable = p.kind !== 'status';
+	const opts = paramOpts(p.name);
+	const bool = !opts && writable && p.min === 0 && p.max === 1;
 	const save = async () => {
 		if (edit === '') return;
 		try {
@@ -424,12 +493,17 @@ function ParamRow({ p, value, onSaved }) {
 		}
 	};
 	return html`<tr>
-		<td title=${p.name}>${p.help}${p.field ? html`<div class="muted msg">Feld ${p.field}</div>` : ''}</td>
-		<td class="num">${value === undefined ? '–' : fmt(p.name, value)} ${p.unit}</td>
-		<td class="num hide-s muted">${writable ? p.min + '…' + p.max : ''}</td>
+		<td title=${p.name}><${Terms} text=${opts ? p.help.split(':')[0] : p.help} />${p.field ? html`<div class="muted msg">Feld ${p.field}</div>` : ''}</td>
+		<td class=${opts ? '' : 'num'}>${value === undefined ? '–' : opts ? value + ' – ' + (opts[value] || '?')
+			: bool ? (value ? 'ja' : 'nein') : fmt(p.name, value) + ' ' + p.unit}</td>
+		<td class="num hide-s muted">${writable && !bool ? p.min + '…' + p.max : ''}</td>
 		<td>${writable && html`<div class="row">
-			<input value=${edit} placeholder=${String(p.default)} onInput=${(e) => setEdit(e.target.value)}
-				onKeyDown=${(e) => e.key === 'Enter' && save()} />
+			${opts ? html`<select value=${edit === '' ? value : edit} onChange=${(e) => setEdit(e.target.value)}>
+					${opts.map((t, i) => html`<option value=${i}>${i} – ${t}${i === p.default ? ' (Werk)' : ''}</option>`)}</select>`
+				: bool ? html`<input type="checkbox" checked=${edit === '' ? !!value : edit === '1'}
+					onChange=${(e) => setEdit(e.target.checked ? '1' : '0')} />`
+				: html`<input value=${edit} placeholder=${String(p.default)} onInput=${(e) => setEdit(e.target.value)}
+					onKeyDown=${(e) => e.key === 'Enter' && save()} />`}
 			<button onClick=${save}>OK</button></div><${Msg} m=${msg} />`}</td>
 	</tr>`;
 }
@@ -458,10 +532,10 @@ function Params({ kinds }) {
 			const bits = p.name === 'inputs' ? ['Eingang', DINS] : p.name === 'outputs' ? ['Ausgang', DOUTS] : null;
 			if (!bits) return html`<${ParamRow} key=${p.name} p=${p} value=${vals[p.name]} onSaved=${load} />`;
 			const v = vals[p.name];
-			return bits[1].map((n, i) => html`<tr key=${p.name + i}><td title=${p.name + ' Bit ' + i}>${bits[0]} ${n}</td>
+			return bits[1].map((n, i) => html`<tr key=${p.name + i}><td title=${p.name + ' Bit ' + i}><${Terms} text=${bits[0] + ' ' + n} /></td>
 				<td class="num">${v === undefined ? '–' : (v >> i) & 1 ? 'an' : 'aus'}</td><td class="hide-s"></td><td></td></tr>`);
 		})}
-	</table><//>`);
+	</table><//>`).concat(html`<${Glossary} />`);
 }
 
 function Errors() {

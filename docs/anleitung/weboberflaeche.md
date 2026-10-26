@@ -280,8 +280,15 @@ Die Einstellungen sind in die Reiter **Laden**, **Netzwerk**, **MQTT**, **Zähle
 Der Reiter zeigt zwei Tabellen: **Konfiguration** (dauerhaft gespeichert) und
 **Laufzeitwerte** (gelten bis zum Neustart). Spalten: Bezeichnung, aktueller Wert, erlaubter
 Bereich und ein Feld für den neuen Wert mit **OK** (oder Eingabetaste). Im leeren Feld steht
-grau die Werkseinstellung. „Feld …“ unter der Bezeichnung nennt die Nummer des entsprechenden
-Parameters der Herstellerfirmware, zur Übertragung bestehender Einstellungen.
+grau die Werkseinstellung. Funktionen der Ein- und Ausgänge, Schützüberwachung und Weckfolge
+werden aus einer Liste gewählt (Code und Bezeichnung, die Werkseinstellung ist mit „Werk“
+markiert), Ja/Nein-Werte mit einem Kästchen; übernommen wird jeweils erst mit **OK**.
+„Feld …“ unter der Bezeichnung nennt die Nummer des entsprechenden Parameters der
+Herstellerfirmware, zur Übertragung bestehender Einstellungen.
+
+Abkürzungen wie LD, CP oder D8 sind gepunktet unterstrichen: Zeigt man mit der Maus darauf,
+erscheint eine kurze Erklärung. Dieselben Erklärungen stehen aufklappbar unter **Begriffe** am
+Ende der Seite.
 
 #### Konfiguration (dauerhaft gespeichert)
 
