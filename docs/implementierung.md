@@ -321,10 +321,12 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 
 - H0 und H1 nur mit Freigabe ([Architektur](architektur.md#7-hardware-inbetriebnahme));
   danach Update-Uebergabe (SOLL-SH-10, SOLL-BOOT-30) und Startablauf auf der Hardware.
-- Import aus Sektor 3: Im Original fehlen offenbar Felder mit Wert 0 (Testgerät: 404, 409, 317, 322,
-  325). Damit scheitert die Netzuebernahme (alles oder nichts) bei jeder Adresse mit einer 0 im
-  Oktett, z. B. 192.168.0.x. Klaeren, ob fehlend = 0 gilt (Code der Originalfirmware), dann
-  ggf. Import anpassen.
+- Import aus Sektor 3: Das Original speichert ein Feld nur, wenn es vom RAM-Startwert abweicht;
+  der ist in 0.81 fuer alle persistenten Felder 0, ein fehlender Eintrag bedeutet also 0
+  ([wallbe2 Parameterspeicher](../../wallbe2/docs/parameterspeicher.md#firmware-081-box-t-schreiben-nur-bei-aenderung)).
+  Heute scheitert die Netzuebernahme bei jeder Adresse mit einer 0 im Oktett (z. B. 192.168.0.x),
+  und 404/409 werden als "fehlt" gemeldet. Anpassung (fehlt = 0, sofern die Seite gueltig ist)
+  wartet auf den Nutzer.
 - **Hardwarepruefung auf dem Testgerät in Stufen** (Steuerung ueber Shell/API von Wallfree, Nutzer
   beobachtet und misst; unter Spannung nur an den Klemmen, nie direkt auf der Platine, Nutzer
   2026-10-24): A) Eingaenge (Schluesselschalter an EN -> `inputs`, Ladeerlaubnis), Ausgaenge
