@@ -363,12 +363,11 @@ Nicht beauftragt; gesammelt mit dem Nutzer (2026-10-26). Beauftragte Punkte steh
 
 | Idee | Nutzen | Aufwand, Bedenken |
 | --- | --- | --- |
-| Shell in der Weboberflaeche (ueber den angemeldeten WebSocket), danach Telnet entfernen | gleiche Anmeldung und Bremse wie die API, kein offener Port 23, etwa 20 KB und ein Thread weniger, Fallstrick "Telnet bremst HTTP" entfaellt | Shell weg, wenn der HTTP-Server haengt (dann Debugger und Ueberwachung); Alternative: Telnet mit eigener Anmeldung (Passwort im Klartext) |
-| Werksreset gestuft: 5 s nur Zugangsdaten und Netz, 15 s alles | vergessenes Passwort ohne Verlust der Ladeparameter | zwei Blinkmuster erklaeren |
+| Shell in der Weboberflaeche (ueber den angemeldeten WebSocket), danach Telnet entfernen (Nutzer ueberlegt) | gleiche Anmeldung und Bremse wie die API, kein offener Port 23, etwa 20 KB und ein Thread weniger, Fallstrick "Telnet bremst HTTP" entfaellt | Shell weg, wenn der HTTP-Server haengt (dann Debugger und Ueberwachung). Verworfen (Nutzer 2026-10-26): eigene Anmeldung fuer Telnet |
 | Home-Assistant-Erkennung (MQTT Discovery) | Wallbox erscheint in Home Assistant automatisch mit Sensoren, Schalter, Ladestrom | einige hundert Byte Text je Element; bei F30 bewusst ausgeschlossen |
 | S0-Zaehler an einem Digitaleingang | Energie und Leistung mit billigem Zaehler ohne RS-485 | keine Phasenwerte; Ueberstrom und Schuetzueberwachung ueber Zaehler gehen damit nicht; Eingaenge werden alle 8 ms gemessen (S0-Impulse 30..90 ms passen) |
 | Ladesitzungen (Beginn, Dauer, Energie, Ende-Grund) | Abrechnung, Ueberblick | sinnvoll mit Zaehler; nur am Sitzungsende in Sektor 7 speichern |
-| OCPP 1.6J | Abrechnung ueber Backends (Dienstwagen) | grob 25..40 KB Flash, 6..10 KB RAM, rund 25 Konfigurationsschluessel; die meisten Backends verlangen TLS (passt kaum); wenige Privatanwender |
+| OCPP 1.6J (zurueckgestellt, Nutzer 2026-10-26) | Abrechnung ueber Backends (Dienstwagen) | grob 25..40 KB Flash, 6..10 KB RAM, rund 25 Konfigurationsschluessel; die meisten Backends verlangen TLS (passt kaum); wenige Privatanwender |
 | Lizenzhinweis in der Weboberflaeche | Wallfree Apache-2.0, enthaelt Zephyr (Apache-2.0), Preact (MIT), htm (Apache-2.0); Link aufs Projekt; Vermerk in `web/vendor/preact-htm.js` (MIT verlangt ihn) | ~150 Byte; Link erst mit oeffentlicher Adresse |
 | Lastmanagement mehrerer Boxen | – | kann evcc; nicht in der Firmware |
-| Bewusst nicht: TLS fuer die Weboberflaeche, signierte Updates, RFID | – | Platz/Zertifikate; Bootloader prueft nichts; keine Hardware |
+| Bewusst nicht: TLS fuer die Weboberflaeche, signierte Updates, RFID; gestufter Werksreset (Passwort vergessen nur ueber den kompletten Werksreset, Nutzer 2026-10-26) | – | Platz/Zertifikate; Bootloader prueft nichts; keine Hardware |
