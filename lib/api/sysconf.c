@@ -2,6 +2,7 @@
 /* Netz- und Systemparameter, siehe include/wallfree/api/sysconf.h */
 #include <stdio.h>
 #include <string.h>
+#include <wallfree/api/ntp.h>
 #include <wallfree/api/sysconf.h>
 
 #define IP(a, b, c, d) (((uint32_t)(a) << 24) | ((uint32_t)(b) << 16) | ((uint32_t)(c) << 8) | (d))
@@ -27,6 +28,9 @@ static const struct wf_syspar pars[] = {
 	{"mqtt_prefix", 3025, WF_SYS_TEXT, "Topic-Präfix, leer = wallfree/<MAC-Ende>"},
 	{"mqtt_interval", 3026, WF_SYS_CODE, "Mindestabstand je Topic in s, 0..3600"},
 	{"mqtt_commands", 3027, WF_SYS_BOOL, "Befehle annehmen (Ladestrom setzen)"},
+	{"ntp_enable", 3028, WF_SYS_BOOL, "Uhrzeit von einem Zeitserver holen (SNTP), wirkt sofort"},
+	{"ntp_server", 3029, WF_SYS_TEXT,
+	 "Zeitserver (Name oder IPv4, optional :Port), leer = vom Router per DHCP, sonst pool.ntp.org"},
 };
 #define N_PARS (sizeof(pars) / sizeof(pars[0]))
 
@@ -43,6 +47,7 @@ void wf_sysconf_defaults(struct wf_sysconf *c)
 	c->meter_framing = WF_FRAMING_8N1;
 	c->mqtt_port = 1883;
 	c->mqtt_interval = 1;
+	c->ntp_enable = true;               /* Nutzer 2026-10-26 */
 }
 
 size_t wf_sys_count(void)
@@ -204,6 +209,9 @@ static char *text_field(struct wf_sysconf *c, uint16_t id, size_t *max)
 	case 3025:
 		*max = WF_MQTT_PREFIX_MAX;
 		return c->mqtt_prefix;
+	case 3029:
+		*max = WF_NTP_SERVER_MAX;
+		return c->ntp_server;
 	default:
 		*max = WF_HOSTNAME_MAX;
 		return c->hostname;
@@ -214,6 +222,13 @@ static const char *check_text(uint16_t id, const char *h, size_t n)
 {
 	if (id == 3014) {
 		return check_host(h, n);
+	}
+	if (id == 3029) {
+		char host[WF_NTP_SERVER_MAX + 1];
+		uint16_t port;
+
+		return n == 0 || wf_ntp_parse_server(h, n, host, &port) == 0
+			? NULL : "Name oder IPv4-Adresse, optional :Port (1..65535)";
 	}
 	if (n > (id == 3023 ? WF_MQTT_USER_MAX : WF_MQTT_PW_MAX)) {
 		return id == 3023 ? "höchstens 32 Zeichen" : "höchstens 64 Zeichen";
@@ -302,7 +317,7 @@ static uint32_t *ip_field(struct wf_sysconf *c, uint16_t id)
 static bool *bool_field(struct wf_sysconf *c, uint16_t id)
 {
 	return id == 3010 ? &c->dhcp : id == 3015 ? &c->telnet
-		: id == 3020 ? &c->mqtt_enable : &c->mqtt_commands;
+		: id == 3020 ? &c->mqtt_enable : id == 3028 ? &c->ntp_enable : &c->mqtt_commands;
 }
 
 const char *wf_sys_set(struct wf_sysconf *c, const struct wf_syspar *p, const struct wf_jval *v)
@@ -397,6 +412,8 @@ void wf_sys_take_live(struct wf_sysconf *dst, const struct wf_sysconf *src)
 	memcpy(dst->mqtt_user, src->mqtt_user, sizeof(dst->mqtt_user));
 	memcpy(dst->mqtt_password, src->mqtt_password, sizeof(dst->mqtt_password));
 	memcpy(dst->mqtt_prefix, src->mqtt_prefix, sizeof(dst->mqtt_prefix));
+	dst->ntp_enable = src->ntp_enable;
+	memcpy(dst->ntp_server, src->ntp_server, sizeof(dst->ntp_server));
 }
 
 void wf_sys_json(const struct wf_sysconf *c, struct wf_jbuf *b)

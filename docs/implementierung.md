@@ -73,6 +73,7 @@ TIM1 und ADC1 stehen nicht im Board-Devicetree, weil die Anwendung sie direkt st
 | [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `param list/get/set`, `current`, `enable`, `avail`, `pause`, `pwm5`, `lock`, `unlock`, `errors [clear]`, `selftest`, `reboot`, `bootloader`, `boot` (Diagnose: RCC_CSR und BKP10..16 beim Start), `ack`, `nvm`, `meter`, `mqtt`, `sys list/set`, `factory-reset confirm`, `import-original` | SOLL-SH-01..11/19/20, SOLL-MTR-33, SOLL-MQTT-32 |
 | [sysinfo.c](../app/src/sysinfo.c) | Resetgrund, Firmwarestand (`git describe`, im Abbild als `WALLFREE-IMAGE:<version>`), Laufzeit, Ergebnis eines Updates (BKP12), Pruefung des eigenen Abbilds (CRC32 gegen den Anhang, ungueltig -> ERR-INTERNAL); `GET /system/info` | SOLL-RT-14, SOLL-BOOT-32/33/35 |
 | [meter_task.c](../app/src/meter_task.c) | Zaehlerthread (niedrigste Anwendungsprioritaet, Stack 1280 B, nicht ueberwacht), nur mit `meter_type` != 0; Momentaufnahme unter Sperre, Bus ohne Sperre; Ereignisse in den gemeinsamen Ringpuffer | SOLL-MTR-01/03/10..14 |
+| [timesync.c](../app/src/timesync.c), [ntp.c](../lib/api/ntp.c) | Uhrzeit per SNTP: Thread niedrigster Prioritaet (Stack 2048 B, nicht ueberwacht), Server nach SOLL-TIME-02, DNS asynchron ohne Heap, Basis = Antwort minus Laufzeit, an das Protokoll weitergereicht | SOLL-TIME-01..04 |
 | [mqtt_task.c](../app/src/mqtt_task.c) | MQTT-Thread (niedrigste Anwendungsprioritaet, Stack 2048 B, nicht ueberwacht): Verbinden mit Last Will, Neuverbindung 1..60 s, Takt 100 ms fuer Zustaende und Ereignisse, Befehl `evse/external_current_update`, Status | SOLL-MQTT-01..04/10..12/20..23/30 |
 | [meter_bus_modbus.c](../app/src/meter_bus_modbus.c) | nur Steuerung: Zephyr-Modbus-Client auf UART4 (`modbus0`, DE an PC12), Baudrate/Format aus den Parametern, Fehler auf Timeout/Rahmen/Ausnahme abgebildet | SOLL-MTR-02/04, F29 |
 | [web/](../web/) | Werkszugang -> Zugangsdaten festlegen; Uebersicht: Zustand, Fahrzeug, Fehler, Zaehler (Leistung, Zaehlerstand), Ladestrom als Ring mit Vorgabe-Tasten, letzte Ereignisse; Insights: Verlauf, Ladestrom als Wertetabelle, Fehler mit Quittierung, Zaehlerwerte mit Fehlerzaehlern, Zugriffsprotokoll, Status der Ladelogik; Einstellungen: Laden (Parameter mit Bereich, Default, Herkunftsfeld, Hilfetext), Netzwerk, MQTT, Zaehler (je mit Zustand, Passwortfeld nur schreibbar), Zugang; System: Firmware, Laufzeit, Resetgrund, letztes Update, Neustart, Firmware-Update (Vorpruefung der Datei, Ablauf mit Fortschritt) | SOLL-API-31/33, SOLL-ERR-10/11, SOLL-MTR-32, SOLL-MQTT-32 |
@@ -206,6 +207,16 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Ereignis | Typ `meter` mit `status` (`off`, `connecting`, `ok`, `error`), bei gesunkenem Zaehlerstand zusaetzlich `energy_decreased`: true | SOLL-MTR-13/14 |
 | Ungueltige Werte an evcc | `null` wie WARP; evcc 0.317.2 macht daraus 0: bei ausgefallenem Zaehler zeigt evcc waehrend des Ladens 0 W und 0 A, der Zaehlerstand bleibt auf dem letzten Wert | Nutzer 2026-10-23 bestaetigt: WARP-konform; die 0 laesst evcc bei der Ueberschussregelung eher herunterregeln (Fehler zur sicheren Seite), waehrend ein Weitersenden alter Werte den Ausfall verbergen und zu hohen Ueberschuss vortaeuschen koennte; ein Abmelden des Zaehlers wirkt nicht, weil evcc `/info/features` nur beim Verbinden liest |
 | UART4 ohne Zaehler | der UART-Treiber richtet UART4 beim Start ein; ohne Zaehler wird nie gesendet, PC12 bleibt Low | Zephyr initialisiert Devicetree-Geraete immer; ohne Sendefreigabe wirkt nichts auf den Bus |
+
+### Uhrzeit
+
+| Punkt | Umsetzung | Grund |
+| --- | --- | --- |
+| Parameter | `ntp_enable` (3028, Werk an), `ntp_server` (3029, Werk leer), beide sofort wirksam | Nutzer 2026-10-26 |
+| Fehlschlag | Logzeile (Warnung) je Versuch, kein Ereignis, keine Fehlerklasse; Uhrzeit bleibt beim letzten Erfolg (nach 6 h neu) **(zu bestaetigen)** | SOLL-TIME-01 |
+| Aufloesung | `dns_get_addr_info` statt `getaddrinfo` (das braucht Heap, `k_calloc`); IPv4-Literal ohne DNS; feste Adresse: Gateway als DNS-Server | System-Heap nur 512 B |
+| Kosten | +11,3 KB Flash, +6,4 KB RAM (Stack 2 KB, DNS-Kontext, Sockets; `ZVFS_OPEN_MAX` 18) | |
+| Simulation | `pool.ntp.org` nicht aufloesbar (kein DNS-Server); Test gegen eigenen SNTP-Server auf 127.0.0.1 (T7Zeit) | |
 
 ### MQTT
 

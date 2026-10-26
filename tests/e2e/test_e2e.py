@@ -1009,3 +1009,96 @@ class T6Update(SimCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class FakeNtp(threading.Thread):
+    """Minimaler SNTP-Server (RFC 4330) auf 127.0.0.1, antwortet mit fester Uhrzeit."""
+
+    NTP_UNIX = 2208988800
+
+    def __init__(self, unix_s):
+        super().__init__(daemon=True)
+        self.unix_s = unix_s
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(("127.0.0.1", 0))
+        self.port = self.sock.getsockname()[1]
+        self.queries = 0
+
+    def run(self):
+        while True:
+            try:
+                req, peer = self.sock.recvfrom(512)
+            except OSError:
+                return
+            if len(req) < 48:
+                continue
+            self.queries += 1
+            ts = struct.pack(">II", self.unix_s + self.NTP_UNIX, 0)
+            # LI 0, VN 4, Modus 4 (Server); Stratum 1; Originate = Transmit der Anfrage
+            resp = bytes([0x24, 1, 6, 0xEC]) + bytes(20) + req[40:48] + ts + ts
+            self.sock.sendto(resp, peer)
+
+    def stop(self):
+        self.sock.close()
+
+
+class T7Zeit(SimCase):
+    """Uhrzeit per SNTP (SOLL-TIME-01..04) gegen einen lokalen Zeitserver."""
+
+    UNIX = 1800000000  # 2027-01-15
+
+    @classmethod
+    def setUpClass(cls):
+        cls.ntp = FakeNtp(cls.UNIX)
+        cls.ntp.start()
+        super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        cls.ntp.stop()
+
+    def test_01_ohne_zeitserver(self):
+        T7Zeit.auth = self.set_credentials()
+        info = self.sim.get_json("/system/info", self.auth)
+        self.assertIsNone(info["time"], "pool.ntp.org ist in der Simulation nicht aufloesbar")
+        cfg = self.sim.get_json("/system/config", self.auth)["active"]
+        self.assertTrue(cfg["ntp_enable"])
+        self.assertEqual(cfg["ntp_server"], "")
+
+    def test_02_zeitserver_einstellen(self):
+        r = self.sim.request("POST", "/system/config",
+                             {"ntp_server": f"127.0.0.1:{self.ntp.port}"}, auth=self.auth)
+        self.assertEqual(r.status, 200, r)
+        self.assertFalse(r.json()["restart_required"], "wirkt sofort")
+        t0 = time.monotonic()
+        info = None
+        while time.monotonic() - t0 < 10:
+            info = self.sim.get_json("/system/info", self.auth)
+            if info["time"]:
+                break
+            time.sleep(0.2)
+        self.assertIsNotNone(info["time"], "kein Abgleich")
+        self.assertAlmostEqual(info["time"]["time_ms"] / 1000, self.UNIX, delta=30)
+        self.assertEqual(info["time"]["server"], "127.0.0.1")
+        # neue Protokolleintraege tragen die Uhrzeit (SOLL-ERR-12)
+        bad = Digest(USER, "falsch-falsch")
+        bad.nonce = self.auth.nonce
+        self.assertEqual(self.sim.request("GET", "/evse/state", auth=bad, retry=False).status, 401)
+        log = self.sim.get_json("/system/log", self.auth)["entries"]
+        self.assertEqual(log[0]["event"]["type"], "boot")
+        self.assertNotIn("wall_ms", log[0], "vor dem Abgleich ohne Uhrzeit")
+        self.assertEqual(log[-1]["kind"], "auth_fail")
+        self.assertGreater(log[-1].get("wall_ms", 0) / 1000, self.UNIX - 30)
+
+    def test_03_abschalten(self):
+        r = self.sim.request("POST", "/system/config", {"ntp_enable": False}, auth=self.auth)
+        self.assertEqual(r.status, 200, r)
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < 5 and self.sim.get_json("/system/info", self.auth)["time"]:
+            time.sleep(0.2)
+        self.assertIsNone(self.sim.get_json("/system/info", self.auth)["time"])
+
+    def test_04_ungueltiger_server(self):
+        r = self.sim.request("POST", "/system/config", {"ntp_server": "a b"}, auth=self.auth)
+        self.assertEqual(r.status, 400, r)

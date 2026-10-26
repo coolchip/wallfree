@@ -21,6 +21,7 @@ extern "C" {
 #define WF_MQTT_USER_MAX 32
 #define WF_MQTT_PW_MAX 64
 #define WF_MQTT_PREFIX_MAX 64
+#define WF_NTP_SERVER_MAX 64
 #define WF_SYS_VAL_MAX 64 /**< groesster kodierter Wert (NVM_MAX_LEN) */
 
 struct wf_sysconf {
@@ -42,6 +43,8 @@ struct wf_sysconf {
 	char mqtt_user[WF_MQTT_USER_MAX + 1];
 	char mqtt_password[WF_MQTT_PW_MAX + 1]; /**< nie ausgegeben */
 	char mqtt_prefix[WF_MQTT_PREFIX_MAX + 1]; /**< "" = wallfree/<MAC-Ende> */
+	bool ntp_enable;        /**< Uhrzeit per SNTP holen */
+	char ntp_server[WF_NTP_SERVER_MAX + 1]; /**< Name oder IPv4, optional :Port; "" = automatisch */
 };
 
 /** meter_framing */

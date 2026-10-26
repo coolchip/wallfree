@@ -384,6 +384,8 @@ nach einem Neustart.
 | Netzmaske (`net_netmask`) | 255.255.255.0 | Netzmaske ohne DHCP, im Heimnetz meist 255.255.255.0. |
 | Gateway (`net_gateway`) | 192.168.0.1 | Adresse des Routers ohne DHCP; 0.0.0.0 = keiner (dann ist die Steuerung nur im eigenen Netz erreichbar). |
 | Hostname (`net_hostname`) | leer | Name der Steuerung im Netz (1..32 Zeichen: Buchstaben, Ziffern, Bindestrich). Leer = `wallfree-` und das Ende der Hardwareadresse. Der Name dient auch als Kennung am MQTT-Broker. |
+| Uhrzeit von einem Zeitserver holen (`ntp_enable`) | an | Die Steuerung holt die Uhrzeit per SNTP; damit zeigen Protokoll und Verlauf echte Uhrzeiten, auch für Einträge vor einem Neustart. Wirkt sofort. Für das Laden wird die Uhrzeit nie gebraucht. |
+| Zeitserver (`ntp_server`) | leer | Name oder Adresse eines Zeitservers, z. B. `fritz.box` oder `ptbtime1.ptb.de`, optional mit `:Port`. Leer: der Zeitserver, den der Router mitteilt, sonst `pool.ntp.org`. Wirkt sofort. |
 | Telnet-Shell einschalten (`telnet_enable`) | aus | Wartungszugang über Telnet (Port 23) **ohne Passwort**. Für den normalen Betrieb ausschalten. |
 
 > **Achtung:** Eine falsche feste Adresse macht die Steuerung unerreichbar. Prüfen Sie die
@@ -455,6 +457,7 @@ Sie es deshalb nur in einem vertrauenswürdigen Netz.
 | MAC-Adresse | Hardware-Adresse der Netzwerkschnittstelle (vom Hersteller vergeben, wie in der Originalfirmware); unter ihr kennt der Router die Wallbox, z. B. für eine feste IP-Adresse |
 | Prüfsumme | Prüfsumme der laufenden Firmware; „beschädigt, Laden gesperrt“, wenn sie nicht stimmt (z. B. nach einem unvollständigen Update) |
 | Letztes Update | nur nach einem Firmware-Update: erfolgreich oder fehlgeschlagen |
+| Uhrzeit | Uhrzeit der Steuerung mit Zeitserver und wann zuletzt abgeglichen; „unbekannt“ ohne Zeitserver. Nach jedem Neustart ist sie unbekannt, bis der Zeitserver antwortet (keine Pufferbatterie). |
 
 **Neu starten** startet die Steuerung neu, z. B. damit geänderte Netzwerk- oder
 Zählereinstellungen wirken. Ein laufender Ladevorgang wird vorher geordnet beendet. Die Seite

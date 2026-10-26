@@ -273,12 +273,15 @@ function EventLog({ live, all }) {
 	const [log, setLog] = useState(null);
 	const [off, setOff] = useState(null);
 	const [boot, setBoot] = useState(0);
+	const [synced, setSynced] = useState(false);
 	const [err, setErr] = useState(null);
 	const load = async () => {
 		try {
 			const l = await api('/system/log');
 			const [i, at] = await timed('/system/info');
-			setOff(at - i.uptime_ms);
+			// mit Zeitserver die Uhr der Steuerung, sonst Browserzeit minus Laufzeit (SOLL-TIME-03)
+			setOff(i.time ? i.time.time_ms - i.uptime_ms : at - i.uptime_ms);
+			setSynced(!!i.time);
 			setBoot(l.boot);
 			setLog(l.entries);
 			setErr(null);
@@ -310,7 +313,8 @@ function EventLog({ live, all }) {
 				<td class=${x.kind === 'event' ? (x.event.type === 'error' && x.event.set.length ? 'bad' : '') : 'warn'}>${text(x)}</td>
 			</tr>`)}
 		</table>`}
-		${all && html`<p class="muted msg">Letzte 48 Einträge, auch über Neustarts hinweg (nicht über einen Stromausfall). Ohne Zeitserver sind Uhrzeiten auf wenige Sekunden genau, Einträge früherer Starts haben dann keine.</p>`}
+		${all && html`<p class="muted msg">Letzte 48 Einträge, auch über Neustarts hinweg (nicht über einen Stromausfall). ${synced
+			? 'Uhrzeiten vom Zeitserver.' : 'Ohne Zeitserver sind Uhrzeiten auf wenige Sekunden genau, Einträge früherer Starts haben keine.'}</p>`}
 	<//>`;
 }
 
@@ -600,7 +604,7 @@ async function restart(setMsg) {
 
 // Einstellungen Netzwerk, MQTT, Zaehler: Teil von /system/config nach Namensanfang
 const SYS_PARTS = {
-	netzwerk: ['Netzwerk', ['net_', 'telnet_']],
+	netzwerk: ['Netzwerk', ['net_', 'ntp_', 'telnet_']],
 	mqtt: ['MQTT', ['mqtt_']],
 	zaehler: ['Zähler (nur Anzeige)', ['meter_']],
 };
@@ -879,6 +883,8 @@ function SystemPage({ onBusy }) {
 			<tr><td>Firmware</td><td class="num">${si.firmware}</td></tr>
 			<tr><td>Laufzeit</td><td class="num">${dur(si.uptime_ms)}</td></tr>
 			<tr><td>Letzter Reset</td><td class="num">${resetText(si.reset_reason, si.reset_detail)}</td></tr>
+			<tr><td>Uhrzeit</td><td class="num">${si.time ? new Date(si.time.time_ms).toLocaleString('de-DE')
+				+ ' (' + si.time.server + ', abgeglichen vor ' + dur(si.time.synced_ms) + ')' : 'unbekannt (kein Zeitserver)'}</td></tr>
 			${si.mac && html`<tr><td>MAC-Adresse</td><td class="num">${si.mac}</td></tr>`}
 			${si.image && html`<tr><td>Prüfsumme</td><td class="num ${si.image.ok ? '' : 'bad'}">
 				${si.image.crc}${si.image.ok ? '' : ' – beschädigt, Laden gesperrt'}</td></tr>`}

@@ -12,5 +12,6 @@ zephyr_library_sources(
   mqtt.c
   ratelimit.c
   reset.c
+  ntp.c
 )
 zephyr_library_sources_ifdef(CONFIG_WALLFREE_METER meter_json.c)

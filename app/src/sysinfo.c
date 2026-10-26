@@ -6,6 +6,7 @@
 #include "hw.h"
 #include "netcfg.h"
 #include "sysinfo.h"
+#include "timesync.h"
 
 LOG_MODULE_REGISTER(sysinfo, LOG_LEVEL_INF);
 
@@ -107,6 +108,8 @@ void sysinfo_json(struct wf_jbuf *b)
 	wf_jb_int(b, flags);
 	wf_jb_key(b, "uptime_ms", false);
 	wf_jb_int(b, k_uptime_get());
+	wf_jb_key(b, "time", false); /* SOLL-TIME-03 */
+	timesync_json(b);
 	char mac[18];
 
 	netcfg_mac(mac);

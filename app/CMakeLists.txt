@@ -25,6 +25,7 @@ target_sources(app PRIVATE
   src/meter_task.c
   src/mqtt_task.c
   src/history_task.c
+  src/timesync.c
 )
 if(CONFIG_ARCH_POSIX)
   # PC-Simulation (native_sim): Modell statt TIM1/ADC/GPIO, Neustart per execv

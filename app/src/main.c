@@ -15,6 +15,7 @@
 #include "netcfg.h"
 #include "storage.h"
 #include "sysinfo.h"
+#include "timesync.h"
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
@@ -166,5 +167,6 @@ int main(void)
 	meter_task_start(&sys); /* SOLL-MTR-01: ohne Zaehler nichts */
 	mqtt_task_start();      /* SOLL-MQTT-01: ohne mqtt_enable keine Verbindung */
 	history_task_start();   /* SOLL-API-33 */
+	timesync_start();       /* SOLL-TIME-01: ohne Zeitserver nichts */
 	return r;
 }

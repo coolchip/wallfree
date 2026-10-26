@@ -21,6 +21,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/net/net_if.h> /* vor dhcpv4.h */
 #include <zephyr/net/dhcpv4.h>
+#include <zephyr/net/dns_resolve.h>
 #include <zephyr/net/ethernet.h>
 #include <zephyr/net/hostname.h>
 #include <zephyr/shell/shell_telnet.h>
@@ -28,6 +29,7 @@
 #include "mqtt_task.h"
 #include "netcfg.h"
 #include "storage.h"
+#include "timesync.h"
 
 LOG_MODULE_REGISTER(netcfg, LOG_LEVEL_INF);
 
@@ -157,6 +159,15 @@ static void apply(const struct wf_sysconf *c)
 				struct net_in_addr gw = in4(c->gateway);
 
 				net_if_ipv4_set_gw(iface, &gw);
+#if defined(CONFIG_DNS_RESOLVER)
+				/* feste Adresse: Namen (Zeitserver) ueber das Gateway aufloesen */
+				char gws[16];
+				const char *servers[] = {gws, NULL};
+
+				wf_ipv4_format(c->gateway, gws);
+				(void)dns_resolve_reconfigure(dns_resolve_get_default(), servers, NULL,
+							      DNS_SOURCE_MANUAL);
+#endif
 			}
 		}
 	}
@@ -299,6 +310,7 @@ static const char *commit(const struct wf_sysconf *next)
 	if (live) {
 		wf_sys_take_live(&active, &saved);
 		mqtt_task_reconfigure();
+		timesync_notify();
 	}
 	return NULL;
 }

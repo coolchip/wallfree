@@ -7,7 +7,7 @@ Originalverhalten steht in der [Ladeautomat-Spezifikation](../../wallbe2/docs/la
 Sie ist **kein Sicherheitsnachweis**. Weder bestandene Tests noch diese Spezifikation
 belegen elektrische Sicherheit oder Eignung fuer den Ladebetrieb.
 
-Die Fragen F1..F32 sind entschieden ([Abschnitt 15](#15-entscheidungen-und-offene-punkte)).
+Die Fragen F1..F32 sind entschieden (F32 durch SOLL-TIME ersetzt) ([Abschnitt 15](#15-entscheidungen-und-offene-punkte)).
 Umsetzungsstand und Festlegungen im Detail: [Implementierung](implementierung.md).
 
 ## Lesehilfe
@@ -16,7 +16,7 @@ Umsetzungsstand und Festlegungen im Detail: [Implementierung](implementierung.md
   RT (Zeitmodell, Watchdog), CP, PP, SM (Ladeautomat), CUR (Strom), PROT (Schutzpfad),
   LOCK (Verriegelung), FN (Ein-/Ausgangsfunktionen), EN (Freigabe), PAR (Parameter),
   ERR (Fehler/Status), LED, API, SH (Shell), NVM (Parameterspeicher), BOOT (Start),
-  MTR (Energiezaehler), MQTT.
+  MTR (Energiezaehler), MQTT, TIME (Uhrzeit).
 - **Quelle** je Anforderung: `E<n>` = Entscheidung n der
   [Ist-Spez.](../../wallbe2/docs/ladeautomat-spezifikation.md#entscheidungen),
   `Ist §n` = Abschnitt n der Ist-Spez., `Belege §n` = Abschnitt n der
@@ -1015,6 +1015,18 @@ Versandregel (Aenderung, Intervall, Nachholen, Vollversand nach Verbinden), Befe
 Mosquitto-Broker (Zustaende, Last Will, Befehl, Neuverbindung nach Broker-Neustart). H1 –
 Betrieb auf der Steuerung im LAN.
 
+### 12.7 Uhrzeit (SNTP)
+
+Nutzer 2026-10-26 (ersetzt F32 "keine Uhrzeit"). Die Uhrzeit dient nur der Anzeige
+(Protokoll, Verlauf, System); die Ladelogik benutzt sie nie.
+
+| Kennung | Anforderung | Quelle |
+| --- | --- | --- |
+| SOLL-TIME-01 | Mit `ntp_enable` (Werkszustand an) holt die Steuerung die Uhrzeit per SNTP. Ohne Zeitserver, bei abgeschaltetem `ntp_enable` oder vor dem ersten Abgleich ist die Uhrzeit unbekannt; alle Funktionen arbeiten dann wie ohne Uhrzeit (Zeiten relativ zum Start, Umrechnung im Browser). Fehler des Zeitservers sind kein Fehler der Ladelogik. | Nutzer 2026-10-26 |
+| SOLL-TIME-02 | Server: `ntp_server` (Name oder IPv4, optional `:Port`); leer = Zeitserver aus DHCP (Option 42), sonst `pool.ntp.org`. Namen werden per DNS aufgeloest (DHCP-DNS, bei fester Adresse das Gateway). Aenderungen wirken sofort. | [ANN] |
+| SOLL-TIME-03 | Abgleich: nach dem Start und bei Aenderung; nach Erfolg alle 6 h, nach Fehlschlag nach 60 s, verdoppelt bis 1 h. Antworten ausserhalb 2025..2099 werden verworfen. `GET /system/info` meldet `time` = `{"time_ms", "synced_ms", "server"}` oder `null`. | [ANN] |
+| SOLL-TIME-04 | Keine Pufferbatterie: Nach jedem Start ist die Uhrzeit bis zum ersten Abgleich unbekannt; die RTC des STM32 wird nicht gestellt. | Hardware (keine Batterie an VBAT bekannt) |
+
 ## 13. Parameterspeicher, Startablauf, Werksreset
 
 ### 13.1 Parameterspeicher (P1)
@@ -1116,7 +1128,7 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 | F29 | Modbus-Implementierung | Modbus-Client von Zephyr, gekapselt und austauschbar; Fehlerzaehler zur Beurteilung | ein eigener Master waere kaum kleiner; Austausch, falls die Fehlerzaehler im Betrieb Probleme zeigen | SOLL-MTR-04/15, [Architektur](architektur.md#5-speicherbudget) |
 | F30 | MQTT-Client (2026-10-21) | MQTT 3.1.1 ohne TLS, Zustaende als WARP-JSON (kein Einzelwert je Topic, keine Home-Assistant-Erkennung); Befehle minimal (Ladestrom), erweiterbar, Default aus; zusaetzlich Erreichbarkeit per Last Will | Anbindung an vorhandene MQTT-Umgebungen mit demselben Datenformat wie HTTP und WebSocket; der Ladestrom muss ueber MQTT setzbar sein; weitere Befehle sollen spaeter ohne Umbau moeglich sein | 12.6, 10.1 |
 | F31 | Gliederung der Weboberflaeche, Verlauf (2026-10-21) | Bereiche Uebersicht, Insights, Einstellungen, System statt "Einfach"/"Experte"; Leiste oben; Verlauf als Ringpuffer nur im RAM; keine Ladesitzungen | bei vier Bereichen versteckt ein Seitenmenue nur; Einstellungen und Status getrennt statt in einer Karte gemischt; Flash nicht fuer Verlaeufe (Verschleiss, Aufwand), Sitzungen vorerst nicht benoetigt; einige KB RAM sind frei | SOLL-API-31/33 |
-| F32 | Uhrzeit (2026-10-21) | keine: kein SNTP, die RTC des STM32 wird nicht gestellt; alle Zeiten in ms seit dem Start, die Weboberflaeche rechnet sie ueber die Laufzeit der Steuerung in Browserzeit um (ungefaehr) | Verlauf und Protokolle liegen nur im RAM und beginnen mit jedem Start neu; zeitgesteuertes Laden macht evcc; SNTP kostete etwa 2–3 KB Flash bei knapper Reserve; eine Pufferbatterie fuer die RTC ist nicht belegt. Neu bewerten, wenn eine Funktion echte Zeitstempel braucht (z. B. MQTT) | SOLL-API-33, SOLL-ERR-11 |
+| F32 | Uhrzeit (2026-10-21, geaendert 2026-10-26) | SNTP mit Zeitserver aus DHCP bzw. `pool.ntp.org`, abschaltbar; ohne Zeitserver wie vorher (ms seit Start, Umrechnung im Browser); RTC nicht gestellt | Nutzer 2026-10-26: Protokoll uebersteht Neustarts (SOLL-ERR-12) und braucht dafuer echte Zeiten; Flash reicht seit dem Entfernen der Netz-Shell; die Ladelogik haengt nie an der Uhrzeit | SOLL-TIME-01..04 |
 
 ### 15.2 Annahmen und offene Punkte
 

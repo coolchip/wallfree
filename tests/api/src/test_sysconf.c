@@ -46,7 +46,8 @@ ZTEST(api_sysconf, test_defaults_and_json)
 			       "\"meter_address\":1,\"meter_baud\":9600,\"meter_framing\":0,"
 			       "\"mqtt_enable\":false,\"mqtt_broker\":\"0.0.0.0\",\"mqtt_port\":1883,"
 			       "\"mqtt_user\":\"\",\"mqtt_password\":null,\"mqtt_prefix\":\"\","
-			       "\"mqtt_interval\":1,\"mqtt_commands\":false}");
+			       "\"mqtt_interval\":1,\"mqtt_commands\":false,\"ntp_enable\":true,"
+			       "\"ntp_server\":\"\"}");
 	zassert_is_null(wf_sys_check(&c));
 	for (size_t i = 0; i < wf_sys_count(); i++) {
 		const struct wf_syspar *p = wf_sys_at(i);
