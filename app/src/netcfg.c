@@ -21,6 +21,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/net/net_if.h> /* vor dhcpv4.h */
 #include <zephyr/net/dhcpv4.h>
+#include <zephyr/net/ethernet.h>
 #include <zephyr/net/hostname.h>
 #include <zephyr/shell/shell_telnet.h>
 #include "hw.h"
@@ -74,9 +75,42 @@ void netcfg_uid(char out[7])
 	}
 }
 
+#if !defined(CONFIG_NET_NATIVE_OFFLOADED_SOCKETS)
+/*
+ * Geraete-MAC aus dem OTP (Spezifikation 10.1) vor DHCP und Hostname setzen. Der Treiber
+ * uebernimmt sie in die MAC-Register; die Schnittstelle zeigt auf seinen Puffer.
+ */
+static void use_device_mac(struct net_if *iface)
+{
+	const struct device *dev = net_if_get_device(iface);
+	const struct ethernet_api *api = dev->api;
+	struct ethernet_config cfg;
+
+	if (!hw_device_mac(cfg.mac_address.addr)) {
+		LOG_WRN("keine Geraete-MAC im OTP, erzeugte Adresse bleibt");
+		return;
+	}
+	if (api->set_config == NULL ||
+	    api->set_config(dev, ETHERNET_CONFIG_TYPE_MAC_ADDRESS, &cfg) != 0) {
+		LOG_ERR("Geraete-MAC nicht gesetzt");
+		return;
+	}
+	if (memcmp(net_if_get_link_addr(iface)->addr, cfg.mac_address.addr, 6) != 0) {
+		(void)net_if_set_link_addr(iface, (uint8_t *)cfg.mac_address.addr, 6,
+					   NET_LINK_ETHERNET);
+	}
+}
+#endif
+
 static void apply(const struct wf_sysconf *c)
 {
 	char host[WF_HOSTNAME_MAX + 1];
+
+#if !defined(CONFIG_NET_NATIVE_OFFLOADED_SOCKETS)
+	if (net_if_get_default() != NULL) {
+		use_device_mac(net_if_get_default());
+	}
+#endif
 
 	if (c->hostname[0] != '\0') {
 		strcpy(host, c->hostname);

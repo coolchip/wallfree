@@ -58,6 +58,10 @@ td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 td .row { flex-wrap: nowrap; }
 td .row input { flex: 0 1 100px; width: 100px; min-width: 60px; }
 .msg { font-size: 13px; }
+.actions { margin-top: 14px; }
+.progress { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.progress p { margin: 0 0 8px; }
+.stages { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 8px; font-size: 14px; }
 form { display: grid; gap: 10px; max-width: 420px; }
 label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
 label.check { display: flex; align-items: center; gap: 8px; }

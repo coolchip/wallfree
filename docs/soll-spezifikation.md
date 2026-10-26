@@ -701,6 +701,12 @@ Netz- und Systemparameter (`net_*`, `telnet_enable`) wirken **nach einem Neustar
 Pruefung: Einzeladresse (1..223, nicht 127), Netzmaske zusammenhaengend /8../30, Gateway im Netz
 der Adresse oder 0.0.0.0, Hostname 1..32 Zeichen aus Buchstaben, Ziffern, '-' (leer =
 automatisch). Ist die gespeicherte feste Adresse widerspruechlich, startet das Netz mit DHCP.
+**MAC-Adresse (Nutzer 2026-10-26):** Wallfree verwendet die Geraete-MAC, die der Hersteller im
+OTP-Bereich ab `0x1FFF7800` (6 Byte) hinterlegt hat und die auch Bootloader und Originalfirmware
+nutzen (Testgerät: `xx:xx:xx:a1:b2:c3`); sie wird vor dem Start von DHCP gesetzt. Fehlt sie (alles
+`0xFF` oder 0) oder ist sie eine Gruppenadresse, bleibt die aus der Chip-ID erzeugte Adresse. Grund:
+gleiche Adresse fuer Router/DHCP wie im Original und keine ARP-Verzoegerung beim Wechsel zwischen
+Bootloader und Wallfree ([Bootloader](../../wallbe2/docs/bootloader.md#update-betrieb-bootloader-box-t-firmware-081)).
 Die Zaehlerparameter (`meter_*`) wirken ebenfalls nach einem Neustart (evcc liest die
 Faehigkeiten nur beim Verbinden, SOLL-MTR-30). Die MQTT-Parameter (`mqtt_*`) wirken **sofort**: Die
 Verbindung zum Broker wird mit den neuen Werten neu aufgebaut (SOLL-MQTT-31). `telnet_enable` = 0 stoppt die Kommandoverarbeitung; Port 23 bleibt offen, solange Telnet im

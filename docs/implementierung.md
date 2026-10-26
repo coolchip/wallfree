@@ -68,7 +68,7 @@ TIM1 und ADC1 stehen nicht im Board-Devicetree, weil die Anwendung sie direkt st
 | [storage.c](../app/src/storage.c) | Flash-Adapter (Sektor 7 lesen/schreiben/loeschen, Sektor 3 nur lesen, Lage beim Bauen geprueft); Speicher-Thread (Prio 12): Verriegelungszustand speichern, Verdichten im sicheren Zustand; Werksreset, Import | SOLL-NVM-01..05/10, SOLL-RT-13, SOLL-BOOT-04/20/21 |
 | [http_api.c](../app/src/http_api.c) | HTTP-Server Port 80: `/info/name`, `/info/features`, `/evse/state`, `/evse/external_current`, `/evse/limits`, `/evse/params`, `/evse/param_info`, `/evse/errors`, `/evse/errors/ack`, `/credentials`, `/system/config`, `/system/config_info`, `/system/restart`, `/system/update`, `/system/info`, `/system/log`, `/mqtt/state`, mit Zaehler `/meters/0/value_ids`, `/values`, `/state` (sonst 404); WebSocket `/ws` (bis 3 Clients, Push alle 100 ms bzw. sofort nach Schreibzugriffen, ein Topic je Rahmen, Topics `evse/state`, `evse/external_current`, `evse/limits`, `evse/event`, mit Zaehler `meters/0/*` nach jedem Zyklus); Digest-Pruefung je Anfrage | SOLL-API-01..07/30..32, SOLL-ERR-10/11, SOLL-MTR-30/31, SOLL-MQTT-30 |
 | [auth.c](../app/src/auth.c) | Zugangsdaten (HA1), Werkszugang, Passwortaenderung, Nonce-Geheimnis je Start | SOLL-API-07 |
-| [netcfg.c](../app/src/netcfg.c) | Netz-/Systemparameter, Hostname, DHCP oder feste Adresse, Telnet; Aendern (atomar), Import; `mqtt_*` sofort in die laufende Konfiguration und MQTT neu verbinden; Netzwerk-LED PC2 | 10.1, F20, F25, SOLL-LED-06, SOLL-MQTT-31 |
+| [netcfg.c](../app/src/netcfg.c) | Geraete-MAC aus dem OTP (`0x1FFF7800`) vor DHCP, Netz-/Systemparameter, Hostname, DHCP oder feste Adresse, Telnet; Aendern (atomar), Import; `mqtt_*` sofort in die laufende Konfiguration und MQTT neu verbinden; Netzwerk-LED PC2 | 10.1, F20, F25, SOLL-LED-06, SOLL-MQTT-31 |
 | [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `param list/get/set`, `current`, `enable`, `avail`, `pause`, `pwm5`, `lock`, `unlock`, `errors [clear]`, `selftest`, `reboot`, `bootloader`, `boot` (Diagnose: RCC_CSR und BKP10..16 beim Start), `ack`, `nvm`, `meter`, `mqtt`, `sys list/set`, `factory-reset confirm`, `import-original` | SOLL-SH-01..11/19/20, SOLL-MTR-33, SOLL-MQTT-32 |
 | [sysinfo.c](../app/src/sysinfo.c) | Resetgrund, Firmwarestand (`git describe`, im Abbild als `WALLFREE-IMAGE:<version>`), Laufzeit, Ergebnis eines Updates (BKP12), Pruefung des eigenen Abbilds (CRC32 gegen den Anhang, ungueltig -> ERR-INTERNAL); `GET /system/info` | SOLL-RT-14, SOLL-BOOT-32/33/35 |
 | [meter_task.c](../app/src/meter_task.c) | Zaehlerthread (niedrigste Anwendungsprioritaet, Stack 1280 B, nicht ueberwacht), nur mit `meter_type` != 0; Momentaufnahme unter Sperre, Bus ohne Sperre; Ereignisse in den gemeinsamen Ringpuffer | SOLL-MTR-01/03/10..14 |
@@ -370,11 +370,11 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   `33b63f11` gueltig. Dauer fast 3 min, Upload selbst etwa 8 s; die Wartezeiten entstehen durch
   verschiedene MAC-Adressen von Bootloader (Geraete-MAC) und Wallfree (von Zephyr erzeugt), der PC
   haelt den ARP-Eintrag, und durch einen IWDG-Reset beim ersten Start des Bootloaders im
-  Update-Betrieb (wallbe2 Bootloader). Normaler Neustart: etwa 5 s. Geplant: Wallfree verwendet
-  die Geraete-MAC (Entscheidung Nutzer, Folge: neue DHCP-Adresse, neuer Hostname); Anzeige des
-  Updates vereinfachen (drei Stufen, Zeit, keine technischen Schritte, Nutzer 2026-10-26);
-  Abstand der Knoepfe "Neu starten"/"Update starten" zum Element darueber (Nutzer). Rueckweg zur
-  Originalfirmware: eigene Freigabe noetig.
+  Update-Betrieb (wallbe2 Bootloader). Normaler Neustart: etwa 5 s. Umgesetzt (Nutzer
+  2026-10-26), auf dem Testgerät noch zu pruefen: Wallfree verwendet die Geraete-MAC aus dem OTP (Folge:
+  neue DHCP-Adresse, Hostname `wallfree-a1b2c3`); Anzeige des Updates mit drei Stufen und Zeit
+  statt technischer Schritte; Abstand der Aktionsknoepfe. Rueckweg zur Originalfirmware: eigene
+  Freigabe noetig.
 - **Flash-Platz** (Nutzerfrage 2026-10-25, kurz beantwortet, Pruefung offen): Die Anwendung nutzt
   mit 320 KB bereits Sektor 4..6 ganz, mehr loescht der Bootloader nicht. Sektor 7 (128 KB, davon
   wenige hundert Byte Parameter) kaeme nur fuer Daten in Frage, die Wallfree selbst schreibt (z. B.

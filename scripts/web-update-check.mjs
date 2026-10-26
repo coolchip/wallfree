@@ -103,7 +103,7 @@ for (let i = 0; i < 120 && !/Update (erfolgreich|fehlgeschlagen)|antwortet nicht
 	await sleep(1000);
 	t = await text();
 	out.heads.push(await evalJs(head));
-	if (i === 1) await shot('2-update-laeuft');
+	if (i === 6) await shot('2-update-laeuft');
 }
 out.done = t;
 out.dialogs = dialogs;

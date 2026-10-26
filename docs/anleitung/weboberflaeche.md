@@ -457,10 +457,10 @@ Einstellungen bleiben erhalten.
    Datei wird abgelehnt.
 3. **Update starten** und die Rückfrage bestätigen. Ein laufender Ladevorgang wird geordnet
    beendet.
-4. Die Seite zeigt den Fortschritt: Übergabe an den Bootloader, Warten auf den Bootloader,
-   Hochladen, Neustart, Ergebnis. Das dauert etwa eine Minute. Die Steuerung ist in dieser Zeit
-   nicht erreichbar; im Kopf steht „Update läuft …“. Die Seite **nicht schließen** (der Browser
-   fragt sonst nach).
+4. Die Seite zeigt „Update läuft – bitte warten“ mit der verstrichenen Zeit und den Stufen
+   Vorbereiten, Übertragen und Neustart. Das dauert meist ein bis drei Minuten; die Steuerung ist
+   in dieser Zeit nicht erreichbar, im Kopf steht „Update läuft …“. Die Seite **nicht
+   schließen** (der Browser fragt sonst nach).
 5. Nach „Update erfolgreich“ lädt die Seite neu. Erfolgreich heißt: Die Prüfsumme der laufenden
    Firmware stimmt mit der Datei überein. Unter System steht dann die neue Firmware und
    „Letztes Update: erfolgreich“; die Übersicht nennt das Update unter den letzten Ereignissen.

@@ -447,6 +447,12 @@ FUNC_NORETURN void hw_bootloader_handover(uint32_t ip, uint32_t mask)
 /* SOLL-BOOT-35: Das Programm der Simulation hat keinen Anhang. Nach einem Update meldet der
  * Ersatz-Bootloader in WALLFREE_SIM_IMAGE, ob das empfangene Abbild gueltig war
  * ("ok:<crc>"/"bad:<crc>"); --image-bad erzwingt ein ungueltiges. Sonst nicht pruefbar. */
+bool hw_device_mac(uint8_t mac[6])
+{
+	ARG_UNUSED(mac);
+	return false; /* Host-Sockets, keine eigene Schnittstelle */
+}
+
 int hw_image_check(uint32_t *crc)
 {
 	const char *v = nsi_host_getenv("WALLFREE_SIM_IMAGE");

@@ -100,6 +100,12 @@ int hw_image_check(uint32_t *crc);
  */
 void hw_boot_regs(uint32_t out[HW_BOOT_REGS]);
 
+/**
+ * Geraete-MAC aus dem OTP-Bereich (ab 0x1FFF7800, vom Hersteller gesetzt, Spezifikation 10.1).
+ * @return false, wenn keine gueltige Einzeladresse hinterlegt ist (dann bleibt die erzeugte)
+ */
+bool hw_device_mac(uint8_t mac[6]);
+
 /** IWDG starten (SOLL-BOOT-03). @return 0 oder Fehler */
 int hw_wdt_start(uint32_t timeout_ms);
 

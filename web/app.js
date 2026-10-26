@@ -465,7 +465,7 @@ function Errors() {
 		<p>Aktiv: <b class=${d.active.length ? 'bad' : 'ok'}>${d.active.join(', ') || 'keine'}</b></p>
 		<p class="muted msg">Seit Start: ${d.seen.join(', ') || 'keine'}. Fehler löschen sich nach ihrer
 			Regel selbst; nur der Schützfehler wird quittiert.</p>
-		<div class="row"><button onClick=${ack}>Schützfehler quittieren</button></div>
+		<div class="row actions"><button onClick=${ack}>Schützfehler quittieren</button></div>
 		<${Msg} m=${msg} />
 		${d.history.length > 0 && html`<table>
 			<tr><th>vor</th><th>Zustand</th><th>neu</th><th>gelöscht</th></tr>
@@ -641,14 +641,23 @@ async function waitFor(what, seconds) {
 	return false;
 }
 
-const STEPS = ['Übergabe an den Bootloader', 'Warten auf den Bootloader', 'Hochladen',
-	'Neustart', 'Ergebnis'];
+// Interne Schritte 0..5 (Uebergabe, Warten auf den Bootloader, Hochladen, Neustart, Ergebnis,
+// fertig); angezeigt werden nur drei Stufen (Nutzer 2026-10-26)
+const STAGES = [['Vorbereiten', 2], ['Übertragen', 3], ['Neustart', 5]];
+const mmss = (s) => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 
 function Update({ onBusy }) {
 	const [file, setFile] = useState(null); // {name, buf, check}
 	const [step, setStep] = useState(-1);
 	const [msg, setMsg] = useState(null);
 	const busy = step >= 0 && step < 5;
+	const [t0, setT0] = useState(0);
+	const [now, setNow] = useState(0);
+	useEffect(() => {
+		if (!busy) return undefined;
+		const t = setInterval(() => setNow(Date.now()), 1000);
+		return () => clearInterval(t);
+	}, [busy]);
 	// nach Erfolg bis zum Neuladen: die Live-Verbindung steht dann noch nicht wieder
 	const hold = busy || (step === 5 && msg && msg.ok);
 	// Kopfzeile und Ausgrauen (Main); Schliessen des Tabs braeche den Upload ab
@@ -675,6 +684,8 @@ function Update({ onBusy }) {
 		if (!confirm((ver ? 'Firmware ' + ver + ' aufspielen? Ein laufender Ladevorgang wird beendet.'
 			: foreign) + others)) return;
 		setMsg(null);
+		setT0(Date.now());
+		setNow(Date.now());
 		try {
 			setStep(0);
 			const r = await post('/system/update', {});
@@ -724,11 +735,17 @@ function Update({ onBusy }) {
 		${c && html`<p class=${typeof c === 'string' ? 'bad msg' : c.version ? 'msg' : 'warn msg'}>
 			${typeof c === 'string' ? c : c.version ? 'Wallfree ' + c.version + ', ' +
 			Math.round(file.buf.byteLength / 1024) + ' KB, Prüfsumme ' + c.crc : 'Kein Wallfree-Abbild (z. B. Originalfirmware)'}</p>`}
-		${step >= 0 && html`<ol class="msg">${STEPS.map((s, i) => html`<li
-			class=${i < step ? 'ok' : i === step ? '' : 'muted'}>${s}${i === step && busy ? ' …' : ''}</li>`)}</ol>`}
-		${busy && html`<p class="warn msg">Die Steuerung ist während des Updates etwa eine Minute nicht
-			erreichbar, das ist normal. Diese Seite bitte offen lassen.</p>`}
-		<div class="row msg"><button class="primary" disabled=${!c || typeof c === 'string' || busy}
+		${busy && html`<div class="progress">
+			<p><strong>Update läuft – bitte warten.</strong> Das kann einige Minuten dauern
+				<span class="muted"> (seit ${mmss(Math.max(0, Math.round((now - t0) / 1000)))})</span>.</p>
+			<div class="stages">${STAGES.map(([s, end], i) => {
+				const from = i ? STAGES[i - 1][1] : 0;
+				const st = step >= end ? 'ok' : step >= from ? '' : 'muted';
+				return html`<span class=${st}>${step >= end ? '✓ ' : ''}${s}${st === '' ? ' …' : ''}</span>`;
+			})}</div>
+			<p class="muted msg">Die Steuerung ist währenddessen nicht erreichbar. Diese Seite bitte offen lassen.</p>
+		</div>`}
+		<div class="row actions"><button class="primary" disabled=${!c || typeof c === 'string' || busy}
 			onClick=${run}>Update starten</button></div>
 		<${Msg} m=${msg} />
 		<p class="muted msg">Die Datei geht an den Bootloader der Steuerung; ohne Upload startet er nach
@@ -756,7 +773,7 @@ function SystemPage({ onBusy }) {
 			${si.update_result && html`<tr><td>Letztes Update</td><td class="num ${si.update_result.ok ? 'ok' : 'bad'}">
 				${si.update_result.ok ? 'erfolgreich' : 'fehlgeschlagen'}</td></tr>`}
 		</table>`}
-		<div class="row msg"><button onClick=${() => restart(setMsg)}>Neu starten</button></div>
+		<div class="row actions"><button onClick=${() => restart(setMsg)}>Neu starten</button></div>
 		<${Msg} m=${msg} />
 	<//>
 	<${Update} onBusy=${onBusy} />`;
