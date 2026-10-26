@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Wallfree: Ersatzfirmware fuer EV-CC-AC1-M3-CBC-RCM-ETH.
- * Startablauf nach Soll-Spezifikation Abschnitt 13.2. Nur gebaut, auf
- * Hardware nicht ausgefuehrt und nicht freigegeben.
+ * Startablauf nach Soll-Spezifikation Abschnitt 13.2.
  */
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>

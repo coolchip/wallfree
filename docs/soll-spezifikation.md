@@ -1,13 +1,13 @@
 # Soll-Spezifikation der Ersatzfirmware "Wallfree"
 
-Stand: 2026-10-21. Beschreibt, **was die Ersatzfirmware tun soll**, bezogen auf
+Stand: 2026-10-26. Beschreibt, **was die Ersatzfirmware tun soll**, bezogen auf
 die Klemmen der Steuerung **EV-CC-AC1-M3-CBC-RCM-ETH** (Phoenix Contact). Das
 Originalverhalten steht in der [Ladeautomat-Spezifikation](../../wallbe2/docs/ladeautomat-spezifikation.md)
 (im Folgenden "Ist-Spez."). Diese Datei ist Grundlage fuer Implementierung und Tests.
 Sie ist **kein Sicherheitsnachweis**. Weder bestandene Tests noch diese Spezifikation
 belegen elektrische Sicherheit oder Eignung fuer den Ladebetrieb.
 
-Die Fragen F1..F30 sind entschieden ([Abschnitt 15](#15-entscheidungen-und-offene-punkte)).
+Die Fragen F1..F32 sind entschieden ([Abschnitt 15](#15-entscheidungen-und-offene-punkte)).
 Umsetzungsstand und Festlegungen im Detail: [Implementierung](implementierung.md).
 
 ## Lesehilfe

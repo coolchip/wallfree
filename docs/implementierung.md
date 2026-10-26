@@ -1,7 +1,8 @@
 # Implementierungsstand
 
-Stand: 2026-10-24. **Auf Hardware nur im Ruhebetrieb gelaufen** (Testgerät, Schuetz und Aktoren
-abgeklemmt, kein Fahrzeug); bestandene Tests belegen keine elektrische Sicherheit. Rahmen und Begruendungen: [Architektur](architektur.md);
+Stand: 2026-10-26. **Auf Hardware nur ohne Last gelaufen** (Testgerät, Schuetz abgeklemmt, kein
+Fahrzeug; Ergebnisse: [Pruefungen auf dem Testgerät](#pruefungen-auf-box-t)); bestandene Tests belegen
+keine elektrische Sicherheit. Rahmen und Begruendungen: [Architektur](architektur.md);
 Tests: [Test und Simulation](test-und-simulation.md).
 
 ## Ueberblick
@@ -11,11 +12,11 @@ Tests: [Test und Simulation](test-und-simulation.md).
 | Ladelogik (`lib/evse`) | vollstaendig nach Soll-Spezifikation, PC-getestet |
 | Parameterspeicher (`lib/nvm`) | fertig, PC-getestet inkl. Stromausfall nach jedem Byte |
 | API-Bausteine (`lib/api`) | fertig, PC-getestet |
-| Energiezaehler (`lib/meter`, Zaehlerthread, nur Anzeige) | fertig, PC-getestet, in der Simulation Ende-zu-Ende und gegen evcc geprueft; Modbus-Anbindung auf UART4 gebaut, ungeprueft (H1) |
-| MQTT-Client (`lib/api/mqtt.c`, `mqtt_task.c`) | fertig, PC-getestet, in der Simulation Ende-zu-Ende gegen Mosquitto geprueft; auf der Steuerung gebaut, ungeprueft (H1) |
-| Anwendung (`app/`) | baut fuer `ev_cc_ac1` ohne Warnung; als PC-Simulation Ende-zu-Ende getestet |
-| Weboberflaeche (`web/`) | fertig (Bereiche, Verlauf), Browser-Durchlauf in der Simulation |
-| evcc-Anbindung | gegen die Simulation geprueft (evcc 0.317.2) |
+| Energiezaehler (`lib/meter`, Zaehlerthread, nur Anzeige) | fertig, PC-getestet, in der Simulation Ende-zu-Ende und gegen evcc geprueft; Modbus-Anbindung auf UART4 gebaut, auf der Steuerung ungeprueft (kein Zaehler vorhanden) |
+| MQTT-Client (`lib/api/mqtt.c`, `mqtt_task.c`) | fertig, PC-getestet, in der Simulation Ende-zu-Ende und auf dem Testgerät gegen Mosquitto geprueft |
+| Anwendung (`app/`) | baut fuer `ev_cc_ac1` ohne Warnung; als PC-Simulation Ende-zu-Ende getestet; auf dem Testgerät unter Netzlast geprueft |
+| Weboberflaeche (`web/`) | fertig (Bereiche, Verlauf, Auswahllisten, Begriffe), Browser-Durchlauf in der Simulation, auf dem Testgerät im Einsatz |
+| evcc-Anbindung | gegen die Simulation geprueft (evcc 0.317.2), gegen das Testgerät ohne Fahrzeug |
 | Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) | auf dem Testgerät gestartet: Takt, Bootloader-Start, Ethernet/PHY, DIP/Drehschalter, CP-Messung (Ruhe, A, F), RCM-Selbsttest, alle fuenf Eingaenge, Ausgaenge ER/LR/VR/CR (je 12 V), Verriegelung mit LD, Power-/Error-LED, Parameterspeicher, Reset-Taster/Werksreset; Schuetz, PWM, Connect-/Ready-LED (nur kurz bzw. erst mit Fahrzeug) noch ungeprueft |
 | Update ueber den Bootloader (SOLL-SH-10, SOLL-BOOT-30..35) | umgesetzt und auf dem Testgerät geprueft (Weboberflaeche, 20 s, Pruefsumme des Abbilds); Simulation mit nachgebildetem Bootloader Ende-zu-Ende und im Browser |
 
@@ -237,7 +238,7 @@ unterbrochene Verdichten wie ein Erststart aus. Getestetes Verhalten bei Stromau
 
 ## Ressourcen
 
-Stand 2026-10-26, `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B, ohne Netz-Shell, 12 Netz-Kontexte: **277 852 B Flash** (84,8 % von 320 KB), **112 748 B RAM** (86,0 %).
+Stand 2026-10-26 (`6c74041`), `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B, ohne Netz-Shell, 12 Netz-Kontexte: **280 108 B Flash** (85,5 % von 320 KB), **112 748 B RAM** (86,0 %).
 Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudget).
 
 | Anteil (gemessen beim Hinzufuegen) | Flash | RAM |
@@ -253,10 +254,17 @@ Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudge
 | Verlauf (Ringpuffer 1,2 KB) und Gliederung der Weboberflaeche in Bereiche (gzip +2,9 KB) | 5,3 KB | 1,5 KB |
 | Energiezaehler: UART-Treiber 2,1 KB, Zephyr-Modbus 2,7 KB, Interrupttabelle 1 KB, Zaehlermodul 1,4 KB, JSON/API/Shell/Parameter 2,9 KB, Weboberflaeche 1,4 KB, Rest (Treiberanteile) | 15,2 KB | 3,9 KB (Stack 1,3 KB, Modbus-Kontext 1 KB, Zaehlerzustand, WebSocket-Rahmen) |
 
-Reserve rund **44 KB Flash und 17,9 KB RAM**. Der RAM ist bis auf die Stacks statisch belegt
+Reserve rund **42 KB Flash und 17,9 KB RAM**. Der RAM ist bis auf die Stacks statisch belegt
 (kein Wachstum zur Laufzeit); Stacks haben MPU-Schutz (Ueberlauf -> Fault -> sicherer Zustand),
-ihre tatsaechliche Auslastung wird in H1 mit `kernel thread stacks` gemessen. Weitere
+ihre Auslastung auf dem Testgerät steht in der Tabelle unten (`kernel thread stacks`). Weitere
 Einsparungen in der [Architektur](architektur.md#5-speicherbudget).
+
+**Grenze 320 KB:** Die Anwendung darf hoechstens Sektor 4..6 belegen, mehr loescht der
+Bootloader nicht. Sektor 7 (128 KB, davon wenige hundert Byte Parameter) kaeme nur fuer Daten in
+Frage, die Wallfree selbst schreibt (z. B. die Weboberflaeche), mit eigenem Aktualisierungsweg
+und Verdichten; Sektor 3 (16 KB) nur bei Verzicht auf die Originalparameter (Rueckweg, Import).
+Weitere Hebel: `app.js` minifizieren (gzip 15,8 KB, geschaetzt 4..5 KB weniger), allgemeine Shell
+20 KB nur ohne Telnet; Netzstack und HTTP (~120 KB) sind noetig.
 Beim RAM (Heap umgesetzt, Nutzer 2026-10-21):
 
 | Kandidat | Ersparnis | Befund |
@@ -266,29 +274,23 @@ Beim RAM (Heap umgesetzt, Nutzer 2026-10-21):
 | `NET_MAX_CONN`/`NET_MAX_CONTEXTS` | – | **erhoeht 10 -> 12** (Nutzer 2026-10-26): im Lasttest 8..9 von 10 belegt (Browser, 2 WebSockets, Abfrager, Telnet, 2 Listener), dazu MQTT und TIME_WAIT; 672 B je TCP-Verbindung |
 | Ethernet-DMA-Puffer (2 x 6 KB) | – | Anzahl fest im HAL-Treiber (4 + 4) |
 
-## Annahmen der Hardwareschicht (in H1 zu pruefen)
+## Annahmen der Hardwareschicht
 
-- Pinbelegung, aktive Pegel und ADC-Skalierung stammen aus der Originalfirmware (keine
-  Schaltplanbestaetigung), insbesondere RCM "High = ausgeloest" (Inversion zum Bender-Ausgang)
-  und PE2 High = Schuetz ein.
+Bestaetigt auf dem Testgerät: Pinbelegung und Pegel der Eingaenge, Ausgaenge, LEDs, DIP/Drehschalter,
+Reset-Taster und CP-Messung; PHY-Takt und -Reset (Netz laeuft); IWDG-Umprogrammierung und
+Loeschen von Sektor 7 im Betrieb (Verdichten gelaufen); RTC-Backup-Register ohne RTC-Takt
+(Resetgrund, Update-Ergebnis); Freigabe ruhender HTTP-Verbindungen nach 10 s (Lasttest).
+Noch offen:
+
+- PE2 High = Schuetz ein und RCM "High = ausgeloest" (Inversion zum Bender-Ausgang) stammen aus
+  der Originalfirmware; der RCM-Selbsttest besteht, das Schuetz ist ungeprueft (Stufe C).
 - Reaktionszeit RCM-Flanke -> PE2 Low ueber den Zephyr-GPIO-Callback: Ziel <= 1 ms
   (SOLL-PROT-05), am Oszilloskop messen.
-- PHY-Takt (MCO1/PA8 -> 470 Ohm -> XI) und Reset (PA15 -> RST#) sind per Durchgang belegt; ob der
-  PHY damit verbindet, zeigt erst der erste Netzbetrieb.
-- IWDG-Umprogrammierung im Betrieb (direkt ueber Register, weil der Zephyr-Treiber das Limit
-  nach dem Start nicht aendern kann) und Loeschzeit Sektor 7 <= 4000 ms (Zephyr-Devicetree,
-  nicht Datenblatt).
-- Zugriff auf RTC-Backup-Register ohne RTC-Takt (nur PWR-Takt und DBP).
 - Zaehlerbus: RS-485 an Klemme A/B auf UART4 mit Freigabe PC12 (Firmwarebefund, wallbe2
   Belege §9): Sendepegel an A/B messen; danach je Modell einen echten Zaehler abfragen und die
   Fehlerzaehler bei offener und vertauschter Leitung ansehen. Zephyr-Modbus im nicht
   normkonformen Modus (8N1) ist nur gebaut.
-- Ruhende HTTP-Verbindungen: Zephyr gibt Client-Plaetze nach 10 s Inaktivitaet per `shutdown`
-  frei; in der Simulation fehlt `shutdown`. Auf der Steuerung mit offenem Browser und evcc
-  gleichzeitig pruefen.
-- MQTT: Betrieb gegen den Broker im LAN; Stackbedarf des MQTT-Threads (2048 B angenommen) mit
-  dem Thread-Analysator messen; Erkennungszeit eines ausgeschalteten Brokers bei laufendem
-  Zaehlerversand.
+- MQTT: Erkennungszeit eines ausgeschalteten Brokers bei laufendem Zaehlerversand.
 
 ## Fallstricke
 
@@ -317,102 +319,39 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 | Retain-Kennung beim Empfang | bei bestehendem Abo setzt der Broker sie nie (MQTT-3.3.1-9); ein Test mit `mosquitto_pub -r` zeigt das Ignorieren nicht | Test ueber eine Neuverbindung, die die gespeicherte Nachricht ausliefert |
 | Zephyr-Modbus, Stoppbits | im normkonformen Modus erzwingt Zephyr bei "keine Paritaet" 2 Stoppbits; die Eastron-Werkseinstellung 8N1 ginge nicht | `CONFIG_MODBUS_NONCOMPLIANT_SERIAL_MODE`, Stoppbits je Format setzen |
 
+## Pruefungen auf dem Testgerät
+
+Das Testgerät (Firmware 0.81 ab Werk, Bootloader und Sektor 3 unveraendert), Freigaben in
+[wallbe2/AGENTS.md](../../wallbe2/AGENTS.md); Schuetz abgeklemmt, kein Fahrzeug. Steuerung ueber
+Shell/API von Wallfree, der Nutzer beobachtet und misst (unter Spannung nur an den Klemmen, nie
+auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/docs/hardware.md).
+
+| Bereich | Ergebnis |
+| --- | --- |
+| Start, Netz | Start ueber den Original-Bootloader, Takt, Ethernet/PHY, DHCP; Geraete-MAC aus dem OTP (`xx:xx:xx:a1:b2:c3`, Hostname `wallfree-a1b2c3`) |
+| Eingaenge (Stufe A) | EN (Schluesselschalter, 0/12 V), ML, XR, IN je 12 V -> `inputs` Bit 1..4; XR mit D8: ab -> S10, an -> S1; IN Code 8 -> 6 A, Code 11 -> 16 A |
+| Ausgaenge, LEDs (Stufe A) | ER/LR/VR/CR je 12 V an der Klemme (Register-Ausgaenge 30..33); Front-LED ER rot, VR blau, CR gruen; Power- und Error-LED; mit `dip_override` D8 -> S10, CP -12 V, Error-LED an (`dip_override` in S10 nicht schreibbar, SOLL-PAR-40) |
+| Verriegelung (Stufe B) | LD ist ein Impuls von grob 60..100 ms waehrend der Fahrt: Code 22 noetig, mit Code 3 schlaegt Verriegeln fehl; mit D9 aus entriegelt der Automat in S1 bei CP A sofort wieder (SOLL-LOCK-23). Das Testgerät: `in_function_ld` 22, `out_function_cr` 40 (gruen im Leerlauf wie das zweite Gerät, Nutzer 2026-10-24) |
+| Reset-Taster | kurz -> Neustart (`reset_pin`); gehalten -> Neustart und nach 5 s Werksreset (NRST vermutlich gepulst, PD2 gehalten) |
+| Parameterspeicher | `FLASH_SR` beim Start `0xc0` (aus dem Bootloader, Fallstricke); erste Speicherung danach fehlerfrei |
+| Update | ueber die Weboberflaeche in etwa 20 s, Erfolg nur bei passender Pruefsumme; Rueckweg zur Originalfirmware 0.81 und zurueck geprueft (Sektor 3 und 7 erhalten). Fruehere Abbrueche: jede Abfrage waehrend des Uploads bricht ihn im Bootloader ab (Seite fragt deshalb nichts ab); wechselnde MAC von Bootloader und Wallfree verzoegerte per ARP-Cache (behoben mit Geraete-MAC) |
+| Netzlast (`scripts/net-load.py`) | Mit kooperativen Netz-Threads startete das Testgerät unter 4 parallelen Abfragern neu (Fallstricke); seit `eca1ad4` kein Neustart: 83 Anfragen/s, hoechstens 123 ms; 3 WebSockets, Takt 2,0 s; 2300 Verbindungsabbrueche in 60 s ohne Rest; 30 min Dauerlast mit 2 WebSockets und MQTT ohne Neustart, WebSocket-Luecke hoechstens 2,1 s |
+| MQTT (Mosquitto 2.1 im LAN) | Verbindung sofort nach `mqtt_enable`; Zustaende retained; Befehl als Zahl und JSON, 3 A abgelehnt, ohne `mqtt_commands` wirkungslos, retained Befehl verworfen; nach Broker-Neustart in 4 s verbunden; Last Will bei Uebernahme der Sitzung nach Neustart |
+| evcc 0.317.2 | Anmeldung und WebSocket ohne Fehler, ohne Fahrzeug "car disconnected", `external_current` = 0 |
+| Stacks | siehe [Ressourcen](#ressourcen); keiner ueber 82 % |
+
+Bekannte Grenzen: Keep-Alive-Verbindungen belegen je einen der 4 HTTP-Plaetze bis 10 s;
+weitere werden abgewiesen. Stumme Verbindungen, die staendig nachkommen, blockieren die
+Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fallstricke.
+
 ## Offen
 
-- H0 und H1 nur mit Freigabe ([Architektur](architektur.md#7-hardware-inbetriebnahme));
-  danach Update-Uebergabe (SOLL-SH-10, SOLL-BOOT-30) und Startablauf auf der Hardware.
-- Import aus Sektor 3 (fehlend = 0, umgesetzt) auf der Steuerung noch nicht ausgefuehrt; das Testgerät
-  traegt seit dem Rueckweg wieder Einstellungen der Originalfirmware in Sektor 3.
-- **Hardwarepruefung auf dem Testgerät in Stufen** (Steuerung ueber Shell/API von Wallfree, Nutzer
-  beobachtet und misst; unter Spannung nur an den Klemmen, nie direkt auf der Platine, Nutzer
-  2026-10-24): A) Eingaenge (Schluesselschalter an EN -> `inputs`, Ladeerlaubnis), Ausgaenge
-  ER/LR/VR/CR ueber Register-Ausgaenge (Codes 30..33, danach Werkseinstellung zurueck) mit
-  Spannung an Klemme gegen GND, LEDs der Steuerung und Front-LEDs; B) nur Verriegelungsmotor
-  anklemmen, Zyklus per `lock_state` 1/0 in S1, LD-Rueckmeldung beobachten (Dauersignal oder
-  Impuls); C) CP-PWM und Schuetz erst mit Pruefstecker (H2, Plan und Bauanleitung:
-  [Pruefstecker](pruefstecker.md); Freigabe noch offen).
-  Angeschlossen: Front-LEDs und Schluesselschalter. **A erledigt** mit `1da691a` (2026-10-24):
-  Schluesselschalter an EN (0/12 V, `inputs` Bit 1, Ladeerlaubnis 1), ER/LR/VR/CR je 12 V an der
-  Klemme, Front-LED ER rot, VR blau, CR gruen ([wallbe2 Hardware](../../wallbe2/docs/hardware.md)).
-  Offen aus A: Modul-LEDs Error/Connect/Ready (Error ueber S10 mit `dip_override` D8, Connect in B,
-  Ready erst mit Fahrzeug). A4: mit `dip_override` D8 -> S10, CP -12 V an der Klemme, Error-LED
-  (rot, neben Power) und Front-LED rot an; `dip_override` ist in S10 nicht schreibbar
-  (SOLL-PAR-40), zurueck nur per Neustart (Wert nicht persistent). **B erledigt** mit `87b9bef`:
-  FLASH_SR beim Start `0xc0` (PGPERR, PGSERR) bestaetigt den Fallstrick, erste Speicherung danach
-  ohne Fehler. LD ist ein Impuls von grob 60..100 ms waehrend der Fahrt (beide Richtungen); mit
-  Code 3 schlaegt Verriegeln fehl (Stift ausgefahren, Zustand "entriegelt"), mit Code 22
-  gelingt es. Mit D9 aus entriegelt der Automat in S1 bei CP A sofort wieder (SOLL-LOCK-23), ein
-  Verriegeln per `lock_state` ist ohne Fahrzeug also nur ein Pruefzyklus. Das Testgerät jetzt:
-  `in_function_ld` 22, `out_function_cr` 40 (gruen im Leerlauf wie das zweite Gerät, Nutzer 2026-10-24).
-  **A, weitere Eingaenge** (`87b9bef`): ML, XR, IN mit 12 V -> `inputs` Bit 2/3/4; XR + D8: XR ab -> S10,
-  XR an -> S1; IN Code 8 -> 6 A, Code 11 -> 16 A. **Reset-Taster:** kurz -> Neustart (`reset_pin`);
-  im Betrieb gehalten -> Neustart und nach 5 s Werksreset, also NRST nur gepulst und PD2
-  gehalten (Hypothese zur Beschaltung); Power-LED war waehrend der Wartezeit dunkel (behoben in
-  `50a06ea`, auf dem Testgerät noch zu pruefen). Nach dem Werksreset Zugang, CR 40 und LD 22 neu gesetzt.
-- Ausgangsfunktionen auf dem Testgerät: Mit den Defaults (VR 16, CR 17) bleibt die Front-LED im Leerlauf
-  dunkel; das Original hatte CR = 9 (Testgerät) bzw. 40 (zweites Gerät), also gruen im Leerlauf. Ob das Testgerät
-  per Parameter CR = 40 (oder 9) bekommt, entscheidet der Nutzer (Konfiguration, SOLL-GEN-02).
-- **Update auf dem Testgerät (Freigabe wallbe2/AGENTS.md 2026-10-26). Versuch 1 (`07ae5ce`): Bootloader
-  meldete Erfolg, Vollstaendigkeit unbekannt, IWDG-Flag ungeklaert. Versuch 2 und 3 (2026-10-26)
-  brachen ab (bei Versuch 2 fragte zusaetzlich das damalige `update-watch.py` alle 0,5 s per HTTP
-  ab; es nutzt jetzt nur Ping und Telnet), Ursache im Mitschnitt von Versuch 3 belegt: Die Weboberflaeche fragte waehrend des
-  Uploads `/system/info` ab; der Bootloader haelt den Upload-Zustand fuer alle Verbindungen
-  gemeinsam und bricht ihn bei jedem `GET` ab, nachdem er Sektor 4..6 geloescht hat (Auslesen per
-  SWD: bis zum Abbruch fehlerfrei geschrieben, [wallbe2 Bootloader](../../wallbe2/docs/bootloader.md#update-betrieb-bootloader-box-t-firmware-081)).
-  Tempo im Mitschnitt: Loeschen etwa 2,3 s, dann etwa 65 KB/s; die 30-s-Grenze ist unkritisch.
-  Abhilfe: Die Seite fragt waehrend des Updates nichts ab und warnt vor anderen Abfragen (evcc);
-  Wallfree prueft das eigene Abbild (SOLL-BOOT-35), die Seite wertet nur eine passende Pruefsumme
-  als Erfolg. In der Simulation mit nachgebildetem Bootloader (gemeinsamer Zustand, Zaehlung,
-  Tempo) geprueft. Auf dem Testgerät: `b7b832c` per SWD, Pruefung des eigenen Abbilds gueltig (CRC
-  `fe83bae3` wie im Anhang); Update ueber die Weboberflaeche damit noch ausstehend. BKP16 stand
-  danach auf 4 (IWDG-Resets im Bootloader waehrend des abgebrochenen Versuchs, wallbe2
-  Bootloader); vor dem naechsten Versuch Kaltstart, damit der Zaehler bei 0 beginnt. **Versuch 4
-  (2026-10-26, `b7b832c` -> `8bce057` ueber die Weboberflaeche): erfolgreich**, Pruefsumme
-  `33b63f11` gueltig. Dauer fast 3 min, Upload selbst etwa 8 s; die Wartezeiten entstehen durch
-  verschiedene MAC-Adressen von Bootloader (Geraete-MAC) und Wallfree (von Zephyr erzeugt), der PC
-  haelt den ARP-Eintrag, und durch einen IWDG-Reset beim ersten Start des Bootloaders im
-  Update-Betrieb (wallbe2 Bootloader). Normaler Neustart: etwa 5 s. Umgesetzt (Nutzer
-  2026-10-26): Wallfree verwendet die Geraete-MAC aus dem OTP, auf dem Testgerät geprueft (`1722fe6`,
-  `xx:xx:xx:a1:b2:c3`, neue DHCP-Adresse `192.168.1.22`, Hostname `wallfree-a1b2c3`), Anzeige im
-  Bereich System; Anzeige des Updates mit drei Stufen und Zeit statt technischer Schritte;
-  Abstand der Aktionsknoepfe. **Versuch 5** (2026-10-26, `1722fe6` -> `477bb1b` ueber die
-  Weboberflaeche, gleiche MAC): erfolgreich in 20 s (Anzeige 0:16), ohne IWDG, Pruefsumme
-  `1d256b1d` gueltig; das Update ueber die Weboberflaeche gilt auf dem Testgerät als geprueft.
-  **Rueckweg geprueft** (2026-10-26): Originalfirmware 0.81 ueber die Weboberflaeche von Wallfree
-  aufgespielt (laeuft, Einstellungen in Sektor 3 erhalten), danach aus der Originalfirmware ueber
-  den Bootloader wieder Wallfree (Parameter in Sektor 7 erhalten). Rueckweg zur Originalfirmware: eigene
-  Freigabe noetig.
-- **Netz-Lasttest auf dem Testgerät (`scripts/net-load.py`, 2026-10-26, Browser-Tab offen, S1): Mit
-  `477bb1b` startete das Testgerät unter 4 parallelen HTTP-Abfragern mehrmals neu (`supervision_limit`,
-  Fallstricke: kooperative Netz-Threads). Mit `eca1ad4` (Netz-Threads preemptiv) kein Neustart:
-  `http` 83 Anfragen/s, hoechstens 123 ms; `keep` mit 2 Abfragern 41/s, mit 4 Abweisungen (Keep-Alive
-  belegt je einen der 4 HTTP-Plaetze bis 10 s); `ws` 3 Plaetze, Takt 2,0 s; `churn` 2300
-  Verbindungen in 60 s ohne Rest; `mixed` 2 min, WebSocket-Luecke hoechstens 2,1 s; `long` 30 min
-  ohne Neustart. Grenzen: Stumme Verbindungen blockieren die Weboberflaeche, solange sie
-  nachkommen (je 10 s Inaktivitaetsfrist, im Test 33 s; Laden unberuehrt); bei Browser + 2
-  WebSockets + Abfrager + Telnet sind 8..9 von 10 Netz-Kontexten belegt (`NET_MAX_CONTEXTS`, mit
-  MQTT knapp; erhoeht auf 12, Netz-Shell entfernt: `c5e5690`, `mixed` bestanden). Thread-Stacks
-  unter Last unveraendert gegenueber der Messung ohne Last (Ressourcen).
-- **MQTT auf dem Testgerät (`a8311ae`, 2026-10-26, Mosquitto 2.1 auf dem PC, ohne Anmeldung): Verbindung
-  sofort nach `mqtt_enable`; Online, Zustand, Sollstrom, Grenzen retained; Befehl als Zahl und als
-  JSON angenommen, 3 A mit Meldung abgelehnt, ohne `mqtt_commands` wirkungslos, gespeicherter
-  (retained) Befehl nach Neuverbindung verworfen; Broker-Neustart -> nach 4 s wieder verbunden.
-  `long` 30 min mit MQTT: kein Neustart, WebSocket-Luecke hoechstens 2,1 s, MQTT-Verbindung die
-  ganze Zeit gehalten (ohne Zustandsaenderung keine Nachrichten, wie festgelegt). Last Will:
-  nach Neustart ueber die API meldete der Broker `online` = `false` beim Uebernehmen der alten
-  Sitzung durch die neue Verbindung (nach 11 s), danach `online` = `true`; Abschalten von
-  `mqtt_enable` sendet `online` = `false`. Danach MQTT auf dem Testgerät wieder aus.
-- **evcc gegen das Testgerät (`6c74041`, 2026-10-26, evcc 0.317.2 im Docker, Vorlage
-  `tinkerforge-warp-ws`, ohne Fahrzeug, 1,5 min): Anmeldung und WebSocket ohne Fehler, "car
-  disconnected"; evcc setzt beim Start `external_current` = 0 (gesperrt ohne Fahrzeug, wie in der
-  Simulation); Moduswechsel und Hoechststrom schickt evcc ohne Fahrzeug nicht. Laden mit evcc erst
-  mit Pruefstecker (Stufe C).
-- **Flash-Platz**: Die Anwendung darf hoechstens 320 KB belegen (Sektor 4..6, mehr loescht der
-  Bootloader nicht). Netz-Shell entfernt (Nutzer 2026-10-26): 277 852 B (84,8 %), 44 KB frei.
-  Sektor 7 (128 KB, davon wenige hundert Byte Parameter) kaeme nur fuer Daten in Frage, die
-  Wallfree selbst schreibt (z. B. die Weboberflaeche), mit eigenem Aktualisierungsweg und
-  Verdichten; Sektor 3 (16 KB) nur bei Verzicht auf die Originalparameter (Rueckweg, Import).
-  Weitere Hebel: `app.js` minifizieren (gzip 15,8 KB, geschaetzt 4..5 KB weniger), allgemeine
-  Shell 20 KB entfaellt erst mit Telnet. Netzstack und HTTP (~120 KB) noetig.
-- Browser-Durchlauf um Zugangsdaten-Seite, Parameter schreiben und Netz/System erweitern
-  (bisher nur ueber die API getestet).
+- **Stufe C** mit Pruefstecker ([Pruefstecker](pruefstecker.md), Freigabe in wallbe2/AGENTS.md
+  noch offen): CP-PWM, Schuetz, Modul-LEDs Connect/Ready, Laden mit evcc.
+- Reaktionszeit RCM -> PE2 am Oszilloskop (SOLL-PROT-05).
+- Power-LED blinkt waehrend der 5-s-Wartezeit vor dem Werksreset (`50a06ea`), auf dem Testgerät ansehen.
+- Energiezaehler an RS-485 (kein Zaehler vorhanden).
+- Import aus Sektor 3 auf der Steuerung noch nicht ausgefuehrt (fuer das Testgerät ungeeignet: er setzte
+  LD 3, CR 9 und die feste Adresse 192.168.0.8).
+- Browser-Durchlauf um Zugangsdaten-Seite und Netz/System erweitern (Parameter schreiben ueber
+  Auswahlliste und Kaestchen ist von Hand in der Simulation geprueft).

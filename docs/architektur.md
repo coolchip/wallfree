@@ -1,6 +1,6 @@
 # Architektur und Rahmenentscheidungen
 
-Stand: 2026-10-21. Rahmen der Ersatzfirmware mit Begruendungen. Das Soll-Verhalten steht in
+Stand: 2026-10-26. Rahmen der Ersatzfirmware mit Begruendungen. Das Soll-Verhalten steht in
 der [Soll-Spezifikation](soll-spezifikation.md), der Umsetzungsstand in
 [Implementierung](implementierung.md), Tests und Simulation in
 [Test und Simulation](test-und-simulation.md). Belege zur Originalfirmware liegen in
@@ -17,7 +17,7 @@ der [Soll-Spezifikation](soll-spezifikation.md), der Umsetzungsstand in
 - **Alles ueber HTTP:** alle Messwerte, Statuswerte und Parameter lesbar, schreibbare Werte
   schreibbar. Zielgruppe sind versierte Anwender; die Weboberflaeche hat zusaetzlich eine
   einfache Ansicht.
-- Shell auch ueber das Netz (Telnet, ohne Anmeldung; spaeter entfernen oder Default aus).
+- Shell auch ueber das Netz (Telnet, ohne Anmeldung; ab Werk aus, in der Weboberflaeche einschaltbar, Nutzer 2026-10-26).
 - **OCPP perspektivisch** als allgemeine Implementierung, nicht aus der wallbe-Firmware
   abgeleitet. **TLS vorerst nicht. Modbus TCP entfaellt**; die evcc-Vorlage fuer die
   Phoenix-Steuerung (Modbus TCP) wird wegen frueherer Probleme bewusst nicht genutzt.
@@ -80,13 +80,15 @@ Speicherort neu zu bewerten (z. B. P3).
 - Die Ersatzfirmware ist ein Rohabbild ab `0x08010000` mit eigener Vektortabelle. Original und
   Phoenix 1.27 haben denselben Startvertrag; 1.27 liess sich laut Community-Berichten ueber den
   Bootloader einspielen.
-- Update-Anforderung wie Original (RTC-Backup-Register, Systemreset; SOLL-BOOT-30). Was der
-  Bootloader danach erwartet und prueft, ist unbekannt; deshalb ist die Update-Uebergabe bis
-  zum Auslesen des Bootloaders (H0) zurueckgestellt.
-- Rueckweg zur Originalfirmware ueber denselben Bootloaderpfad; Sektor 3 bleibt erhalten.
+- Update-Anforderung wie Original (RTC-Backup-Register BKP10..15, Systemreset; SOLL-BOOT-30).
+  Der Bootloader (aus der H0-Sicherung analysiert, [wallbe2 Bootloader](../../wallbe2/docs/bootloader.md))
+  nimmt das Rohabbild per Web-Formular an, loescht nur Sektor 4..6 und prueft vor dem Start nur
+  den Start-SP (im SRAM); Wallfree haengt deshalb eine eigene Pruefsumme an und prueft sie beim
+  Start (SOLL-BOOT-35). Update ueber die Weboberflaeche auf dem Testgerät geprueft.
+- Rueckweg zur Originalfirmware ueber denselben Bootloaderpfad; Sektor 3 bleibt erhalten (auf
+  Das Testgerät geprueft).
 - Start-SP: Zephyr setzt ihn auf das Ende seines Interrupt-Stacks, das Original auf das
-  RAM-Ende `0x20020000`. Beides ist gueltig; nur falls der Bootloader den Wert genau prueft,
-  waere das relevant (H0).
+  RAM-Ende `0x20020000`; der Bootloader verlangt nur einen Wert im SRAM, beides passt.
 
 ## 5. Speicherbudget
 
@@ -154,18 +156,18 @@ Jede Stufe erfordert vorher eine ausdrueckliche Aenderung der Sicherheitsgrenzen
 [wallbe2/AGENTS.md](../../wallbe2/AGENTS.md).
 
 Aufbau (Nutzer 2026-10-24): Die Steuerung bleibt in der Wallbox auf dem Tisch; sie wird nur ueber
-230 V AC versorgt (keine Kleinspannungseinspeisung, Handbuch Steuerung S. 8). **Keine
-handgefuehrten Pruefspitzen unter Netzspannung:** Messpunkte und Verbindungen werden spannungsfrei
-angeschlossen, Abdeckung zu, Bedienung und Beobachtung nur ueber Netzwerk, Debugger und fest
-angeklemmte Messleitungen. Signalformen (z. B. LD) zeichnet bevorzugt eine Pruef-Firmware auf.
+230 V AC versorgt (keine Kleinspannungseinspeisung, Handbuch Steuerung S. 8). **Unter Spannung
+nie direkt auf der Platine messen;** an den grossen Klemmen misst der Nutzer mit
+Schutzhandschuhen (Nutzer 2026-10-24). Bedienung ueber Netzwerk und Debugger. Statt einer
+eigenen Pruef-Firmware wurde Wallfree selbst verwendet (Shell/API, Register-Ausgaenge).
 
-| Stufe | Inhalt | Ausstattung |
-| --- | --- | --- |
-| H0 | Lesend: Debug-Anschluss, RDP-Stufe, Bootloader/Flash/OTP auslesen | ST-LINK V3SET, USB-Isolator (vorhanden) |
-| H1 | Pruef-Firmware ohne Netzspannung am Lastkreis: CP-PWM mit festen Tastgraden, R1/R2-Impulse, Ausgaenge ER/LR/VR/CR, LEDs, Schuetz-Ansteuersignal, Eingaenge und ADC-Werte, IWDG, Reaktionszeit RCM -> PE2, Netzleistung | Oszilloskop (vorhanden), Labornetzteil |
-| H2 | CP/PP mit EV-Simulator: Zustaende A..E, Diode, PP-Widerstaende | EV-Simulator |
-| H3 | RCM-Selbsttest und Fehlerstrompfad mit Pruefstrom | sicherer Pruefaufbau |
-| H4 | Ladelogik komplett mit Netzspannung, Fahrzeug oder Lastsimulator | Elektrofachkraft, FI in der Hausverteilung |
+| Stufe | Inhalt | Ausstattung | Stand (Testgerät) |
+| --- | --- | --- | --- |
+| H0 | Lesend: Debug-Anschluss, RDP-Stufe, Bootloader/Flash/OTP auslesen | ST-LINK V3SET | erledigt 2026-10-24 (RDP 0, Sicherung) |
+| H1 | Ohne Last: Ausgaenge ER/LR/VR/CR, LEDs, Eingaenge und ADC-Werte, IWDG, Verriegelung, Netz; Reaktionszeit RCM -> PE2 | Oszilloskop | mit Wallfree als Stufen A/B erledigt, RCM-Zeit offen ([Implementierung](implementierung.md#pruefungen-auf-box-t)) |
+| H2 | CP/PP mit EV-Simulator: Zustaende A..E, Diode, PP-Widerstaende; CP-PWM, Schuetz-Ansteuerung | Pruefstecker | geplant als Stufe C ([Pruefstecker](pruefstecker.md)) |
+| H3 | RCM-Selbsttest und Fehlerstrompfad mit Pruefstrom | sicherer Pruefaufbau | Selbsttest besteht; Pruefstrom offen |
+| H4 | Ladelogik komplett mit Netzspannung, Fahrzeug oder Lastsimulator | Elektrofachkraft, FI in der Hausverteilung | offen |
 
 EV-Simulator: Fuer H2 genuegt ein selbstgebauter Pruefstecker (Diode, CP-Widerstaende
 2,74 kOhm / 1,3 kOhm / 270 Ohm, PP-Widerstaende 1,5 kOhm / 680 / 220 / 100 Ohm, Schalter;
@@ -203,14 +205,12 @@ fuer den WebSocket-Handshake). Twister-/Testabhaengigkeiten sind in der venv ins
 
 ```sh
 cd ~/zephyrproject && . .venv/bin/activate && cd zephyr
-west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d ~/zephyrproject/build-wallfree
+west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d /pfad/zu/wallfree/build/ev_cc_ac1
 west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/spike-size -d ~/zephyrproject/build-spike
-west build -d ~/zephyrproject/build-wallfree -t rom_report   # bzw. ram_report
+west build -d /pfad/zu/wallfree/build/ev_cc_ac1 -t rom_report   # bzw. ram_report
 ```
 
 ## 10. Offene Punkte
 
-- H0: Bootloader auslesen; danach Update-Uebergabe (SOLL-BOOT-30), Start-SP, loescht der
-  Bootloader Sektor 7.
-- H1: Hardwareannahmen pruefen ([Implementierung](implementierung.md#annahmen-der-hardwareschicht-in-h1-zu-pruefen)).
+- H2..H4 (Stufe C ff.) und die restlichen Hardwareannahmen ([Implementierung](implementierung.md#annahmen-der-hardwareschicht)).
 - TLS/OCPP: bei Bedarf Speicherort (P3) und Budget neu bewerten.

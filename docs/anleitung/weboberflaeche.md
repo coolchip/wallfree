@@ -4,8 +4,9 @@ Diese Anleitung beschreibt die Weboberfläche der Ladesteuerung mit der Firmware
 Anmeldung, Anzeigen, alle einstellbaren Parameter und das Vorgehen bei Störungen.
 Die elektrische Installation der Ladestation ist nicht Gegenstand dieser Anleitung.
 
-> **Stand:** Vorabversion. Die Firmware ist in der PC-Simulation geprüft, auf der
-> Ladesteuerung selbst noch nicht. Die Abbildungen stammen aus der PC-Simulation.
+> **Stand:** Vorabversion. Die Firmware ist in der PC-Simulation und auf einer Ladesteuerung
+> ohne Last geprüft; das Laden selbst ist auf der Ladesteuerung noch nicht geprüft. Die
+> Abbildungen stammen aus der PC-Simulation.
 
 ## Inhalt
 

@@ -1,13 +1,16 @@
 # Test und Simulation
 
-Stand: 2026-10-21. Alle Tests laufen auf dem PC. Sie belegen nichts ueber die reale Hardware
-(Pegel, Zeiten, Interrupts) und **keine elektrische Sicherheit**.
+Stand: 2026-10-26. Die Tests hier laufen auf dem PC (ausser dem Netz-Lasttest, der auch gegen die
+Steuerung laeuft). Sie belegen nichts ueber die reale Hardware (Pegel, Zeiten, Interrupts) und
+**keine elektrische Sicherheit**; Pruefungen auf der Steuerung:
+[Implementierung](implementierung.md#pruefungen-auf-box-t).
 
 | Ebene | Umfang | Stand |
 | --- | --- | --- |
 | PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezaehler, MQTT ohne Netz | 219 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zaehler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
 | Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zaehler, lokalen MQTT-Broker | 48 Tests, alle bestanden, ca. 195 s |
-| Browser-Durchlauf | Weboberflaeche in headless Chrome gegen die Simulation | ohne Zaehler 11, mit Zaehler 13 Pruefungen bestanden |
+| Browser-Durchlauf | Weboberflaeche in headless Chrome gegen die Simulation | ohne Zaehler 20 Pruefungen bestanden (2026-10-26); mit Zaehler zuletzt 2026-10-21 bestanden |
+| Netz-Lasttest | `scripts/net-load.py` gegen Simulation (nur Skriptpruefung) und das Testgerät | auf dem Testgerät bestanden ([Implementierung](implementierung.md#pruefungen-auf-box-t)) |
 | MQTT im LAN | Simulation gegen Mosquitto 2.1.2 im Heimnetz (von Hand, 2026-10-21) | Zustaende, Zaehlerwerte (etwa 1/s), Ereignisse, Befehl Ladestrom, `online` true/false |
 | evcc | evcc 0.317.2 mit Vorlage `tinkerforge-warp-ws` gegen die Simulation | Laden, Aus/Sofort, Abstecken, Neustart; mit Zaehler Leistung, Zaehlerstand, Phasenstroeme und -spannungen |
 
