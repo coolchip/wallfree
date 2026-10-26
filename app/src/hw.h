@@ -86,6 +86,13 @@ FUNC_NORETURN void hw_bootloader_handover(uint32_t ip, uint32_t mask);
 /** Beim Start: BKP12 (Ergebnis eines Updates, SOLL-BOOT-33) lesen und loeschen. */
 uint32_t hw_update_result_take(void);
 
+#define HW_BOOT_REGS 8
+/**
+ * Diagnose, vor hw_reset_take() und hw_update_result_take(): RCC_CSR roh, dann BKP10..16 des
+ * Bootloaders (Modus, Versuche, Ergebnis, IP, Maske, SIM, Zaehler der IWDG-Starts).
+ */
+void hw_boot_regs(uint32_t out[HW_BOOT_REGS]);
+
 /** IWDG starten (SOLL-BOOT-03). @return 0 oder Fehler */
 int hw_wdt_start(uint32_t timeout_ms);
 

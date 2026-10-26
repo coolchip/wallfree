@@ -19,11 +19,13 @@ static const char image_tag[] = IMAGE_TAG WALLFREE_VERSION;
 static enum wf_reset reason;
 static uint32_t flags;
 static uint32_t update_result; /* BKP12: Modus << 8 | Erfolg, 0 = keins */
+static uint32_t boot_regs[HW_BOOT_REGS];
 
 void sysinfo_init(void)
 {
 	uint32_t bkp;
 
+	hw_boot_regs(boot_regs); /* vor dem Loeschen der Flags und von BKP12 */
 	hw_reset_take(&flags, &bkp);
 	reason = wf_reset_classify(flags, bkp);
 	update_result = hw_update_result_take();
@@ -33,6 +35,11 @@ void sysinfo_init(void)
 		LOG_INF("Update (Modus %u): %s", (update_result >> 8) & 0xFF,
 			(update_result & 1) ? "erfolgreich" : "fehlgeschlagen");
 	}
+}
+
+const uint32_t *sysinfo_boot_regs(void)
+{
+	return boot_regs;
 }
 
 bool sysinfo_update_result(uint8_t *mode, bool *ok)

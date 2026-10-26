@@ -21,6 +21,9 @@ const char *sysinfo_version(void);
  */
 bool sysinfo_update_result(uint8_t *mode, bool *ok);
 
+/** Diagnose: RCC_CSR und BKP10..16 beim Start (hw_boot_regs). */
+const uint32_t *sysinfo_boot_regs(void);
+
 /**
  * {"firmware": ..., "reset_reason": ..., "reset_flags": n, "uptime_ms": n,
  *  "update_result": null | {"mode": n, "ok": bool}}

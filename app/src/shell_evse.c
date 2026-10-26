@@ -436,6 +436,22 @@ static int cmd_bootloader(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+/* Diagnose: Reset-Flags und Register des Bootloaders, wie beim Start vorgefunden */
+static int cmd_boot(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	const uint32_t *r = sysinfo_boot_regs();
+
+	shell_print(sh, "RCC_CSR  0x%08x (Bit 29 IWDG, 28 Software, 27 POR, 26 Pin)", r[0]);
+	shell_print(sh, "BKP10    %u Modus, BKP11 %u Versuche, BKP12 0x%x Ergebnis", r[1], r[2], r[3]);
+	shell_print(sh, "BKP13/14 %u.%u.%u.%u / %u.%u.%u.%u, BKP15 %u", r[4] & 0xFF, (r[4] >> 8) & 0xFF,
+		    (r[4] >> 16) & 0xFF, r[4] >> 24, r[5] & 0xFF, (r[5] >> 8) & 0xFF,
+		    (r[5] >> 16) & 0xFF, r[5] >> 24, r[6]);
+	shell_print(sh, "BKP16    %u Starts mit IWDG-Flag (Bootloader, bis Stromausfall)", r[7]);
+	return 0;
+}
+
 /* ------------------------------------------------ Zaehler (SOLL-MTR-33) */
 
 static int cmd_meter(const struct shell *sh, size_t argc, char **argv)
@@ -566,6 +582,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_evse,
 	SHELL_CMD_ARG(reboot, NULL, "geordneter Neustart (SOLL-RT-22)", cmd_reboot, 1, 0),
 	SHELL_CMD_ARG(bootloader, NULL, "Update: Uebergabe an den Bootloader (SOLL-SH-10)",
 		      cmd_bootloader, 1, 0),
+	SHELL_CMD_ARG(boot, NULL, "Diagnose: Reset-Flags und Bootloader-Register beim Start",
+		      cmd_boot, 1, 0),
 	SHELL_CMD_ARG(nvm, NULL, "Zustand des Parameterspeichers", cmd_nvm, 1, 0),
 	SHELL_CMD_ARG(meter, NULL, "Energiezaehler: Messwerte und Fehlerzaehler", cmd_meter, 1, 0),
 	SHELL_CMD_ARG(mqtt, NULL, "MQTT: Verbindung und Zaehler", cmd_mqtt, 1, 0),

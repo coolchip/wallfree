@@ -459,6 +459,15 @@ FUNC_NORETURN void hw_bootloader_handover(uint32_t ip, uint32_t mask)
 	CODE_UNREACHABLE;
 }
 
+void hw_boot_regs(uint32_t out[HW_BOOT_REGS])
+{
+	out[0] = RCC->CSR;
+	bkp_access();
+	for (int i = 0; i < HW_BOOT_REGS - 1; i++) {
+		out[1 + i] = LL_RTC_BAK_GetRegister(RTC, LL_RTC_BKP_DR10 + i);
+	}
+}
+
 uint32_t hw_update_result_take(void)
 {
 	bkp_access();

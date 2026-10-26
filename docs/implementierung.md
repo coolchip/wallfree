@@ -69,7 +69,7 @@ TIM1 und ADC1 stehen nicht im Board-Devicetree, weil die Anwendung sie direkt st
 | [http_api.c](../app/src/http_api.c) | HTTP-Server Port 80: `/info/name`, `/info/features`, `/evse/state`, `/evse/external_current`, `/evse/limits`, `/evse/params`, `/evse/param_info`, `/evse/errors`, `/evse/errors/ack`, `/credentials`, `/system/config`, `/system/config_info`, `/system/restart`, `/system/update`, `/system/info`, `/system/log`, `/mqtt/state`, mit Zaehler `/meters/0/value_ids`, `/values`, `/state` (sonst 404); WebSocket `/ws` (bis 3 Clients, Push alle 100 ms bzw. sofort nach Schreibzugriffen, ein Topic je Rahmen, Topics `evse/state`, `evse/external_current`, `evse/limits`, `evse/event`, mit Zaehler `meters/0/*` nach jedem Zyklus); Digest-Pruefung je Anfrage | SOLL-API-01..07/30..32, SOLL-ERR-10/11, SOLL-MTR-30/31, SOLL-MQTT-30 |
 | [auth.c](../app/src/auth.c) | Zugangsdaten (HA1), Werkszugang, Passwortaenderung, Nonce-Geheimnis je Start | SOLL-API-07 |
 | [netcfg.c](../app/src/netcfg.c) | Netz-/Systemparameter, Hostname, DHCP oder feste Adresse, Telnet; Aendern (atomar), Import; `mqtt_*` sofort in die laufende Konfiguration und MQTT neu verbinden; Netzwerk-LED PC2 | 10.1, F20, F25, SOLL-LED-06, SOLL-MQTT-31 |
-| [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `param list/get/set`, `current`, `enable`, `avail`, `pause`, `pwm5`, `lock`, `unlock`, `errors [clear]`, `selftest`, `reboot`, `bootloader`, `ack`, `nvm`, `meter`, `mqtt`, `sys list/set`, `factory-reset confirm`, `import-original` | SOLL-SH-01..11/19/20, SOLL-MTR-33, SOLL-MQTT-32 |
+| [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `param list/get/set`, `current`, `enable`, `avail`, `pause`, `pwm5`, `lock`, `unlock`, `errors [clear]`, `selftest`, `reboot`, `bootloader`, `boot` (Diagnose: RCC_CSR und BKP10..16 beim Start), `ack`, `nvm`, `meter`, `mqtt`, `sys list/set`, `factory-reset confirm`, `import-original` | SOLL-SH-01..11/19/20, SOLL-MTR-33, SOLL-MQTT-32 |
 | [sysinfo.c](../app/src/sysinfo.c) | Resetgrund, Firmwarestand (`git describe`, im Abbild als `WALLFREE-IMAGE:<version>`), Laufzeit, Ergebnis eines Updates (BKP12); `GET /system/info` | SOLL-RT-14, SOLL-BOOT-32/33 |
 | [meter_task.c](../app/src/meter_task.c) | Zaehlerthread (niedrigste Anwendungsprioritaet, Stack 1280 B, nicht ueberwacht), nur mit `meter_type` != 0; Momentaufnahme unter Sperre, Bus ohne Sperre; Ereignisse in den gemeinsamen Ringpuffer | SOLL-MTR-01/03/10..14 |
 | [mqtt_task.c](../app/src/mqtt_task.c) | MQTT-Thread (niedrigste Anwendungsprioritaet, Stack 2048 B, nicht ueberwacht): Verbinden mit Last Will, Neuverbindung 1..60 s, Takt 100 ms fuer Zustaende und Ereignisse, Befehl `evse/external_current_update`, Status | SOLL-MQTT-01..04/10..12/20..23/30 |
@@ -352,6 +352,10 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   zeigt "Update laeuft", ein Hinweis erklaert die Unterbrechung, Schliessen des Tabs fragt nach
   (in der Simulation geprueft, auf dem Testgerät noch nicht). Offen: (1) Nach dem Update standen IWDG- und
   Software-Reset-Flag (Resetgrund `watchdog`); wo im Ablauf der Watchdog ausloest, ist zu klaeren.
+  Ausgeschlossen: Wallfrees 250-ms-IWDG laeuft nicht in den Bootloader weiter (ein Software-Reset
+  setzt den IWDG zurueck, RM0033 5.1.1/17). Naechster Schritt: nach dem naechsten Update
+  `evse boot` lesen; BKP16 zaehlt jeden Bootloader-Start mit IWDG-Flag (das Flag bleibt bis zum
+  Start von Wallfree stehen), BKP11 zeigt, im wievielten Versuch der Upload gelang.
   (2) Rueckweg zur Originalfirmware ueber den Bootloader, Freigabe offen.
 - **FLASH_SR-Fehlerbits beim Start** (Nutzerwunsch 2026-10-25, noch nicht bearbeitet): verstaendlich
   erklaeren, was PGPERR/PGSERR bedeuten, warum der Zephyr-Treiber deshalb die erste Speicherung

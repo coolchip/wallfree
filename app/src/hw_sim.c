@@ -441,6 +441,11 @@ FUNC_NORETURN void hw_bootloader_handover(uint32_t ip, uint32_t mask)
 	CODE_UNREACHABLE;
 }
 
+void hw_boot_regs(uint32_t out[HW_BOOT_REGS])
+{
+	memset(out, 0, HW_BOOT_REGS * sizeof(out[0]));
+}
+
 uint32_t hw_update_result_take(void)
 {
 	const char *v = nsi_host_getenv(BKP12_ENV);
