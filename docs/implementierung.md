@@ -404,6 +404,11 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
   nach Neustart ueber die API meldete der Broker `online` = `false` beim Uebernehmen der alten
   Sitzung durch die neue Verbindung (nach 11 s), danach `online` = `true`; Abschalten von
   `mqtt_enable` sendet `online` = `false`. Danach MQTT auf dem Testgerät wieder aus.
+- **evcc gegen das Testgerät (`6c74041`, 2026-10-26, evcc 0.317.2 im Docker, Vorlage
+  `tinkerforge-warp-ws`, ohne Fahrzeug, 1,5 min): Anmeldung und WebSocket ohne Fehler, "car
+  disconnected"; evcc setzt beim Start `external_current` = 0 (gesperrt ohne Fahrzeug, wie in der
+  Simulation); Moduswechsel und Hoechststrom schickt evcc ohne Fahrzeug nicht. Laden mit evcc erst
+  mit Pruefstecker (Stufe C).
 - **Flash-Platz**: Die Anwendung darf hoechstens 320 KB belegen (Sektor 4..6, mehr loescht der
   Bootloader nicht). Netz-Shell entfernt (Nutzer 2026-10-26): 277 852 B (84,8 %), 44 KB frei.
   Sektor 7 (128 KB, davon wenige hundert Byte Parameter) kaeme nur fuer Daten in Frage, die
