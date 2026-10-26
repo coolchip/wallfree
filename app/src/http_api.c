@@ -189,7 +189,7 @@ static bool gate(struct http_client_ctx *client, struct res *r,
 		rsp->headers = &hdr_retry;
 		rsp->header_count = 1;
 		respond_error(rsp, HTTP_429_TOO_MANY_REQUESTS,
-			      "zu viele Fehlversuche, spaeter erneut versuchen");
+			      "zu viele Fehlversuche, später erneut versuchen");
 		return false;
 	}
 
@@ -208,7 +208,7 @@ static bool gate(struct http_client_ctx *client, struct res *r,
 	}
 	if (auth_must_change() && !r->allow_factory) {
 		respond_error(rsp, HTTP_403_FORBIDDEN,
-			      "Werkszugang: zuerst Zugangsdaten aendern (POST /credentials)");
+			      "Werkszugang: zuerst Zugangsdaten ändern (POST /credentials)");
 		return false;
 	}
 	return true;
@@ -511,7 +511,7 @@ static void evse_errors_ack(struct http_client_ctx *client, struct res *r,
 	evse_release();
 	if (had && !ok) {
 		respond_error(rsp, HTTP_409_CONFLICT,
-			      "Schuetzfehler nicht quittierbar (Ursache besteht oder falscher Zustand)");
+			      "Schützfehler nicht quittierbar (Ursache besteht oder falscher Zustand)");
 		return;
 	}
 	k_sem_give(&ws_wake);
@@ -559,7 +559,7 @@ static void meter_res(struct http_response_ctx *rsp, enum meter_topic t)
 	struct wf_jbuf b;
 
 	if (meter_task_type() == METER_NONE) {
-		respond_error(rsp, HTTP_404_NOT_FOUND, "kein Zaehler konfiguriert (meter_type)");
+		respond_error(rsp, HTTP_404_NOT_FOUND, "kein Zähler konfiguriert (meter_type)");
 		return;
 	}
 	wf_jb_init(&b, out, sizeof(out));
@@ -712,7 +712,7 @@ static void system_update(struct http_client_ctx *client, struct res *r,
 
 	netcfg_bootloader_addr(addr, &ip, &mask);
 	if (evse_task_update_orderly(ip, mask) != 0) {
-		respond_error(rsp, HTTP_409_CONFLICT, "Neustart oder Update laeuft bereits");
+		respond_error(rsp, HTTP_409_CONFLICT, "Neustart oder Update läuft bereits");
 		return;
 	}
 	int n = snprintf(out, sizeof(out), "{\"address\":\"%s\",\"wait_s\":120,\"upload_s\":30}",

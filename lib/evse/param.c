@@ -188,18 +188,18 @@ static const struct evse_param params[] = {
 	 .min = 500, .max = 10000, .def = 2000, CF(lock_cycle_gap_ms),
 	 .help = "Mindestabstand der Verriegelungszyklen"},
 	{.name = "unlock_check", .id = 1001, .unit = "", .kind = EVSE_PK_CONFIG, .min = 0, .max = 1,
-	 .def = 0, CF(unlock_check), .help = "LD gepulst auch beim Entriegeln pruefen"},
+	 .def = 0, CF(unlock_check), .help = "LD gepulst auch beim Entriegeln prüfen"},
 	{.name = "contactor_min_off", .id = 519, .orig_field = 519, .unit = "ms",
 	 .kind = EVSE_PK_CONFIG, .min = 0, .max = 2000, .def = 500, CF(contactor_min_off_ms),
-	 .help = "Mindestpause vor erneutem Schuetz-Ein"},
+	 .help = "Mindestpause vor erneutem Schütz-Ein"},
 	{.name = "contactor_monitor", .id = 390, .orig_field = 390, .unit = "",
 	 .kind = EVSE_PK_CONFIG, .min = 0, .max = 4, .def = 1, CF(contactor_monitor),
-	 .check = chk_ctm, .help = "Schuetzueberwachung 0 aus, 1 Sense, 2 NO, 3 NC, 4 Zaehler"},
+	 .check = chk_ctm, .help = "Schützüberwachung: 0 aus, 1 Sense, 2 NO, 3 NC, 4 Zähler"},
 	{.name = "reject_state_d", .id = 412, .orig_field = 412, .unit = "", .kind = EVSE_PK_CONFIG,
 	 .min = 0, .max = 1, .def = 1, CF(reject_state_d), .help = "Zustand D abweisen"},
 	{.name = "overcurrent_enable", .id = 409, .orig_field = 409, .unit = "",
 	 .kind = EVSE_PK_CONFIG, .min = 0, .max = 1, .def = 0, CF(overcurrent_enable),
-	 .check = chk_overcurrent, .help = "Ueberstromabschaltung (nur mit Messquelle)"},
+	 .check = chk_overcurrent, .help = "Überstromabschaltung (nur mit Messquelle)"},
 	{.name = "wakeup_delay", .id = 1002, .unit = "ms", .kind = EVSE_PK_CONFIG, .min = 0,
 	 .max = 300000, .def = 30000, CF(wakeup_delay_ms), .check = chk_wakeup,
 	 .help = "Wartezeit in B bis zur Weckfolge, 0 = aus"},
@@ -208,10 +208,10 @@ static const struct evse_param params[] = {
 	{.name = "external_current_default", .id = 1004, .unit = "mA", .kind = EVSE_PK_CONFIG,
 	 .min = 0, .max = 80000, .def = 80000, CF(external_current_default_ma),
 	 .check = chk_current, .is_signed = true,
-	 .help = "Startwert des Sollstroms nach jedem Start, 80000 = keine Einschraenkung, 0 = Laden erst nach Vorgabe"},
+	 .help = "Startwert des Sollstroms nach jedem Start, 80000 = keine Einschränkung, 0 = Laden erst nach Vorgabe"},
 	{.name = "enable_register_default", .id = 1005, .unit = "", .kind = EVSE_PK_CONFIG,
 	 .min = 0, .max = 1, .def = 0, CF(enable_register_default),
-	 .help = "Startwert der Freigabe ueber Schnittstelle"},
+	 .help = "Startwert der Freigabe über Schnittstelle"},
 
 	/* 10.2 Laufzeitwerte */
 	{.name = "external_current", .id = 528, .orig_field = 528, .unit = "mA",
@@ -219,10 +219,10 @@ static const struct evse_param params[] = {
 	 .check = chk_current, .is_signed = true, .help = "Sollstrom der Schnittstelle (evcc)"},
 	{.name = "enable_register", .id = 400, .orig_field = 400, .unit = "",
 	 .kind = EVSE_PK_RUNTIME, .min = 0, .max = 1, .def = 0, RF(enable_register),
-	 .help = "Freigabe ueber Schnittstelle (D10)"},
+	 .help = "Freigabe über Schnittstelle (D10)"},
 	{.name = "available_register", .id = 402, .orig_field = 402, .unit = "",
 	 .kind = EVSE_PK_RUNTIME, .min = 0, .max = 1, .def = 1, RF(available_register),
-	 .help = "Verfuegbarkeit ueber Schnittstelle (D10)"},
+	 .help = "Verfügbarkeit über Schnittstelle (D10)"},
 	{.name = "pwm5_request", .id = 401, .orig_field = 401, .unit = "", .kind = EVSE_PK_RUNTIME,
 	 .min = 0, .max = 1, .def = 0, RF(pwm5_request), .help = "5-%-Modus"},
 	{.name = "pause_request", .id = 468, .orig_field = 468, .unit = "", .kind = EVSE_PK_RUNTIME,
@@ -252,7 +252,7 @@ static const struct evse_param params[] = {
 	 .help = "DIP D1..D10 (Bit 0..9), nur ohne Fahrzeug"},
 	{.name = "lock_state", .id = 465, .orig_field = 465, .unit = "", .kind = EVSE_PK_RUNTIME,
 	 .min = 0, .max = 5, .base = FN, .get = get_lock_state, .set = set_lock_state,
-	 .help = "Verriegelung; Schreiben 0/1 loest einen Zyklus aus"},
+	 .help = "Verriegelung; Schreiben 0/1 löst einen Zyklus aus"},
 
 	/* 10.3 Status */
 	STATUS("state", 2000, "", st_state, "Automatenzustand S0..S10"),
@@ -270,15 +270,15 @@ static const struct evse_param params[] = {
 	STATUS("errors", 2012, "", st_errors, "aktive Fehler (Bitmaske)"),
 	STATUS("errors_seen", 2013, "", st_errors_seen, "seit Start aufgetretene Fehler"),
 	STATUS("warnings", 2014, "", st_warnings, "Warnungen"),
-	STATUS("contactor", 2015, "", st_contactor, "Schuetz Soll"),
+	STATUS("contactor", 2015, "", st_contactor, "Schütz Soll"),
 	STATUS("charge_time", 2016, "ms", st_charge_ms, "Ladedauer des Steckvorgangs"),
 	STATUS("permission", 2017, "", st_permission, "Ladeerlaubnis"),
 	STATUS("release", 2018, "", st_release, "Freigabe"),
-	STATUS("availability_missing", 2019, "", st_avail_missing, "Verfuegbarkeit fehlt"),
+	STATUS("availability_missing", 2019, "", st_avail_missing, "Verfügbarkeit fehlt"),
 	STATUS("rotary", 2020, "", st_rotary, "Drehschalterstellung"),
 	STATUS("rcm_selftest", 2021, "", st_rcm_test, "RCM-Selbsttest 0..4"),
-	STATUS("inputs", 2022, "", st_din_raw, "Eingaenge LD..IN (Bit 0..4), entprellt"),
-	STATUS("outputs", 2023, "", st_dout, "Ausgaenge ER..CR (Bit 0..3)"),
+	STATUS("inputs", 2022, "", st_din_raw, "Eingänge LD..IN (Bit 0..4), entprellt"),
+	STATUS("outputs", 2023, "", st_dout, "Ausgänge ER..CR (Bit 0..3)"),
 	STATUS("lock_attempts", 2024, "", st_lock_attempts, "Fehlversuche Verriegeln"),
 	STATUS("unlock_attempts", 2025, "", st_unlock_attempts, "Fehlversuche Entriegeln"),
 };
@@ -419,11 +419,11 @@ const char *evse_param_strerror(int err)
 	case EVSE_PARAM_E_READONLY:
 		return "nur lesbar";
 	case EVSE_PARAM_E_RANGE:
-		return "Wert ausserhalb des zulaessigen Bereichs";
+		return "Wert außerhalb des zulässigen Bereichs";
 	case EVSE_PARAM_E_STATE:
 		return "im aktuellen Zustand nicht erlaubt";
 	case EVSE_PARAM_E_UNAVAILABLE:
-		return "Funktion nicht verfuegbar";
+		return "Funktion nicht verfügbar";
 	default:
 		return "unbekannter Fehler";
 	}

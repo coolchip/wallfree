@@ -188,7 +188,7 @@ Dieselben Größen wie die Ringanzeige als Zahlen:
 | Vorgabe | vorgegebener Ladestrom (von Hand, Energiemanagement oder MQTT) |
 | Maximum Drehschalter | am Drehschalter eingestellt bzw. abgesenkt ([7.1](#71-laden), `hardware_limit_override`) |
 | Kabel | Belastbarkeit des Ladekabels, nur bei Ladestationen mit Steckdose |
-| Stromgrenze über Digitaleingang | Grenze durch einen aktiven Digitaleingang ([10.2](#102-eingangsfunktionen)) |
+| Stromgrenze über Digitaleingang | Grenze durch einen aktiven Digitaleingang; genannt werden die Eingänge mit einer Stromgrenze als Funktion ([10.2](#102-eingangsfunktionen)) |
 | **Erlaubt** | Ergebnis: Strom, den das Fahrzeug ziehen darf |
 | Messwert | gemessener Strom der höchsten Phase (nur mit Zähler) |
 
@@ -256,13 +256,13 @@ Innere Zustände der Ladesteuerung, vor allem für die Fehlersuche. Die Werte si
 | Ladeerlaubnis / Freigabe / Verfügbarkeit fehlt | Freigabelogik ([10.4](#104-freigabe-und-verfügbarkeit)) |
 | Drehschalterstellung | Stellung 0..15 beim Start |
 | RCM-Selbsttest 0..4 | Selbsttest der Fehlerstromüberwachung: 0 nicht gelaufen, 1 läuft, 2 bestanden, 3 fehlgeschlagen, 4 abgebrochen (klingt ab) |
-| Eingänge LD..IN / Ausgänge ER..CR | Schaltzustand der Digitaleingänge und -ausgänge als Bits (Bit 0 = erster genannter Anschluss) |
+| Eingang LD … IN, Ausgang ER … CR | Schaltzustand jedes Digitaleingangs und -ausgangs: an oder aus |
 | Fehlversuche Verriegeln / Entriegeln | Anzahl fehlgeschlagener Versuche im aktuellen Steckvorgang |
 
 ## 7 Einstellungen
 
 Die Einstellungen sind in die Reiter **Laden**, **Netzwerk**, **MQTT**, **Zähler** und
-**Zugang** gegliedert.
+**Anmeldedaten** gegliedert.
 
 #### Allgemein
 
@@ -371,7 +371,7 @@ nach einem Neustart.
 | Netzmaske (`net_netmask`) | 255.255.255.0 | Netzmaske ohne DHCP, im Heimnetz meist 255.255.255.0. |
 | Gateway (`net_gateway`) | 192.168.0.1 | Adresse des Routers ohne DHCP; 0.0.0.0 = keiner (dann ist die Steuerung nur im eigenen Netz erreichbar). |
 | Hostname (`net_hostname`) | leer | Name der Steuerung im Netz (1..32 Zeichen: Buchstaben, Ziffern, Bindestrich). Leer = `wallfree-` und das Ende der Hardwareadresse. Der Name dient auch als Kennung am MQTT-Broker. |
-| Telnet-Shell ohne Anmeldung (`telnet_enable`) | an | Wartungszugang über Telnet (Port 23) **ohne Passwort**. Für den normalen Betrieb ausschalten. |
+| Telnet-Shell einschalten (`telnet_enable`) | an | Wartungszugang über Telnet (Port 23) **ohne Passwort**. Für den normalen Betrieb ausschalten. |
 
 > **Achtung:** Eine falsche feste Adresse macht die Steuerung unerreichbar. Prüfen Sie die
 > Werte vor dem Neustart. Ist die gespeicherte Adresse in sich widersprüchlich, startet die
@@ -410,7 +410,7 @@ Zustand der Verbindung. Änderungen wirken nach einem Neustart.
 
 | Parameter | Werk | Beschreibung |
 | --- | --- | --- |
-| Energiezähler (`meter_type`) | kein Zähler | Typ des angeschlossenen Zählers: ABB B23, Eastron SDM630, Eastron SDM72D-M V2, Eastron SDM72D-M (erste Version, nur Summenwerte). |
+| Zählertyp (`meter_type`) | kein Zähler | Typ des angeschlossenen Zählers: ABB B23, Eastron SDM630, Eastron SDM72D-M V2, Eastron SDM72D-M (erste Version, nur Summenwerte). |
 | Modbus-Adresse des Zählers (`meter_address`) | 1 | Busadresse, wie am Zähler eingestellt (1..247). |
 | Baudrate RS-485 (`meter_baud`) | 9600 | Übertragungsgeschwindigkeit, wie am Zähler eingestellt: 2400, 4800, 9600, 19200, 38400, 57600 oder 115200. |
 | Rahmenformat (`meter_framing`) | 8N1 | Datenbits, Parität und Stoppbits, wie am Zähler eingestellt: 8N1, 8E1, 8O1 oder 8N2. |
@@ -418,9 +418,9 @@ Zustand der Verbindung. Änderungen wirken nach einem Neustart.
 Zeigt der Zustand nach dem Neustart dauerhaft „gestört“, stimmen meist Adresse, Baudrate
 oder Rahmenformat nicht mit dem Zähler überein, oder die Leitungen A/B sind vertauscht.
 
-### 7.5 Zugang
+### 7.5 Anmeldedaten
 
-![Einstellungen › Zugang](bilder/einstellungen-zugang.png)
+![Einstellungen › Anmeldedaten](bilder/einstellungen-zugang.png)
 
 Benutzer und Passwort für die Weboberfläche und alle Programme, die auf die Steuerung
 zugreifen. Vorgehen wie bei der ersten Anmeldung ([Abschnitt 3](#3-erste-anmeldung)).
@@ -459,7 +459,7 @@ Einstellungen bleiben erhalten.
 3. **Update starten** und die Rückfrage bestätigen. Ein laufender Ladevorgang wird geordnet
    beendet.
 4. Die Seite zeigt „Update läuft – bitte warten“ mit der verstrichenen Zeit und den Stufen
-   Vorbereiten, Übertragen und Neustart. Das dauert meist ein bis drei Minuten; die Steuerung ist
+   Vorbereiten, Übertragen und Neustart. Das dauert meist weniger als eine Minute; die Steuerung ist
    in dieser Zeit nicht erreichbar, im Kopf steht „Update läuft …“. Die Seite **nicht
    schließen** (der Browser fragt sonst nach).
 5. Nach „Update erfolgreich“ lädt die Seite neu. Erfolgreich heißt: Die Prüfsumme der laufenden

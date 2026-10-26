@@ -59,6 +59,9 @@ const METER_STATUS = { off: 'kein Zähler', connecting: 'verbinde …', ok: 'ver
 const METER_TYPES = ['kein Zähler', 'ABB B23', 'Eastron SDM630', 'Eastron SDM72D-M V2',
 	'Eastron SDM72D-M (V1, nur Summen)'];
 const FRAMING = ['8N1', '8E1', '8O1', '8N2'];
+// Klemmen in Bitreihenfolge der Statuswerte inputs/outputs
+const DINS = ['LD', 'EN', 'ML', 'XR', 'IN'];
+const DOUTS = ['ER', 'LR', 'VR', 'CR'];
 const MQTT_STATES = ['aus', 'nicht verbunden', 'verbunden', 'vom Broker abgelehnt'];
 // Wert zur Kennung oder null (nicht vorhanden, ungueltig, veraltet)
 const mval = (m, id) => {
@@ -314,13 +317,21 @@ function CurrentControl({ ext, setExt, limits, meter }) {
 
 // Insights: dieselben Werte als Zahlen
 function CurrentTable({ l, meter }) {
+	// welche Eingaenge eine Stromgrenze tragen (Eingangscodes 8..15), einmal beim Oeffnen
+	const [ins, setIns] = useState('');
+	useEffect(() => {
+		api('/evse/params').then((v) => setIns(DINS.filter((n) => {
+			const c = v['in_function_' + n.toLowerCase()];
+			return c >= 8 && c <= 15;
+		}).join(', '))).catch(() => {});
+	}, []);
 	if (!l) return null;
 	const ist = measured(meter);
 	const rows = [
 		['external', 'Vorgabe', l.external_ignored ? 'ignoriert (Digitaleingang)' : l.external ? amps(l.external) : 'Laden aus'],
 		['hardware', 'Maximum Drehschalter', amps(l.hardware)],
 		['cable', 'Kabel', l.cable ? amps(l.cable) : '–'],
-		['input', 'Stromgrenze über Digitaleingang', l.input ? amps(l.input) : '–'],
+		['input', 'Stromgrenze über Digitaleingang' + (ins ? ' ' + ins : ''), l.input ? amps(l.input) : '–'],
 	];
 	return html`<${Card} title="Ladestrom"><table>
 		${rows.map(([k, t, v]) => {
@@ -442,8 +453,14 @@ function Params({ kinds }) {
 		['status', 'Status der Ladelogik']];
 	return groups.filter(([k]) => kinds.includes(k)).map(([k, t]) => html`<${Card} title=${t}><table>
 		<tr><th>Parameter</th><th>Wert</th><th class="hide-s">${k !== 'status' ? 'Bereich' : ''}</th><th>${k !== 'status' ? 'Neu' : ''}</th></tr>
-		${info.filter((p) => p.kind === k).map((p) =>
-			html`<${ParamRow} key=${p.name} p=${p} value=${vals[p.name]} onSaved=${load} />`)}
+		${info.filter((p) => p.kind === k).map((p) => {
+			// Bitmasken der Klemmen als eine Zeile je Ein-/Ausgang
+			const bits = p.name === 'inputs' ? ['Eingang', DINS] : p.name === 'outputs' ? ['Ausgang', DOUTS] : null;
+			if (!bits) return html`<${ParamRow} key=${p.name} p=${p} value=${vals[p.name]} onSaved=${load} />`;
+			const v = vals[p.name];
+			return bits[1].map((n, i) => html`<tr key=${p.name + i}><td title=${p.name + ' Bit ' + i}>${bits[0]} ${n}</td>
+				<td class="num">${v === undefined ? '–' : (v >> i) & 1 ? 'an' : 'aus'}</td><td class="hide-s"></td><td></td></tr>`);
+		})}
 	</table><//>`);
 }
 
@@ -736,7 +753,7 @@ function Update({ onBusy }) {
 			${typeof c === 'string' ? c : c.version ? 'Wallfree ' + c.version + ', ' +
 			Math.round(file.buf.byteLength / 1024) + ' KB, Prüfsumme ' + c.crc : 'Kein Wallfree-Abbild (z. B. Originalfirmware)'}</p>`}
 		${busy && html`<div class="progress">
-			<p><strong>Update läuft – bitte warten.</strong> Das kann einige Minuten dauern
+			<p><strong>Update läuft – bitte warten.</strong> Das dauert meist weniger als eine Minute
 				<span class="muted"> (seit ${mmss(Math.max(0, Math.round((now - t0) / 1000)))})</span>.</p>
 			<div class="stages">${STAGES.map(([s, end], i) => {
 				const from = i ? STAGES[i - 1][1] : 0;
@@ -957,7 +974,7 @@ function Insights({ live }) {
 }
 
 const SETTINGS = [['laden', 'Laden'], ['netzwerk', 'Netzwerk'], ['mqtt', 'MQTT'], ['zaehler', 'Zähler'],
-	['zugang', 'Zugang']];
+	['zugang', 'Anmeldedaten']];
 
 function Settings({ sub, live }) {
 	const s = SETTINGS.some(([k]) => k === sub) ? sub : 'laden';

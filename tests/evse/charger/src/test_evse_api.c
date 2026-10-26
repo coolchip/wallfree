@@ -147,7 +147,7 @@ ZTEST(evse_api, test_set_params)
 	zassert_equal(written, 1, "nur unlock_pulse");
 	zassert_equal(s.e.cfg.unlock_pulse_ms, 900);
 	zassert_equal(s.e.cfg.lock_pulse_ms, 800);
-	zassert_not_null(strstr(buf, "\"lock_pulse\":\"Wert ausserhalb des zulaessigen Bereichs\""));
+	zassert_not_null(strstr(buf, "\"lock_pulse\":\"Wert außerhalb des zulässigen Bereichs\""));
 	zassert_not_null(strstr(buf, "\"nix\":\"unbekannter Parameter\""));
 	zassert_not_null(strstr(buf, "\"state\":\"nur lesbar\""));
 	zassert_not_null(strstr(buf, "\"wakeup_delay\":\"Zahl erwartet\""));

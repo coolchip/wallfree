@@ -333,7 +333,7 @@ int netcfg_set_json(const char *body, size_t len, struct wf_jbuf *out)
 	if (wf_json_object(body, len, sb, sizeof(sb), set_visit, &c) != 0) {
 		k_mutex_unlock(&mtx);
 		wf_jb_init(out, out->p, out->size);
-		wf_jb_raw(out, "{\"error\":\"ungueltiges JSON (erwartet: flaches Objekt)\"}");
+		wf_jb_raw(out, "{\"error\":\"ungültiges JSON (erwartet: flaches Objekt)\"}");
 		return 400;
 	}
 	if (c.errors > 0) {

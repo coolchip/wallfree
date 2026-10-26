@@ -319,7 +319,7 @@ int api_set_params(struct evse *e, const char *body, size_t len, evse_ms_t now,
 
 	/* erst die Syntax pruefen, damit ein Fehler am Ende nichts halb anwendet */
 	if (wf_json_object(body, len, sb, sizeof(sb), syntax_only, NULL) != 0) {
-		api_json_error(out, "ungueltiges JSON (erwartet: flaches Objekt)");
+		api_json_error(out, "ungültiges JSON (erwartet: flaches Objekt)");
 		return 400;
 	}
 	(void)wf_json_object(body, len, sb, sizeof(sb), set_visit, &c);
@@ -340,8 +340,8 @@ static const char *const err_names[] = {
 };
 
 static const char *const err_reset[] = {
-	"anderer Kabelwert", "Bedingung entfaellt", "CP-Pegel >= 1,2 V", "Erfolg, CP A",
-	"Erfolg, CP A", "Wiederverriegeln, CP A", "CP A", "Messquelle wieder gueltig", "CP A",
+	"anderer Kabelwert", "Bedingung entfällt", "CP-Pegel >= 1,2 V", "Erfolg, CP A",
+	"Erfolg, CP A", "Wiederverriegeln, CP A", "CP A", "Messquelle wieder gültig", "CP A",
 	"Quittierung (F14)", "CP A", "Eingang inaktiv", "Selbsttest bestanden",
 	"Selbsttest bestanden", "Selbsttest bestanden", "Selbsttest bestanden", "Neustart",
 	"Parameterkorrektur bzw. Neustart", "Neustart",

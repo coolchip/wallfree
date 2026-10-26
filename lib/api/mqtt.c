@@ -86,7 +86,7 @@ enum wf_mq_in wf_mq_dispatch(const struct wf_mq_cmd *cmds, size_t n, const char 
 		return WF_MQ_IN_EMPTY;
 	}
 	if (len > WF_MQ_PAYLOAD_MAX || payload == NULL) {
-		*err = "Nachricht zu lang (hoechstens 128 Byte)";
+		*err = "Nachricht zu lang (höchstens 128 Byte)";
 		return WF_MQ_IN_TOO_LONG;
 	}
 	*err = c->handle(ctx, payload, len);

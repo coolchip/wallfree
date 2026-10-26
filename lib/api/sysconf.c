@@ -12,11 +12,11 @@ static const struct wf_syspar pars[] = {
 	{"net_netmask", 3012, WF_SYS_IPV4, "Netzmaske (ohne DHCP)"},
 	{"net_gateway", 3013, WF_SYS_IPV4, "Gateway (ohne DHCP), 0.0.0.0 = keins"},
 	{"net_hostname", 3014, WF_SYS_HOST, "Hostname, leer = wallfree-<MAC-Ende>"},
-	{"telnet_enable", 3015, WF_SYS_BOOL, "Telnet-Shell ohne Anmeldung"},
+	{"telnet_enable", 3015, WF_SYS_BOOL, "Telnet-Shell einschalten (Zugang ohne Passwort)"},
 	{"meter_type", 3016, WF_SYS_CODE,
-	 "Energiezaehler (nur Anzeige): 0 keiner, 1 ABB B23, 2 Eastron SDM630, 3 Eastron "
+	 "Zählertyp: 0 keiner, 1 ABB B23, 2 Eastron SDM630, 3 Eastron "
 	 "SDM72D-M V2, 4 Eastron SDM72D-M (V1, nur Summenwerte)"},
-	{"meter_address", 3017, WF_SYS_CODE, "Modbus-Adresse des Zaehlers 1..247"},
+	{"meter_address", 3017, WF_SYS_CODE, "Modbus-Adresse des Zählers 1..247"},
 	{"meter_baud", 3018, WF_SYS_CODE, "Baudrate RS-485: 2400..115200"},
 	{"meter_framing", 3019, WF_SYS_CODE, "Rahmenformat: 0 = 8N1, 1 = 8E1, 2 = 8O1, 3 = 8N2"},
 	{"mqtt_enable", 3020, WF_SYS_BOOL, "MQTT-Client, wirkt sofort"},
@@ -24,7 +24,7 @@ static const struct wf_syspar pars[] = {
 	{"mqtt_port", 3022, WF_SYS_CODE, "Port des Brokers 1..65535"},
 	{"mqtt_user", 3023, WF_SYS_TEXT, "Benutzer am Broker, leer = ohne Anmeldung"},
 	{"mqtt_password", 3024, WF_SYS_SECRET, "Passwort am Broker (nicht lesbar)"},
-	{"mqtt_prefix", 3025, WF_SYS_TEXT, "Topic-Praefix, leer = wallfree/<MAC-Ende>"},
+	{"mqtt_prefix", 3025, WF_SYS_TEXT, "Topic-Präfix, leer = wallfree/<MAC-Ende>"},
 	{"mqtt_interval", 3026, WF_SYS_CODE, "Mindestabstand je Topic in s, 0..3600"},
 	{"mqtt_commands", 3027, WF_SYS_BOOL, "Befehle annehmen (Ladestrom setzen)"},
 };
@@ -137,21 +137,21 @@ static int mask_prefix(uint32_t m)
 static const char *check_ip(const struct wf_syspar *p, uint32_t v)
 {
 	if (p->id == 3011 && !unicast(v)) {
-		return "keine gueltige Einzeladresse";
+		return "keine gültige Einzeladresse";
 	}
 	if (p->id == 3012) {
 		int n = mask_prefix(v);
 
 		if (n < 8 || n > 30) {
-			return "Netzmaske: zusammenhaengend, /8 bis /30";
+			return "Netzmaske: zusammenhängend, /8 bis /30";
 		}
 	}
 	if (p->id == 3013 && v != 0 && !unicast(v)) {
-		return "keine gueltige Gateway-Adresse";
+		return "keine gültige Gateway-Adresse";
 	}
 	/* Broker: auch 127.x (PC-Simulation mit Broker auf demselben Rechner) */
 	if (p->id == 3021 && v != 0 && !unicast(v) && (v >> 24) != 127) {
-		return "keine gueltige Broker-Adresse";
+		return "keine gültige Broker-Adresse";
 	}
 	return NULL;
 }
@@ -179,14 +179,14 @@ static const char *check_host(const char *h, size_t n)
 static const char *check_prefix(const char *h, size_t n)
 {
 	if (n > 0 && (h[0] == '/' || h[0] == '$' || h[n - 1] == '/')) {
-		return "Praefix: nicht mit '/' oder '$' beginnend, nicht mit '/' endend";
+		return "Präfix: nicht mit '/' oder '$' beginnend, nicht mit '/' endend";
 	}
 	for (size_t i = 0; i < n; i++) {
 		if (h[i] == '+' || h[i] == '#') {
-			return "Praefix: ohne '+' und '#'";
+			return "Präfix: ohne '+' und '#'";
 		}
 		if (h[i] == ' ') {
-			return "Praefix: ohne Leerzeichen";
+			return "Präfix: ohne Leerzeichen";
 		}
 	}
 	return NULL;
@@ -216,7 +216,7 @@ static const char *check_text(uint16_t id, const char *h, size_t n)
 		return check_host(h, n);
 	}
 	if (n > (id == 3023 ? WF_MQTT_USER_MAX : WF_MQTT_PW_MAX)) {
-		return id == 3023 ? "hoechstens 32 Zeichen" : "hoechstens 64 Zeichen";
+		return id == 3023 ? "höchstens 32 Zeichen" : "höchstens 64 Zeichen";
 	}
 	for (size_t i = 0; i < n; i++) {
 		if (h[i] < 0x20 || h[i] > 0x7E) {
@@ -232,7 +232,7 @@ static const char *check_code(uint16_t id, int64_t v)
 {
 	switch (id) {
 	case 3016:
-		return v >= 0 && v <= 4 ? NULL : "Zaehlertyp 0..4";
+		return v >= 0 && v <= 4 ? NULL : "Zählertyp 0..4";
 	case 3017:
 		return v >= 1 && v <= 247 ? NULL : "Adresse 1..247";
 	case 3018:
