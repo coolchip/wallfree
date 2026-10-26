@@ -7,7 +7,46 @@
 void wf_alog_init(struct wf_alog *l)
 {
 	memset(l, 0, sizeof(*l));
+	l->magic = WF_ALOG_MAGIC;
+	l->version = WF_ALOG_VERSION;
+	l->boot = 1;
 	l->next_seq = 1;
+}
+
+/* Nach Stromausfall steht Zufall im Backup-SRAM: nur uebernehmen, was zusammenpasst */
+static bool plausible(const struct wf_alog *l)
+{
+	if (l->magic != WF_ALOG_MAGIC || l->version != WF_ALOG_VERSION || l->next_seq == 0 ||
+	    l->boot == 0) {
+		return false;
+	}
+	uint32_t oldest = l->next_seq > WF_ALOG_SIZE ? l->next_seq - WF_ALOG_SIZE : 1;
+
+	for (uint32_t s = oldest; s < l->next_seq; s++) {
+		const struct wf_alog_entry *e = &l->e[s % WF_ALOG_SIZE];
+
+		if (e->seq != s || e->boot == 0 || e->boot > l->boot ||
+		    (e->kind != WF_ALOG_AUTH_FAIL && e->kind != WF_ALOG_EVENT)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool wf_alog_restore(struct wf_alog *l)
+{
+	if (!plausible(l) || l->boot == UINT16_MAX) {
+		wf_alog_init(l);
+		return false;
+	}
+	l->boot++;
+	l->wall_base = 0;
+	return true;
+}
+
+void wf_alog_set_wall_base(struct wf_alog *l, int64_t wall_base)
+{
+	l->wall_base = wall_base;
 }
 
 static struct wf_alog_entry *newest(struct wf_alog *l)
@@ -17,6 +56,8 @@ static struct wf_alog_entry *newest(struct wf_alog *l)
 
 static void push(struct wf_alog *l, struct wf_alog_entry en)
 {
+	en.boot = l->boot;
+	en.wall = l->wall_base != 0 ? l->wall_base + en.t : 0;
 	en.seq = l->next_seq++;
 	l->e[en.seq % WF_ALOG_SIZE] = en;
 }
@@ -25,8 +66,9 @@ void wf_alog_auth_fail(struct wf_alog *l, uint32_t addr, int64_t t)
 {
 	struct wf_alog_entry *n = newest(l);
 
-	if (n != NULL && n->kind == WF_ALOG_AUTH_FAIL && n->addr == addr) {
+	if (n != NULL && n->kind == WF_ALOG_AUTH_FAIL && n->addr == addr && n->boot == l->boot) {
 		n->t = t;
+		n->wall = l->wall_base != 0 ? l->wall_base + t : 0;
 		if (n->count < UINT16_MAX) {
 			n->count++;
 		}
@@ -60,6 +102,12 @@ void wf_alog_entry_json(const struct wf_alog_entry *e, struct wf_jbuf *b)
 	wf_jb_int(b, e->seq);
 	wf_jb_key(b, "t_ms", false);
 	wf_jb_int(b, e->t);
+	wf_jb_key(b, "boot", false);
+	wf_jb_int(b, e->boot);
+	if (e->wall != 0) {
+		wf_jb_key(b, "wall_ms", false);
+		wf_jb_int(b, e->wall);
+	}
 	wf_jb_key(b, "kind", false);
 	if (e->kind == WF_ALOG_AUTH_FAIL) {
 		char a[16];
@@ -110,7 +158,9 @@ uint32_t wf_alog_json(const struct wf_alog *l, uint32_t cursor, struct wf_jbuf *
 	uint32_t seq = cursor;
 
 	if (first) {
-		wf_jb_raw(b, "{\"entries\":[");
+		wf_jb_raw(b, "{\"boot\":");
+		wf_jb_int(b, l->boot);
+		wf_jb_raw(b, ",\"entries\":[");
 	}
 	for (;;) {
 		uint32_t at = seq;

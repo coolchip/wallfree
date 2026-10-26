@@ -49,6 +49,34 @@ static inline uint32_t wf_reset_bkp_value(enum wf_reset code)
 	return WF_RST_BKP_MAGIC | (uint32_t)code;
 }
 
+/**
+ * Genauerer Ausloeser eines Software-Resets (SOLL-RT-14): welche Ueberwachung angeschlagen hat
+ * bzw. dass eine Prozessorausnahme vorlag. Liegt in einem zweiten Backup-Register.
+ */
+enum wf_reset_detail {
+	WF_RSTD_NONE = 0,
+	WF_RSTD_CHARGER,        /**< Automatenthread meldet sich nicht (SOLL-RT-10) */
+	WF_RSTD_BLOCKS,         /**< keine Messbloecke (SOLL-RT-10) */
+	WF_RSTD_IFACE_STORAGE,  /**< Speicher-Thread haengt (SOLL-RT-11) */
+	WF_RSTD_IFACE_WS,       /**< WebSocket-Thread haengt */
+	WF_RSTD_IFACE_SYSWORKQ, /**< System-Workqueue haengt */
+	WF_RSTD_FAULT,          /**< Prozessorausnahme, Grund und PC dazu */
+	WF_RSTD_COUNT,
+};
+
+/** Kennung "WD" in den oberen 16 Bit, darunter Detail (8 Bit) und Zusatz (8 Bit). */
+#define WF_RSTD_BKP_MAGIC 0x57440000u
+static inline uint32_t wf_reset_detail_bkp(enum wf_reset_detail d, unsigned int extra)
+{
+	return WF_RSTD_BKP_MAGIC | ((uint32_t)d << 8) | (extra & 0xFFu);
+}
+
+/** Detail aus dem Backup-Register, WF_RSTD_NONE bei fehlender Kennung. */
+enum wf_reset_detail wf_reset_detail_decode(uint32_t bkp, unsigned int *extra);
+
+/** Kurzname des Details (englisch, fuer API), "" fuer WF_RSTD_NONE */
+const char *wf_reset_detail_name(enum wf_reset_detail d);
+
 /** Grund bestimmen. @p bkp = Inhalt des Backup-Registers (0, wenn leer). */
 enum wf_reset wf_reset_classify(uint32_t flags, uint32_t bkp);
 

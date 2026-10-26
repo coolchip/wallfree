@@ -238,6 +238,17 @@ function Msg({ m }) {
 
 // ------------------------------------------------------------ Ereignisse, Zugriffsprotokoll
 
+// Resetgrund und genauerer Ausloeser (SOLL-RT-14), Texte fuer Protokoll und System
+const RESET = { power_on: 'Einschalten', user_restart: 'Neustart auf Anforderung', update: 'Firmware-Update',
+	factory_reset: 'Werksreset', reset_pin: 'Reset-Taster', brownout: 'Spannungseinbruch',
+	watchdog: 'Watchdog', window_watchdog: 'Watchdog', supervision_limit: 'Überwachung',
+	interface_hang: 'Schnittstelle hing', fault: 'Programmfehler', software: 'Software', low_power: 'Energiesparen',
+	unknown: 'unbekannt' };
+const RESET_DETAIL = { charger_thread: 'Ladelogik reagierte nicht', measurement_blocks: 'Messung blieb aus',
+	storage_thread: 'Speicher-Thread', websocket_thread: 'WebSocket-Thread', system_workqueue: 'System-Workqueue',
+	fault: 'Prozessorausnahme' };
+const resetText = (r, d) => (RESET[r] || r) + (d ? ' (' + (RESET_DETAIL[d] || d) + ')' : '');
+
 function evText(e) {
 	switch (e.type) {
 	case 'state': return 'Zustand ' + (STATES[e.from] || e.from) + ' → ' + (STATES[e.to] || e.to);
@@ -248,23 +259,27 @@ function evText(e) {
 	case 'meter': return 'Zähler ' + (METER_STATUS[e.status] || e.status) +
 		(e.energy_decreased ? ', Zählerstand gesunken' : '');
 	case 'update': return 'Firmware-Update ' + (e.ok ? 'erfolgreich' : 'fehlgeschlagen');
+	case 'boot': return 'Start: ' + resetText(e.reason, e.detail) + (e.pc ? ', PC ' + e.pc : '');
 	}
 	return e.type;
 }
 
-// Vorgeschichte aus GET /system/log (SOLL-ERR-11), danach live ueber den
-// WebSocket; ohne WebSocket alle 5 s neu abfragen. Zeiten sind ms seit Start
-// der Steuerung; der Startzeitpunkt in Browserzeit wird bei jedem Abruf und
-// mindestens jede Minute ueber /system/info neu bestimmt (ungefaehr).
+// Vorgeschichte aus GET /system/log (SOLL-ERR-11/12, auch aus frueheren Starts), danach live
+// ueber den WebSocket; ohne WebSocket alle 5 s neu abfragen. Zeiten: mit Uhrzeit der Steuerung
+// (wall_ms) genau; sonst fuer den laufenden Start ms seit Start, umgerechnet ueber den
+// Startzeitpunkt in Browserzeit (bei jedem Abruf und mindestens jede Minute ueber /system/info,
+// ungefaehr); Eintraege frueherer Starts ohne Uhrzeit haben keine.
 function EventLog({ live, all }) {
 	const [log, setLog] = useState(null);
 	const [off, setOff] = useState(null);
+	const [boot, setBoot] = useState(0);
 	const [err, setErr] = useState(null);
 	const load = async () => {
 		try {
 			const l = await api('/system/log');
 			const [i, at] = await timed('/system/info');
 			setOff(at - i.uptime_ms);
+			setBoot(l.boot);
 			setLog(l.entries);
 			setErr(null);
 		} catch (e) { setErr(e.message); }
@@ -278,19 +293,24 @@ function EventLog({ live, all }) {
 	if (!log) return err ? html`<${Card} title="Ereignisse"><p class="bad">${err}</p><//>` : null;
 	const known = Math.max(0, ...log.filter((x) => x.kind === 'event').map((x) => x.event.seq));
 	let list = log.concat(live.events.filter((e) => e.seq > known)
-		.map((e) => ({ kind: 'event', t_ms: e.t_ms, event: e })));
+		.map((e) => ({ kind: 'event', t_ms: e.t_ms, boot, event: e })));
 	if (!all) list = list.filter((x) => x.kind === 'event').slice(-8);
-	const time = (t) => new Date(off + t).toLocaleTimeString('de-DE');
+	const today = new Date().toDateString();
+	const fmtTime = (ms) => {
+		const d = new Date(ms);
+		return d.toDateString() === today ? d.toLocaleTimeString('de-DE') : d.toLocaleString('de-DE');
+	};
+	const time = (x) => (x.wall_ms ? fmtTime(x.wall_ms) : x.boot === boot ? fmtTime(off + x.t_ms) : 'früherer Start');
 	const text = (x) => (x.kind === 'event' ? evText(x.event)
 		: 'Anmeldung fehlgeschlagen von ' + x.addr + (x.count > 1 ? ' (' + x.count + '×)' : ''));
 	return html`<${Card} title=${all ? 'Zugriffsprotokoll' : 'Letzte Ereignisse'}>
 		${list.length === 0 ? html`<p class="muted">Keine seit dem Start.</p>` : html`<table>
 			${list.slice().reverse().map((x) => html`<tr>
-				<td class="num muted">${time(x.t_ms)}</td>
+				<td class="num muted">${time(x)}</td>
 				<td class=${x.kind === 'event' ? (x.event.type === 'error' && x.event.set.length ? 'bad' : '') : 'warn'}>${text(x)}</td>
 			</tr>`)}
 		</table>`}
-		${all && html`<p class="muted msg">Letzte 32 Einträge seit dem Start der Steuerung. Uhrzeiten auf wenige Sekunden genau.</p>`}
+		${all && html`<p class="muted msg">Letzte 48 Einträge, auch über Neustarts hinweg (nicht über einen Stromausfall). Ohne Zeitserver sind Uhrzeiten auf wenige Sekunden genau, Einträge früherer Starts haben dann keine.</p>`}
 	<//>`;
 }
 
@@ -858,7 +878,7 @@ function SystemPage({ onBusy }) {
 		${si && html`<table>
 			<tr><td>Firmware</td><td class="num">${si.firmware}</td></tr>
 			<tr><td>Laufzeit</td><td class="num">${dur(si.uptime_ms)}</td></tr>
-			<tr><td>Letzter Reset</td><td class="num">${si.reset_reason}</td></tr>
+			<tr><td>Letzter Reset</td><td class="num">${resetText(si.reset_reason, si.reset_detail)}</td></tr>
 			${si.mac && html`<tr><td>MAC-Adresse</td><td class="num">${si.mac}</td></tr>`}
 			${si.image && html`<tr><td>Prüfsumme</td><td class="num ${si.image.ok ? '' : 'bad'}">
 				${si.image.crc}${si.image.ok ? '' : ' – beschädigt, Laden gesperrt'}</td></tr>`}

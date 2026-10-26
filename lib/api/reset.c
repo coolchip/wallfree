@@ -39,6 +39,28 @@ enum wf_reset wf_reset_classify(uint32_t flags, uint32_t bkp)
 	return WF_RST_UNKNOWN;
 }
 
+enum wf_reset_detail wf_reset_detail_decode(uint32_t bkp, unsigned int *extra)
+{
+	unsigned int d = (bkp >> 8) & 0xFFu;
+
+	*extra = 0;
+	if ((bkp & 0xFFFF0000u) != WF_RSTD_BKP_MAGIC || d == WF_RSTD_NONE || d >= WF_RSTD_COUNT) {
+		return WF_RSTD_NONE;
+	}
+	*extra = bkp & 0xFFu;
+	return (enum wf_reset_detail)d;
+}
+
+const char *wf_reset_detail_name(enum wf_reset_detail d)
+{
+	static const char *const n[] = {
+		"", "charger_thread", "measurement_blocks", "storage_thread", "websocket_thread",
+		"system_workqueue", "fault",
+	};
+
+	return (unsigned int)d < sizeof(n) / sizeof(n[0]) ? n[d] : "";
+}
+
 const char *wf_reset_name(enum wf_reset r)
 {
 	static const char *const n[] = {

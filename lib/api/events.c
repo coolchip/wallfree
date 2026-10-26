@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* Ereignisse an die Schnittstellen, siehe include/wallfree/api/events.h */
+#include <stdio.h>
 #include <string.h>
 #include <wallfree/api/events.h>
 #include <wallfree/api/evse_api.h>
+#include <wallfree/api/reset.h>
 
 void wf_ev_snap_take(const struct evse *e, struct wf_ev_snap *s)
 {
@@ -66,7 +68,8 @@ bool wf_ev_ring_get(const struct wf_ev_ring *r, uint32_t *seq, struct wf_event *
 	return true;
 }
 
-static const char *const type_names[] = {"state", "error", "lock", "contactor", "meter", "update"};
+static const char *const type_names[] = {"state", "error", "lock", "contactor", "meter", "update",
+					  "boot"};
 #define N_TYPES (sizeof(type_names) / sizeof(type_names[0]))
 /* wie meter_status_name(); lib/api haengt nicht vom Zaehlermodul ab */
 static const char *const meter_status[] = {"off", "connecting", "ok", "error"};
@@ -114,6 +117,23 @@ void wf_ev_json(const struct wf_event *ev, struct wf_jbuf *b)
 		wf_jb_raw(b, ev->a ? "true" : "false");
 		wf_jb_key(b, "mode", false);
 		wf_jb_int(b, ev->b);
+		break;
+	case WF_EV_BOOT:
+		wf_jb_key(b, "reason", false);
+		wf_jb_str(b, wf_reset_name((enum wf_reset)ev->a));
+		if (ev->b != WF_RSTD_NONE) {
+			wf_jb_key(b, "detail", false);
+			wf_jb_str(b, wf_reset_detail_name((enum wf_reset_detail)ev->b));
+		}
+		if (ev->b == WF_RSTD_FAULT) {
+			char pc[11];
+
+			snprintf(pc, sizeof(pc), "0x%08x", (unsigned int)ev->set);
+			wf_jb_key(b, "pc", false);
+			wf_jb_str(b, pc);
+			wf_jb_key(b, "fault", false);
+			wf_jb_int(b, (int64_t)ev->cleared);
+		}
 		break;
 	default:
 		break;

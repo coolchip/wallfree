@@ -3,6 +3,7 @@
 #include <string.h>
 #include <zephyr/ztest.h>
 #include <wallfree/api/events.h>
+#include <wallfree/api/reset.h>
 #include "sim.h"
 
 #define DIP(n) ((evse_dip_t)(1u << ((n) - 1)))
@@ -149,6 +150,15 @@ ZTEST(api_events, test_json)
 		 "\"energy_decreased\":true}"},
 		{{.seq = 7, .t = 18, .type = WF_EV_UPDATE, .a = 1, .b = 2},
 		 "{\"seq\":7,\"t_ms\":18,\"type\":\"update\",\"ok\":true,\"mode\":2}"},
+		{{.seq = 8, .t = 1, .type = WF_EV_BOOT, .a = WF_RST_USER},
+		 "{\"seq\":8,\"t_ms\":1,\"type\":\"boot\",\"reason\":\"user_restart\"}"},
+		{{.seq = 9, .t = 1, .type = WF_EV_BOOT, .a = WF_RST_LIMIT, .b = WF_RSTD_CHARGER},
+		 "{\"seq\":9,\"t_ms\":1,\"type\":\"boot\",\"reason\":\"supervision_limit\","
+		 "\"detail\":\"charger_thread\"}"},
+		{{.seq = 10, .t = 1, .type = WF_EV_BOOT, .a = WF_RST_FAULT, .b = WF_RSTD_FAULT,
+		  .set = 0x0801c235, .cleared = 3},
+		 "{\"seq\":10,\"t_ms\":1,\"type\":\"boot\",\"reason\":\"fault\","
+		 "\"detail\":\"fault\",\"pc\":\"0x0801c235\",\"fault\":3}"},
 	};
 
 	for (size_t i = 0; i < ARRAY_SIZE(t); i++) {

@@ -405,7 +405,7 @@ static void bkp_access(void)
 	LL_PWR_EnableBkUpAccess();
 }
 
-void hw_reset_take(uint32_t *flags, uint32_t *bkp)
+void hw_reset_take(uint32_t *flags, uint32_t *bkp, uint32_t *detail, uint32_t *pc)
 {
 	uint32_t f = 0;
 
@@ -421,14 +421,31 @@ void hw_reset_take(uint32_t *flags, uint32_t *bkp)
 
 	bkp_access();
 	*bkp = LL_RTC_BAK_GetRegister(RTC, RESET_BKP);
+	*detail = LL_RTC_BAK_GetRegister(RTC, LL_RTC_BKP_DR18);
+	*pc = LL_RTC_BAK_GetRegister(RTC, LL_RTC_BKP_DR17);
 	LL_RTC_BAK_SetRegister(RTC, RESET_BKP, 0);
+	LL_RTC_BAK_SetRegister(RTC, LL_RTC_BKP_DR18, 0);
+	LL_RTC_BAK_SetRegister(RTC, LL_RTC_BKP_DR17, 0);
 }
 
 void hw_fault_note(unsigned int reason, uint32_t pc)
 {
 	bkp_access();
 	LL_RTC_BAK_SetRegister(RTC, LL_RTC_BKP_DR17, pc);
-	LL_RTC_BAK_SetRegister(RTC, LL_RTC_BKP_DR18, 0xFA000000u | (reason & 0xFFFFu));
+	LL_RTC_BAK_SetRegister(RTC, LL_RTC_BKP_DR18, wf_reset_detail_bkp(WF_RSTD_FAULT, reason));
+}
+
+void hw_reset_detail(enum wf_reset_detail d)
+{
+	bkp_access();
+	LL_RTC_BAK_SetRegister(RTC, LL_RTC_BKP_DR18, wf_reset_detail_bkp(d, 0));
+}
+
+void hw_retained_attach(void *p, size_t len)
+{
+	/* Backup-SRAM: Takt und Zugriff schaltet der Zephyr-Treiber (st,stm32-backup-sram) ein */
+	ARG_UNUSED(p);
+	ARG_UNUSED(len);
 }
 
 FUNC_NORETURN void hw_reset_with(enum wf_reset code)

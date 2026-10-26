@@ -9,6 +9,7 @@
 #define WALLFREE_APP_HW_H_
 
 #include <zephyr/kernel.h>
+#include <zephyr/linker/section_tags.h>
 #include <wallfree/api/reset.h>
 #include <wallfree/evse/charger.h>
 
@@ -54,17 +55,32 @@ void hw_contactor_off_regs(void);
 FUNC_NORETURN void hw_reset_with(enum wf_reset code);
 
 /**
- * Fehlerort fuer die Diagnose ohne Log (z. B. Absturz vor main): Programmzaehler in
- * Backup-Register 17, 0xFA00 << 16 | Grund in Register 18; bleiben bis zum naechsten
- * Fehler oder Stromausfall stehen und sind per SWD lesbar.
+ * Fehlerort einer Prozessorausnahme: Programmzaehler in Backup-Register 17, Detail
+ * WF_RSTD_FAULT mit Ausnahmegrund in Register 18 (SOLL-RT-14).
  */
 void hw_fault_note(unsigned int reason, uint32_t pc);
 
+/** Genauerer Ausloeser vor einem Software-Reset (Backup-Register 18, SOLL-RT-14). */
+void hw_reset_detail(enum wf_reset_detail d);
+
 /**
- * Beim Start: Reset-Flags (RCC_CSR) und Code aus Backup-Register 19 lesen
- * und beide loeschen. @p flags als WF_RSTF_*.
+ * Beim Start: Reset-Flags (RCC_CSR), Code aus Backup-Register 19, Detail aus 18 und
+ * Programmzaehler aus 17 lesen und loeschen. @p flags als WF_RSTF_*.
  */
-void hw_reset_take(uint32_t *flags, uint32_t *bkp);
+void hw_reset_take(uint32_t *flags, uint32_t *bkp, uint32_t *detail, uint32_t *pc);
+
+/*
+ * Speicher, der einen Reset uebersteht (Backup-SRAM 4 KB, SOLL-ERR-12), aber keinen
+ * Stromausfall (keine Batterie an VBAT bekannt): Variablen mit HW_RETAINED anlegen, beim
+ * Start hw_retained_attach() aufrufen und den Inhalt selbst auf Stimmigkeit pruefen.
+ * In der Simulation reicht ein Neustart (execv) den Inhalt ueber die Umgebung weiter.
+ */
+#ifdef CONFIG_ARCH_POSIX
+#define HW_RETAINED
+#else
+#define HW_RETAINED __stm32_backup_sram_section
+#endif
+void hw_retained_attach(void *p, size_t len);
 
 /**
  * Beim Start: Fehlerbits in FLASH_SR lesen und loeschen. Der Zephyr-Treiber laesst

@@ -12,6 +12,8 @@
 void sysinfo_init(void);
 
 enum wf_reset sysinfo_reset_reason(void);
+/** Genauerer Ausloeser des letzten Resets (SOLL-RT-14); @p extra Ausnahmegrund, @p pc bei Ausnahme */
+enum wf_reset_detail sysinfo_reset_detail(unsigned int *extra, uint32_t *pc);
 uint32_t sysinfo_reset_flags(void);
 const char *sysinfo_version(void);
 

@@ -332,6 +332,18 @@ class T1Api(SimCase):
         # Sollstrom liegt nur im RAM (SOLL-NVM-03): wieder Startwert
         self.assertEqual(self.sim.get_json("/evse/external_current", self.auth)["current"],
                          80000)
+        # SOLL-ERR-12: Protokoll uebersteht den Neustart, Startereignis mit Grund
+        log = self.sim.get_json("/system/log", self.auth)
+        self.assertGreaterEqual(log["boot"], 2)
+        boots_seen = {e["boot"] for e in log["entries"]}
+        self.assertIn(log["boot"] - 1, boots_seen, "Eintraege des vorigen Starts")
+        starts = [e["event"] for e in log["entries"]
+                  if e["kind"] == "event" and e["event"]["type"] == "boot"]
+        self.assertEqual(starts[-1]["reason"], "user_restart")
+        self.assertNotIn("detail", starts[-1])
+        seqs = [e["seq"] for e in log["entries"]]
+        self.assertEqual(seqs, sorted(seqs), "Nummern laufen weiter")
+        self.assertIsNone(info["reset_detail"])
 
     def test_14_neustart_waehrend_laden(self):
         self.shell("sim car C")
@@ -398,6 +410,12 @@ class T2Faults(SimCase):
         info = self.sim.get_json("/system/info", self.auth)
         self.assertEqual(info["reset_reason"], "supervision_limit")
         self.assertIn("SIM: Reset (supervision_limit)", self.sim.log_text())
+        # SOLL-RT-14/ERR-12: welche Ueberwachung, auch im Protokoll nach dem Neustart
+        self.assertEqual(info["reset_detail"], "measurement_blocks")
+        log = self.sim.get_json("/system/log", self.auth)["entries"]
+        boot = [e["event"] for e in log if e["kind"] == "event" and e["event"]["type"] == "boot"]
+        self.assertEqual((boot[-1]["reason"], boot[-1]["detail"]),
+                         ("supervision_limit", "measurement_blocks"))
 
     def test_03_werksreset_taster(self):
         self.sim.stop()

@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Zugriffsprotokoll (SOLL-ERR-11): fehlgeschlagene Anmeldungen mit
- * Absenderadresse und Ereignisse (SOLL-ERR-10) in einem Ringpuffer im RAM,
- * JSON fuer GET /system/log. Fortlaufende Nummer je Eintrag (Luecke =
+ * Absenderadresse und Ereignisse (SOLL-ERR-10) in einem Ringpuffer, der Neustarts
+ * uebersteht (Backup-SRAM, wf_alog_restore), JSON fuer GET /system/log. Jeder Eintrag
+ * traegt die Nummer des Starts und, falls bekannt, die Uhrzeit (SOLL-ERR-12). Fortlaufende Nummer je Eintrag (Luecke =
  * herausgefallen). Aufeinanderfolgende Fehlversuche derselben Adresse
  * zaehlen im juengsten Eintrag weiter, damit Durchprobieren die Ereignisse
  * nicht verdraengt. Reines C, nicht threadsicher (Aufrufer sperrt).
@@ -19,7 +20,9 @@
 extern "C" {
 #endif
 
-#define WF_ALOG_SIZE 32
+#define WF_ALOG_SIZE 48
+#define WF_ALOG_MAGIC 0x574c4f47u /* "WLOG" */
+#define WF_ALOG_VERSION 1
 
 enum wf_alog_kind {
 	WF_ALOG_AUTH_FAIL = 0, /**< falsches Passwort: addr, count */
@@ -32,15 +35,31 @@ struct wf_alog_entry {
 	uint8_t kind;   /**< enum wf_alog_kind */
 	uint16_t count; /**< Fehlversuche (bleibt bei 65535 stehen) */
 	uint32_t addr;  /**< IPv4 in Host-Reihenfolge, 0 = unbekannt */
+	uint16_t boot;  /**< Startnummer (wf_alog.boot beim Eintragen) */
+	int64_t wall;   /**< Uhrzeit ms seit 1970, 0 = unbekannt */
 	struct wf_event ev;
 };
 
 struct wf_alog {
+	uint32_t magic;
+	uint16_t version;
+	uint16_t boot;      /**< Nummer des laufenden Starts, ab 1 */
+	int64_t wall_base;  /**< Uhrzeit (ms seit 1970) bei Laufzeit 0, 0 = unbekannt */
 	struct wf_alog_entry e[WF_ALOG_SIZE];
 	uint32_t next_seq;
 };
 
 void wf_alog_init(struct wf_alog *l);
+
+/**
+ * Nach einem Start: Inhalt aus dem vorigen Lauf uebernehmen, wenn er stimmig ist
+ * (Kennung, Version, Nummern), sonst neu anlegen. Zaehlt die Startnummer weiter,
+ * Uhrzeit unbekannt. @return true, wenn Eintraege uebernommen wurden
+ */
+bool wf_alog_restore(struct wf_alog *l);
+
+/** Uhrzeit bekannt geworden (SNTP): ms seit 1970 bei Laufzeit 0, 0 = wieder unbekannt */
+void wf_alog_set_wall_base(struct wf_alog *l, int64_t wall_base);
 
 /** Fehlversuch; zaehlt im juengsten Eintrag weiter, wenn der dieselbe Adresse betrifft. */
 void wf_alog_auth_fail(struct wf_alog *l, uint32_t addr, int64_t t);

@@ -142,6 +142,14 @@ int main(void)
 		evse_acquire()->errors |= EVSE_ERR_INTERNAL;
 		evse_release();
 	}
+	unsigned int fault;
+	uint32_t pc;
+	enum wf_reset_detail det = sysinfo_reset_detail(&fault, &pc);
+
+	/* SOLL-ERR-12: jeder Start steht mit Grund im Protokoll, das Neustarts uebersteht */
+	evse_task_event_push((struct wf_event){.t = k_uptime_get(), .type = WF_EV_BOOT,
+					       .a = sysinfo_reset_reason(), .b = det,
+					       .set = pc, .cleared = fault});
 	if (sysinfo_update_result(&upd_mode, &upd_ok)) {
 		/* SOLL-BOOT-33 */
 		evse_task_event_push((struct wf_event){

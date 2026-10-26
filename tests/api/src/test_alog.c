@@ -97,17 +97,19 @@ ZTEST(api_alog, test_entry_json)
 	char buf[300];
 	struct wf_jbuf b;
 	struct wf_alog_entry fail = {.seq = 4, .t = 5300, .kind = WF_ALOG_AUTH_FAIL, .count = 3,
-				     .addr = A};
-	struct wf_alog_entry ev = {.seq = 5, .t = 6100, .kind = WF_ALOG_EVENT,
+				     .addr = A, .boot = 2};
+	struct wf_alog_entry ev = {.seq = 5, .t = 6100, .kind = WF_ALOG_EVENT, .boot = 3,
+				   .wall = 1793000000123,
 				   .ev = {.seq = 9, .t = 6100, .type = WF_EV_CONTACTOR, .a = 1}};
 
 	wf_jb_init(&b, buf, sizeof(buf));
 	wf_alog_entry_json(&fail, &b);
-	zassert_str_equal(buf, "{\"seq\":4,\"t_ms\":5300,\"kind\":\"auth_fail\","
+	zassert_str_equal(buf, "{\"seq\":4,\"t_ms\":5300,\"boot\":2,\"kind\":\"auth_fail\","
 			       "\"addr\":\"192.168.1.20\",\"count\":3}");
 	wf_jb_init(&b, buf, sizeof(buf));
 	wf_alog_entry_json(&ev, &b);
-	zassert_str_equal(buf, "{\"seq\":5,\"t_ms\":6100,\"kind\":\"event\",\"event\":"
+	zassert_str_equal(buf, "{\"seq\":5,\"t_ms\":6100,\"boot\":3,\"wall_ms\":1793000000123,"
+			       "\"kind\":\"event\",\"event\":"
 			       "{\"seq\":9,\"t_ms\":6100,\"type\":\"contactor\",\"on\":true}}");
 }
 
@@ -140,7 +142,7 @@ ZTEST(api_alog, test_json_empty)
 	static char all[64];
 
 	render(400, all, sizeof(all));
-	zassert_str_equal(all, "{\"entries\":[]}");
+	zassert_str_equal(all, "{\"boot\":1,\"entries\":[]}");
 }
 
 ZTEST(api_alog, test_json_chunked)
@@ -162,8 +164,51 @@ ZTEST(api_alog, test_json_chunked)
 
 	zassert_equal(n1, n2);
 	zassert_str_equal(one, parts);
-	zassert_true(strncmp(parts, "{\"entries\":[{\"seq\":4,", 21) == 0, "aeltester zuerst");
+	zassert_true(strncmp(parts, "{\"boot\":1,\"entries\":[{\"seq\":4,", 30) == 0, "aeltester zuerst");
 	zassert_true(strcmp(parts + n2 - 3, "}]}") == 0);
 	zassert_is_null(strstr(parts, ",,"));
 	zassert_is_null(strstr(parts, "[,"));
+}
+
+/* SOLL-ERR-12: Inhalt uebersteht einen Neustart, Zufall nach Stromausfall nicht */
+ZTEST(api_alog, test_restore)
+{
+	struct wf_alog_entry e;
+	struct wf_event ev = {.type = WF_EV_STATE, .a = 0, .b = 1};
+	uint32_t seq = 0;
+
+	wf_alog_event(&l, &ev);
+	wf_alog_auth_fail(&l, A, 200);
+	zassert_equal(l.boot, 1);
+	zassert_true(wf_alog_restore(&l), "stimmiger Inhalt bleibt");
+	zassert_equal(l.boot, 2);
+	wf_alog_auth_fail(&l, A, 50); /* neuer Start: nicht mit dem alten Eintrag zusammenfassen */
+	zassert_true(wf_alog_get(&l, &seq, &e));
+	zassert_equal(e.boot, 1);
+	zassert_true(wf_alog_get(&l, &seq, &e));
+	zassert_equal(e.count, 1);
+	zassert_true(wf_alog_get(&l, &seq, &e));
+	zassert_equal(e.boot, 2);
+	zassert_equal(e.seq, 3, "Nummern laufen ueber den Neustart weiter");
+
+	/* Uhrzeit: nur Eintraege nach dem Setzen tragen sie */
+	zassert_equal(e.wall, 0);
+	wf_alog_set_wall_base(&l, 1793000000000);
+	wf_alog_event(&l, &(struct wf_event){.t = 700, .type = WF_EV_CONTACTOR});
+	zassert_true(wf_alog_get(&l, &seq, &e));
+	zassert_equal(e.wall, 1793000000700);
+	zassert_true(wf_alog_restore(&l));
+	zassert_equal(l.wall_base, 0, "nach Neustart wieder unbekannt");
+
+	/* Stromausfall: Zufall bzw. beschaedigte Nummern -> neu */
+	memset(&l, 0x5a, sizeof(l));
+	zassert_false(wf_alog_restore(&l));
+	zassert_equal(l.boot, 1);
+	zassert_equal(l.next_seq, 1);
+	wf_alog_event(&l, &ev);
+	l.e[1].seq = 7;
+	zassert_false(wf_alog_restore(&l));
+	wf_alog_event(&l, &ev);
+	l.version++;
+	zassert_false(wf_alog_restore(&l));
 }

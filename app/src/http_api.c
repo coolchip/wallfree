@@ -67,7 +67,9 @@ static struct http_header hdr_auth = {.name = "WWW-Authenticate", .value = chall
 static char retry_after[12];
 static struct http_header hdr_retry = {.name = "Retry-After", .value = retry_after};
 static struct wf_rl rl; /* Bremse je Absender (nur Server-Thread) */
-static struct wf_alog alog; /* Zugriffsprotokoll (SOLL-ERR-11), Server- und WebSocket-Thread */
+/* Zugriffsprotokoll (SOLL-ERR-11), Server- und WebSocket-Thread; uebersteht Neustarts
+ * im Backup-SRAM (SOLL-ERR-12) */
+static struct wf_alog alog HW_RETAINED;
 static K_MUTEX_DEFINE(alog_mtx);
 
 /* IPv4-Absender eines Sockets, 0 wenn unbekannt */
@@ -1063,13 +1065,23 @@ static void ws_entry(void *p1, void *p2, void *p3)
 K_THREAD_STACK_DEFINE(ws_stack, WS_STACK);
 static struct k_thread ws_thread;
 
+void http_api_set_wall_base(int64_t wall_base)
+{
+	k_mutex_lock(&alog_mtx, K_FOREVER);
+	wf_alog_set_wall_base(&alog, wall_base);
+	k_mutex_unlock(&alog_mtx);
+}
+
 int http_api_start(void)
 {
 	for (int i = 0; i < WS_MAX; i++) {
 		ws[i].sock = -1;
 	}
 	wf_rl_init(&rl);
-	wf_alog_init(&alog);
+	hw_retained_attach(&alog, sizeof(alog));
+	if (wf_alog_restore(&alog)) {
+		LOG_INF("Protokoll aus dem vorigen Lauf uebernommen (Start %u)", alog.boot);
+	}
 	auth_init();
 	k_thread_create(&ws_thread, ws_stack, K_THREAD_STACK_SIZEOF(ws_stack), ws_entry, NULL,
 			NULL, NULL, WS_PRIO, 0, K_NO_WAIT);

@@ -226,10 +226,15 @@ angezeigt.
 
 ![Zugriffsprotokoll](bilder/insights-protokoll.png)
 
-Die letzten 32 Einträge seit dem Start: alle Ereignisse und **fehlgeschlagene Anmeldungen**
+Die letzten 48 Einträge, auch über Neustarts hinweg: jeder **Start** mit seinem Grund (z. B.
+„Start: Überwachung (Ladelogik reagierte nicht)“), alle Ereignisse und **fehlgeschlagene Anmeldungen**
 mit der Adresse des Geräts (orange). Mehrere Fehlversuche desselben Geräts werden zu einem
 Eintrag mit Anzahl zusammengefasst. Unbekannte Fehlversuche können auf einen Zugriffsversuch
 im Netz oder auf ein Gerät mit veralteten Zugangsdaten hinweisen.
+
+Das Protokoll übersteht Neustarts, Updates und Werksreset, aber keinen Stromausfall. Einträge
+aus einem früheren Start zeigen statt der Uhrzeit „früherer Start“, solange die Steuerung keine
+Uhrzeit von einem Zeitserver hat.
 
 ### 6.6 Status der Ladelogik
 
@@ -446,15 +451,15 @@ Sie es deshalb nur in einem vertrauenswürdigen Netz.
 | --- | --- |
 | Firmware | Stand der Firmware |
 | Laufzeit | Zeit seit dem letzten Start |
-| Letzter Reset | Grund des letzten Starts: `power_on` Einschalten, `user_restart` Neustart über Oberfläche oder Wartungszugang, `update` nach einem Firmware-Update, `factory_reset` nach Werksreset, `reset_pin` Reset-Taster, `brownout` Unterspannung, `watchdog` / `window_watchdog` / `supervision_limit` / `interface_hang` die Überwachung hat neu gestartet, `fault` Programmfehler |
+| Letzter Reset | Grund des letzten Starts: Einschalten, Neustart auf Anforderung (Oberfläche oder Wartungszugang), Firmware-Update, Werksreset, Reset-Taster, Spannungseinbruch, Watchdog, Überwachung bzw. Schnittstelle hing (die Überwachung hat neu gestartet; in Klammern, welche: z. B. „Ladelogik reagierte nicht“), Programmfehler (mit Programmstelle im Protokoll) |
 | MAC-Adresse | Hardware-Adresse der Netzwerkschnittstelle (vom Hersteller vergeben, wie in der Originalfirmware); unter ihr kennt der Router die Wallbox, z. B. für eine feste IP-Adresse |
 | Prüfsumme | Prüfsumme der laufenden Firmware; „beschädigt, Laden gesperrt“, wenn sie nicht stimmt (z. B. nach einem unvollständigen Update) |
 | Letztes Update | nur nach einem Firmware-Update: erfolgreich oder fehlgeschlagen |
 
 **Neu starten** startet die Steuerung neu, z. B. damit geänderte Netzwerk- oder
 Zählereinstellungen wirken. Ein laufender Ladevorgang wird vorher geordnet beendet. Die Seite
-lädt nach etwa 25 Sekunden neu. Verlauf und Protokolle beginnen danach leer; alle
-Einstellungen bleiben erhalten.
+lädt nach etwa 25 Sekunden neu. Der Verlauf beginnt danach leer, das Zugriffsprotokoll bleibt;
+alle Einstellungen bleiben erhalten.
 
 ### 8.1 Firmware-Update
 

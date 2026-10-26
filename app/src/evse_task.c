@@ -153,9 +153,10 @@ void evse_task_maint_end(void)
 
 /* ------------------------------------------------ sicherer Zustand und Neustart */
 
-static void fail_safe_and_reboot(const char *why)
+static void fail_safe_and_reboot(const char *why, enum wf_reset_detail detail)
 {
 	hw_safe_state_regs();
+	hw_reset_detail(detail); /* SOLL-RT-14: welche Ueberwachung, steht nach dem Start im Protokoll */
 	/* ohne LOG_PANIC (siehe reboot_work_fn); die Meldung geht evtl. verloren,
 	 * der Grund steht im Backup-Register (SOLL-RT-14) */
 	LOG_ERR("sicherer Zustand: %s", why);
@@ -358,6 +359,8 @@ static void check_ifaces(uint32_t now32)
 
 	k_mutex_unlock(&ev_mtx);
 	if (idle) {
+		/* Reihenfolge von iface_names wie WF_RSTD_IFACE_* */
+		hw_reset_detail((enum wf_reset_detail)(WF_RSTD_IFACE_STORAGE + hung));
 		hw_reset_with(WF_RST_NET_HANG);
 	}
 }
@@ -370,7 +373,7 @@ static void prot_entry(void *p1, void *p2, void *p3)
 	ARG_UNUSED(p2);
 	ARG_UNUSED(p3);
 	if (!atomic_get(&wdt_ok)) {
-		fail_safe_and_reboot("IWDG nicht verfuegbar");
+		fail_safe_and_reboot("IWDG nicht verfuegbar", WF_RSTD_NONE);
 	}
 	int64_t t0 = k_uptime_get();
 	int64_t last_iface_check = t0;
@@ -389,10 +392,10 @@ static void prot_entry(void *p1, void *p2, void *p3)
 		/* SOLL-RT-10: Thread- und Messueberwachung */
 		if (now - t0 > STARTUP_GRACE_MS && !atomic_get(&maint)) {
 			if (now32 - (uint32_t)atomic_get(&charger_beat) > LIMIT_CHARGER_MS) {
-				fail_safe_and_reboot("Automatenthread haengt");
+				fail_safe_and_reboot("Automatenthread haengt", WF_RSTD_CHARGER);
 			}
 			if (now32 - (uint32_t)atomic_get(&block_beat) > LIMIT_BLOCK_MS) {
-				fail_safe_and_reboot("keine Messbloecke");
+				fail_safe_and_reboot("keine Messbloecke", WF_RSTD_BLOCKS);
 			}
 		}
 		/* SOLL-RT-11: Schnittstellen-Threads, einmal je Sekunde */

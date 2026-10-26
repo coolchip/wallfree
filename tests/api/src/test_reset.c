@@ -42,3 +42,22 @@ ZTEST(api_reset, test_names)
 	zassert_str_equal(wf_reset_name(WF_RST_UPDATE), "update");
 	zassert_str_equal(wf_reset_name(WF_RST_COUNT), "unknown");
 }
+
+/* SOLL-RT-14: genauerer Ausloeser im zweiten Backup-Register */
+ZTEST(api_reset, test_detail)
+{
+	unsigned int extra;
+
+	zassert_equal(wf_reset_detail_decode(0, &extra), WF_RSTD_NONE);
+	zassert_equal(wf_reset_detail_decode(0xFA000003u, &extra), WF_RSTD_NONE, "fremde Kennung");
+	zassert_equal(wf_reset_detail_decode(wf_reset_detail_bkp(WF_RSTD_COUNT, 0), &extra),
+		      WF_RSTD_NONE);
+	zassert_equal(wf_reset_detail_decode(wf_reset_detail_bkp(WF_RSTD_CHARGER, 0), &extra),
+		      WF_RSTD_CHARGER);
+	zassert_equal(wf_reset_detail_decode(wf_reset_detail_bkp(WF_RSTD_FAULT, 0x1234), &extra),
+		      WF_RSTD_FAULT);
+	zassert_equal(extra, 0x34, "Zusatz 8 Bit");
+	zassert_str_equal(wf_reset_detail_name(WF_RSTD_BLOCKS), "measurement_blocks");
+	zassert_str_equal(wf_reset_detail_name(WF_RSTD_NONE), "");
+	zassert_str_equal(wf_reset_detail_name(WF_RSTD_COUNT), "");
+}

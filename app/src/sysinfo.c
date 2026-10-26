@@ -19,6 +19,9 @@ LOG_MODULE_REGISTER(sysinfo, LOG_LEVEL_INF);
 static const char image_tag[] = IMAGE_TAG WALLFREE_VERSION;
 
 static enum wf_reset reason;
+static enum wf_reset_detail detail; /* SOLL-RT-14: welche Ueberwachung bzw. Ausnahme */
+static unsigned int detail_extra;   /* Ausnahmegrund bei WF_RSTD_FAULT */
+static uint32_t fault_pc;
 static uint32_t flags;
 static uint32_t update_result; /* BKP12: Modus << 8 | Erfolg, 0 = keins */
 static uint32_t boot_regs[HW_BOOT_REGS];
@@ -27,15 +30,17 @@ static uint32_t image_crc;
 
 void sysinfo_init(void)
 {
-	uint32_t bkp;
+	uint32_t bkp, det;
 
 	hw_boot_regs(boot_regs); /* vor dem Loeschen der Flags und von BKP12 */
-	hw_reset_take(&flags, &bkp);
+	hw_reset_take(&flags, &bkp, &det, &fault_pc);
 	reason = wf_reset_classify(flags, bkp);
+	detail = wf_reset_detail_decode(det, &detail_extra);
 	update_result = hw_update_result_take();
 	image_ok = hw_image_check(&image_crc);
-	LOG_INF("Wallfree %s, Resetgrund %s (Flags 0x%02x)", sysinfo_version(),
-		wf_reset_name(reason), flags);
+	LOG_INF("Wallfree %s, Resetgrund %s%s%s (Flags 0x%02x)", sysinfo_version(),
+		wf_reset_name(reason), detail != WF_RSTD_NONE ? " / " : "",
+		wf_reset_detail_name(detail), flags);
 	if (image_ok == 0) {
 		LOG_ERR("Abbild ungueltig (CRC %08x passt nicht zum Anhang): kein Laden", image_crc);
 	}
@@ -68,6 +73,13 @@ enum wf_reset sysinfo_reset_reason(void)
 	return reason;
 }
 
+enum wf_reset_detail sysinfo_reset_detail(unsigned int *extra, uint32_t *pc)
+{
+	*extra = detail_extra;
+	*pc = fault_pc;
+	return detail;
+}
+
 uint32_t sysinfo_reset_flags(void)
 {
 	return flags;
@@ -85,6 +97,12 @@ void sysinfo_json(struct wf_jbuf *b)
 	wf_jb_str(b, sysinfo_version());
 	wf_jb_key(b, "reset_reason", false);
 	wf_jb_str(b, wf_reset_name(reason));
+	wf_jb_key(b, "reset_detail", false);
+	if (detail == WF_RSTD_NONE) {
+		wf_jb_raw(b, "null");
+	} else {
+		wf_jb_str(b, wf_reset_detail_name(detail));
+	}
 	wf_jb_key(b, "reset_flags", false);
 	wf_jb_int(b, flags);
 	wf_jb_key(b, "uptime_ms", false);

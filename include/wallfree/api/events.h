@@ -26,6 +26,8 @@ enum wf_ev_type {
 	WF_EV_CONTACTOR, /**< Schuetz-Soll: a = 1 ein, 0 aus */
 	WF_EV_METER,     /**< Zaehler (SOLL-MTR-13/14): a = enum meter_status, b = 1 Zaehlerstand gesunken */
 	WF_EV_UPDATE,    /**< Ergebnis eines Updates beim Start (SOLL-BOOT-33): a = 1 Erfolg, b = Modus */
+	WF_EV_BOOT,      /**< Start (SOLL-ERR-12): a = enum wf_reset, b = enum wf_reset_detail;
+			  *   bei Prozessorausnahme set = PC, cleared = Ausnahmegrund */
 };
 
 /** Was die Erkennung vergleicht. */

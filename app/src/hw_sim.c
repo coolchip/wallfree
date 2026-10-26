@@ -328,10 +328,47 @@ static void model_restore(void)
 	LOG_INF("Simulation: Modell nach Neustart uebernommen (Fahrzeug %c)", 'A' + m.car);
 }
 
+/* Backup-SRAM: Inhalt als Hexadezimaltext in der Umgebung ueber den Neustart (execv) */
+#define RETAINED_ENV "WALLFREE_SIM_RETAINED"
+static uint8_t *retained;
+static size_t retained_len;
+
+void hw_retained_attach(void *p, size_t len)
+{
+	const char *v = nsi_host_getenv(RETAINED_ENV);
+
+	retained = p;
+	retained_len = len;
+	if (v != NULL && strlen(v) == 2 * len) {
+		for (size_t i = 0; i < len; i++) {
+			char h[3] = {v[2 * i], v[2 * i + 1], '\0'};
+
+			retained[i] = (uint8_t)strtoul(h, NULL, 16);
+		}
+	} else {
+		memset(p, 0, len); /* Prozessstart = Einschalten ohne Batterie */
+	}
+	(void)nsi_host_setenv(RETAINED_ENV, "", 1);
+}
+
+static void retained_save(void)
+{
+	static char v[2 * 4096 + 1];
+
+	if (retained == NULL || retained_len > 4096) {
+		return;
+	}
+	for (size_t i = 0; i < retained_len; i++) {
+		snprintf(&v[2 * i], 3, "%02x", retained[i]);
+	}
+	(void)nsi_host_setenv(RETAINED_ENV, v, 1);
+}
+
 static FUNC_NORETURN void restart(const char *reset_env)
 {
 	(void)nsi_host_setenv(RESET_ENV, reset_env, 1);
 	model_save();
+	retained_save();
 	wf_sim_host_reset_now();
 	CODE_UNREACHABLE;
 }
@@ -393,18 +430,29 @@ uint32_t hw_flash_errors_early(void)
 
 /* ------------------------------------------------ Resetgrund */
 
-void hw_reset_take(uint32_t *flags, uint32_t *bkp)
+/* Backup-Register 17/18 (Detail, PC) */
+static uint32_t sim_detail, sim_pc;
+
+void hw_reset_take(uint32_t *flags, uint32_t *bkp, uint32_t *detail, uint32_t *pc)
 {
 	const char *v = nsi_host_getenv(RESET_ENV);
 
 	*flags = WF_RSTF_POR | WF_RSTF_PIN; /* Prozessstart = Einschalten */
 	*bkp = 0;
+	*detail = 0;
+	*pc = 0;
 	if (v != NULL && v[0] != '\0') {
 		char *end;
 
 		*flags = (uint32_t)strtoul(v, &end, 16);
 		if (*end == ':') {
-			*bkp = (uint32_t)strtoul(end + 1, NULL, 16);
+			*bkp = (uint32_t)strtoul(end + 1, &end, 16);
+		}
+		if (*end == ':') {
+			*detail = (uint32_t)strtoul(end + 1, &end, 16);
+		}
+		if (*end == ':') {
+			*pc = (uint32_t)strtoul(end + 1, NULL, 16);
 		}
 	}
 	(void)nsi_host_setenv(RESET_ENV, "", 1);
@@ -413,6 +461,13 @@ void hw_reset_take(uint32_t *flags, uint32_t *bkp)
 void hw_fault_note(unsigned int reason, uint32_t pc)
 {
 	posix_print_warning("SIM: Fehler %u bei pc 0x%08x\n", reason, pc);
+	sim_detail = wf_reset_detail_bkp(WF_RSTD_FAULT, reason);
+	sim_pc = pc;
+}
+
+void hw_reset_detail(enum wf_reset_detail d)
+{
+	sim_detail = wf_reset_detail_bkp(d, 0);
 }
 
 /*
@@ -484,10 +539,11 @@ uint32_t hw_update_result_take(void)
 
 FUNC_NORETURN void hw_reset_with(enum wf_reset code)
 {
-	char v[32];
+	char v[48];
 
 	hw_safe_state_regs();
-	snprintf(v, sizeof(v), "%x:%x", WF_RSTF_SFT | WF_RSTF_PIN, wf_reset_bkp_value(code));
+	snprintf(v, sizeof(v), "%x:%x:%x:%x", WF_RSTF_SFT | WF_RSTF_PIN, wf_reset_bkp_value(code),
+		 sim_detail, sim_pc);
 	posix_print_warning("SIM: Reset (%s)\n", wf_reset_name(code));
 	restart(v);
 }
