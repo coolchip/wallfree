@@ -769,6 +769,63 @@ static void evse_history(struct http_client_ctx *client, struct res *r,
 	rsp->final_chunk = r->cursor == WF_HIST_DONE;
 }
 
+/*
+ * SOLL-API-34: CP-Aufnahme (eigene Erweiterung). Teil 1 nimmt auf (etwa 120 ms) und sendet
+ * Kopf und CP+-Kanal, Teil 2 den CP--Kanal. Punkte im festen Raster t0 + i * dt.
+ */
+static struct hw_scope scope; /* nur Server-Thread */
+
+static void scope_array(struct wf_jbuf *b, const int16_t *v)
+{
+	wf_jb_raw(b, "[");
+	for (int i = 0; i < HW_SCOPE_N; i++) {
+		if (i > 0) {
+			wf_jb_raw(b, ",");
+		}
+		wf_jb_int(b, v[i]);
+	}
+	wf_jb_raw(b, "]");
+}
+
+static void evse_cp_scope(struct http_client_ctx *client, struct res *r,
+			  struct http_response_ctx *rsp)
+{
+	ARG_UNUSED(client);
+	struct wf_jbuf b;
+
+	wf_jb_init(&b, out, sizeof(out));
+	if (r->cursor == 0) {
+		int e = hw_cp_scope(&scope);
+
+		if (e != 0) {
+			respond_error(rsp, HTTP_409_CONFLICT,
+				      e == -EBUSY ? "Aufnahme läuft bereits" : "Aufnahme fehlgeschlagen");
+			return;
+		}
+		wf_jb_raw(&b, "{");
+		wf_jb_key(&b, "duty", true);
+		wf_jb_int(&b, scope.duty);
+		wf_jb_key(&b, "t0_us", false);
+		wf_jb_int(&b, HW_SCOPE_T0_US);
+		wf_jb_key(&b, "dt_us", false);
+		wf_jb_int(&b, -HW_SCOPE_DT_US);
+		wf_jb_key(&b, "pos_mv", false);
+		scope_array(&b, scope.pos_mv);
+		r->cursor = 1;
+	} else {
+		wf_jb_raw(&b, ",");
+		wf_jb_key(&b, "neg_mv", true);
+		scope_array(&b, scope.neg_mv);
+		wf_jb_raw(&b, "}");
+		r->cursor = 0;
+	}
+	rsp->status = HTTP_200_OK;
+	rsp->body = (const uint8_t *)out;
+	rsp->body_len = b.len;
+	rsp->final_chunk = r->cursor == 0;
+}
+
+JSON_RESOURCE(evse_cp_scope_r, "/evse/cp_scope", BIT(HTTP_GET), evse_cp_scope, false, 0);
 JSON_RESOURCE(evse_history_r, "/evse/history", BIT(HTTP_GET), evse_history, false, 0);
 JSON_RESOURCE(system_log_r, "/system/log", BIT(HTTP_GET), system_log, false, 0);
 JSON_RESOURCE(system_info_r, "/system/info", BIT(HTTP_GET), system_info, false, 0);

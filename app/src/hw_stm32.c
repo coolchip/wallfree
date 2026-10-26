@@ -134,6 +134,129 @@ static void tim1_up_isr(const void *arg)
 	}
 }
 
+/* ------------------------------------------------ CP-Aufnahme (SOLL-API-34, hw.h) */
+
+#define SCOPE_CCR0  60 /* CCR2 = SCOPE_CCR0 + i * SCOPE_STEP; t = 1000 - CCR2 / 2 us */
+#define SCOPE_STEP  8
+
+BUILD_ASSERT(HW_SCOPE_T0_US == 1000 - SCOPE_CCR0 / 2 && HW_SCOPE_DT_US == SCOPE_STEP / 2);
+BUILD_ASSERT(SCOPE_CCR0 + (HW_SCOPE_N - 1) * SCOPE_STEP <= 940, "ADC1-Fenster aussparen");
+
+static volatile uint16_t scope_buf[2 * HW_SCOPE_N];
+static volatile int scope_i;
+static K_SEM_DEFINE(scope_sem, 0, 1);
+static K_MUTEX_DEFINE(scope_mtx);
+static bool scope_ready;
+
+/*
+ * CC2-Treffer beim Abwaertszaehlen (CMS = 01 setzt Vergleichsflags nur dann): ADC2 per Software
+ * starten (CP+ und CP-, DMA), naechste Phase setzen. CCR2 waechst, liegt also ueber dem
+ * Zaehlerstand und trifft erst in der naechsten Periode wieder.
+ */
+static void tim1_cc_isr(const void *arg)
+{
+	ARG_UNUSED(arg);
+	if (!LL_TIM_IsActiveFlag_CC2(TIM1)) {
+		return;
+	}
+	LL_TIM_ClearFlag_CC2(TIM1);
+	LL_ADC_REG_StartConversionSWStart(ADC2);
+	if (++scope_i < HW_SCOPE_N) {
+		LL_TIM_OC_SetCompareCH2(TIM1, SCOPE_CCR0 + (uint32_t)scope_i * SCOPE_STEP);
+	} else {
+		LL_TIM_DisableIT_CC2(TIM1);
+		k_sem_give(&scope_sem);
+	}
+}
+
+static void scope_init(void)
+{
+	/* ADC2: CP+ (IN0/PA0) und CP- (IN9/PB1), Pins richtet adc_init() schon analog ein */
+	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_ADC2);
+	LL_ADC_SetResolution(ADC2, LL_ADC_RESOLUTION_12B);
+	LL_ADC_SetDataAlignment(ADC2, LL_ADC_DATA_ALIGN_RIGHT);
+	LL_ADC_SetSequencersScanMode(ADC2, LL_ADC_SEQ_SCAN_ENABLE);
+	LL_ADC_REG_SetTriggerSource(ADC2, LL_ADC_REG_TRIG_SOFTWARE);
+	LL_ADC_REG_SetContinuousMode(ADC2, LL_ADC_REG_CONV_SINGLE);
+	LL_ADC_REG_SetSequencerLength(ADC2, LL_ADC_REG_SEQ_SCAN_ENABLE_2RANKS);
+	LL_ADC_REG_SetSequencerRanks(ADC2, LL_ADC_REG_RANK_1, LL_ADC_CHANNEL_0);
+	LL_ADC_REG_SetSequencerRanks(ADC2, LL_ADC_REG_RANK_2, LL_ADC_CHANNEL_9);
+	LL_ADC_SetChannelSamplingTime(ADC2, LL_ADC_CHANNEL_0, LL_ADC_SAMPLINGTIME_28CYCLES);
+	LL_ADC_SetChannelSamplingTime(ADC2, LL_ADC_CHANNEL_9, LL_ADC_SAMPLINGTIME_28CYCLES);
+	LL_ADC_REG_SetFlagEndOfConversion(ADC2, LL_ADC_REG_FLAG_EOC_UNITARY_CONV);
+	LL_ADC_REG_SetDMATransfer(ADC2, LL_ADC_REG_DMA_TRANSFER_LIMITED);
+
+	/* DMA2 Stream2 Kanal 1 = ADC2 (RM0033 DMA2-Zuordnung), einmalig je Aufnahme */
+	LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_2);
+	LL_DMA_SetChannelSelection(DMA2, LL_DMA_STREAM_2, LL_DMA_CHANNEL_1);
+	LL_DMA_SetDataTransferDirection(DMA2, LL_DMA_STREAM_2, LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
+	LL_DMA_SetMode(DMA2, LL_DMA_STREAM_2, LL_DMA_MODE_NORMAL);
+	LL_DMA_SetPeriphIncMode(DMA2, LL_DMA_STREAM_2, LL_DMA_PERIPH_NOINCREMENT);
+	LL_DMA_SetMemoryIncMode(DMA2, LL_DMA_STREAM_2, LL_DMA_MEMORY_INCREMENT);
+	LL_DMA_SetPeriphSize(DMA2, LL_DMA_STREAM_2, LL_DMA_PDATAALIGN_HALFWORD);
+	LL_DMA_SetMemorySize(DMA2, LL_DMA_STREAM_2, LL_DMA_MDATAALIGN_HALFWORD);
+	LL_DMA_ConfigAddresses(DMA2, LL_DMA_STREAM_2,
+			       LL_ADC_DMA_GetRegAddr(ADC2, LL_ADC_DMA_REG_REGULAR_DATA),
+			       (uint32_t)scope_buf, LL_DMA_DIRECTION_PERIPH_TO_MEMORY);
+
+	/* TIM1 CH2 nur als Vergleich (kein Pin), ohne Vorladen: CCR2 wirkt sofort */
+	LL_TIM_OC_SetMode(TIM1, LL_TIM_CHANNEL_CH2, LL_TIM_OCMODE_FROZEN);
+	LL_TIM_OC_DisablePreload(TIM1, LL_TIM_CHANNEL_CH2);
+
+	IRQ_CONNECT(TIM1_CC_IRQn, IRQ_PRIO_TIM, tim1_cc_isr, NULL, 0);
+	irq_enable(TIM1_CC_IRQn);
+	scope_ready = true;
+}
+
+int hw_cp_scope(struct hw_scope *out)
+{
+	if (k_mutex_lock(&scope_mtx, K_NO_WAIT) != 0) {
+		return -EBUSY;
+	}
+	if (!scope_ready) {
+		scope_init();
+	}
+	LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_2);
+	LL_DMA_ClearFlag_TC2(DMA2);
+	LL_DMA_ClearFlag_HT2(DMA2);
+	LL_DMA_ClearFlag_TE2(DMA2);
+	LL_DMA_ClearFlag_FE2(DMA2);
+	LL_DMA_SetDataLength(DMA2, LL_DMA_STREAM_2, 2 * HW_SCOPE_N);
+	LL_DMA_EnableStream(DMA2, LL_DMA_STREAM_2);
+	/* DMA-Anforderung neu scharf schalten (endet nach der letzten Uebertragung) */
+	LL_ADC_REG_SetDMATransfer(ADC2, LL_ADC_REG_DMA_TRANSFER_NONE);
+	LL_ADC_REG_SetDMATransfer(ADC2, LL_ADC_REG_DMA_TRANSFER_LIMITED);
+	LL_ADC_Enable(ADC2);
+	k_busy_wait(5); /* tSTAB */
+
+	k_sem_reset(&scope_sem);
+	out->duty = (uint16_t)LL_TIM_OC_GetCompareCH1(TIM1);
+	scope_i = 0;
+	LL_TIM_OC_SetCompareCH2(TIM1, SCOPE_CCR0);
+	LL_TIM_ClearFlag_CC2(TIM1);
+	LL_TIM_EnableIT_CC2(TIM1);
+	int r = k_sem_take(&scope_sem, K_MSEC(400)) == 0 ? 0 : -ETIMEDOUT;
+
+	LL_TIM_DisableIT_CC2(TIM1);
+	k_busy_wait(10); /* letzte Wandlung */
+	if (r == 0 && LL_DMA_GetDataLength(DMA2, LL_DMA_STREAM_2) != 0) {
+		r = -ETIMEDOUT;
+	}
+	LL_ADC_Disable(ADC2);
+	LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_2);
+	if (r == 0) {
+		/* Skalierung wie der Messblock (Summe ueber 8 Durchlaeufe), je Einzelwert */
+		for (int i = 0; i < HW_SCOPE_N; i++) {
+			uint32_t p = scope_buf[2 * i] & 0xfffu, n = scope_buf[2 * i + 1] & 0xfffu;
+
+			out->pos_mv[i] = (int16_t)(p * 8u * 39u / 100u + 300u);
+			out->neg_mv[i] = (int16_t)(14050 - (int32_t)(n * 8u * 397u / 1000u));
+		}
+	}
+	k_mutex_unlock(&scope_mtx);
+	return r;
+}
+
 static void dma2_s0_isr(const void *arg)
 {
 	ARG_UNUSED(arg);

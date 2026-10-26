@@ -1066,10 +1066,46 @@ function chart(h, rows, maxA, HW, hover, setHover) {
 
 // ------------------------------------------------------------ Bereiche
 
+// CP-Signal (SOLL-API-34): aequivalente Abtastung der zweiten Periodenhaelfte; die zentrierte
+// PWM ist symmetrisch, die erste Haelfte ist das Spiegelbild. Spannung je Punkt: CP+-Kanal,
+// solange er ueber 1,5 V liegt, sonst minus CP--Kanal. Schwellen nach IEC 61851 (A..D, -12 V).
+function CpScope() {
+	const [d, setD] = useState(null);
+	const [busy, setBusy] = useState(false);
+	const [err, setErr] = useState(null);
+	const take = async () => {
+		setBusy(true);
+		try { setD(await api('/evse/cp_scope')); setErr(null); } catch (e) { setErr(e.message); }
+		setBusy(false);
+	};
+	const W = 600, H = 230, X0 = 40, Y = (mv) => 12 + (13000 - mv) * (H - 36) / 26000;
+	const X = (us) => X0 + (us + 500) * (W - X0 - 8) / 1000;
+	let path = '';
+	if (d) {
+		const pts = d.pos_mv.map((p, i) => [d.t0_us + i * d.dt_us - 1000, p > 1500 ? p : -d.neg_mv[i]]);
+		const all = pts.concat(pts.map(([t, v]) => [-t, v])).sort((a, b) => a[0] - b[0]);
+		path = all.map(([t, v], i) => (i ? 'L' : 'M') + X(t).toFixed(1) + ' ' + Y(v).toFixed(1)).join(' ');
+	}
+	const lines = [[12000, 'A 12 V'], [9000, 'B 9 V'], [6000, 'C 6 V'], [3000, 'D 3 V'], [0, '0 V'], [-12000, '−12 V']];
+	return html`<${Card} title="CP-Signal">
+		<div class="row"><button onClick=${take} disabled=${busy}>${busy ? 'Aufnahme …' : 'Aufnehmen'}</button>
+			${d && html`<span class="muted">Tastgrad ${(d.duty / 10).toFixed(1)} %</span>`}</div>
+		${err && html`<p class="bad msg">${err}</p>`}
+		${d && html`<svg class="scope" viewBox=${'0 0 ' + W + ' ' + H} role="img" aria-label="CP-Signal über eine Periode">
+			${lines.map(([mv, t]) => html`<line class="h-grid" x1=${X0} x2=${W - 8} y1=${Y(mv)} y2=${Y(mv)} />
+				<text class="h-ax" x=${X0 - 4} y=${Y(mv) + 4}>${t}</text>`)}
+			${[-500, -250, 0, 250, 500].map((us) => html`<text class=${us === 500 ? 'h-ax' : 'h-ax mid'} x=${X(us)} y=${H - 4}>${us} µs</text>`)}
+			<path class="scope-line" d=${path} />
+		</svg>
+		<p class="muted msg">Eine PWM-Periode (1 ms), Mitte = positiver Puls. Gemessen über etwa 110 Perioden mit
+			verschobenem Abtastzeitpunkt; die Messung der Ladelogik läuft dabei unverändert weiter.</p>`}
+	<//>`;
+}
+
 function Insights({ live }) {
 	const h = useHistory();
 	return html`<${History} h=${h} maxA=${live.limits && live.limits.hardware / 1000} />
-		<${CurrentTable} l=${live.limits} meter=${live.meter} /><${Errors} /><${Meter} m=${live.meter} />
+		<${CurrentTable} l=${live.limits} meter=${live.meter} /><${CpScope} /><${Errors} /><${Meter} m=${live.meter} />
 		<${EventLog} live=${live} all=${true} /><${Params} kinds=${['status']} />`;
 }
 

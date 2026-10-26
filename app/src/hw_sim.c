@@ -258,6 +258,33 @@ void hw_cp_set_duty(uint16_t permille)
 	m.duty = permille > 1000 ? 1000 : permille;
 }
 
+/*
+ * CP-Aufnahme aus dem Modell (SOLL-API-34): Plateaus wie die Messbloecke, Flanken linear ueber
+ * 6 us; t = Zeit ab Periodenbeginn (Mitte des positiven Pulses), Zaehlerstand 2 * (1000 - t)
+ * im zweiten Halbtakt, CP positiv solange Zaehler < Tastgrad (zentrierte PWM wie TIM1).
+ */
+int hw_cp_scope(struct hw_scope *out)
+{
+	unsigned int key = irq_lock();
+	int32_t hi = cp_level(m.car);
+	int32_t lo = (m.car == EVSE_CP_A || m.diode) ? 12000 : hi;
+	uint16_t duty = m.duty;
+
+	irq_unlock(key);
+	out->duty = duty;
+	for (int i = 0; i < HW_SCOPE_N; i++) {
+		int32_t t = HW_SCOPE_T0_US - i * HW_SCOPE_DT_US;
+		int32_t edge = 1000 - duty / 2; /* positiv fuer t > edge */
+		int32_t x = t - edge;          /* us nach der Flanke */
+		int32_t f = x >= 3 ? 1000 : x <= -3 ? 0 : (x + 3) * 1000 / 6; /* Anteil positiv */
+
+		out->pos_mv[i] = (int16_t)(300 + (hi - 300) * f / 1000);
+		out->neg_mv[i] = (int16_t)(lo * (1000 - f) / 1000);
+	}
+	k_msleep(110); /* wie die Aufnahme ueber 111 Perioden */
+	return 0;
+}
+
 bool hw_get_block(struct hw_block *out)
 {
 	unsigned int key = irq_lock();

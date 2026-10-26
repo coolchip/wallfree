@@ -70,6 +70,26 @@ void hw_reset_detail(enum wf_reset_detail d);
 void hw_reset_take(uint32_t *flags, uint32_t *bkp, uint32_t *detail, uint32_t *pc);
 
 /*
+ * CP-Aufnahme (SOLL-API-34): aequivalente Abtastung des CP-Signals mit ADC2, ohne die
+ * Messung der Ladelogik (ADC1) zu beruehren. Je PWM-Periode ein Abtastpunkt beim
+ * Abwaertszaehlen von TIM1 (CC2), Phase von Periode zu Periode verschoben; die Plateaumitten,
+ * in denen ADC1 misst, bleiben ausgespart. Die PWM ist zentriert-symmetrisch: Die Punkte
+ * decken die zweite Periodenhaelfte ab, die erste ist ihr Spiegelbild (t -> 1000 - t).
+ */
+#define HW_SCOPE_N     111 /**< Punkte, t = HW_SCOPE_T0_US - i * HW_SCOPE_DT_US */
+#define HW_SCOPE_T0_US 970
+#define HW_SCOPE_DT_US 4
+
+struct hw_scope {
+	uint16_t duty;               /**< Tastgrad in Promille waehrend der Aufnahme */
+	int16_t pos_mv[HW_SCOPE_N];  /**< Kanal CP+ (wie cp_pos skaliert) */
+	int16_t neg_mv[HW_SCOPE_N];  /**< Kanal CP-, Betrag (wie cp_neg skaliert) */
+};
+
+/** Aufnahme (blockiert etwa 120 ms, nicht aus ISR). @return 0, -EBUSY oder -ETIMEDOUT */
+int hw_cp_scope(struct hw_scope *out);
+
+/*
  * Speicher, der einen Reset uebersteht (Backup-SRAM 4 KB, SOLL-ERR-12), aber keinen
  * Stromausfall (keine Batterie an VBAT bekannt): Variablen mit HW_RETAINED anlegen, beim
  * Start hw_retained_attach() aufrufen und den Inhalt selbst auf Stimmigkeit pruefen.

@@ -308,6 +308,19 @@ class T1Api(SimCase):
             self.assertIn("N=1", self.shell("sim status"))
             time.sleep(0.2)
 
+    def test_11b_cp_aufnahme(self):
+        # SOLL-API-34: Modell laedt (C), Plateau 6 V, negativ -12 V, Tastgrad wie im Zustand
+        st = self.sim.state(self.auth)
+        self.assertEqual(st["iec61851_state"], 2)
+        d = self.sim.get_json("/evse/cp_scope", self.auth)
+        self.assertEqual((d["t0_us"], d["dt_us"]), (970, -4))
+        self.assertEqual(len(d["pos_mv"]), 111)
+        self.assertEqual(len(d["neg_mv"]), 111)
+        self.assertGreater(d["duty"], 0)
+        self.assertLess(d["duty"], 1000)
+        self.assertIn(6000, d["pos_mv"])
+        self.assertIn(12000, d["neg_mv"])
+
     def test_12_abstecken(self):
         self.shell("sim car A")
         st = self.sim.wait_state(self.auth, lambda s: s["charger_state"] == 0, what="frei")
