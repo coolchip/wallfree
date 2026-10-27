@@ -265,9 +265,9 @@ Innere Zustände der Ladesteuerung, vor allem für die Fehlersuche. Die Werte si
 | Eingang LD … IN, Ausgang ER … CR | Schaltzustand jedes Digitaleingangs und -ausgangs: an oder aus |
 | Fehlversuche Verriegeln / Entriegeln | Anzahl fehlgeschlagener Versuche im aktuellen Steckvorgang |
 
-### 6.7 CP-Signal
+### 6.7 CP-Oszilloskop
 
-Die Karte **CP-Signal** (unter „Ladestrom“) zeigt auf Knopfdruck (**Aufnehmen**) den Verlauf
+Die Karte **CP-Oszilloskop** (unter „Ladestrom“) zeigt auf Knopfdruck (**Aufnehmen**) den Verlauf
 der Signalleitung zum Fahrzeug über eine PWM-Periode (1 ms), mit den Spannungen der
 Fahrzeugzustände A (12 V, kein Fahrzeug), B (9 V, angeschlossen), C (6 V, lädt), D (3 V, lädt
 mit Lüftung) und −12 V. Daneben steht der Tastgrad, aus dem das Fahrzeug den erlaubten Strom
@@ -387,8 +387,9 @@ Diese Werte steuern den laufenden Betrieb. Nach einem Neustart gelten wieder ihr
 
 ![Einstellungen › Netzwerk](bilder/einstellungen-netzwerk.png)
 
-Oben steht die **aktive** Einstellung (DHCP oder feste Adresse, Hostname). Änderungen wirken
-nach einem Neustart.
+Oben steht die **aktive** Einstellung (DHCP oder feste Adresse, Hostname) und die Uhrzeit mit
+dem Zeitserver, von dem sie stammt („unbekannt“, solange keiner antwortet). Änderungen an der
+Adresse wirken nach einem Neustart, die Zeitserver-Einstellungen sofort.
 
 | Parameter | Werk | Beschreibung |
 | --- | --- | --- |

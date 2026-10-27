@@ -616,10 +616,18 @@ function SysConfig({ part, meter }) {
 	const [edit, setEdit] = useState({});
 	const [msg, setMsg] = useState(null);
 	const [mqtt, setMqtt] = useState(null);
+	const [si, setSi] = useState(null);
 	const load = () => api('/system/config').then(setCfg).catch((e) => setMsg({ ok: false, text: e.message }));
 	useEffect(() => {
 		api('/system/config_info').then(setInfo).catch(() => {});
 		load();
+		if (part === 'netzwerk') {
+			// SOLL-TIME-03: Uhrzeit und Zeitserver im Status, alle 10 s neu
+			const li = () => api('/system/info').then(setSi).catch(() => {});
+			li();
+			const t = setInterval(li, 10000);
+			return () => clearInterval(t);
+		}
 		if (part !== 'mqtt') return undefined;
 		const lm = () => api('/mqtt/state').then(setMqtt).catch(() => {});
 		lm();
@@ -643,7 +651,9 @@ function SysConfig({ part, meter }) {
 	let status = null;
 	if (part === 'netzwerk') {
 		status = 'Aktiv: ' + (cfg.active.net_dhcp ? 'DHCP' : cfg.active.net_ip) + ', Hostname ' +
-			(cfg.active.net_hostname || 'automatisch');
+			(cfg.active.net_hostname || 'automatisch') + '. Uhrzeit: ' + (!si ? '…'
+			: si.time ? new Date(si.time.time_ms).toLocaleTimeString('de-DE') + ' vom Zeitserver ' + si.time.server
+			: cfg.active.ntp_enable ? 'unbekannt (Zeitserver antwortet nicht)' : 'aus');
 	} else if (part === 'mqtt' && mqtt) {
 		status = 'Zustand: ' + MQTT_STATES[mqtt.connection_state] + (mqtt.connection_state ? ', Präfix ' +
 			mqtt.prefix + ', gesendet ' + mqtt.published + ', Befehle ' + mqtt.commands + (mqtt.rejected
@@ -1066,7 +1076,7 @@ function chart(h, rows, maxA, HW, hover, setHover) {
 
 // ------------------------------------------------------------ Bereiche
 
-// CP-Signal (SOLL-API-34): aequivalente Abtastung der zweiten Periodenhaelfte; die zentrierte
+// CP-Oszilloskop (SOLL-API-34): aequivalente Abtastung der zweiten Periodenhaelfte; die zentrierte
 // PWM ist symmetrisch, die erste Haelfte ist das Spiegelbild. Spannung je Punkt: CP+-Kanal,
 // solange er ueber 1,5 V liegt, sonst minus CP--Kanal. Schwellen nach IEC 61851 (A..D, -12 V).
 function CpScope() {
@@ -1087,11 +1097,11 @@ function CpScope() {
 		path = all.map(([t, v], i) => (i ? 'L' : 'M') + X(t).toFixed(1) + ' ' + Y(v).toFixed(1)).join(' ');
 	}
 	const lines = [[12000, 'A 12 V'], [9000, 'B 9 V'], [6000, 'C 6 V'], [3000, 'D 3 V'], [0, '0 V'], [-12000, '−12 V']];
-	return html`<${Card} title="CP-Signal">
+	return html`<${Card} title="CP-Oszilloskop">
 		<div class="row"><button onClick=${take} disabled=${busy}>${busy ? 'Aufnahme …' : 'Aufnehmen'}</button>
 			${d && html`<span class="muted">Tastgrad ${(d.duty / 10).toFixed(1)} %</span>`}</div>
 		${err && html`<p class="bad msg">${err}</p>`}
-		${d && html`<svg class="scope" viewBox=${'0 0 ' + W + ' ' + H} role="img" aria-label="CP-Signal über eine Periode">
+		${d && html`<svg class="scope" viewBox=${'0 0 ' + W + ' ' + H} role="img" aria-label="CP-Signal über eine Periode (Oszilloskop)">
 			${lines.map(([mv, t]) => html`<line class="h-grid" x1=${X0} x2=${W - 8} y1=${Y(mv)} y2=${Y(mv)} />
 				<text class="h-ax" x=${X0 - 4} y=${Y(mv) + 4}>${t}</text>`)}
 			${[-500, -250, 0, 250, 500].map((us) => html`<text class=${us === 500 ? 'h-ax' : 'h-ax mid'} x=${X(us)} y=${H - 4}>${us} µs</text>`)}
