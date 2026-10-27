@@ -73,6 +73,7 @@ Rückweg Schritt für Schritt: [Umrüsten auf Wallfree und zurück](docs/umruest
 | --- | --- |
 | [docs/umruesten.md](docs/umruesten.md) | Wallfree aufspielen, Rückweg zur Originalfirmware, wenn etwas schiefgeht |
 | [docs/unterschiede-originalfirmware.md](docs/unterschiede-originalfirmware.md) | Unterschiede zur Originalfirmware mit Grund, Hinweise zum Umrüsten und zum Rückweg |
+| [docs/technik-und-lizenzen.md](docs/technik-und-lizenzen.md) | Verwendete Technik (Zephyr, Preact/htm, Testwerkzeuge) und Lizenzen der eingebundenen Software |
 | [docs/soll-spezifikation.md](docs/soll-spezifikation.md) | Soll-Verhalten der Firmware (Kennungen `SOLL-*`), Entscheidungen F1..F32 |
 | [docs/architektur.md](docs/architektur.md) | Rahmenentscheidungen mit Begründung: Zephyr, Speicheraufteilung, Bootloader, Parameterspeicher, evcc/WARP, Inbetriebnahmestufen |
 | [docs/implementierung.md](docs/implementierung.md) | Implementierungsstand, Zuordnung Modul -> SOLL, Festlegungen, Ressourcen, Fallstricke |
@@ -157,4 +158,4 @@ es urheberrechtlich geschützte Originaldateien enthält. Verweise der Form
 
 ## Lizenz
 
-Apache-2.0, siehe [LICENSE](LICENSE). Ausnahme: Fremdcode unter [web/vendor/](web/vendor/) (htm: Apache-2.0, Preact: MIT, siehe dortige README).
+Apache-2.0, siehe [LICENSE](LICENSE). Ausnahme: Fremdcode unter [web/vendor/](web/vendor/) (htm: Apache-2.0, Preact: MIT, siehe dortige README). Lizenzen der Software im Firmware-Abbild: [Technik und Lizenzen](docs/technik-und-lizenzen.md); die Steuerung zeigt sie unter System.

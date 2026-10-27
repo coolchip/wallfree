@@ -295,6 +295,9 @@ static const uint8_t style_gz[] = {
 static const uint8_t vendor_gz[] = {
 #include "web/preact-htm.js.gz.inc"
 };
+static const uint8_t licenses_gz[] = {
+#include "web/lizenzen.txt.gz.inc"
+};
 
 static const struct http_header web_headers[] = {
 	{.name = "Content-Encoding", .value = "gzip"},
@@ -331,6 +334,7 @@ WEB_RESOURCE(web_index, "/", index_gz, "text/html; charset=utf-8");
 WEB_RESOURCE(web_app, "/app.js", app_gz, "text/javascript");
 WEB_RESOURCE(web_style, "/style.css", style_gz, "text/css");
 WEB_RESOURCE(web_vendor, "/vendor.js", vendor_gz, "text/javascript");
+WEB_RESOURCE(web_licenses, "/lizenzen.txt", licenses_gz, "text/plain; charset=utf-8");
 
 /* ------------------------------------------------ /info (SOLL-API-01/02) */
 

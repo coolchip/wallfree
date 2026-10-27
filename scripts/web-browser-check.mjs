@@ -221,6 +221,7 @@ const checks = [
 	['Auswertung: Verlauf (laufendes Intervall)', /jetzt .* · (lädt|angesteckt)/.test(out.history)],
 	['Einstellungen Netzwerk', out.settingsNet.includes('DHCP') && out.settingsNet.includes('Telnet') && !out.settingsNet.includes('Broker')],
 	['System', out.system.includes('Firmware') && out.system.includes('Neu starten')],
+	['System: Lizenzhinweis', out.system.includes('Apache License 2.0') && out.system.includes('Lizenzhinweise')],
 	['Zurueck-Taste', out.back === '#/einstellungen/netzwerk'],
 	['Ereignisprotokoll mit Loeschen', out.expert2.includes('Protokoll löschen')],
 	['Entriegelt nach Abstecken', out.expert2.includes('Verriegelung: Entriegelt')],

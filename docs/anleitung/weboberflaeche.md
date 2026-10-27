@@ -496,6 +496,9 @@ alle Einstellungen bleiben erhalten.
 (Abschnitt 4). Ab Werk ist es aus. Die Wahl speichert der Browser, nicht die Steuerung; ein
 anderes Gerät zeigt also wieder die einfache Ansicht, bis man sie dort umschaltet.
 
+**Lizenz:** Wallfree ist freie Software unter der Apache License 2.0. Der Link
+**Lizenzhinweise** zeigt die enthaltene Software anderer Autoren mit ihren Lizenzen.
+
 ### 8.1 Firmware-Update
 
 1. **Vorher alles anhalten, was die Wallbox abfragt** (z. B. evcc, Home Assistant) und andere

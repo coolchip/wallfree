@@ -21,6 +21,7 @@ FILES = {
     "/app.js": ("app.js", "text/javascript"),
     "/style.css": ("style.css", "text/css"),
     "/vendor.js": ("vendor/preact-htm.js", "text/javascript"),
+    "/lizenzen.txt": ("lizenzen.txt", "text/plain; charset=utf-8"),
 }
 
 INFO = [

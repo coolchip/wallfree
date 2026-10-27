@@ -954,7 +954,12 @@ function SystemPage({ onBusy, expert, setExpert }) {
 		<${Msg} m=${msg} />
 	<//>
 	<${ViewCard} expert=${expert} setExpert=${setExpert} />
-	<${Update} onBusy=${onBusy} />`;
+	<${Update} onBusy=${onBusy} />
+	<${Card} title="Lizenz">
+		<p class="msg">Wallfree ist freie Software unter der Apache License 2.0 und wird ohne jede
+			Gewährleistung bereitgestellt. Sie enthält Zephyr, Preact, htm und weitere Software anderer
+			Autoren: <a href="/lizenzen.txt" target="_blank">Lizenzhinweise</a>.</p>
+	<//>`;
 }
 
 function Credentials({ first }) {

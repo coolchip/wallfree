@@ -132,6 +132,11 @@ class T1Api(SimCase):
             r = self.sim.request("GET", path, auth=self.auth)
             self.assertEqual(r.status, 200, path)
             self.assertGreater(len(gzip.decompress(r.body)), 100, path)
+        r = self.sim.request("GET", "/lizenzen.txt", auth=self.auth)
+        self.assertEqual(r.status, 200)
+        text = gzip.decompress(r.body).decode()
+        for name in ("Apache License", "Zephyr", "Preact", "STMicroelectronics", "picolibc"):
+            self.assertIn(name, text)
 
     def test_06_ruhezustand(self):
         st = self.sim.wait_state(self.auth, lambda s: s["iec61851_state"] == 0)
