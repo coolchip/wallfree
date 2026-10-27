@@ -2,7 +2,7 @@
 # Abbild fuer die Steuerung bauen und ablegen:
 #   scripts/build-image.sh [--keep N]
 # Baut pristine fuer ev_cc_ac1, prueft den Anhang mit der Pruefsumme, legt das Abbild ab und
-# loescht aeltere: Die N neuesten bleiben (Default 3). Name: build/wallfree-<VERSION>.bin, wenn
+# loescht aeltere: Die N neuesten bleiben (Default 3), veroeffentlichte immer. Name: build/wallfree-<VERSION>.bin, wenn
 # der Stand sauber ist und das Tag v<VERSION> auf ihn zeigt (Veroeffentlichung), sonst
 # build/wallfree-<VERSION>-<commit>[-dirty].bin. Jedes geloeschte laesst sich aus seinem Commit
 # neu bauen (git worktree add ... <commit>; dann dieses Skript dort).
@@ -13,6 +13,7 @@ if [ "$1" = "--keep" ]; then
 	KEEP=$2
 fi
 OUT=$REPO/build/ev_cc_ac1
+mkdir -p "$REPO/build"
 VERSION=$(head -n 1 "$REPO/VERSION")
 if [ -n "$(git -C "$REPO" status --porcelain --untracked-files=no)" ]; then
 	echo "Hinweis: Arbeitsstand nicht committet, Bauzeichen endet auf -dirty"
@@ -45,14 +46,16 @@ cp "$OUT/zephyr/zephyr.bin" "$DST"
 python3 -I "$REPO/scripts/image-trailer.py" --check "$DST"
 grep -A2 "Memory region" "$OUT.log" | tail -2
 # Aufraeumen: Abbilder eines nicht committeten Stands (-dirty) ausser dem gerade gebauten
-# immer; von den committeten die KEEP neuesten behalten (nach Aenderungszeit)
+# immer; von den committeten die KEEP neuesten behalten (nach Aenderungszeit);
+# veroeffentlichte (wallfree-<Major>.<Minor>.bin) nie
 for f in "$REPO"/build/wallfree-*-dirty.bin; do
 	if [ -e "$f" ] && [ "$f" != "$DST" ]; then
 		rm -f "$f"
 		echo "geloescht: $(basename "$f")"
 	fi
 done
-ls -t "$REPO"/build/wallfree-*.bin | grep -v -- '-dirty\.bin$' | tail -n +"$((KEEP + 1))" |
+ls -t "$REPO"/build/wallfree-*.bin | grep -v -- '-dirty\.bin$' |
+	grep -v -E '/wallfree-[0-9]+\.[0-9]+\.bin$' | tail -n +"$((KEEP + 1))" |
 	while read -r f; do
 		rm -f "$f"
 		echo "geloescht: $(basename "$f")"
