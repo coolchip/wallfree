@@ -151,7 +151,7 @@ wiedergibt [ANN]; Bestaetigung in H1/H2.
 | LED Connect (gelb) | PE12 | aktiv Low | Abschnitt 11 | FW |
 | LED Ready (gruen) | PE13 | aktiv Low | Abschnitt 11 | FW |
 | LED Status Modem | PE10/PE11 | aktiv Low | aus (Mobilfunk nicht im Umfang) | FW |
-| (Netzwerkstatus) | PC2 | Ausgang | Netzwerkanzeige (SOLL-LED-06) | FW, Bedeutung [HYP] |
+| (Netzwerkstatus) | PC2 | Ausgang | Netzwerkanzeige (SOLL-LED-06), aktiv Low, gruene LED an der Netzwerkbuchse | FW, Testgerät 2026-10-27 |
 | Reset-Taster | **PD2** [HYP] | Low = gedrueckt [HYP] | Werksreset beim Start (SOLL-BOOT-20) | FW (`main`), HB S. 16 |
 
 Hinweis: Laut HB S. 16 startet "einfache Betaetigung" das Geraet neu. Da das Original PD2
@@ -811,7 +811,7 @@ Blinkformen: 1 Hz (500 ms an/500 ms aus), 2 Hz (250/250 ms), 5 Hz (100/100 ms).
 | SOLL-LED-03 | Connect (PE12) | an bei LOCKED; sonst blinkt 1 Hz bei gueltigem Kabelwert und D1; sonst aus | Ist §11 |
 | SOLL-LED-04 | Ready (PE13) | Schuetz ein: an; sonst PWM an: 2 Hz; sonst Status B/C/D: 1 Hz; sonst aus | Ist §11, HB S. 16 |
 | SOLL-LED-05 | Status Modem (PE10/PE11) | aus | Umfang |
-| SOLL-LED-06 | PC2 [HYP] | an: Netz verbunden (Link und IP-Adresse); 1 Hz: kein Link oder keine Adresse | [ANN] |
+| SOLL-LED-06 | PC2 (Testgerät 2026-10-27: gruene LED an der Netzwerkbuchse) | an: Netz verbunden (Link und IP-Adresse); 1 Hz: kein Link oder keine Adresse | [ANN] |
 
 Pruefung Abschnitt 11: PC – Fehlertabelle als Testmatrix (Setzen, Wirkung auf Status und
 Schuetz, Ruecksetzen je Zeile), LED-Ausgabe je Zustand. H1 – LED-Zuordnung auf der
