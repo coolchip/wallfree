@@ -71,6 +71,7 @@ ZTEST(api_ha, test_commands_and_meter)
 		n += gen(i, &c) == 1;
 		check_tpl();
 		if (strstr(topic, "/number/") != NULL) {
+			zassert_not_null(strstr(buf, "\"min\":0,\"max\":80,"), "ohne Drehschalter 80 A");
 			zassert_not_null(strstr(buf, "\"cmd_t\":\"~/evse/external_current_update\""));
 			zassert_not_null(strstr(buf, "\"cmd_tpl\":\"{{ (value * 1000) | int }}\""));
 		}
@@ -85,6 +86,23 @@ ZTEST(api_ha, test_commands_and_meter)
 	}
 	zassert_equal(n, 9, "alle Elemente");
 	zassert_equal(gen(-1, &c), -1);
+}
+
+/* Obergrenze des Zahlenfelds = Maximum des Drehschalters (Testgeraet: 16 A) */
+ZTEST(api_ha, test_max_from_rotary)
+{
+	const struct wf_ha_ctx c = {.base = "wb", .node = "wallfree_a1b2c3", .name = "W",
+				    .version = "x", .commands = true, .max_a = 16, .power_idx = -1,
+				    .energy_idx = -1};
+
+	for (int i = 0; gen(i, &c) >= 0; i++) {
+		if (strstr(topic, "/number/") != NULL) {
+			zassert_equal(gen(i, &c), 1);
+			zassert_not_null(strstr(buf, "\"min\":0,\"max\":16,\"step\":1"), "%s", buf);
+			return;
+		}
+	}
+	ztest_test_fail();
 }
 
 /* groesste Nutzdaten mit dem laengsten zulaessigen Praefix (64 Zeichen) passen */

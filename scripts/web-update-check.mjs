@@ -116,7 +116,7 @@ chrome.kill();
 
 const checks = [
 	['Vorpruefung lehnt ungueltige Datei ab', out.bad.includes('Kein Firmware-Abbild')],
-	['Vorpruefung erkennt Wallfree mit Version', out.good.includes('Wallfree ' + version.replace('+', ' (Bau ') + ')')],
+	['Vorpruefung erkennt Wallfree mit Version', out.good.includes('Wallfree ' + version.replace('+', ' (Build ') + ')')],
 	['Rueckfrage nennt die Version', dialogs.length === 1 && dialogs[0].includes(version.split('+')[0])],
 	['Ablauf bis Erfolg', out.done.includes('Update erfolgreich')],
 	['waehrend des Updates: Hinweisleiste "Update laeuft", nie ausgegraut',

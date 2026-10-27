@@ -105,10 +105,13 @@ int wf_ha_config(int i, const struct wf_ha_ctx *c, char *topic, size_t topic_siz
 		key_str(b, "stat_cla", e->stat_cla, false);
 	}
 	if (e->need == NEED_COMMANDS) {
-		/* SOLL-MQTT-20: Befehl in mA; 0 = Laden aus, 1..5 A lehnt die Steuerung ab */
+		/* SOLL-MQTT-20: Befehl in mA; 0 = Laden aus, 1..5 A lehnt die Steuerung ab (wie WARP:
+		 * ein Bereich ab 0); Obergrenze = Maximum des Drehschalters */
 		key_str(b, "cmd_t", "~/evse/external_current_update", false);
 		key_str(b, "cmd_tpl", "{{ (value * 1000) | int }}", false);
-		wf_jb_raw(b, ",\"min\":0,\"max\":80,\"step\":1,\"mode\":\"box\"");
+		snprintf(s, sizeof(s), ",\"min\":0,\"max\":%d,\"step\":1,\"mode\":\"box\"",
+			 c->max_a > 0 ? c->max_a : 80);
+		wf_jb_raw(b, s);
 	}
 	/* SOLL-MQTT-04: Erreichbarkeit ueber den Last Will */
 	wf_jb_raw(b, ",\"avty_t\":\"~/online\",\"pl_avail\":\"true\",\"pl_not_avail\":\"false\"");

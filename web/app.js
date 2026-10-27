@@ -725,11 +725,11 @@ function trailer(buf) {
 	return dv.getUint32(o + 4, true) === o && parseInt(crc, 16) === dv.getUint32(o + 8, true) ? crc : 'bad';
 }
 
-// Firmwarestand als Text: "Wallfree 0.1 (Bau d2863d9)"; Kennung "<Version>+<Bau>" aus dem Abbild,
+// Firmwarestand als Text: "Wallfree 0.1 (Build d2863d9)"; Kennung "<Version>+<Build>" aus dem Abbild,
 // aeltere Abbilder tragen nur den Commit
 function fwName(tag) {
 	const i = tag.indexOf('+');
-	return i < 0 ? 'Wallfree (Bau ' + tag + ')' : 'Wallfree ' + tag.slice(0, i) + ' (Bau ' + tag.slice(i + 1) + ')';
+	return i < 0 ? 'Wallfree (Build ' + tag + ')' : 'Wallfree ' + tag.slice(0, i) + ' (Build ' + tag.slice(i + 1) + ')';
 }
 
 // Vorpruefung: was der Bootloader selbst nicht prueft. @return {version, crc} (fremd: beide
@@ -898,7 +898,7 @@ function SystemPage({ onBusy }) {
 	return html`<${Card} title="System">
 		${si && html`<table>
 			<tr><td>Firmware</td><td class="num">Wallfree ${si.firmware}<br />
-				<small class="muted">Bau ${si.build}</small></td></tr>
+				<small class="muted">Build ${si.build}</small></td></tr>
 			<tr><td>Laufzeit</td><td class="num">${dur(si.uptime_ms)}</td></tr>
 			<tr><td>Letzter Reset</td><td class="num">${resetText(si.reset_reason, si.reset_detail)}</td></tr>
 			<tr><td>Uhrzeit</td><td class="num">${si.time ? new Date(si.time.time_ms).toLocaleString('de-DE')

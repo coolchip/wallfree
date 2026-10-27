@@ -26,6 +26,7 @@ struct wf_ha_ctx {
 	const char *name;    /**< Geraetename in Home Assistant */
 	const char *version; /**< Firmwarestand */
 	bool commands;       /**< mqtt_commands: Ladestrom schreibbar */
+	int max_a;           /**< Obergrenze des Zahlenfelds Ladestrom (Drehschalter), <= 0: 80 A */
 	int power_idx;       /**< Index der Wirkleistung in meters/0/values, -1 = keiner */
 	int energy_idx;      /**< Index der Energie (Bezug) in meters/0/values, -1 = keiner */
 };

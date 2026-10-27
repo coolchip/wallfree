@@ -191,8 +191,14 @@ static void publish_discovery(void)
 {
 	char node[24], name[40], mac[18];
 	uint8_t type = meter_task_type();
+	struct evse *e = evse_acquire();
+	/* Drehschalter nur beim Start gelesen: fest, solange die Konfiguration gilt */
+	int max_a = e->rotary.valid ? (int)(e->rotary.limit_ma / 1000) : 0;
+
+	evse_release();
 	struct wf_ha_ctx c = {.base = prefix, .node = node, .name = name,
 			      .version = sysinfo_version(), .commands = cfg.mqtt_commands,
+			      .max_a = max_a,
 			      .power_idx = meter_index(type, METER_P),
 			      .energy_idx = meter_index(type, METER_E_IMP)};
 
