@@ -87,6 +87,8 @@ await view(1100, 800);
 await send('Page.navigate', { url: base + '/' });
 await sleep(3000);
 await shot('erstanmeldung', 'main section');
+// Die Anleitung beschreibt alle Seiten: Expertenansicht einschalten (gilt fuer diesen Browser)
+await js("localStorage.setItem('wallfree.expert', '1')");
 curl('/credentials', { user: USER, password: PASS });
 cred = [USER, PASS];
 
