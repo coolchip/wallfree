@@ -87,6 +87,17 @@ const conn = "(() => { const e = document.querySelector('.logo .conn'); const b 
 out.mode1 = await evalJs(conn);
 await shot('1-einfach');
 
+// Ab Werk einfache Ansicht: ohne Rohwerte und ohne "Laden"; dann Expertenansicht auf der Seite System
+const goEarly = async (hash) => { await evalJs(`location.hash = ${JSON.stringify(hash)}`); await sleep(2500); return text(); };
+out.simpleInsights = await goEarly('#/insights');
+out.simpleSettings = await goEarly('#/einstellungen');
+await goEarly('#/system');
+out.expertOn = await evalJs(`(() => { const l = [...document.querySelectorAll('label.check')].find((x) => x.textContent.includes('Expertenansicht'));
+	if (!l) return false; const c = l.querySelector('input'); c.click(); return c.checked; })()`);
+await sleep(500);
+out.expertStored = await evalJs("localStorage.getItem('wallfree.expert')");
+await goEarly('#/');
+
 await shell('sim car C');
 await sleep(4000);
 out.simple2 = await text();
@@ -191,6 +202,11 @@ ws.close();
 chrome.kill();
 
 const checks = [
+	['einfache Ansicht ab Werk: Insights ohne Rohwerte', /ereignisprotokoll/i.test(out.simpleInsights)
+		&& !/status der ladelogik/i.test(out.simpleInsights) && !/cp-oszilloskop/i.test(out.simpleInsights)],
+	['einfache Ansicht ab Werk: kein Reiter Laden', !out.simpleSettings.includes('Laden\n') && out.simpleSettings.includes('Netzwerk')
+		&& !/konfiguration \(gespeichert\)/i.test(out.simpleSettings)],
+	['Expertenansicht einschalten, im Browser gespeichert', out.expertOn === true && out.expertStored === '1'],
 	['WebSocket live', out.mode1.startsWith('verbunden|verbunden – live') && out.mode1.includes('||')],
 	['getrennt: grau, Hinweisleiste', out.mode2.startsWith('getrennt|') && out.mode2.includes('Verbindung zur Wallbox getrennt')
 		&& out.mode2.endsWith('|offline')],

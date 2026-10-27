@@ -908,7 +908,26 @@ function Update({ onBusy }) {
 	<//>`;
 }
 
-function SystemPage({ onBusy }) {
+// Expertenansicht (Nutzer 2026-10-27): nur Anzeige, je Browser gespeichert, ab Werk aus;
+// ohne localStorage (privates Fenster) gilt die einfache Ansicht
+const EXPERT_KEY = 'wallfree.expert';
+function loadExpert() {
+	try { return localStorage.getItem(EXPERT_KEY) === '1'; } catch (e) { return false; }
+}
+function saveExpert(on) {
+	try { localStorage.setItem(EXPERT_KEY, on ? '1' : '0'); } catch (e) { /* nur fuer diese Sitzung */ }
+}
+
+function ViewCard({ expert, setExpert }) {
+	return html`<${Card} title="Ansicht">
+		<label class="check"><input type="checkbox" checked=${expert} onChange=${(e) => setExpert(e.target.checked)} />
+			Expertenansicht</label>
+		<p class="muted msg">Zeigt zusätzlich die Parameter der Ladelogik (Einstellungen → Laden) und die
+			Rohwerte in Insights (Ladestrom, Zähler, Status, CP-Oszilloskop). Gilt nur für diesen Browser.</p>
+	<//>`;
+}
+
+function SystemPage({ onBusy, expert, setExpert }) {
 	const [si, setSi] = useState(null);
 	const [msg, setMsg] = useState(null);
 	useEffect(() => {
@@ -934,6 +953,7 @@ function SystemPage({ onBusy }) {
 		<div class="row actions"><button onClick=${() => restart(setMsg)}>Neu starten</button></div>
 		<${Msg} m=${msg} />
 	<//>
+	<${ViewCard} expert=${expert} setExpert=${setExpert} />
 	<${Update} onBusy=${onBusy} />`;
 }
 
@@ -1142,19 +1162,24 @@ function CpScope() {
 	<//>`;
 }
 
-function Insights({ live }) {
+// Einfache Ansicht: Verlauf, Fehler, Ereignisprotokoll; Expertenansicht zusaetzlich Rohwerte
+function Insights({ live, expert }) {
 	const h = useHistory();
-	return html`<${History} h=${h} maxA=${live.limits && live.limits.hardware / 1000} />
+	return expert ? html`<${History} h=${h} maxA=${live.limits && live.limits.hardware / 1000} />
 		<${CurrentTable} l=${live.limits} meter=${live.meter} /><${CpScope} /><${Errors} /><${Meter} m=${live.meter} />
-		<${EventLog} live=${live} all=${true} /><${Params} kinds=${['status']} />`;
+		<${EventLog} live=${live} all=${true} /><${Params} kinds=${['status']} />`
+		: html`<${History} h=${h} maxA=${live.limits && live.limits.hardware / 1000} /><${Errors} />
+		<${EventLog} live=${live} all=${true} />`;
 }
 
+// "Laden" (Parameter der Ladelogik) nur in der Expertenansicht
 const SETTINGS = [['laden', 'Laden'], ['netzwerk', 'Netzwerk'], ['mqtt', 'MQTT'], ['zaehler', 'Zähler'],
 	['zugang', 'Anmeldedaten']];
 
-function Settings({ sub, live }) {
-	const s = SETTINGS.some(([k]) => k === sub) ? sub : 'laden';
-	return html`<nav class="sub">${SETTINGS.map(([k, t]) =>
+function Settings({ sub, live, expert }) {
+	const tabs = SETTINGS.filter(([k]) => expert || k !== 'laden');
+	const s = tabs.some(([k]) => k === sub) ? sub : tabs[0][0];
+	return html`<nav class="sub">${tabs.map(([k, t]) =>
 		html`<a href=${'#/einstellungen/' + k} class=${s === k ? 'sel' : ''}>${t}</a>`)}</nav>
 		${s === 'laden' ? html`<${Params} kinds=${['config', 'runtime']} />`
 		: s === 'zugang' ? html`<${Credentials} first=${false} />`
@@ -1187,6 +1212,8 @@ function Main() {
 	const [a, sub] = useRoute();
 	// Firmware-Update: die Steuerung ist absichtlich weg, die Seite bleibt bedienbar
 	const [updating, setUpdating] = useState(false);
+	const [expert, setExpertState] = useState(loadExpert);
+	const setExpert = (on) => { saveExpert(on); setExpertState(on); };
 	const area = AREAS.some(([k]) => k === a) ? a : '';
 	const dot = updating ? 'warn' : live.online ? 'ok' : live.online === false ? 'bad' : '';
 	const conn = updating ? 'Update läuft …' : live.online ? 'verbunden'
@@ -1200,9 +1227,9 @@ function Main() {
 				: live.online === false && html`<div class="banner bad">Verbindung zur Wallbox getrennt – angezeigte Werte sind nicht aktuell.</div>`}
 		</header>
 		<main class=${live.online === false && !updating ? 'offline' : ''}>
-			${area === 'insights' ? html`<${Insights} live=${live} />`
-				: area === 'einstellungen' ? html`<${Settings} sub=${sub} live=${live} />`
-				: area === 'system' ? html`<${SystemPage} onBusy=${setUpdating} />`
+			${area === 'insights' ? html`<${Insights} live=${live} expert=${expert} />`
+				: area === 'einstellungen' ? html`<${Settings} sub=${sub} live=${live} expert=${expert} />`
+				: area === 'system' ? html`<${SystemPage} onBusy=${setUpdating} expert=${expert} setExpert=${setExpert} />`
 				: html`<${Overview} live=${live} />`}
 		</main>`;
 }

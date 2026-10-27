@@ -108,6 +108,12 @@ Auf dem Smartphone stehen die Bereiche unter dem Titel, die Kacheln untereinande
 
 ![Übersicht auf dem Smartphone](bilder/handy-uebersicht.png)
 
+**Einfache Ansicht und Expertenansicht:** Ab Werk zeigt die Oberfläche nur, was man im Alltag
+braucht. Die **Expertenansicht** (Bereich System, Abschnitt 8) zeigt zusätzlich die Parameter
+der Ladelogik (Einstellungen → Laden) und die Rohwerte in Insights (Ladestrom, Zähler, Status
+der Ladelogik, CP-Oszilloskop). Die Wahl gilt nur für den jeweiligen Browser; an der Steuerung
+ändert sie nichts.
+
 **Uhrzeiten:** Die Steuerung hat keine eigene Uhr. Alle Uhrzeiten berechnet der Browser aus
 der Laufzeit der Steuerung und seiner eigenen Uhr. Sie sind auf wenige Sekunden genau.
 
@@ -162,7 +168,8 @@ Fehler und Änderungen des Zählerzustands. Das vollständige Protokoll steht un
 ## 6 Insights
 
 Insights zeigt Verlauf, Messwerte und Protokolle, z. B. um einen Ladevorgang nachzuvollziehen
-oder eine Störung einzugrenzen.
+oder eine Störung einzugrenzen. In der einfachen Ansicht stehen hier nur Verlauf, Fehler und
+Ereignisprotokoll; die Abschnitte 6.2, 6.4, 6.6 und 6.7 gibt es nur in der Expertenansicht.
 
 ### 6.1 Verlauf
 
@@ -287,7 +294,7 @@ verwischt, dann einfach erneut aufnehmen.
 ## 7 Einstellungen
 
 Die Einstellungen sind in die Reiter **Laden**, **Netzwerk**, **MQTT**, **Zähler** und
-**Anmeldedaten** gegliedert.
+**Anmeldedaten** gegliedert. Den Reiter Laden gibt es nur in der Expertenansicht.
 
 #### Allgemein
 
@@ -484,6 +491,10 @@ Sie es deshalb nur in einem vertrauenswürdigen Netz.
 Zählereinstellungen wirken. Ein laufender Ladevorgang wird vorher geordnet beendet. Die Seite
 lädt nach etwa 25 Sekunden neu. Der Verlauf beginnt danach leer, das Ereignisprotokoll bleibt;
 alle Einstellungen bleiben erhalten.
+
+**Ansicht:** Das Kästchen **Expertenansicht** schaltet die zusätzlichen Seiten und Werte ein
+(Abschnitt 4). Ab Werk ist es aus. Die Wahl speichert der Browser, nicht die Steuerung; ein
+anderes Gerät zeigt also wieder die einfache Ansicht, bis man sie dort umschaltet.
 
 ### 8.1 Firmware-Update
 
