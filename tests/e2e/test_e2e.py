@@ -272,7 +272,7 @@ class T1Api(SimCase):
         finally:
             ws.close()
 
-    def test_11a_zugriffsprotokoll(self):
+    def test_11a_log(self):
         # SOLL-ERR-11: falsche Anmeldung mit Absender und Ereignisse in GET /system/log
         self.assertEqual(self.sim.request("GET", "/system/log").status, 401)
         bad = Digest(USER, "falsch-falsch")
@@ -295,6 +295,18 @@ class T1Api(SimCase):
         ev = [e["event"] for e in entries if e["kind"] == "event"]
         self.assertTrue(any(e["type"] == "contactor" and e["on"] for e in ev), ev)
         self.assertTrue(any(e["type"] == "state" for e in ev), ev)
+
+    def test_11a_log_loeschen(self):
+        # SOLL-ERR-13: nur angemeldet; danach nur der Loescheintrag mit Absender, Nummern weiter
+        self.assertEqual(self.sim.request("POST", "/system/log/clear", b"").status, 401)
+        before = self.sim.get_json("/system/log", self.auth)["entries"]
+        r = self.sim.request("POST", "/system/log/clear", b"", auth=self.auth)
+        self.assertEqual(r.status, 200, r)
+        entries = self.sim.get_json("/system/log", self.auth)["entries"]
+        self.assertEqual(entries[0]["kind"], "cleared")
+        self.assertEqual(entries[0]["addr"], "127.0.0.1")
+        self.assertGreater(entries[0]["seq"], before[-1]["seq"])
+        self.assertFalse(any(e["seq"] <= before[-1]["seq"] for e in entries))
 
     def test_11b_netzwerk_led(self):
         # SOLL-LED-06: an bei Verbindung, sonst 1 Hz

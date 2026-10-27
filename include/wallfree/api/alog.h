@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Zugriffsprotokoll (SOLL-ERR-11): fehlgeschlagene Anmeldungen mit
+ * Log (SOLL-ERR-11): fehlgeschlagene Anmeldungen mit
  * Absenderadresse und Ereignisse (SOLL-ERR-10) in einem Ringpuffer, der Neustarts
  * uebersteht (Backup-SRAM, wf_alog_restore), JSON fuer GET /system/log. Jeder Eintrag
  * traegt die Nummer des Starts und, falls bekannt, die Uhrzeit (SOLL-ERR-12). Fortlaufende Nummer je Eintrag (Luecke =
@@ -22,11 +22,12 @@ extern "C" {
 
 #define WF_ALOG_SIZE 48
 #define WF_ALOG_MAGIC 0x574c4f47u /* "WLOG" */
-#define WF_ALOG_VERSION 1
+#define WF_ALOG_VERSION 2
 
 enum wf_alog_kind {
 	WF_ALOG_AUTH_FAIL = 0, /**< falsches Passwort: addr, count */
 	WF_ALOG_EVENT,         /**< Ereignis nach SOLL-ERR-10: ev */
+	WF_ALOG_CLEARED,       /**< Log geloescht (SOLL-ERR-13): addr des Ausloesers */
 };
 
 struct wf_alog_entry {
@@ -47,6 +48,7 @@ struct wf_alog {
 	int64_t wall_base;  /**< Uhrzeit (ms seit 1970) bei Laufzeit 0, 0 = unbekannt */
 	struct wf_alog_entry e[WF_ALOG_SIZE];
 	uint32_t next_seq;
+	uint32_t first_seq; /**< aeltester sichtbarer Eintrag (nach dem Loeschen) */
 };
 
 void wf_alog_init(struct wf_alog *l);
@@ -67,13 +69,20 @@ void wf_alog_auth_fail(struct wf_alog *l, uint32_t addr, int64_t t);
 /** Ereignis; Zeit aus dem Ereignis. Der aelteste Eintrag faellt bei vollem Puffer heraus. */
 void wf_alog_event(struct wf_alog *l, const struct wf_event *ev);
 
+/**
+ * Alle Eintraege verwerfen (SOLL-ERR-13); erster neuer Eintrag ist "geloescht" mit der
+ * Absenderadresse, damit Loeschen selbst sichtbar bleibt. Die Nummern laufen weiter.
+ */
+void wf_alog_clear(struct wf_alog *l, uint32_t addr, int64_t t);
+
 /** Eintrag ab Nummer @p *seq lesen, Verhalten wie wf_ev_ring_get. */
 bool wf_alog_get(const struct wf_alog *l, uint32_t *seq, struct wf_alog_entry *out);
 
 /**
  * Eintrag als JSON, z. B.
  * {"seq":4,"t_ms":5300,"kind":"auth_fail","addr":"192.168.1.20","count":3} oder
- * {"seq":5,"t_ms":6100,"kind":"event","event":{...wie evse/event...}}.
+ * {"seq":5,"t_ms":6100,"kind":"event","event":{...wie evse/event...}} oder
+ * {"seq":6,"t_ms":7000,"kind":"cleared","addr":"192.168.1.20"}.
  */
 void wf_alog_entry_json(const struct wf_alog_entry *e, struct wf_jbuf *b);
 

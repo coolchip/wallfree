@@ -141,7 +141,7 @@ const checks = [
 	['Einstellungen Netzwerk', out.settingsNet.includes('DHCP') && out.settingsNet.includes('Telnet') && !out.settingsNet.includes('Broker')],
 	['System', out.system.includes('Firmware') && out.system.includes('Neu starten')],
 	['Zurueck-Taste', out.back === '#/einstellungen/netzwerk'],
-	['Zugriffsprotokoll', /zugriffsprotokoll/i.test(out.expert2)],
+	['Log mit Loeschen', out.expert2.includes('Log löschen')],
 	['Entriegelt nach Abstecken', out.expert2.includes('Verriegelung: Entriegelt')],
 	['keine Skriptfehler', !logs.some((l) => l.includes('exceptionDetails'))],
 ];

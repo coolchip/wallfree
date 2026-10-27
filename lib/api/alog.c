@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* Zugriffsprotokoll, siehe include/wallfree/api/alog.h */
+/* Log, siehe include/wallfree/api/alog.h */
 #include <stdio.h>
 #include <string.h>
 #include <wallfree/api/alog.h>
@@ -11,22 +11,28 @@ void wf_alog_init(struct wf_alog *l)
 	l->version = WF_ALOG_VERSION;
 	l->boot = 1;
 	l->next_seq = 1;
+	l->first_seq = 1;
+}
+
+static uint32_t oldest(const struct wf_alog *l)
+{
+	uint32_t o = l->next_seq > WF_ALOG_SIZE ? l->next_seq - WF_ALOG_SIZE : 1;
+
+	return l->first_seq > o ? l->first_seq : o;
 }
 
 /* Nach Stromausfall steht Zufall im Backup-SRAM: nur uebernehmen, was zusammenpasst */
 static bool plausible(const struct wf_alog *l)
 {
 	if (l->magic != WF_ALOG_MAGIC || l->version != WF_ALOG_VERSION || l->next_seq == 0 ||
-	    l->boot == 0) {
+	    l->boot == 0 || l->first_seq == 0 || l->first_seq > l->next_seq) {
 		return false;
 	}
-	uint32_t oldest = l->next_seq > WF_ALOG_SIZE ? l->next_seq - WF_ALOG_SIZE : 1;
-
-	for (uint32_t s = oldest; s < l->next_seq; s++) {
+	for (uint32_t s = oldest(l); s < l->next_seq; s++) {
 		const struct wf_alog_entry *e = &l->e[s % WF_ALOG_SIZE];
 
 		if (e->seq != s || e->boot == 0 || e->boot > l->boot ||
-		    (e->kind != WF_ALOG_AUTH_FAIL && e->kind != WF_ALOG_EVENT)) {
+		    e->kind > WF_ALOG_CLEARED) {
 			return false;
 		}
 	}
@@ -51,7 +57,7 @@ void wf_alog_set_wall_base(struct wf_alog *l, int64_t wall_base)
 
 static struct wf_alog_entry *newest(struct wf_alog *l)
 {
-	return l->next_seq > 1 ? &l->e[(l->next_seq - 1) % WF_ALOG_SIZE] : NULL;
+	return l->next_seq > l->first_seq ? &l->e[(l->next_seq - 1) % WF_ALOG_SIZE] : NULL;
 }
 
 static void push(struct wf_alog *l, struct wf_alog_entry en)
@@ -82,10 +88,15 @@ void wf_alog_event(struct wf_alog *l, const struct wf_event *ev)
 	push(l, (struct wf_alog_entry){.t = ev->t, .kind = WF_ALOG_EVENT, .ev = *ev});
 }
 
+void wf_alog_clear(struct wf_alog *l, uint32_t addr, int64_t t)
+{
+	l->first_seq = l->next_seq;
+	push(l, (struct wf_alog_entry){.t = t, .kind = WF_ALOG_CLEARED, .addr = addr});
+}
+
 bool wf_alog_get(const struct wf_alog *l, uint32_t *seq, struct wf_alog_entry *out)
 {
-	uint32_t oldest = l->next_seq > WF_ALOG_SIZE ? l->next_seq - WF_ALOG_SIZE : 1;
-	uint32_t s = *seq < oldest ? oldest : *seq;
+	uint32_t s = *seq < oldest(l) ? oldest(l) : *seq;
 
 	if (s >= l->next_seq) {
 		return false;
@@ -109,17 +120,19 @@ void wf_alog_entry_json(const struct wf_alog_entry *e, struct wf_jbuf *b)
 		wf_jb_int(b, e->wall);
 	}
 	wf_jb_key(b, "kind", false);
-	if (e->kind == WF_ALOG_AUTH_FAIL) {
+	if (e->kind == WF_ALOG_AUTH_FAIL || e->kind == WF_ALOG_CLEARED) {
 		char a[16];
 
 		snprintf(a, sizeof(a), "%u.%u.%u.%u", (unsigned int)(e->addr >> 24),
 			 (unsigned int)(e->addr >> 16) & 255u, (unsigned int)(e->addr >> 8) & 255u,
 			 (unsigned int)e->addr & 255u);
-		wf_jb_str(b, "auth_fail");
+		wf_jb_str(b, e->kind == WF_ALOG_CLEARED ? "cleared" : "auth_fail");
 		wf_jb_key(b, "addr", false);
 		wf_jb_str(b, a);
-		wf_jb_key(b, "count", false);
-		wf_jb_int(b, e->count);
+		if (e->kind == WF_ALOG_AUTH_FAIL) {
+			wf_jb_key(b, "count", false);
+			wf_jb_int(b, e->count);
+		}
 	} else {
 		wf_jb_str(b, "event");
 		wf_jb_key(b, "event", false);

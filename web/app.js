@@ -236,7 +236,7 @@ function Msg({ m }) {
 	return html`<div class="msg ${m.ok ? 'ok' : 'bad'}">${m.text}</div>`;
 }
 
-// ------------------------------------------------------------ Ereignisse, Zugriffsprotokoll
+// ------------------------------------------------------------ Ereignisse, Log
 
 // Resetgrund und genauerer Ausloeser (SOLL-RT-14), Texte fuer Protokoll und System
 const RESET = { power_on: 'Einschalten', user_restart: 'Neustart auf Anforderung', update: 'Firmware-Update',
@@ -275,6 +275,7 @@ function EventLog({ live, all }) {
 	const [boot, setBoot] = useState(0);
 	const [synced, setSynced] = useState(false);
 	const [err, setErr] = useState(null);
+	const [msg, setMsg] = useState(null);
 	const load = async () => {
 		try {
 			const l = await api('/system/log');
@@ -294,8 +295,10 @@ function EventLog({ live, all }) {
 		return () => clearInterval(t);
 	}, [polling]);
 	if (!log) return err ? html`<${Card} title="Ereignisse"><p class="bad">${err}</p><//>` : null;
+	// SOLL-ERR-13: was vor dem Loeschen live ankam, gehoert nicht mehr dazu
+	const cut = log.filter((x) => x.kind === 'cleared' && x.boot === boot).map((x) => x.t_ms).pop() ?? -1;
 	const known = Math.max(0, ...log.filter((x) => x.kind === 'event').map((x) => x.event.seq));
-	let list = log.concat(live.events.filter((e) => e.seq > known)
+	let list = log.concat(live.events.filter((e) => e.seq > known && e.t_ms > cut)
 		.map((e) => ({ kind: 'event', t_ms: e.t_ms, boot, event: e })));
 	if (!all) list = list.filter((x) => x.kind === 'event').slice(-8);
 	const today = new Date().toDateString();
@@ -304,10 +307,18 @@ function EventLog({ live, all }) {
 		return d.toDateString() === today ? d.toLocaleTimeString('de-DE') : d.toLocaleString('de-DE');
 	};
 	const time = (x) => (x.wall_ms ? fmtTime(x.wall_ms) : x.boot === boot ? fmtTime(off + x.t_ms) : 'früherer Start');
-	const text = (x) => (x.kind === 'event' ? evText(x.event)
+	const text = (x) => (x.kind === 'event' ? evText(x.event) : x.kind === 'cleared' ? 'Log gelöscht von ' + x.addr
 		: 'Anmeldung fehlgeschlagen von ' + x.addr + (x.count > 1 ? ' (' + x.count + '×)' : ''));
-	return html`<${Card} title=${all ? 'Zugriffsprotokoll' : 'Letzte Ereignisse'}>
-		${list.length === 0 ? html`<p class="muted">Keine seit dem Start.</p>` : html`<table>
+	const clear = async () => {
+		if (!confirm('Alle Einträge des Logs löschen? Das Löschen selbst bleibt als Eintrag stehen.')) return;
+		try {
+			await post('/system/log/clear', {});
+			setMsg(null);
+			await load();
+		} catch (e) { setMsg({ ok: false, text: e.message }); }
+	};
+	return html`<${Card} title=${all ? 'Log' : 'Letzte Ereignisse'}>
+		${list.length === 0 ? html`<p class="muted">Keine Einträge.</p>` : html`<table>
 			${list.slice().reverse().map((x) => html`<tr>
 				<td class="num muted">${time(x)}</td>
 				<td class=${x.kind === 'event' ? (x.event.type === 'error' && x.event.set.length ? 'bad' : '') : 'warn'}>${text(x)}</td>
@@ -315,6 +326,8 @@ function EventLog({ live, all }) {
 		</table>`}
 		${all && html`<p class="muted msg">Letzte 48 Einträge, auch über Neustarts hinweg (nicht über einen Stromausfall). ${synced
 			? 'Uhrzeiten vom Zeitserver.' : 'Ohne Zeitserver sind Uhrzeiten auf wenige Sekunden genau, Einträge früherer Starts haben keine.'}</p>`}
+		${all && html`<div class="row"><button onClick=${clear}>Log löschen</button></div>`}
+		${msg && html`<${Msg} m=${msg} />`}
 	<//>`;
 }
 

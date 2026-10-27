@@ -67,7 +67,7 @@ static struct http_header hdr_auth = {.name = "WWW-Authenticate", .value = chall
 static char retry_after[12];
 static struct http_header hdr_retry = {.name = "Retry-After", .value = retry_after};
 static struct wf_rl rl; /* Bremse je Absender (nur Server-Thread) */
-/* Zugriffsprotokoll (SOLL-ERR-11), Server- und WebSocket-Thread; uebersteht Neustarts
+/* Log (SOLL-ERR-11), Server- und WebSocket-Thread; uebersteht Neustarts
  * im Backup-SRAM (SOLL-ERR-12) */
 static struct wf_alog alog HW_RETAINED;
 static K_MUTEX_DEFINE(alog_mtx);
@@ -754,6 +754,22 @@ static void system_log(struct http_client_ctx *client, struct res *r,
 	rsp->final_chunk = next == WF_ALOG_DONE;
 }
 
+/* SOLL-ERR-13: Log loeschen; der erste neue Eintrag nennt den Absender */
+static void system_log_clear(struct http_client_ctx *client, struct res *r,
+			     struct http_response_ctx *rsp)
+{
+	ARG_UNUSED(r);
+	uint32_t addr = peer_addr(client->fd);
+
+	k_mutex_lock(&alog_mtx, K_FOREVER);
+	wf_alog_clear(&alog, addr, k_uptime_get());
+	k_mutex_unlock(&alog_mtx);
+	LOG_INF("Log geloescht von %u.%u.%u.%u", addr >> 24, (addr >> 16) & 255, (addr >> 8) & 255,
+		addr & 255);
+	strcpy(out, "{}");
+	respond(rsp, HTTP_200_OK, 2);
+}
+
 /* SOLL-API-33: in Teilen wie /system/log */
 static void evse_history(struct http_client_ctx *client, struct res *r,
 			 struct http_response_ctx *rsp)
@@ -828,6 +844,7 @@ static void evse_cp_scope(struct http_client_ctx *client, struct res *r,
 JSON_RESOURCE(evse_cp_scope_r, "/evse/cp_scope", BIT(HTTP_GET), evse_cp_scope, false, 0);
 JSON_RESOURCE(evse_history_r, "/evse/history", BIT(HTTP_GET), evse_history, false, 0);
 JSON_RESOURCE(system_log_r, "/system/log", BIT(HTTP_GET), system_log, false, 0);
+JSON_RESOURCE(system_log_clear_r, "/system/log/clear", BIT(HTTP_POST), system_log_clear, false, 16);
 JSON_RESOURCE(system_info_r, "/system/info", BIT(HTTP_GET), system_info, false, 0);
 JSON_RESOURCE(system_config_r, "/system/config", BIT(HTTP_GET) | BIT(HTTP_POST), system_config,
 	      false, 512);
@@ -989,7 +1006,7 @@ static void ws_send(int i, int t)
 
 /*
  * Ereignisse (SOLL-ERR-10): an alle verbundenen Clients als Topic
- * evse/event, ins Log und ins Zugriffsprotokoll (SOLL-ERR-11). Kein Nachsenden beim Verbinden;
+ * evse/event, in die Logausgabe und ins Log (SOLL-ERR-11). Kein Nachsenden beim Verbinden;
  * verlorene Ereignisse (Ringpuffer uebergelaufen) zeigt die Luecke in seq.
  */
 static uint32_t ev_seq = 1;

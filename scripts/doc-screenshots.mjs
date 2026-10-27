@@ -129,7 +129,7 @@ await js('document.querySelector(".h-hit").dispatchEvent(new PointerEvent("point
 await shot('insights-ladestrom', 'Ladestrom');
 await shot('insights-fehler', 'Fehler');
 await shot('insights-zaehler', 'Zähler (nur Anzeige)');
-await shot('insights-protokoll', 'Zugriffsprotokoll', 420);
+await shot('insights-protokoll', 'Log', 420);
 await shot('insights-status', 'Status der Ladelogik', 360);
 for (const p of ['laden', 'netzwerk', 'mqtt', 'zaehler', 'zugang']) {
 	await go('#/einstellungen/' + p);

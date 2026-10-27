@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* Tests Zugriffsprotokoll (SOLL-ERR-11) */
+/* Tests Log (SOLL-ERR-11..13) */
 #include <string.h>
 #include <zephyr/ztest.h>
 #include <wallfree/api/alog.h>
@@ -211,4 +211,48 @@ ZTEST(api_alog, test_restore)
 	wf_alog_event(&l, &ev);
 	l.version++;
 	zassert_false(wf_alog_restore(&l));
+}
+
+/* SOLL-ERR-13: Loeschen hinterlaesst einen Eintrag mit Absender, Nummern laufen weiter */
+ZTEST(api_alog, test_clear)
+{
+	struct wf_alog_entry e;
+	struct wf_event ev = state_ev(100, 1, 2);
+	uint32_t seq = 0;
+	char buf[256];
+	struct wf_jbuf b;
+
+	wf_alog_auth_fail(&l, A, 50);
+	wf_alog_event(&l, &ev);
+	wf_alog_clear(&l, B, 900);
+	zassert_true(wf_alog_get(&l, &seq, &e));
+	zassert_equal(e.seq, 3, "Nummern laufen weiter");
+	zassert_equal(e.kind, WF_ALOG_CLEARED);
+	zassert_equal(e.addr, B);
+	zassert_false(wf_alog_get(&l, &seq, &e), "aeltere Eintraege verworfen");
+
+	wf_alog_auth_fail(&l, B, 950); /* nicht mit dem Loescheintrag zusammenfassen */
+	zassert_true(wf_alog_get(&l, &seq, &e));
+	zassert_equal(e.kind, WF_ALOG_AUTH_FAIL);
+	zassert_equal(e.count, 1);
+
+	wf_jb_init(&b, buf, sizeof(buf));
+	zassert_equal(wf_alog_json(&l, 0, &b), WF_ALOG_DONE);
+	zassert_str_equal(buf, "{\"boot\":1,\"entries\":["
+			       "{\"seq\":3,\"t_ms\":900,\"boot\":1,\"kind\":\"cleared\",\"addr\":\"10.0.0.2\"},"
+			       "{\"seq\":4,\"t_ms\":950,\"boot\":1,\"kind\":\"auth_fail\",\"addr\":\"10.0.0.2\","
+			       "\"count\":1}]}");
+
+	zassert_true(wf_alog_restore(&l), "geloeschter Stand uebersteht den Neustart");
+	seq = 0;
+	zassert_true(wf_alog_get(&l, &seq, &e));
+	zassert_equal(e.seq, 3);
+
+	/* nach dem Loeschen voller Umlauf: wie ohne Loeschen */
+	for (int i = 0; i < WF_ALOG_SIZE + 5; i++) {
+		wf_alog_event(&l, &ev);
+	}
+	seq = 0;
+	zassert_true(wf_alog_get(&l, &seq, &e));
+	zassert_equal(e.seq, l.next_seq - WF_ALOG_SIZE);
 }

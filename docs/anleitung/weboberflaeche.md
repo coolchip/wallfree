@@ -223,9 +223,9 @@ laufend, prüfen Sie Verdrahtung, Adresse und Übertragungsparameter ([7.4](#74-
 „ungültig“ bedeutet: Der Wert fehlt oder ist veraltet. Er wird bewusst nicht als 0
 angezeigt.
 
-### 6.5 Zugriffsprotokoll
+### 6.5 Log
 
-![Zugriffsprotokoll](bilder/insights-protokoll.png)
+![Log](bilder/insights-protokoll.png)
 
 Die letzten 48 Einträge, auch über Neustarts hinweg: jeder **Start** mit seinem Grund (z. B.
 „Start: Überwachung (Ladelogik reagierte nicht)“), alle Ereignisse und **fehlgeschlagene Anmeldungen**
@@ -233,9 +233,12 @@ mit der Adresse des Geräts (orange). Mehrere Fehlversuche desselben Geräts wer
 Eintrag mit Anzahl zusammengefasst. Unbekannte Fehlversuche können auf einen Zugriffsversuch
 im Netz oder auf ein Gerät mit veralteten Zugangsdaten hinweisen.
 
-Das Protokoll übersteht Neustarts, Updates und Werksreset, aber keinen Stromausfall. Einträge
+Das Log übersteht Neustarts, Updates und Werksreset, aber keinen Stromausfall. Einträge
 aus einem früheren Start zeigen statt der Uhrzeit „früherer Start“, solange die Steuerung keine
 Uhrzeit von einem Zeitserver hat.
+
+**Log löschen** entfernt nach einer Rückfrage alle Einträge. Das Löschen selbst bleibt als
+erster Eintrag „Log gelöscht von …“ mit der Adresse des Geräts stehen.
 
 ### 6.6 Status der Ladelogik
 
@@ -477,7 +480,7 @@ Sie es deshalb nur in einem vertrauenswürdigen Netz.
 
 **Neu starten** startet die Steuerung neu, z. B. damit geänderte Netzwerk- oder
 Zählereinstellungen wirken. Ein laufender Ladevorgang wird vorher geordnet beendet. Die Seite
-lädt nach etwa 25 Sekunden neu. Der Verlauf beginnt danach leer, das Zugriffsprotokoll bleibt;
+lädt nach etwa 25 Sekunden neu. Der Verlauf beginnt danach leer, das Log bleibt;
 alle Einstellungen bleiben erhalten.
 
 ### 8.1 Firmware-Update
