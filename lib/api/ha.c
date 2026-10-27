@@ -55,10 +55,16 @@ static void key_str(struct wf_jbuf *b, const char *k, const char *v, bool first)
 	wf_jb_str(b, v);
 }
 
+/* Ein gekuerzter Wert (z. B. eine Vorlage ohne "}}") darf nie gesendet werden */
+static bool fits(int n, size_t size)
+{
+	return n >= 0 && (size_t)n < size;
+}
+
 int wf_ha_config(int i, const struct wf_ha_ctx *c, char *topic, size_t topic_size,
 		 struct wf_jbuf *b)
 {
-	char s[96];
+	char s[128];
 
 	if (i < 0 || (size_t)i >= sizeof(ents) / sizeof(ents[0])) {
 		return -1;
@@ -67,7 +73,7 @@ int wf_ha_config(int i, const struct wf_ha_ctx *c, char *topic, size_t topic_siz
 	int n = snprintf(topic, topic_size, WF_HA_PREFIX "/%s/%s/%s/config", e->comp, c->node,
 			 e->obj);
 
-	if (n < 0 || (size_t)n >= topic_size) {
+	if (!fits(n, topic_size)) {
 		topic[0] = '\0';
 		return -1;
 	}
@@ -79,11 +85,15 @@ int wf_ha_config(int i, const struct wf_ha_ctx *c, char *topic, size_t topic_siz
 	wf_jb_raw(b, "{");
 	key_str(b, "~", c->base, true);
 	key_str(b, "name", e->name, false);
-	snprintf(s, sizeof(s), "%s_%s", c->node, e->obj);
+	if (!fits(snprintf(s, sizeof(s), "%s_%s", c->node, e->obj), sizeof(s))) {
+		return -1;
+	}
 	key_str(b, "uniq_id", s, false);
 	snprintf(s, sizeof(s), "~/%s", e->topic);
 	key_str(b, "stat_t", s, false);
-	snprintf(s, sizeof(s), e->tpl, idx);
+	if (!fits(snprintf(s, sizeof(s), e->tpl, idx), sizeof(s))) {
+		return -1;
+	}
 	key_str(b, "val_tpl", s, false);
 	if (e->unit != NULL) {
 		key_str(b, "unit_of_meas", e->unit, false);

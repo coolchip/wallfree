@@ -17,10 +17,22 @@ static int gen(int i, const struct wf_ha_ctx *c)
 	return wf_ha_config(i, c, topic, sizeof(topic), &b);
 }
 
+/* Wertvorlage vollstaendig: "{{ ... }}" (Testgeraet 2026-10-27: Zustand war auf 96 Byte gekuerzt) */
+static void check_tpl(void)
+{
+	const char *t = strstr(buf, "\"val_tpl\":\"{{ ");
+	const char *end;
+
+	zassert_not_null(t, "%s", buf);
+	end = strchr(t + 11, '"');
+	zassert_not_null(end);
+	zassert_true(end - t > 14 && strncmp(end - 3, " }}", 3) == 0, "%.*s", (int)(end - t), t);
+}
+
 ZTEST(api_ha, test_configs)
 {
 	const struct wf_ha_ctx c = {.base = "wallfree/a1b2c3", .node = "wallfree_a1b2c3",
-				    .name = "Wallfree a1b2c3", .version = "2e0fb17",
+				    .name = "Wallfree a1b2c3", .version = "0.1+2e0fb17",
 				    .commands = false, .power_idx = -1, .energy_idx = -1};
 	int made = 0, removed = 0, i;
 
@@ -34,6 +46,7 @@ ZTEST(api_ha, test_configs)
 			zassert_not_null(strstr(buf, "\"avty_t\":\"~/online\""));
 			zassert_not_null(strstr(buf, "\"ids\":[\"wallfree_a1b2c3\"]"));
 			zassert_not_null(strstr(buf, "\"uniq_id\":\"wallfree_a1b2c3_"));
+			check_tpl();
 		} else {
 			removed++;
 		}
@@ -56,6 +69,7 @@ ZTEST(api_ha, test_commands_and_meter)
 
 	for (i = 0; gen(i, &c) >= 0; i++) {
 		n += gen(i, &c) == 1;
+		check_tpl();
 		if (strstr(topic, "/number/") != NULL) {
 			zassert_not_null(strstr(buf, "\"cmd_t\":\"~/evse/external_current_update\""));
 			zassert_not_null(strstr(buf, "\"cmd_tpl\":\"{{ (value * 1000) | int }}\""));
@@ -79,7 +93,7 @@ ZTEST(api_ha, test_size)
 	static const char base[] =
 		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 	const struct wf_ha_ctx c = {.base = base, .node = "wallfree_a1b2c3",
-				    .name = "wallfree-1234567890123456789012345", .version = "2e0fb17-dirty",
+				    .name = "wallfree-1234567890123456789012345", .version = "0.2-dev+2e0fb17-dirty",
 				    .commands = true, .power_idx = 7, .energy_idx = 9};
 
 	zassert_equal(strlen(base), 64);
