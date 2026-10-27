@@ -355,6 +355,7 @@ auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/do
 | Netzlast (`scripts/net-load.py`) | Mit kooperativen Netz-Threads startete das Testgerät unter 4 parallelen Abfragern neu (Fallstricke); seit `eca1ad4` kein Neustart: 83 Anfragen/s, hoechstens 123 ms; 3 WebSockets, Takt 2,0 s; 2300 Verbindungsabbrueche in 60 s ohne Rest; 30 min Dauerlast mit 2 WebSockets und MQTT ohne Neustart, WebSocket-Luecke hoechstens 2,1 s |
 | MQTT (Mosquitto 2.1 im LAN) | Verbindung sofort nach `mqtt_enable`; Zustaende retained; Befehl als Zahl und JSON, 3 A abgelehnt, ohne `mqtt_commands` wirkungslos, retained Befehl verworfen; nach Broker-Neustart in 4 s verbunden; Last Will bei Uebernahme der Sitzung nach Neustart |
 | evcc 0.317.2 | Anmeldung und WebSocket ohne Fehler, ohne Fahrzeug "car disconnected", `external_current` = 0 |
+| Version (`v0.1`, 2026-10-27) | Update auf 0.1 erfolgreich, `/system/info` mit `firmware` 0.1 und `build` d45de9d, Pruefsumme passt zur Datei, Protokoll laeuft ueber den Update-Neustart weiter |
 | Protokoll, Uhrzeit, CP-Aufnahme (`6eb0e08`, 2026-10-27) | Zugriffsprotokoll uebersteht den Neustart; Uhrzeit von `pool.ntp.org` (Router meldet per DHCP keinen Zeitserver, DNS ueber DHCP funktioniert); CP-Aufnahme im Leerlauf +11,9 V |
 | Stacks | siehe [Ressourcen](#ressourcen); keiner ueber 82 % |
 
@@ -371,6 +372,8 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
 - Energiezaehler an RS-485 (kein Zaehler vorhanden).
 - Import aus Sektor 3 auf der Steuerung noch nicht ausgefuehrt (fuer das Testgerät ungeeignet: er setzte
   LD 3, CR 9 und die feste Adresse 192.168.0.8).
+- Weboberflaeche und Anleitung: "Build <commit>" statt "Bau <commit>" (Nutzer 2026-10-27: im
+  Deutschen gelaeufiger); Festlegung Versionsnummer entsprechend anpassen.
 - Browser-Durchlauf um Zugangsdaten-Seite und Netz/System erweitern (Parameter schreiben ueber
   Auswahlliste und Kaestchen ist von Hand in der Simulation geprueft).
 
