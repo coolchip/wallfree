@@ -11,7 +11,8 @@ import { spawn } from 'node:child_process';
 import { writeFileSync, mkdtempSync } from 'node:fs';
 import net from 'node:net';
 
-const [port, user, pass, outdir, variant] = process.argv.slice(2);
+const [port, user, pass0, outdir, variant] = process.argv.slice(2);
+let pass = pass0; // aendert sich beim Pruefen der Zugangsdaten-Seite
 const withMeter = variant === 'meter';
 const base = `http://127.0.0.1:${port}/`;
 const dbg = 9333;
@@ -31,6 +32,7 @@ await new Promise((r) => ws.addEventListener('open', r));
 let id = 0;
 const pending = new Map();
 const logs = [];
+const dialogs = [];
 ws.addEventListener('message', (m) => {
 	const d = JSON.parse(m.data);
 	if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); return; }
@@ -39,6 +41,9 @@ ws.addEventListener('message', (m) => {
 			authChallengeResponse: { response: 'ProvideCredentials', username: user, password: pass } });
 	} else if (d.method === 'Fetch.requestPaused') {
 		send('Fetch.continueRequest', { requestId: d.params.requestId });
+	} else if (d.method === 'Page.javascriptDialogOpening') {
+		dialogs.push(d.params.message);
+		send('Page.handleJavaScriptDialog', { accept: true });
 	} else if (d.method === 'Runtime.consoleAPICalled' || d.method === 'Runtime.exceptionThrown') {
 		logs.push(JSON.stringify(d.params).slice(0, 300));
 	} else if (d.method === 'Network.webSocketCreated' || d.method === 'Network.webSocketClosed' ||
@@ -120,6 +125,66 @@ await shot('4-getrennt');
 await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
 await sleep(5000);
 out.mode3 = await evalJs(conn);
+
+// Eingaben wie ein Nutzer: Wert setzen und das Ereignis ausloesen, auf das Preact hoert
+const setField = (sel, value, ev) => evalJs(`(() => { const e = ${sel}; if (!e) return false;
+	if (e.type === 'checkbox') e.checked = ${JSON.stringify(value)}; else e.value = ${JSON.stringify(value)};
+	e.dispatchEvent(new Event(${JSON.stringify(ev)}, { bubbles: true })); return true; })()`);
+const paramRow = (name) => `[...document.querySelectorAll('td[title]')].find((t) => t.title === '${name}').parentElement`;
+const api = (path) => evalJs(`fetch(${JSON.stringify(path)}).then((r) => r.json())`);
+
+// Einstellungen/Laden: Auswahlliste und Kaestchen schreiben, danach zurueck
+await go('#/einstellungen/laden');
+const p0 = await api('/evse/params');
+out.selSet = await setField(`${paramRow('wakeup_mode')}.querySelector('select')`, '1', 'change');
+await evalJs(`${paramRow('wakeup_mode')}.querySelector('button').click()`);
+out.boxSet = await setField(`${paramRow('reject_state_d')}.querySelector('input[type=checkbox]')`, !p0.reject_state_d, 'change');
+await evalJs(`${paramRow('reject_state_d')}.querySelector('button').click()`);
+await sleep(1500);
+const p1 = await api('/evse/params');
+out.params = [p0.wakeup_mode, p1.wakeup_mode, p0.reject_state_d, p1.reject_state_d];
+out.paramMsg = await evalJs(`${paramRow('wakeup_mode')}.innerText`);
+await evalJs(`fetch('/evse/params', { method: 'POST', body: JSON.stringify({ wakeup_mode: ${p0.wakeup_mode}, reject_state_d: ${p0.reject_state_d} }) })`);
+
+// Ereignisprotokoll per Klick loeschen (mit Rueckfrage)
+await go('#/insights');
+out.clearClick = await click('Protokoll löschen');
+await sleep(2500);
+out.afterClear = await text();
+const log = await api('/system/log');
+out.clearLog = log.entries.map((e) => e.kind + (e.addr ? ' ' + e.addr : '')).join(',');
+
+// Netzwerk: Wert speichern, der erst nach Neustart wirkt; "Jetzt neu starten"
+const cfg0 = await api('/system/config');
+await go('#/einstellungen/netzwerk');
+await setField(`document.querySelector('label[title=net_hostname] input')`, 'browsertest', 'input');
+await click('Speichern');
+await sleep(1500);
+out.netSaved = await text();
+const boot0 = (await api('/system/log')).boot;
+out.restartClick = await click('Jetzt neu starten');
+await sleep(32000); // Seite laedt nach 25 s neu, Simulation startet per execv neu
+const si = await api('/system/info');
+const cfg1 = await api('/system/config');
+out.restart = [si.reset_reason, cfg1.active.net_hostname, (await api('/system/log')).boot - boot0];
+await evalJs(`fetch('/system/config', { method: 'POST', body: JSON.stringify({ net_hostname: ${JSON.stringify(cfg0.saved.net_hostname)} }) })`);
+
+// Zugangsdaten: Benutzer vorbelegt, Passwort aendern (Seite laedt neu, neue Anmeldung), zurueck
+const changePw = async (pw) => {
+	await go('#/einstellungen/zugang');
+	const u = await evalJs(`document.querySelector('input[autocomplete=username]').value`);
+	await evalJs(`[...document.querySelectorAll('input[type=password]')].forEach((e) => { e.value = ${JSON.stringify(pw)};
+		e.dispatchEvent(new Event('input', { bubbles: true })); })`);
+	await click('Speichern');
+	await sleep(1000);
+	const msg = await text();
+	pass = pw; // Chrome fragt nach dem Neuladen neu an
+	await sleep(4000);
+	return [u, msg.includes('Bitte mit den neuen Zugangsdaten anmelden'), (await api('/system/info')).firmware];
+};
+out.pw1 = await changePw(pass0 + '-neu');
+out.pw2 = await changePw(pass0);
+out.dialogs = dialogs;
 out.logs = logs;
 writeFileSync(`${outdir}/browse.json`, JSON.stringify(out, null, 1));
 ws.close();
@@ -143,6 +208,16 @@ const checks = [
 	['Zurueck-Taste', out.back === '#/einstellungen/netzwerk'],
 	['Ereignisprotokoll mit Loeschen', out.expert2.includes('Protokoll löschen')],
 	['Entriegelt nach Abstecken', out.expert2.includes('Verriegelung: Entriegelt')],
+	['Laden: Auswahlliste geschrieben', out.selSet && out.params[0] !== out.params[1] && out.params[1] === 1],
+	['Laden: Kaestchen geschrieben', out.boxSet && out.params[2] !== out.params[3]],
+	['Laden: Meldung "gespeichert"', out.paramMsg.includes('gespeichert')],
+	['Protokoll loeschen: Rueckfrage, nur Loescheintrag', out.clearClick && dialogs.some((d) => d.includes('Ereignisprotokolls löschen'))
+		&& out.clearLog.startsWith('cleared 127.0.0.1') && out.afterClear.includes('Ereignisprotokoll gelöscht von 127.0.0.1')],
+	['Netzwerk: Hinweis Neustart', out.netSaved.includes('wirkt nach Neustart') && out.netSaved.includes('Jetzt neu starten')],
+	['Neustart ueber die Seite: Rueckfrage, Neustart, Wert aktiv', out.restartClick && dialogs.some((d) => d.includes('neu starten'))
+		&& out.restart[0] === 'user_restart' && out.restart[1] === 'browsertest' && out.restart[2] === 1],
+	['Zugangsdaten: Benutzer vorbelegt, Aenderung und Neuanmeldung', out.pw1[0] === user && out.pw1[1] && !!out.pw1[2]
+		&& out.pw2[1] && !!out.pw2[2]],
 	['keine Skriptfehler', !logs.some((l) => l.includes('exceptionDetails'))],
 ];
 if (withMeter) {

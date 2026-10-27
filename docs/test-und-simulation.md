@@ -106,11 +106,18 @@ zeigt "begrenzt durch Maximum Drehschalter (32 A)", ohne Zaehler "32 A erlaubt")
 "Laden aus" (S6 -> S7 -> S3, "Vorgabe: Laden aus"), Insights (Ladestrom-Tabelle, Verlauf
 mit laufendem Intervall, Ereignisprotokoll mit Fehlversuch und Taste "Protokoll loeschen"), Einstellungen/Netzwerk und /Zaehler,
 System, Zurueck-Taste (Adresse im Hash), `sim car A`, Netz im Browser 7 s trennen ("getrennt", grau)
-und wieder verbinden ("verbunden"); Screenshots und Texte im Ausgabeverzeichnis.
+und wieder verbinden ("verbunden"). Danach Bedienung wie ein Nutzer (Rueckfragen werden bestaetigt
+und mitgeschrieben): Einstellungen/Laden je ein Wert ueber Auswahlliste (`wakeup_mode`) und
+Kaestchen (`reject_state_d`) mit "OK", Meldung "gespeichert", Wert per API; "Protokoll loeschen"
+(danach nur "Ereignisprotokoll geloescht von 127.0.0.1"); Netzwerk: Hostname speichern, Hinweis
+"wirkt nach Neustart", "Jetzt neu starten" -> Resetgrund `user_restart`, Hostname aktiv, neue
+Startnummer; Anmeldedaten: Benutzer vorbelegt, Passwort aendern, Neuanmeldung, zurueck. Geaenderte
+Werte setzt der Lauf zurueck. Screenshots und Texte im Ausgabeverzeichnis.
 Mit `meter` (in der Simulation `meter_type` != 0) zusaetzlich: Zaehlerkarte mit Leistung beim
 Laden, Messwert mit Leistung im Ring, Messwerte und Fehlerzaehler, Leistung im Verlauf, Auswahlliste des Zaehlertyps mit Zustand;
-ohne Zaehler zeigt der Verlauf nur den Strom. Nicht abgedeckt:
-Zugangsdaten-Seite, Parameter schreiben, Netz/System.
+ohne Zaehler zeigt der Verlauf nur den Strom. Nicht abgedeckt: erste Anmeldung im Werkszugang
+(Seite "Zugangsdaten festlegen"; Ende-zu-Ende-Test prueft die API), Firmware-Update (eigener
+Durchlauf, unten). Simulation 2026-10-27: bestanden.
 
 ### Firmware-Update im Browser
 

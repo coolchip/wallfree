@@ -377,8 +377,6 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
   haengt und wie das Relais angesteuert wird (Nutzer 2026-10-27).
 - Import aus Sektor 3 auf der Steuerung noch nicht ausgefuehrt (fuer das Testgerät ungeeignet: er setzte
   LD 3, CR 9 und die feste Adresse 192.168.0.8).
-- Browser-Durchlauf um Zugangsdaten-Seite und Netz/System erweitern (Parameter schreiben ueber
-  Auswahlliste und Kaestchen ist von Hand in der Simulation geprueft).
 
 ## Ideen fuer spaeter
 
@@ -392,6 +390,7 @@ Nicht beauftragt; gesammelt mit dem Nutzer (2026-10-26). Beauftragte Punkte steh
 | OCPP 1.6J (zurueckgestellt, Nutzer 2026-10-26) | Abrechnung ueber Backends (Dienstwagen) | grob 25..40 KB Flash, 6..10 KB RAM, rund 25 Konfigurationsschluessel; die meisten Backends verlangen TLS (passt kaum); wenige Privatanwender |
 | Lizenzhinweis in der Weboberflaeche | Wallfree Apache-2.0, enthaelt Zephyr (Apache-2.0), Preact (MIT), htm (Apache-2.0); Link aufs Projekt; Vermerk in `web/vendor/preact-htm.js` (MIT verlangt ihn) | ~150 Byte; Link erst mit oeffentlicher Adresse |
 | Lastmanagement mehrerer Boxen | – | kann evcc; nicht in der Firmware |
+| Umschaltbarer Expertenmodus (Nutzer 2026-10-27) | einfache Oberflaeche fuer Nutzer, die sich nicht mit den Parametern beschaeftigen wollen (vor allem Einstellungen/Laden); Experten schalten die volle Ansicht zu | nur Weboberflaeche; offen, was im einfachen Modus bleibt (z. B. Uebersicht, Vorgabe, Netzwerk, Anmeldedaten, Update) und ob die Wahl im Browser oder auf der Steuerung gespeichert wird |
 | Phasenumschaltung 1p/3p ueber C3/C4 (Nutzer 2026-10-27, spaeter) | Laden ab etwa 1,4 kW statt 4,1 kW (PV-Ueberschuss); evcc kann die Umschaltung ueber die WARP-Schnittstelle steuern | setzt eine Ansteuerung des Relais C3/C4 voraus; PE1 ist es nicht (Testgerät 2026-10-27, unter Offen). C3/C4 schaltet nur die Spule eines zweiten Schuetzes (wie C1/C2, Handbuch: Last nie direkt); ueblich: Schuetz 1 L1+N, Schuetz 2 L2+L3; Umschalten nur ohne Last (Laden unterbrechen, Pause, neu starten); Rueckmeldung des zweiten Schuetzes ueber einen Hilfskontakt an einem Eingang; zweites Schuetz nie ohne das erste. WARP: WARP2 mit Energy Manager und externem Schuetz (230-V-Schaltausgang, Hilfskontakt-Rueckmeldung, Laden wird vor dem Umschalten unterbrochen), WARP3 mit zwei eingebauten zweipoligen 63-A-Hutschienenschuetzen (Ersatzteil `WARP-CON-2P-63A`, Hersteller nicht genannt, auf dem Produktfoto "EKMF6320" laut Nutzer 2026-10-27; 63 A gilt je Pol, Reserve fuer Dauerlast und Waerme; fuer 11 kW genuegt vermutlich ein kleineres, der Nutzer wuerde ein anderes waehlen; das zweite schaltet L2/L3 und bleibt bei einphasigem Anschluss immer aus; WARP3-Betriebsanleitung 1.2, Abschnitt 5 und 13.7). Installation durch eine Elektrofachkraft |
 | Zweite Sprache (Englisch) | Nutzer ausserhalb des deutschen Sprachraums (GitHub) | etwa 8..12 KB Flash; Hilfetexte der Parameter kommen aus der Firmware und muessten doppelt vorliegen; Anleitung uebersetzen. Vorerst nur Deutsch (Nutzer 2026-10-27) |
 | Bewusst nicht: TLS fuer die Weboberflaeche, signierte Updates, RFID; gestufter Werksreset (Passwort vergessen nur ueber den kompletten Werksreset, Nutzer 2026-10-26) | – | Platz/Zertifikate; Bootloader prueft nichts; keine Hardware |
@@ -404,6 +403,8 @@ Fuer die spaetere Veroeffentlichung der Firmware vorbereiten:
   Uhrzeit, Protokoll ueber Neustarts, CP-Oszilloskop, Update ueber die Weboberflaeche).
 - Behobene Fehler bzw. Abweichungen gegenueber der Originalfirmware (Markierungen [ABW] in der
   Soll-Spezifikation, z. B. Auswertung der gepulsten LD-Rueckmeldung).
+- Liste der Fehler in der wallbe-/Compleo-Firmware (Nutzer 2026-10-27), in eigenen Worten aus den
+  Befunden in wallbe2 (z. B. Sicherheitsauffaelligkeiten im Analysestand, Vergleich mit 1.27).
 - Rueckweg zur Originalfirmware ist moeglich (auf dem Testgerät geprueft), mit Anleitung.
 - Vorher-Nachher-Vergleich der Weboberflaeche (Original gegen Wallfree, nur eigene Bilder).
 - Kompletter Simulator auf dem PC (native_sim mit Hardwaremodell, Ersatz-Bootloader, evcc).
