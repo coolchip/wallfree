@@ -137,7 +137,7 @@ wiedergibt [ANN]; Bestaetigung in H1/H2.
 | 7 | R1/R2 | Steuerspannung Verriegelungsaktor, 12 V, max. 1 A, Impuls 500 ms (Default) bis 3 s | **PA9** (Verriegeln), **PA10** (Entriegeln) | Ausgaenge, Ruhe High, Impuls = Low | Abschnitt 8 | FW, HB S. 9, A4953-Ansteuerung [HYP] |
 | 7 | CP | Control Pilot | **PE9** (TIM1_CH1, PWM), **PA0** (IN0, CP+), **PB1** (IN9, CP-) | PWM 1 kHz, +-12 V ueber Treiber [HYP] | Abschnitt 4 | FW |
 | 7 | PX | Proximity | **PB0** (IN8) | analog | Abschnitt 4 | FW |
-| 8 | C3/C4 | Relaisausgang, "reserviert" | **PE1** [HYP] | Ausgang | D5-Funktion (SOLL-PROT-24); Zuordnung PE1 -> C3/C4 ist eine Vermutung | FW (PE1-Schreiber), Zuordnung offen |
+| 8 | C3/C4 | Relaisausgang, "reserviert" | unbekannt (nicht PE1) | Ausgang | PE1 (D5-Funktion, SOLL-PROT-24) schaltet das Relais nicht: Testgerät 2026-10-27, PE1 High ohne Klicken | FW, Testgerät |
 | 9 | Antenne | Mobilfunk | – | – | nicht genutzt | HB |
 
 ### 2.2 Bedienelemente (HB S. 15/16)
@@ -883,7 +883,7 @@ nacheinander; gesendet wird ein Objekt je Rahmen (auch fuer Browser einfach).
 | SOLL-SH-09 | `evse import-original` | einmalige Uebernahme aus Sektor 3 (SOLL-NVM-10), nur im sicheren Zustand |
 | SOLL-SH-10 | `evse bootloader` | Update-Uebergabe (SOLL-BOOT-30) |
 | SOLL-SH-11 | `evse reboot` | Neustart nach SOLL-RT-22 (HTTP: `POST /system/restart`). Zephyrs `kernel reboot` ist entfernt (`CONFIG_REBOOT=n`), weil es die Wartezeit umgehen wuerde (SOLL-SH-20) |
-| SOLL-SH-12 | `evse pe1-test` | Diagnose: PE1 fuer 1 s High, um die Zuordnung PE1 -> Relais C3/C4 an der Hardware zu pruefen (F15). Nur in S1 ohne Fahrzeug (CP A) und mit Schuetz aus; verlaesst die Steuerung diesen Zustand, faellt PE1 sofort ab. Im Betrieb bleibt PE1 Low. |
+| SOLL-SH-12 | `evse pe1-test` | Diagnose: PE1 fuer 1 s High, um das Ziel von PE1 an der Hardware zu finden (F15; das Relais C3/C4 ist es nicht). Nur in S1 ohne Fahrzeug (CP A) und mit Schuetz aus; verlaesst die Steuerung diesen Zustand, faellt PE1 sofort ab. Im Betrieb bleibt PE1 Low. |
 | SOLL-SH-19 | Telnet-Shell ohne Anmeldung, Default **aus** (`telnet_enable` = 0, F20, Nutzer 2026-10-26); in der Weboberflaeche einschaltbar, wirkt nach Neustart. Telnet bleibt in der Firmware (Diagnose). |
 | SOLL-SH-20 | Shell-Kommandos sind gegenueber dem Schutzpfad nicht privilegiert: kein Kommando kann Schutzfunktionen abschalten, das Schuetz direkt einschalten oder Aktorimpulse ausserhalb der Ablaufregeln ausloesen. | AG Sicherheitsgrenzen |
 
@@ -1118,7 +1118,7 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 | F12 | Startwert `external` | keine Einschraenkung (80000), parametrierbar wie WARP `external_defaults`; Sollwert, Grenzen und wirksamer Strom getrennt sichtbar (SOLL-API-32) | ohne Zutun soll geladen werden; ein Startwert 0 wurde erprobt und verworfen, weil ohne evcc nie geladen wuerde | SOLL-CUR-15 |
 | F13 | RCM-Wiederholtest in A | alle 30 s | Ruecksetzen moeglich, ohne den Sensor dauernd zu testen | SOLL-PROT-11 |
 | F14 | Schuetzfehler ruecksetzen | nur Neustart oder Quittierung | ein klebendes Schuetz ist gefaehrlich; das Original loescht den Fehler, sobald die Erkennung entfaellt | SOLL-PROT-23 |
-| F15 | D5/PE1 | wie Original (ohne sichtbare Wirkung), nach H1 neu entscheiden; Zuordnung pruefen mit `evse pe1-test` (SOLL-SH-12, Nutzer 2026-10-27) | Ziel von PE1 unbekannt, vermutlich Relais C3/C4 ("reserviert fuer zukuenftige Anwendungen" laut Handbuch der Steuerung) | SOLL-PROT-24 |
+| F15 | D5/PE1 | wie Original (ohne sichtbare Wirkung), nach H1 neu entscheiden; Ziel pruefen mit `evse pe1-test` (SOLL-SH-12) | Ziel von PE1 unbekannt; das Relais C3/C4 ist es nicht (Testgerät 2026-10-27) | SOLL-PROT-24 |
 | F16 | Unterspannung | nur Warnung, RCM bleibt aktiv, kein Sprung in den Grundzustand | Schutz hat Vorrang; das Original setzt die RCM-Ueberwachung bei Unterspannung aus | SOLL-PROT-41 |
 | F17 | D6 ohne LD-Eingang | Konfigurationsfehler | sichtbarer Fehler statt still fehlschlagender Verriegelung | SOLL-LOCK-03 |
 | F18 | Eingangscode 18 | wie Code 1 | Portal nicht im Umfang | 9.1 |
@@ -1141,7 +1141,7 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 
 | Punkt | Stand | Klaerung |
 | --- | --- | --- |
-| PE1-Ziel (C3/C4?) | [HYP], Bahn nicht verfolgbar | H1 (PE1 schalten und beobachten) |
+| PE1-Ziel | nicht das Relais C3/C4 (Testgerät 2026-10-27); Bahn nicht verfolgt | H1 (PE1 schalten und beobachten) |
 | CP-Treiber, Quelle der -12 V | ICL7662 gesehen (Spannungsinverter), Beschaltung offen | Durchgang spannungsfrei, H1 |
 | LD-Signalform der Steckdose (Impulsdauer, Impulse beim Entriegeln) | unbekannt; bestimmt SOLL-LOCK-14/15 | H1 |
 | CP-Treiber (Polaritaet, Pegel), ADC-Skalierung CP/PP/Versorgung | Original-Skalierung uebernommen [ANN] | H1/H2 |

@@ -266,7 +266,7 @@ bool evse_selftest_command(struct evse *e, evse_ms_t now);
 
 /**
  * Diagnose (SOLL-SH-12): PE1 fuer @p ms (hoechstens 2000) High, um seine Wirkung an der Hardware
- * zu pruefen (vermutlich Relais C3/C4). Nur in S1 ohne Fahrzeug (CP A) und mit Schuetz aus;
+ * zu finden (das Relais C3/C4 ist es nicht, Testgeraet). Nur in S1 ohne Fahrzeug (CP A) und mit Schuetz aus;
  * verlaesst die Steuerung diesen Zustand, faellt PE1 sofort ab. @return true, wenn gestartet.
  */
 bool evse_pe1_test(struct evse *e, evse_ms_t now, evse_ms_t ms);
