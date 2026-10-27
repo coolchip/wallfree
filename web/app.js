@@ -36,7 +36,7 @@ async function timed(path) {
 
 const CHARGER = ['Kein Fahrzeug', 'Wartet auf Freigabe', 'Bereit', 'Lädt', 'Fehler'];
 const IEC = ['A – kein Fahrzeug', 'B – verbunden', 'C – lädt', 'D – lädt (Lüftung)', 'E/F – Fehler'];
-const ERRSTATE = ['Kein Fehler', 'Fehler (Details: Insights)', 'Schalter-/Konfigurationsfehler',
+const ERRSTATE = ['Kein Fehler', 'Fehler (Details: Auswertung)', 'Schalter-/Konfigurationsfehler',
 	'Fehlerstrom (RCM)', 'Schützfehler', 'Kommunikationsfehler'];
 const LOCK = ['Initialisierung', 'Entriegelt', 'Verriegelt …', 'Verriegelt', 'Entriegelt …', 'Fehler'];
 const STATES = ['S0 Start', 'S1 Bereit', 'S2 Verriegeln', 'S3 Warten', 'S4 Selbsttest', 'S5 PWM an',
@@ -419,7 +419,7 @@ function CurrentControl({ ext, setExt, limits, meter }) {
 	</section>`;
 }
 
-// Insights: dieselben Werte als Zahlen
+// Auswertung: dieselben Werte als Zahlen
 function CurrentTable({ l, meter }) {
 	// welche Eingaenge eine Stromgrenze tragen (Eingangscodes 8..15), einmal beim Oeffnen
 	const [ins, setIns] = useState('');
@@ -481,7 +481,7 @@ function MeterCard({ m }) {
 	<//>`;
 }
 
-// Insights: alle Messwerte und Fehlerzaehler (SOLL-MTR-15)
+// Auswertung: alle Messwerte und Fehlerzaehler (SOLL-MTR-15)
 function Meter({ m }) {
 	if (!m) return null;
 	const s = m.state || {};
@@ -923,7 +923,7 @@ function ViewCard({ expert, setExpert }) {
 		<label class="check"><input type="checkbox" checked=${expert} onChange=${(e) => setExpert(e.target.checked)} />
 			Expertenansicht</label>
 		<p class="muted msg">Zeigt zusätzlich die Parameter der Ladelogik (Einstellungen → Laden) und die
-			Rohwerte in Insights (Ladestrom, Zähler, Status, CP-Oszilloskop). Gilt nur für diesen Browser.</p>
+			Rohwerte unter Auswertung (Ladestrom, Zähler, Status, CP-Oszilloskop). Gilt nur für diesen Browser.</p>
 	<//>`;
 }
 
@@ -1163,7 +1163,7 @@ function CpScope() {
 }
 
 // Einfache Ansicht: Verlauf, Fehler, Ereignisprotokoll; Expertenansicht zusaetzlich Rohwerte
-function Insights({ live, expert }) {
+function Auswertung({ live, expert }) {
 	const h = useHistory();
 	return expert ? html`<${History} h=${h} maxA=${live.limits && live.limits.hardware / 1000} />
 		<${CurrentTable} l=${live.limits} meter=${live.meter} /><${CpScope} /><${Errors} /><${Meter} m=${live.meter} />
@@ -1189,7 +1189,7 @@ function Settings({ sub, live, expert }) {
 // ------------------------------------------------------------ Rahmen
 
 // Bereich in der Adresse (#/einstellungen/mqtt): Zurueck-Taste und Lesezeichen
-const AREAS = [['', 'Übersicht'], ['insights', 'Insights'], ['einstellungen', 'Einstellungen'], ['system', 'System']];
+const AREAS = [['', 'Übersicht'], ['auswertung', 'Auswertung'], ['einstellungen', 'Einstellungen'], ['system', 'System']];
 const route = () => location.hash.replace(/^#\/?/, '').split('/');
 
 function useRoute() {
@@ -1227,7 +1227,7 @@ function Main() {
 				: live.online === false && html`<div class="banner bad">Verbindung zur Wallbox getrennt – angezeigte Werte sind nicht aktuell.</div>`}
 		</header>
 		<main class=${live.online === false && !updating ? 'offline' : ''}>
-			${area === 'insights' ? html`<${Insights} live=${live} expert=${expert} />`
+			${area === 'auswertung' ? html`<${Auswertung} live=${live} expert=${expert} />`
 				: area === 'einstellungen' ? html`<${Settings} sub=${sub} live=${live} expert=${expert} />`
 				: area === 'system' ? html`<${SystemPage} onBusy=${setUpdating} expert=${expert} setExpert=${setExpert} />`
 				: html`<${Overview} live=${live} />`}

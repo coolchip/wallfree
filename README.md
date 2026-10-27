@@ -40,7 +40,7 @@ können Menschen gefährden. Software-Tests belegen keine elektrische Sicherheit
 **Weboberfläche** (im Flash, ohne Cloud)
 
 - Übersicht mit Zustand, Ladestrom und Vorgabe-Tasten, letzten Ereignissen.
-- Insights: Verlauf über 48 h, Fehler mit Rücksetzbedingung, Ereignisprotokoll (übersteht
+- Auswertung: Verlauf über 48 h, Fehler mit Rücksetzbedingung, Ereignisprotokoll (übersteht
   Neustarts, mit Fehlversuchen bei der Anmeldung).
 - Einstellungen für Netzwerk, MQTT, Zähler und Anmeldedaten.
 - Expertenansicht (je Browser einschaltbar): Parameter der Ladelogik mit Bereich,

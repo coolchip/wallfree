@@ -102,10 +102,10 @@ Simulation (Zugangsdaten vorher geaendert; laeuft schon eine zweite, eigenen Tel
 `-DCONFIG_SHELL_TELNET_PORT=2324`, und `WALLFREE_TELNET_PORT=2324` setzen, sonst gehen die
 `sim`-Befehle an die andere): headless Chrome ueber das DevTools-Protokoll, Digest
 beantwortet Chrome selbst. Ablauf: Seite laden ("verbunden" ueber WebSocket), einfache Ansicht
-ab Werk (Insights ohne Rohwerte, Einstellungen ohne "Laden"), Expertenansicht auf der Seite
+ab Werk (Auswertung ohne Rohwerte, Einstellungen ohne "Laden"), Expertenansicht auf der Seite
 System einschalten (im `localStorage` gespeichert), `sim car C` (Laden; Ring
 zeigt "begrenzt durch Maximum Drehschalter (32 A)", ohne Zaehler "32 A erlaubt"), Knopf
-"Laden aus" (S6 -> S7 -> S3, "Vorgabe: Laden aus"), Insights (Ladestrom-Tabelle, Verlauf
+"Laden aus" (S6 -> S7 -> S3, "Vorgabe: Laden aus"), Auswertung (Ladestrom-Tabelle, Verlauf
 mit laufendem Intervall, Ereignisprotokoll mit Fehlversuch und Taste "Protokoll loeschen"), Einstellungen/Netzwerk und /Zaehler,
 System, Zurueck-Taste (Adresse im Hash), `sim car A`, Netz im Browser 7 s trennen ("getrennt", grau)
 und wieder verbinden ("verbunden"). Danach Bedienung wie ein Nutzer (Rueckfragen werden bestaetigt

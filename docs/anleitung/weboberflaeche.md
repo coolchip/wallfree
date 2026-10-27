@@ -15,7 +15,7 @@ Die elektrische Installation der Ladestation ist nicht Gegenstand dieser Anleitu
 3. [Erste Anmeldung](#3-erste-anmeldung)
 4. [Aufbau der Oberfläche](#4-aufbau-der-oberfläche)
 5. [Übersicht](#5-übersicht)
-6. [Insights](#6-insights)
+6. [Auswertung](#6-auswertung)
 7. [Einstellungen](#7-einstellungen)
 8. [System](#8-system)
 9. [Störungen und Abhilfe](#9-störungen-und-abhilfe)
@@ -97,7 +97,7 @@ Die **Kopfzeile** enthält:
     grau und lässt sich nicht bedienen, bis die Verbindung wieder steht. Die Seite verbindet
     sich selbständig neu.
   - orange mit der Leiste „Update läuft“: während eines Firmware-Updates (Abschnitt 8.1).
-- die **Bereiche** Übersicht, Insights, Einstellungen und System.
+- die **Bereiche** Übersicht, Auswertung, Einstellungen und System.
 
 ![Anzeige bei getrennter Verbindung](bilder/getrennt.png)
 
@@ -110,7 +110,7 @@ Auf dem Smartphone stehen die Bereiche unter dem Titel, die Kacheln untereinande
 
 **Einfache Ansicht und Expertenansicht:** Ab Werk zeigt die Oberfläche nur, was man im Alltag
 braucht. Die **Expertenansicht** (Bereich System, Abschnitt 8) zeigt zusätzlich die Parameter
-der Ladelogik (Einstellungen → Laden) und die Rohwerte in Insights (Ladestrom, Zähler, Status
+der Ladelogik (Einstellungen → Laden) und die Rohwerte unter Auswertung (Ladestrom, Zähler, Status
 der Ladelogik, CP-Oszilloskop). Die Wahl gilt nur für den jeweiligen Browser; an der Steuerung
 ändert sie nichts.
 
@@ -128,7 +128,7 @@ vorzugeben.
 | --- | --- |
 | **Zustand** | Zustand der Ladestation: *Kein Fahrzeug*, *Wartet auf Freigabe*, *Bereit*, *Lädt* oder *Fehler*. Darunter der Zustand des Fahrzeugs nach IEC 61851 (A kein Fahrzeug, B verbunden, C lädt, D lädt mit Lüftungsanforderung, E/F Fehler). |
 | **Fahrzeug darf** | Strom, den das Fahrzeug im Moment ziehen darf (vom Ladesignal an das Fahrzeug gemeldet), und ob das Schütz (der Leistungsschalter der Ladestation) ein- oder ausgeschaltet ist. |
-| **Fehler** | *Kein Fehler* oder die Art des Fehlers; darunter der Zustand der Verriegelung des Ladesteckers. Einzelheiten zu Fehlern stehen unter Insights. |
+| **Fehler** | *Kein Fehler* oder die Art des Fehlers; darunter der Zustand der Verriegelung des Ladesteckers. Einzelheiten zu Fehlern stehen unter Auswertung. |
 | **Zähler** | Nur mit eingerichtetem Energiezähler: aktuelle Ladeleistung in kW, Zählerstand in kWh und Zustand der Verbindung zum Zähler. Ohne Zähler bleibt die Kachel leer. |
 
 ### 5.2 Ladestrom
@@ -163,17 +163,17 @@ Energiemanagement (z. B. evcc) setzt die Vorgabe selbst und überschreibt Änder
 ### 5.3 Letzte Ereignisse
 
 Die letzten 8 Ereignisse mit Uhrzeit: Zustandswechsel, Schützschaltungen, Verriegelung,
-Fehler und Änderungen des Zählerzustands. Das vollständige Protokoll steht unter Insights.
+Fehler und Änderungen des Zählerzustands. Das vollständige Protokoll steht unter Auswertung.
 
-## 6 Insights
+## 6 Auswertung
 
-Insights zeigt Verlauf, Messwerte und Protokolle, z. B. um einen Ladevorgang nachzuvollziehen
+Auswertung zeigt Verlauf, Messwerte und Protokolle, z. B. um einen Ladevorgang nachzuvollziehen
 oder eine Störung einzugrenzen. In der einfachen Ansicht stehen hier nur Verlauf, Fehler und
 Ereignisprotokoll; die Abschnitte 6.2, 6.4, 6.6 und 6.7 gibt es nur in der Expertenansicht.
 
 ### 6.1 Verlauf
 
-![Verlauf mit Hinweis beim Zeigen auf ein Intervall](bilder/insights-verlauf.png)
+![Verlauf mit Hinweis beim Zeigen auf ein Intervall](bilder/auswertung-verlauf.png)
 
 Der Verlauf zeigt Mittelwerte über jeweils **10 Minuten** seit dem Start der Steuerung,
 höchstens die letzten **48 Stunden**:
@@ -188,7 +188,7 @@ oder Stromausfall leer.
 
 ### 6.2 Ladestrom
 
-![Ladestrom als Tabelle](bilder/insights-ladestrom.png)
+![Ladestrom als Tabelle](bilder/auswertung-ladestrom.png)
 
 Dieselben Größen wie die Ringanzeige als Zahlen:
 
@@ -205,7 +205,7 @@ Die gerade wirkende Grenze ist orange mit „begrenzt“ markiert.
 
 ### 6.3 Fehler
 
-![Fehler](bilder/insights-fehler.png)
+![Fehler](bilder/auswertung-fehler.png)
 
 - **Aktiv:** Fehler, die im Moment bestehen.
 - **Seit Start:** alle Fehler, die seit dem letzten Start aufgetreten sind.
@@ -220,7 +220,7 @@ ist. Fehler erscheinen hier mit ihrer Kennung (z. B. `CP-INVALID`); die Bedeutun
 
 ### 6.4 Zähler
 
-![Zählerwerte](bilder/insights-zaehler.png)
+![Zählerwerte](bilder/auswertung-zaehler.png)
 
 Nur mit eingerichtetem Energiezähler: Typ und Zustand des Zählers, Alter des letzten
 Messwertsatzes, alle Messwerte (Spannungen, Ströme, Leistungen, Frequenz, Energie) und die
@@ -232,7 +232,7 @@ angezeigt.
 
 ### 6.5 Ereignisprotokoll
 
-![Ereignisprotokoll](bilder/insights-protokoll.png)
+![Ereignisprotokoll](bilder/auswertung-protokoll.png)
 
 Die letzten 48 Einträge, auch über Neustarts hinweg: jeder **Start** mit seinem Grund (z. B.
 „Start: Überwachung (Ladelogik reagierte nicht)“), alle Ereignisse und **fehlgeschlagene Anmeldungen**
@@ -250,7 +250,7 @@ erster Eintrag „Ereignisprotokoll gelöscht von …“ mit der Adresse des Ger
 
 ### 6.6 Status der Ladelogik
 
-![Status der Ladelogik (Ausschnitt)](bilder/insights-status.png)
+![Status der Ladelogik (Ausschnitt)](bilder/auswertung-status.png)
 
 Innere Zustände der Ladesteuerung, vor allem für die Fehlersuche. Die Werte sind nur lesbar.
 
@@ -537,7 +537,7 @@ Ein Fahrzeug sollte während des Updates nicht angesteckt sein.
 | Anzeige „getrennt“, Inhalt grau | Verbindung unterbrochen (WLAN, Netz, Steuerung startet neu). Die Seite verbindet sich selbst neu. |
 | Anmeldung wird immer wieder abgefragt | Falsche Zugangsdaten. Der Browser schickt nach einer Änderung manchmal noch die alten: neuen Tab oder privates Fenster öffnen. |
 | „zu viele Fehlversuche“ | Sperre nach falschen Anmeldungen ([Abschnitt 3](#3-erste-anmeldung)). Warten (höchstens 5 Minuten) und dann richtig anmelden. Auch Programme mit veralteten Zugangsdaten (z. B. ein Energiemanagement) lösen die Sperre aus; dort die Zugangsdaten anpassen. |
-| Fahrzeug lädt nicht | Übersicht: Zeile unter dem Ring („Vorgabe: Laden aus“, „Laden gesperrt“) und Kachel Fehler prüfen; Insights › Fehler. Bei „Wartet auf Freigabe“ fehlt die Freigabe ([10.4](#104-freigabe-und-verfügbarkeit)). |
+| Fahrzeug lädt nicht | Übersicht: Zeile unter dem Ring („Vorgabe: Laden aus“, „Laden gesperrt“) und Kachel Fehler prüfen; Auswertung › Fehler. Bei „Wartet auf Freigabe“ fehlt die Freigabe ([10.4](#104-freigabe-und-verfügbarkeit)). |
 | Zähler „gestört“ | [7.4](#74-zähler) |
 | Firmware-Update fehlgeschlagen | Unter System steht „Letztes Update: fehlgeschlagen“; es läuft die bisherige Firmware. Update wiederholen, vorher evcc und andere Abfragen anhalten. Steht die Steuerung danach im Update-Betrieb (alle LEDs der Steuerung an oder blinkend, Weboberfläche nicht erreichbar), die Seite des Bootloaders unter der bisherigen Adresse oder unter 192.168.0.8 öffnen und die Datei dort hochladen ([8.1](#81-firmware-update)). |
 | Passwort vergessen / Steuerung unerreichbar | **Werksreset:** Reset-Taster der Steuerung gedrückt halten (insgesamt etwa 10 Sekunden). Die Power-LED bleibt zunächst etwa 5 Sekunden dunkel, dann blinkt sie langsam; nach weiteren 5 Sekunden blinkt sie schnell, dann loslassen (geht auch beim Einschalten). Alle Einstellungen und die Zugangsdaten sind danach im Werkszustand (`admin` / `wallfree`, Netzwerk per DHCP). Kurzes Drücken startet die Steuerung nur neu. |
@@ -649,7 +649,7 @@ E/F Fehler bzw. nicht verfügbar).
 
 ### 10.5 Fehler
 
-| Kennung (Insights › Fehler) | Text (Status) | Bedeutung | Aufgehoben |
+| Kennung (Auswertung › Fehler) | Text (Status) | Bedeutung | Aufgehoben |
 | --- | --- | --- | --- |
 | `CABLE-REJECT` | Kabel abgewiesen | Kabel mit zu geringer Belastbarkeit (D2/D3) | anderes Kabel |
 | `PP-INVALID` | PP ungültig | Kabelcodierung nicht lesbar oder kein Kabel bei verbundenem Fahrzeug | Ursache entfällt |

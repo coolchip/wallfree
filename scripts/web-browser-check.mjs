@@ -89,7 +89,7 @@ await shot('1-einfach');
 
 // Ab Werk einfache Ansicht: ohne Rohwerte und ohne "Laden"; dann Expertenansicht auf der Seite System
 const goEarly = async (hash) => { await evalJs(`location.hash = ${JSON.stringify(hash)}`); await sleep(2500); return text(); };
-out.simpleInsights = await goEarly('#/insights');
+out.simpleAuswertung = await goEarly('#/auswertung');
 out.simpleSettings = await goEarly('#/einstellungen');
 await goEarly('#/system');
 out.expertOn = await evalJs(`(() => { const l = [...document.querySelectorAll('label.check')].find((x) => x.textContent.includes('Expertenansicht'));
@@ -109,13 +109,13 @@ await sleep(7000);
 out.simple3 = await text();
 await shot('2b-einfach-laden-aus');
 const go = async (hash) => { await evalJs(`location.hash = ${JSON.stringify(hash)}`); await sleep(2500); return text(); };
-out.expert = await go('#/insights');
+out.expert = await go('#/auswertung');
 // Zeigen auf das juengste Intervall: Hinweis an der Kurve
 out.tipBefore = await evalJs("!!document.querySelector('.h-tip')");
 await evalJs("(() => { const h = document.querySelector('.h-hit'); const b = h.getBoundingClientRect(); h.dispatchEvent(new PointerEvent('pointermove', { clientX: b.right - 1, clientY: b.top + 5, bubbles: true })); })()");
 await sleep(300);
 out.history = await evalJs("(() => { const s = document.querySelector('svg.hist'), t = document.querySelector('.h-tip'); return s && t ? s.querySelectorAll('path.h-line').length + '|' + t.innerText.replace(/\\n/g, ' ') : ''; })()");
-await shot('3-insights');
+await shot('3-auswertung');
 out.settings = await go('#/einstellungen/zaehler');
 await shot('3b-einstellungen-zaehler');
 out.settingsNet = await go('#/einstellungen/netzwerk');
@@ -123,7 +123,7 @@ out.system = await go('#/system');
 await evalJs('history.back()');
 await sleep(1500);
 out.back = await evalJs('location.hash');
-await go('#/insights');
+await go('#/auswertung');
 
 await shell('sim car A');
 await sleep(3000);
@@ -158,7 +158,7 @@ out.paramMsg = await evalJs(`${paramRow('wakeup_mode')}.innerText`);
 await evalJs(`fetch('/evse/params', { method: 'POST', body: JSON.stringify({ wakeup_mode: ${p0.wakeup_mode}, reject_state_d: ${p0.reject_state_d} }) })`);
 
 // Ereignisprotokoll per Klick loeschen (mit Rueckfrage)
-await go('#/insights');
+await go('#/auswertung');
 out.clearClick = await click('Protokoll löschen');
 await sleep(2500);
 out.afterClear = await text();
@@ -202,8 +202,8 @@ ws.close();
 chrome.kill();
 
 const checks = [
-	['einfache Ansicht ab Werk: Insights ohne Rohwerte', /ereignisprotokoll/i.test(out.simpleInsights)
-		&& !/status der ladelogik/i.test(out.simpleInsights) && !/cp-oszilloskop/i.test(out.simpleInsights)],
+	['einfache Ansicht ab Werk: Auswertung ohne Rohwerte', /ereignisprotokoll/i.test(out.simpleAuswertung)
+		&& !/status der ladelogik/i.test(out.simpleAuswertung) && !/cp-oszilloskop/i.test(out.simpleAuswertung)],
 	['einfache Ansicht ab Werk: kein Reiter Laden', !out.simpleSettings.includes('Laden\n') && out.simpleSettings.includes('Netzwerk')
 		&& !/konfiguration \(gespeichert\)/i.test(out.simpleSettings)],
 	['Expertenansicht einschalten, im Browser gespeichert', out.expertOn === true && out.expertStored === '1'],
@@ -216,9 +216,9 @@ const checks = [
 	['Laden', out.simple2.includes('Lädt') && out.simple2.includes('Schütz ein')],
 	['Maximum wirkt sichtbar', out.simple2.includes('begrenzt durch Maximum Drehschalter (32 A)')],
 	['Laden aus', out.simple3.includes('S7 Beenden → S3 Warten') && out.simple3.includes('Vorgabe: Laden aus')],
-	['Insights: Ladestrom als Werte', out.expert.includes('Maximum Drehschalter') && out.expert.includes('Erlaubt')],
-	['Insights: Verlauf ohne Ablesezeile, Hinweis nur beim Zeigen', !out.tipBefore && out.history.includes('jetzt')],
-	['Insights: Verlauf (laufendes Intervall)', /jetzt .* · (lädt|angesteckt)/.test(out.history)],
+	['Auswertung: Ladestrom als Werte', out.expert.includes('Maximum Drehschalter') && out.expert.includes('Erlaubt')],
+	['Auswertung: Verlauf ohne Ablesezeile, Hinweis nur beim Zeigen', !out.tipBefore && out.history.includes('jetzt')],
+	['Auswertung: Verlauf (laufendes Intervall)', /jetzt .* · (lädt|angesteckt)/.test(out.history)],
 	['Einstellungen Netzwerk', out.settingsNet.includes('DHCP') && out.settingsNet.includes('Telnet') && !out.settingsNet.includes('Broker')],
 	['System', out.system.includes('Firmware') && out.system.includes('Neu starten')],
 	['Zurueck-Taste', out.back === '#/einstellungen/netzwerk'],
