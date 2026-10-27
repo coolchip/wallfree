@@ -403,8 +403,6 @@ Fuer die spaetere Veroeffentlichung der Firmware vorbereiten:
   Uhrzeit, Protokoll ueber Neustarts, CP-Oszilloskop, Update ueber die Weboberflaeche).
 - Behobene Fehler bzw. Abweichungen gegenueber der Originalfirmware (Markierungen [ABW] in der
   Soll-Spezifikation, z. B. Auswertung der gepulsten LD-Rueckmeldung).
-- Liste der Fehler in der wallbe-/Compleo-Firmware (Nutzer 2026-10-27), in eigenen Worten aus den
-  Befunden in wallbe2 (z. B. Sicherheitsauffaelligkeiten im Analysestand, Vergleich mit 1.27).
 - Rueckweg zur Originalfirmware ist moeglich (auf dem Testgerät geprueft), mit Anleitung.
 - Vorher-Nachher-Vergleich der Weboberflaeche (Original gegen Wallfree, nur eigene Bilder).
 - Kompletter Simulator auf dem PC (native_sim mit Hardwaremodell, Ersatz-Bootloader, evcc).
