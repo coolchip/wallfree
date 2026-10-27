@@ -89,7 +89,7 @@ await shot('1-einfach');
 
 // Ab Werk einfache Ansicht: ohne Rohwerte und ohne "Laden"; dann Expertenansicht auf der Seite System
 const goEarly = async (hash) => { await evalJs(`location.hash = ${JSON.stringify(hash)}`); await sleep(2500); return text(); };
-out.simpleAuswertung = await goEarly('#/auswertung');
+out.simpleStatus = await goEarly('#/status');
 out.simpleSettings = await goEarly('#/einstellungen');
 await goEarly('#/system');
 out.expertOn = await evalJs(`(() => { const l = [...document.querySelectorAll('label.check')].find((x) => x.textContent.includes('Expertenansicht'));
@@ -109,7 +109,7 @@ await sleep(7000);
 out.simple3 = await text();
 await shot('2b-einfach-laden-aus');
 const go = async (hash) => { await evalJs(`location.hash = ${JSON.stringify(hash)}`); await sleep(2500); return text(); };
-out.expert = await go('#/auswertung');
+out.expert = await go('#/status');
 // Zeigen auf das juengste Intervall: Hinweis an der Kurve
 out.tipBefore = await evalJs("!!document.querySelector('.h-tip')");
 await evalJs("(() => { const h = document.querySelector('.h-hit'); const b = h.getBoundingClientRect(); h.dispatchEvent(new PointerEvent('pointermove', { clientX: b.right - 1, clientY: b.top + 5, bubbles: true })); })()");
@@ -123,7 +123,7 @@ out.system = await go('#/system');
 await evalJs('history.back()');
 await sleep(1500);
 out.back = await evalJs('location.hash');
-await go('#/auswertung');
+await go('#/status');
 
 await shell('sim car A');
 await sleep(3000);
@@ -158,7 +158,7 @@ out.paramMsg = await evalJs(`${paramRow('wakeup_mode')}.innerText`);
 await evalJs(`fetch('/evse/params', { method: 'POST', body: JSON.stringify({ wakeup_mode: ${p0.wakeup_mode}, reject_state_d: ${p0.reject_state_d} }) })`);
 
 // Ereignisprotokoll per Klick loeschen (mit Rueckfrage)
-await go('#/auswertung');
+await go('#/status');
 out.clearClick = await click('Protokoll löschen');
 await sleep(2500);
 out.afterClear = await text();
@@ -202,8 +202,10 @@ ws.close();
 chrome.kill();
 
 const checks = [
-	['einfache Ansicht ab Werk: Auswertung ohne Rohwerte', /ereignisprotokoll/i.test(out.simpleAuswertung)
-		&& !/status der ladelogik/i.test(out.simpleAuswertung) && !/cp-oszilloskop/i.test(out.simpleAuswertung)],
+	['einfache Ansicht ab Werk: Status ohne Rohwerte', /ereignisprotokoll/i.test(out.simpleStatus)
+		&& !/ladelogik/i.test(out.simpleStatus) && !/cp-oszilloskop/i.test(out.simpleStatus)],
+	['Status: Verbindungen (Netzwerk, Uhrzeit, MQTT, Zaehler)', /verbindungen/i.test(out.simpleStatus)
+		&& /Netzwerk\s+Adresse per DHCP/.test(out.simpleStatus) && /MQTT\s+aus/.test(out.simpleStatus)],
 	['einfache Ansicht ab Werk: kein Reiter Laden', !out.simpleSettings.includes('Laden\n') && out.simpleSettings.includes('Netzwerk')
 		&& !/konfiguration \(gespeichert\)/i.test(out.simpleSettings)],
 	['Expertenansicht einschalten, im Browser gespeichert', out.expertOn === true && out.expertStored === '1'],
@@ -216,10 +218,11 @@ const checks = [
 	['Laden', out.simple2.includes('Lädt') && out.simple2.includes('Schütz ein')],
 	['Maximum wirkt sichtbar', out.simple2.includes('begrenzt durch Maximum Drehschalter (32 A)')],
 	['Laden aus', out.simple3.includes('S7 Beenden → S3 Warten') && out.simple3.includes('Vorgabe: Laden aus')],
-	['Auswertung: Ladestrom als Werte', out.expert.includes('Maximum Drehschalter') && out.expert.includes('Erlaubt')],
-	['Auswertung: Verlauf ohne Ablesezeile, Hinweis nur beim Zeigen', !out.tipBefore && out.history.includes('jetzt')],
-	['Auswertung: Verlauf (laufendes Intervall)', /jetzt .* · (lädt|angesteckt)/.test(out.history)],
-	['Einstellungen Netzwerk', out.settingsNet.includes('DHCP') && out.settingsNet.includes('Telnet') && !out.settingsNet.includes('Broker')],
+	['Status: Ladestrom als Werte', out.expert.includes('Maximum Drehschalter') && out.expert.includes('Erlaubt')],
+	['Status: Verlauf ohne Ablesezeile, Hinweis nur beim Zeigen', !out.tipBefore && out.history.includes('jetzt')],
+	['Status: Verlauf (laufendes Intervall)', /jetzt .* · (lädt|angesteckt)/.test(out.history)],
+	['Einstellungen Netzwerk ohne Zustandszeile', out.settingsNet.includes('DHCP') && out.settingsNet.includes('Telnet')
+		&& !out.settingsNet.includes('Broker') && !out.settingsNet.includes('Aktiv:')],
 	['System', out.system.includes('Firmware') && out.system.includes('Neu starten')],
 	['System: Lizenzhinweis', out.system.includes('Apache License 2.0') && out.system.includes('Lizenzhinweise')],
 	['Zurueck-Taste', out.back === '#/einstellungen/netzwerk'],
@@ -230,7 +233,8 @@ const checks = [
 	['Laden: Meldung "gespeichert"', out.paramMsg.includes('gespeichert')],
 	['Protokoll loeschen: Rueckfrage, nur Loescheintrag', out.clearClick && dialogs.some((d) => d.includes('Ereignisprotokolls löschen'))
 		&& out.clearLog.startsWith('cleared 127.0.0.1') && out.afterClear.includes('Ereignisprotokoll gelöscht von 127.0.0.1')],
-	['Netzwerk: Hinweis Neustart', out.netSaved.includes('wirkt nach Neustart') && out.netSaved.includes('Jetzt neu starten')],
+	['Netzwerk: Hinweis Neustart', out.netSaved.includes('wirkt nach Neustart') && out.netSaved.includes('Jetzt neu starten')
+		&& out.netSaved.includes('Status → Verbindungen')],
 	['Neustart ueber die Seite: Rueckfrage, Neustart, Wert aktiv', out.restartClick && dialogs.some((d) => d.includes('neu starten'))
 		&& out.restart[0] === 'user_restart' && out.restart[1] === 'browsertest' && out.restart[2] === 1],
 	['Zugangsdaten: Benutzer vorbelegt, Aenderung und Neuanmeldung', out.pw1[0] === user && out.pw1[1] && !!out.pw1[2]
@@ -245,7 +249,8 @@ if (withMeter) {
 		['Zaehler: Messwerte und Fehlerzaehler', /zähler \(nur anzeige\)/i.test(out.expert) &&
 			out.expert.includes('Spannung L1') && out.expert.includes('requests')],
 		['Zaehler: Leistung im Verlauf', out.history.startsWith('2|') && /kW/.test(out.history)],
-		['Zaehler: Auswahl in Einstellungen', out.settings.includes('Eastron SDM630') && out.settings.includes('Zustand: verbunden')]);
+		['Zaehler: Auswahl in Einstellungen', out.settings.includes('Eastron SDM630')],
+		['Zaehler: Zustand unter Verbindungen', /Zähler\s+verbunden/.test(out.expert)]);
 } else {
 	checks.push(['ohne Zaehler: Ring zeigt erlaubt', out.gauge2.includes('|32 A|erlaubt')]);
 	checks.push(['ohne Zaehler: kein Messwert', !out.gauge2.includes('Messwert') && !out.simple2.includes('Messwert')]);

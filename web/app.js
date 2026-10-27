@@ -36,7 +36,7 @@ async function timed(path) {
 
 const CHARGER = ['Kein Fahrzeug', 'Wartet auf Freigabe', 'Bereit', 'Lädt', 'Fehler'];
 const IEC = ['A – kein Fahrzeug', 'B – verbunden', 'C – lädt', 'D – lädt (Lüftung)', 'E/F – Fehler'];
-const ERRSTATE = ['Kein Fehler', 'Fehler (Details: Auswertung)', 'Schalter-/Konfigurationsfehler',
+const ERRSTATE = ['Kein Fehler', 'Fehler (Details: Status)', 'Schalter-/Konfigurationsfehler',
 	'Fehlerstrom (RCM)', 'Schützfehler', 'Kommunikationsfehler'];
 const LOCK = ['Initialisierung', 'Entriegelt', 'Verriegelt …', 'Verriegelt', 'Entriegelt …', 'Fehler'];
 const STATES = ['S0 Start', 'S1 Bereit', 'S2 Verriegeln', 'S3 Warten', 'S4 Selbsttest', 'S5 PWM an',
@@ -419,7 +419,7 @@ function CurrentControl({ ext, setExt, limits, meter }) {
 	</section>`;
 }
 
-// Auswertung: dieselben Werte als Zahlen
+// Status: dieselben Werte als Zahlen
 function CurrentTable({ l, meter }) {
 	// welche Eingaenge eine Stromgrenze tragen (Eingangscodes 8..15), einmal beim Oeffnen
 	const [ins, setIns] = useState('');
@@ -481,7 +481,7 @@ function MeterCard({ m }) {
 	<//>`;
 }
 
-// Auswertung: alle Messwerte und Fehlerzaehler (SOLL-MTR-15)
+// Status: alle Messwerte und Fehlerzaehler (SOLL-MTR-15)
 function Meter({ m }) {
 	if (!m) return null;
 	const s = m.state || {};
@@ -564,7 +564,7 @@ function Params({ kinds }) {
 	if (err) return html`<p class="bad">${err}</p>`;
 	if (!info) return html`<p class="muted">Lade …</p>`;
 	const groups = [['config', 'Konfiguration (gespeichert)'], ['runtime', 'Laufzeitwerte (nicht gespeichert)'],
-		['status', 'Status der Ladelogik']];
+		['status', 'Ladelogik']];
 	return groups.filter(([k]) => kinds.includes(k)).map(([k, t]) => html`<${Card} title=${t}><table>
 		<tr><th>Parameter</th><th>Wert</th><th class="hide-s">${k !== 'status' ? 'Bereich' : ''}</th><th>${k !== 'status' ? 'Neu' : ''}</th></tr>
 		${info.filter((p) => p.kind === k).map((p) => {
@@ -631,30 +631,16 @@ const SYS_PARTS = {
 	zaehler: ['Zähler (nur Anzeige)', ['meter_']],
 };
 
-function SysConfig({ part, meter }) {
+function SysConfig({ part }) {
 	const [title, prefixes] = SYS_PARTS[part];
 	const [cfg, setCfg] = useState(null);
 	const [info, setInfo] = useState([]);
 	const [edit, setEdit] = useState({});
 	const [msg, setMsg] = useState(null);
-	const [mqtt, setMqtt] = useState(null);
-	const [si, setSi] = useState(null);
 	const load = () => api('/system/config').then(setCfg).catch((e) => setMsg({ ok: false, text: e.message }));
 	useEffect(() => {
 		api('/system/config_info').then(setInfo).catch(() => {});
 		load();
-		if (part === 'netzwerk') {
-			// SOLL-TIME-03: Uhrzeit und Zeitserver im Status, alle 10 s neu
-			const li = () => api('/system/info').then(setSi).catch(() => {});
-			li();
-			const t = setInterval(li, 10000);
-			return () => clearInterval(t);
-		}
-		if (part !== 'mqtt') return undefined;
-		const lm = () => api('/mqtt/state').then(setMqtt).catch(() => {});
-		lm();
-		const t = setInterval(lm, 3000);
-		return () => clearInterval(t);
 	}, []);
 	if (!cfg) return null;
 	const val = (n) => (n in edit ? edit[n] : cfg.saved[n]);
@@ -670,22 +656,7 @@ function SysConfig({ part, meter }) {
 			setMsg({ ok: false, text: b ? Object.entries(b).map(([k, v]) => k + ': ' + v).join('; ') : e.message });
 		}
 	};
-	let status = null;
-	if (part === 'netzwerk') {
-		status = 'Aktiv: ' + (cfg.active.net_dhcp ? 'DHCP' : cfg.active.net_ip) + ', Hostname ' +
-			(cfg.active.net_hostname || 'automatisch') + '. Uhrzeit: ' + (!si ? '…'
-			: si.time ? new Date(si.time.time_ms).toLocaleTimeString('de-DE') + ' vom Zeitserver ' + si.time.server
-			: cfg.active.ntp_enable ? 'unbekannt (Zeitserver antwortet nicht)' : 'aus');
-	} else if (part === 'mqtt' && mqtt) {
-		status = 'Zustand: ' + MQTT_STATES[mqtt.connection_state] + (mqtt.connection_state ? ', Präfix ' +
-			mqtt.prefix + ', gesendet ' + mqtt.published + ', Befehle ' + mqtt.commands + (mqtt.rejected
-			? ' (abgelehnt ' + mqtt.rejected + ': ' + mqtt.last_reject + ')' : '') : '');
-	} else if (part === 'zaehler') {
-		const st = meter && meter.state;
-		status = 'Zustand: ' + (st ? METER_STATUS[st.status] || st.status : METER_STATUS.off);
-	}
 	return html`<${Card} title=${title}>
-		${status && html`<p class="muted">${status}</p>`}
 		<form onSubmit=${save}>
 		${info.filter((p) => prefixes.some((x) => p.name.startsWith(x))).map((p) => {
 			const set = (v) => setEdit({ ...edit, [p.name]: v });
@@ -709,6 +680,8 @@ function SysConfig({ part, meter }) {
 		<div class="row"><button class="primary" type="submit">Speichern</button></div>
 		</form>
 		<${Msg} m=${msg} />
+		${msg && msg.ok && part !== 'zugang' && html`<p class="muted msg">Zustand der Verbindung unter
+			<a href="#/status">Status → Verbindungen</a>.</p>`}
 		${cfg.restart_required && html`<div class="row msg"><span class="warn">Gespeicherte Werte wirken erst
 			nach einem Neustart.</span><button onClick=${() => restart(setMsg)}>Jetzt neu starten</button></div>`}
 	<//>`;
@@ -923,7 +896,7 @@ function ViewCard({ expert, setExpert }) {
 		<label class="check"><input type="checkbox" checked=${expert} onChange=${(e) => setExpert(e.target.checked)} />
 			Expertenansicht</label>
 		<p class="muted msg">Zeigt zusätzlich die Parameter der Ladelogik (Einstellungen → Laden) und die
-			Rohwerte unter Auswertung (Ladestrom, Zähler, Status, CP-Oszilloskop). Gilt nur für diesen Browser.</p>
+			Rohwerte unter Status (Ladestrom, Zähler, Ladelogik, CP-Oszilloskop). Gilt nur für diesen Browser.</p>
 	<//>`;
 }
 
@@ -942,9 +915,6 @@ function SystemPage({ onBusy, expert, setExpert }) {
 				<small class="muted">Build ${si.build}</small></td></tr>
 			<tr><td>Laufzeit</td><td class="num">${dur(si.uptime_ms)}</td></tr>
 			<tr><td>Letzter Reset</td><td class="num wrap">${resetText(si.reset_reason, si.reset_detail)}</td></tr>
-			<tr><td>Uhrzeit</td><td class="num">${si.time ? html`${new Date(si.time.time_ms).toLocaleString('de-DE')}<br />
-				<small class="muted wrap">${si.time.server}, abgeglichen vor ${dur(si.time.synced_ms)}</small>`
-				: 'unbekannt (kein Zeitserver)'}</td></tr>
 			${si.mac && html`<tr><td>MAC-Adresse</td><td class="num">${si.mac}</td></tr>`}
 			${si.image && html`<tr><td>Prüfsumme</td><td class="num ${si.image.ok ? '' : 'bad'}">
 				${si.image.crc}${si.image.ok ? '' : ' – beschädigt, Laden gesperrt'}</td></tr>`}
@@ -1168,14 +1138,47 @@ function CpScope() {
 	<//>`;
 }
 
-// Einfache Ansicht: Verlauf, Fehler, Ereignisprotokoll; Expertenansicht zusaetzlich Rohwerte
-function Auswertung({ live, expert }) {
+// Zustand der Verbindungen (die Werte dazu unter Einstellungen); nacheinander abgefragt, damit die
+// Seite nur einen der wenigen Verbindungsplaetze der Steuerung braucht
+function Connections({ meter }) {
+	const [d, setD] = useState(null);
+	useEffect(() => {
+		let stop = false;
+		const load = async () => {
+			try {
+				const cfg = await api('/system/config');
+				const si = await api('/system/info');
+				const mq = await api('/mqtt/state');
+				if (!stop) setD({ a: cfg.active, si, mq });
+			} catch (e) { /* naechster Versuch */ }
+		};
+		load();
+		const t = setInterval(load, 10000);
+		return () => { stop = true; clearInterval(t); };
+	}, []);
+	if (!d) return html`<${Card} title="Verbindungen"><p class="muted">…</p><//>`;
+	const { a, si, mq } = d;
+	const st = meter && meter.state;
+	return html`<${Card} title="Verbindungen"><table>
+		<tr><td>Netzwerk</td><td class="num wrap">${a.net_dhcp ? 'Adresse per DHCP' : 'feste Adresse ' + a.net_ip}<br />
+			<small class="muted">Hostname ${a.net_hostname || 'automatisch'}</small></td></tr>
+		<tr><td>Uhrzeit</td><td class="num wrap">${si.time ? html`${new Date(si.time.time_ms).toLocaleString('de-DE')}<br />
+			<small class="muted">${si.time.server}, abgeglichen vor ${dur(si.time.synced_ms)}</small>`
+			: a.ntp_enable ? 'unbekannt (Zeitserver antwortet nicht)' : 'unbekannt (Zeitserver aus)'}</td></tr>
+		<tr><td>MQTT</td><td class="num wrap">${MQTT_STATES[mq.connection_state]}${mq.connection_state ? html`<br />
+			<small class="muted">${a.mqtt_broker}:${a.mqtt_port}, Präfix ${mq.prefix}, gesendet ${mq.published},
+			Befehle ${mq.commands}${mq.rejected ? ' (abgelehnt ' + mq.rejected + ': ' + mq.last_reject + ')' : ''}</small>` : ''}</td></tr>
+		<tr><td>Zähler</td><td class="num wrap">${st ? METER_STATUS[st.status] || st.status : METER_STATUS.off}</td></tr>
+	</table><//>`;
+}
+
+// Einfache Ansicht: Verlauf, Verbindungen, Fehler, Ereignisprotokoll; Expertenansicht zusaetzlich Rohwerte
+function Status({ live, expert }) {
 	const h = useHistory();
-	return expert ? html`<${History} h=${h} maxA=${live.limits && live.limits.hardware / 1000} />
-		<${CurrentTable} l=${live.limits} meter=${live.meter} /><${CpScope} /><${Errors} /><${Meter} m=${live.meter} />
-		<${EventLog} live=${live} all=${true} /><${Params} kinds=${['status']} />`
-		: html`<${History} h=${h} maxA=${live.limits && live.limits.hardware / 1000} /><${Errors} />
-		<${EventLog} live=${live} all=${true} />`;
+	return html`<${History} h=${h} maxA=${live.limits && live.limits.hardware / 1000} />
+		<${Connections} meter=${live.meter} /><${Errors} /><${EventLog} live=${live} all=${true} />
+		${expert && html`<${CurrentTable} l=${live.limits} meter=${live.meter} /><${Meter} m=${live.meter} />
+			<${Params} kinds=${['status']} /><${CpScope} />`}`;
 }
 
 // "Laden" (Parameter der Ladelogik) nur in der Expertenansicht
@@ -1189,13 +1192,13 @@ function Settings({ sub, live, expert }) {
 		html`<a href=${'#/einstellungen/' + k} class=${s === k ? 'sel' : ''}>${t}</a>`)}</nav>
 		${s === 'laden' ? html`<${Params} kinds=${['config', 'runtime']} />`
 		: s === 'zugang' ? html`<${Credentials} first=${false} />`
-		: html`<${SysConfig} key=${s} part=${s} meter=${live.meter} />`}`;
+		: html`<${SysConfig} key=${s} part=${s} />`}`;
 }
 
 // ------------------------------------------------------------ Rahmen
 
 // Bereich in der Adresse (#/einstellungen/mqtt): Zurueck-Taste und Lesezeichen
-const AREAS = [['', 'Übersicht'], ['auswertung', 'Auswertung'], ['einstellungen', 'Einstellungen'], ['system', 'System']];
+const AREAS = [['', 'Übersicht'], ['status', 'Status'], ['einstellungen', 'Einstellungen'], ['system', 'System']];
 const route = () => location.hash.replace(/^#\/?/, '').split('/');
 
 function useRoute() {
@@ -1233,7 +1236,7 @@ function Main() {
 				: live.online === false && html`<div class="banner bad">Verbindung zur Wallbox getrennt – angezeigte Werte sind nicht aktuell.</div>`}
 		</header>
 		<main class=${live.online === false && !updating ? 'offline' : ''}>
-			${area === 'auswertung' ? html`<${Auswertung} live=${live} expert=${expert} />`
+			${area === 'status' ? html`<${Status} live=${live} expert=${expert} />`
 				: area === 'einstellungen' ? html`<${Settings} sub=${sub} live=${live} expert=${expert} />`
 				: area === 'system' ? html`<${SystemPage} onBusy=${setUpdating} expert=${expert} setExpert=${setExpert} />`
 				: html`<${Overview} live=${live} />`}

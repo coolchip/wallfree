@@ -122,17 +122,18 @@ await send('Page.navigate', { url: base + '/#/' });
 await send('Page.reload', { ignoreCache: true }); // nur der Hash aendert sich: sonst kein Neuladen
 await sleep(4000);
 await shot('uebersicht');
-await go('#/auswertung', 4000);
+await go('#/status', 4000);
 // Hinweis an der Kurve zeigen (Zeigen auf ein Intervall des ersten Ladevorgangs)
 await js(`(() => { const h = document.querySelector('.h-hit'); const b = h.getBoundingClientRect(); h.dispatchEvent(new PointerEvent('pointermove', { clientX: b.left + b.width * 0.35, clientY: b.top + 20, bubbles: true })); })()`);
 await sleep(400);
-await shot('auswertung-verlauf', 'main section');
+await shot('status-verlauf', 'main section');
 await js('document.querySelector(".h-hit").dispatchEvent(new PointerEvent("pointerleave"))');
-await shot('auswertung-ladestrom', 'Ladestrom');
-await shot('auswertung-fehler', 'Fehler');
-await shot('auswertung-zaehler', 'Zähler (nur Anzeige)');
-await shot('auswertung-protokoll', 'Ereignisprotokoll', 420);
-await shot('auswertung-status', 'Status der Ladelogik', 360);
+await shot('status-verbindungen', 'Verbindungen');
+await shot('status-ladestrom', 'Ladestrom');
+await shot('status-fehler', 'Fehler');
+await shot('status-zaehler', 'Zähler (nur Anzeige)');
+await shot('status-protokoll', 'Ereignisprotokoll', 420);
+await shot('status-ladelogik', 'Ladelogik', 360);
 for (const p of ['laden', 'netzwerk', 'mqtt', 'zaehler', 'zugang']) {
 	await go('#/einstellungen/' + p);
 	await shot('einstellungen-' + p, null, p === 'laden' ? 760 : null);

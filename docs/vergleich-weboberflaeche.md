@@ -9,7 +9,7 @@ Simulation mit Expertenansicht. Bedienung im Einzelnen:
 
 | | Original | Wallfree |
 | --- | --- | --- |
-| Aufbau | fünf einzelne Seiten mit Textlinks, Formularfelder, englisch | eine Seite mit Reitern (Übersicht, Auswertung, Einstellungen, System), deutsch, auch auf dem Handy bedienbar |
+| Aufbau | fünf einzelne Seiten mit Textlinks, Formularfelder, englisch | eine Seite mit Reitern (Übersicht, Status, Einstellungen, System), deutsch, auch auf dem Handy bedienbar |
 | Anmeldung | keine | Benutzer und Passwort (Digest), beim ersten Aufruf zu ändern |
 | Aktualisierung | Kästchen „Auto Refresh“ lädt die Seite neu | Live-Daten über WebSocket; Punkt am Logo zeigt die Verbindung |
 | Speichern | ein Knopf je Seite für alles, danach Neustart empfohlen | jede Einstellung einzeln mit OK; Bereich, Werkseinstellung und Erklärung am Feld, dazu, ob sie sofort oder nach einem Neustart wirkt; Werte außerhalb des Bereichs werden mit Meldung abgelehnt |
@@ -31,7 +31,7 @@ Stromvorgabe und die letzten Ereignisse.
 ![Übersicht](anleitung/bilder/uebersicht.png)
 
 Die Funktionen der Ein- und Ausgänge stehen unter **Einstellungen → Laden**, die Pegel unter
-**Auswertung → Status der Ladelogik** (beides Expertenansicht). Auf dem Handy:
+**Status → Ladelogik** (beides Expertenansicht). Auf dem Handy:
 
 ![Übersicht auf dem Handy](anleitung/bilder/handy-uebersicht.png)
 
@@ -40,8 +40,8 @@ Die Funktionen der Ein- und Ausgänge stehen unter **Einstellungen → Laden**, 
 **Original:** MAC, DHCP, Adresse, Maske und Gateway in je vier Feldern, Gerätename, Seriennummer.
 
 **Wallfree:** **Einstellungen → Netzwerk** mit DHCP oder fester Adresse, Hostname, Zeitserver
-und dem Schalter für die Telnet-Shell; oben die aktive Adresse und die Uhrzeit. Die MAC-Adresse
-steht unter System.
+und dem Schalter für die Telnet-Shell. Aktive Adresse und Uhrzeit zeigt **Status → Verbindungen**,
+die MAC-Adresse steht unter System.
 
 ![Einstellungen Netzwerk](anleitung/bilder/einstellungen-netzwerk.png)
 
@@ -51,8 +51,8 @@ steht unter System.
 Verriegelung, Schützüberwachung, eine Liste weiterer Schalter (Freigabe, 5 %, Fahrzeuge in
 Zustand D ablehnen u. a.) und der Knopf zum Firmware-Update.
 
-**Wallfree:** Drehschalter und eingeschaltete DIP-Schalter stehen unter **Auswertung → Status der
-Ladelogik**. Alle Parameter der Ladelogik stehen unter **Einstellungen → Laden**, gruppiert, mit Bereich,
+**Wallfree:** Drehschalter und eingeschaltete DIP-Schalter stehen unter **Status → Ladelogik**. Alle
+Parameter der Ladelogik stehen unter **Einstellungen → Laden**, gruppiert, mit Bereich,
 Werkseinstellung und Erklärung:
 
 ![Einstellungen Laden](anleitung/bilder/einstellungen-laden.png)
@@ -72,9 +72,9 @@ beiden Versionen), dazu Adresse, Baudrate und Rahmenformat; die Register kennt d
 
 ![Einstellungen Zähler](anleitung/bilder/einstellungen-zaehler.png)
 
-Messwerte und Zähler der Abfragen zeigt **Auswertung → Zähler** (Expertenansicht):
+Messwerte und Zähler der Abfragen zeigt **Status → Zähler** (Expertenansicht):
 
-![Auswertung Zähler](anleitung/bilder/auswertung-zaehler.png)
+![Status Zähler](anleitung/bilder/status-zaehler.png)
 
 ### Card Reader
 
@@ -86,14 +86,15 @@ Messwerte und Zähler der Abfragen zeigt **Auswertung → Zähler** (Expertenans
 
 | Seite | Inhalt |
 | --- | --- |
-| Auswertung → Verlauf | Leistung, erlaubter Strom und Zustand in 10-Minuten-Mitteln über 48 h |
-| Auswertung → Ladestrom | alle Grenzen des Ladestroms und welche gerade gilt (Expertenansicht) |
-| Auswertung → Fehler | aktive Fehler und alle seit dem Start, Quittieren des Schützfehlers |
-| Auswertung → Ereignisprotokoll | die letzten 48 Einträge: Starts mit Grund, Ereignisse, fehlgeschlagene Anmeldungen; übersteht Neustarts und Updates |
-| Auswertung → CP-Oszilloskop | Verlauf des Ladesignals (Expertenansicht) |
+| Status → Verlauf | Leistung, erlaubter Strom und Zustand in 10-Minuten-Mitteln über 48 h |
+| Status → Verbindungen | Netzwerk, Uhrzeit, MQTT und Zähler auf einen Blick |
+| Status → Ladestrom | alle Grenzen des Ladestroms und welche gerade gilt (Expertenansicht) |
+| Status → Fehler | aktive Fehler und alle seit dem Start, Quittieren des Schützfehlers |
+| Status → Ereignisprotokoll | die letzten 48 Einträge: Starts mit Grund, Ereignisse, fehlgeschlagene Anmeldungen; übersteht Neustarts und Updates |
+| Status → CP-Oszilloskop | Verlauf des Ladesignals (Expertenansicht) |
 | Einstellungen → MQTT | Broker, Themen, Home-Assistant-Erkennung |
 | Einstellungen → Anmeldedaten | Benutzer und Passwort |
 
-![Auswertung Verlauf](anleitung/bilder/auswertung-verlauf.png)
+![Status Verlauf](anleitung/bilder/status-verlauf.png)
 
-![Auswertung Ereignisprotokoll](anleitung/bilder/auswertung-protokoll.png)
+![Status Ereignisprotokoll](anleitung/bilder/status-protokoll.png)

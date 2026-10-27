@@ -133,7 +133,7 @@ sim meter ok
 ```
 
 In der Oberflaeche: Karte "Zaehler" (Uebersicht), Messwerte, Fehlerzaehler und Leistung im
-Verlauf (Auswertung), Einstellung unter Einstellungen/Zaehler. evcc liest die Werte ueber `meters/0/*`.
+Verlauf (Status), Einstellung unter Einstellungen/Zaehler. evcc liest die Werte ueber `meters/0/*`.
 
 **MQTT** (Broker auf dem PC: `mosquitto -p 1883`, oder ein Broker im LAN): wirkt sofort.
 

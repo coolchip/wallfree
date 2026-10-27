@@ -40,12 +40,12 @@ können Menschen gefährden. Software-Tests belegen keine elektrische Sicherheit
 **Weboberfläche** (im Flash, ohne Cloud)
 
 - Übersicht mit Zustand, Ladestrom und Vorgabe-Tasten, letzten Ereignissen.
-- Auswertung: Verlauf über 48 h, Fehler mit Rücksetzbedingung, Ereignisprotokoll (übersteht
-  Neustarts, mit Fehlversuchen bei der Anmeldung).
+- Status: Verlauf über 48 h, Zustand von Netzwerk, Uhrzeit, MQTT und Zähler, Fehler mit
+  Rücksetzbedingung, Ereignisprotokoll (übersteht Neustarts, mit Fehlversuchen bei der Anmeldung).
 - Einstellungen für Netzwerk, MQTT, Zähler und Anmeldedaten.
 - Expertenansicht (je Browser einschaltbar): Parameter der Ladelogik mit Bereich,
-  Werkseinstellung und Erklärung, Ladestromgrenzen, Zählerwerte, Status der Ladelogik,
-  CP-Oszilloskop.
+  Werkseinstellung und Erklärung, Ladestromgrenzen, Zählerwerte, innere Zustände der
+  Ladelogik, CP-Oszilloskop.
 - Firmware-Update über den Bootloader der Steuerung, mit Vorprüfung der Datei und Prüfung
   des Ergebnisses.
 - Bedienungsanleitung: [docs/anleitung/weboberflaeche.md](docs/anleitung/weboberflaeche.md);

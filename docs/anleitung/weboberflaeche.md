@@ -15,7 +15,7 @@ Die elektrische Installation der Ladestation ist nicht Gegenstand dieser Anleitu
 3. [Erste Anmeldung](#3-erste-anmeldung)
 4. [Aufbau der Oberfläche](#4-aufbau-der-oberfläche)
 5. [Übersicht](#5-übersicht)
-6. [Auswertung](#6-auswertung)
+6. [Status](#6-status)
 7. [Einstellungen](#7-einstellungen)
 8. [System](#8-system)
 9. [Störungen und Abhilfe](#9-störungen-und-abhilfe)
@@ -97,7 +97,7 @@ Die **Kopfzeile** enthält:
     grau und lässt sich nicht bedienen, bis die Verbindung wieder steht. Die Seite verbindet
     sich selbständig neu.
   - orange mit der Leiste „Update läuft“: während eines Firmware-Updates (Abschnitt 8.1).
-- die **Bereiche** Übersicht, Auswertung, Einstellungen und System.
+- die **Bereiche** Übersicht, Status, Einstellungen und System.
 
 ![Anzeige bei getrennter Verbindung](bilder/getrennt.png)
 
@@ -110,8 +110,8 @@ Auf dem Smartphone stehen die Bereiche unter dem Titel, die Kacheln untereinande
 
 **Einfache Ansicht und Expertenansicht:** Ab Werk zeigt die Oberfläche nur, was man im Alltag
 braucht. Die **Expertenansicht** (Bereich System, Abschnitt 8) zeigt zusätzlich die Parameter
-der Ladelogik (Einstellungen → Laden) und die Rohwerte unter Auswertung (Ladestrom, Zähler, Status
-der Ladelogik, CP-Oszilloskop). Die Wahl gilt nur für den jeweiligen Browser; an der Steuerung
+der Ladelogik (Einstellungen → Laden) und die Rohwerte unter Status (Ladestrom, Zähler, Ladelogik,
+CP-Oszilloskop). Die Wahl gilt nur für den jeweiligen Browser; an der Steuerung
 ändert sie nichts.
 
 **Uhrzeiten:** Die Steuerung hat keine eigene Uhr. Alle Uhrzeiten berechnet der Browser aus
@@ -128,7 +128,7 @@ vorzugeben.
 | --- | --- |
 | **Zustand** | Zustand der Ladestation: *Kein Fahrzeug*, *Wartet auf Freigabe*, *Bereit*, *Lädt* oder *Fehler*. Darunter der Zustand des Fahrzeugs nach IEC 61851 (A kein Fahrzeug, B verbunden, C lädt, D lädt mit Lüftungsanforderung, E/F Fehler). |
 | **Fahrzeug darf** | Strom, den das Fahrzeug im Moment ziehen darf (vom Ladesignal an das Fahrzeug gemeldet), und ob das Schütz (der Leistungsschalter der Ladestation) ein- oder ausgeschaltet ist. |
-| **Fehler** | *Kein Fehler* oder die Art des Fehlers; darunter der Zustand der Verriegelung des Ladesteckers. Einzelheiten zu Fehlern stehen unter Auswertung. |
+| **Fehler** | *Kein Fehler* oder die Art des Fehlers; darunter der Zustand der Verriegelung des Ladesteckers. Einzelheiten zu Fehlern stehen unter Status. |
 | **Zähler** | Nur mit eingerichtetem Energiezähler: aktuelle Ladeleistung in kW, Zählerstand in kWh und Zustand der Verbindung zum Zähler. Ohne Zähler bleibt die Kachel leer. |
 
 ### 5.2 Ladestrom
@@ -163,17 +163,18 @@ Energiemanagement (z. B. evcc) setzt die Vorgabe selbst und überschreibt Änder
 ### 5.3 Letzte Ereignisse
 
 Die letzten 8 Ereignisse mit Uhrzeit: Zustandswechsel, Schützschaltungen, Verriegelung,
-Fehler und Änderungen des Zählerzustands. Das vollständige Protokoll steht unter Auswertung.
+Fehler und Änderungen des Zählerzustands. Das vollständige Protokoll steht unter Status.
 
-## 6 Auswertung
+## 6 Status
 
-Auswertung zeigt Verlauf, Messwerte und Protokolle, z. B. um einen Ladevorgang nachzuvollziehen
-oder eine Störung einzugrenzen. In der einfachen Ansicht stehen hier nur Verlauf, Fehler und
-Ereignisprotokoll; die Abschnitte 6.2, 6.4, 6.6 und 6.7 gibt es nur in der Expertenansicht.
+Status zeigt Verlauf, Verbindungen, Messwerte und Protokolle, z. B. um einen Ladevorgang
+nachzuvollziehen oder eine Störung einzugrenzen. In der einfachen Ansicht stehen hier nur
+Verlauf, Verbindungen, Fehler und Ereignisprotokoll; die Abschnitte 6.5 bis 6.8 gibt es nur in
+der Expertenansicht.
 
 ### 6.1 Verlauf
 
-![Verlauf mit Hinweis beim Zeigen auf ein Intervall](bilder/auswertung-verlauf.png)
+![Verlauf mit Hinweis beim Zeigen auf ein Intervall](bilder/status-verlauf.png)
 
 Der Verlauf zeigt Mittelwerte über jeweils **10 Minuten** seit dem Start der Steuerung,
 höchstens die letzten **48 Stunden**:
@@ -186,26 +187,23 @@ Beim Zeigen mit der Maus oder Tippen auf die Kurve erscheinen Zeitraum und Werte
 Intervalls. Der Verlauf wird nur im Arbeitsspeicher gehalten und ist nach einem Neustart
 oder Stromausfall leer.
 
-### 6.2 Ladestrom
+### 6.2 Verbindungen
 
-![Ladestrom als Tabelle](bilder/auswertung-ladestrom.png)
+![Verbindungen](bilder/status-verbindungen.png)
 
-Dieselben Größen wie die Ringanzeige als Zahlen:
+Zustand der Verbindungen der Steuerung; eingestellt werden sie unter Einstellungen
+([7.2](#72-netzwerk) bis [7.4](#74-zähler)).
 
-| Zeile | Bedeutung |
+| Zeile | Inhalt |
 | --- | --- |
-| Vorgabe | vorgegebener Ladestrom (von Hand, Energiemanagement oder MQTT) |
-| Maximum Drehschalter | am Drehschalter eingestellt bzw. abgesenkt ([7.1](#71-laden), `hardware_limit_override`) |
-| Kabel | Belastbarkeit des Ladekabels, nur bei Ladestationen mit Steckdose |
-| Stromgrenze über Digitaleingang | Grenze durch einen aktiven Digitaleingang; genannt werden die Eingänge mit einer Stromgrenze als Funktion ([10.2](#102-eingangsfunktionen)) |
-| **Erlaubt** | Ergebnis: Strom, den das Fahrzeug ziehen darf |
-| Messwert | gemessener Strom der höchsten Phase (nur mit Zähler) |
-
-Die gerade wirkende Grenze ist orange mit „begrenzt“ markiert.
+| Netzwerk | Adresse per DHCP oder die feste Adresse, darunter der Hostname |
+| Uhrzeit | Uhrzeit der Steuerung, darunter der Zeitserver und wann zuletzt abgeglichen; „unbekannt“, solange kein Zeitserver antwortet. Nach jedem Neustart ist sie unbekannt, bis der Zeitserver antwortet (keine Pufferbatterie). |
+| MQTT | aus, nicht verbunden, verbunden oder vom Broker abgelehnt; verbunden mit Broker, Präfix und der Zahl gesendeter Nachrichten und empfangener Befehle |
+| Zähler | kein Zähler, verbinde …, verbunden oder gestört |
 
 ### 6.3 Fehler
 
-![Fehler](bilder/auswertung-fehler.png)
+![Fehler](bilder/status-fehler.png)
 
 - **Aktiv:** Fehler, die im Moment bestehen.
 - **Seit Start:** alle Fehler, die seit dem letzten Start aufgetreten sind.
@@ -218,21 +216,9 @@ Steuerung neu gestartet wird. Quittieren Sie ihn erst, wenn die Ursache geprüft
 ist. Fehler erscheinen hier mit ihrer Kennung (z. B. `CP-INVALID`); die Bedeutung steht in
 [10.5](#105-fehler).
 
-### 6.4 Zähler
+### 6.4 Ereignisprotokoll
 
-![Zählerwerte](bilder/auswertung-zaehler.png)
-
-Nur mit eingerichtetem Energiezähler: Typ und Zustand des Zählers, Alter des letzten
-Messwertsatzes, alle Messwerte (Spannungen, Ströme, Leistungen, Frequenz, Energie) und die
-Zähler der Abfragen (Anfragen, Antworten, Zeitüberschreitungen, gestörte Antworten,
-Ausnahmen, unplausible Werte). Steigen Zeitüberschreitungen oder gestörte Antworten
-laufend, prüfen Sie Verdrahtung, Adresse und Übertragungsparameter ([7.4](#74-zähler)).
-„ungültig“ bedeutet: Der Wert fehlt oder ist veraltet. Er wird bewusst nicht als 0
-angezeigt.
-
-### 6.5 Ereignisprotokoll
-
-![Ereignisprotokoll](bilder/auswertung-protokoll.png)
+![Ereignisprotokoll](bilder/status-protokoll.png)
 
 Die letzten 48 Einträge, auch über Neustarts hinweg: jeder **Start** mit seinem Grund (z. B.
 „Start: Überwachung (Ladelogik reagierte nicht)“), alle Ereignisse und **fehlgeschlagene Anmeldungen**
@@ -248,9 +234,38 @@ Sekunden nach dem Start (vor dem Zeitabgleich) nachträglich ihre Uhrzeit.
 **Protokoll löschen** entfernt nach einer Rückfrage alle Einträge. Das Löschen selbst bleibt als
 erster Eintrag „Ereignisprotokoll gelöscht von …“ mit der Adresse des Geräts stehen.
 
-### 6.6 Status der Ladelogik
+### 6.5 Ladestrom
 
-![Status der Ladelogik (Ausschnitt)](bilder/auswertung-status.png)
+![Ladestrom als Tabelle](bilder/status-ladestrom.png)
+
+Dieselben Größen wie die Ringanzeige als Zahlen:
+
+| Zeile | Bedeutung |
+| --- | --- |
+| Vorgabe | vorgegebener Ladestrom (von Hand, Energiemanagement oder MQTT) |
+| Maximum Drehschalter | am Drehschalter eingestellt bzw. abgesenkt ([7.1](#71-laden), `hardware_limit_override`) |
+| Kabel | Belastbarkeit des Ladekabels, nur bei Ladestationen mit Steckdose |
+| Stromgrenze über Digitaleingang | Grenze durch einen aktiven Digitaleingang; genannt werden die Eingänge mit einer Stromgrenze als Funktion ([10.2](#102-eingangsfunktionen)) |
+| **Erlaubt** | Ergebnis: Strom, den das Fahrzeug ziehen darf |
+| Messwert | gemessener Strom der höchsten Phase (nur mit Zähler) |
+
+Die gerade wirkende Grenze ist orange mit „begrenzt“ markiert.
+
+### 6.6 Zähler
+
+![Zählerwerte](bilder/status-zaehler.png)
+
+Nur mit eingerichtetem Energiezähler: Typ und Zustand des Zählers, Alter des letzten
+Messwertsatzes, alle Messwerte (Spannungen, Ströme, Leistungen, Frequenz, Energie) und die
+Zähler der Abfragen (Anfragen, Antworten, Zeitüberschreitungen, gestörte Antworten,
+Ausnahmen, unplausible Werte). Steigen Zeitüberschreitungen oder gestörte Antworten
+laufend, prüfen Sie Verdrahtung, Adresse und Übertragungsparameter ([7.4](#74-zähler)).
+„ungültig“ bedeutet: Der Wert fehlt oder ist veraltet. Er wird bewusst nicht als 0
+angezeigt.
+
+### 6.7 Ladelogik
+
+![Ladelogik (Ausschnitt)](bilder/status-ladelogik.png)
 
 Innere Zustände der Ladesteuerung, vor allem für die Fehlersuche. Die Werte sind nur lesbar.
 
@@ -278,7 +293,7 @@ Innere Zustände der Ladesteuerung, vor allem für die Fehlersuche. Die Werte si
 | Eingang LD … IN, Ausgang ER … CR | Schaltzustand jedes Digitaleingangs und -ausgangs: an oder aus |
 | Fehlversuche Verriegeln / Entriegeln | Anzahl fehlgeschlagener Versuche im aktuellen Steckvorgang |
 
-### 6.7 CP-Oszilloskop
+### 6.8 CP-Oszilloskop
 
 Die Karte **CP-Oszilloskop** (unter „Ladestrom“) zeigt auf Knopfdruck (**Aufnehmen**) den Verlauf
 der Signalleitung zum Fahrzeug über eine PWM-Periode (1 ms), mit den Spannungen der
@@ -400,9 +415,8 @@ Diese Werte steuern den laufenden Betrieb. Nach einem Neustart gelten wieder ihr
 
 ![Einstellungen › Netzwerk](bilder/einstellungen-netzwerk.png)
 
-Oben steht die **aktive** Einstellung (DHCP oder feste Adresse, Hostname) und die Uhrzeit mit
-dem Zeitserver, von dem sie stammt („unbekannt“, solange keiner antwortet). Änderungen an der
-Adresse wirken nach einem Neustart, die Zeitserver-Einstellungen sofort.
+Änderungen an der Adresse wirken nach einem Neustart, die Zeitserver-Einstellungen sofort. Die
+aktive Einstellung und die Uhrzeit zeigt [Status › Verbindungen](#62-verbindungen).
 
 | Parameter | Werk | Beschreibung |
 | --- | --- | --- |
@@ -424,8 +438,7 @@ Adresse wirken nach einem Neustart, die Zeitserver-Einstellungen sofort.
 ![Einstellungen › MQTT](bilder/einstellungen-mqtt.png)
 
 Über MQTT meldet die Steuerung ihre Zustände an einen Broker (z. B. für eine
-Hausautomation). Oben steht der Zustand der Verbindung (aus, nicht verbunden, verbunden,
-vom Broker abgelehnt) mit der Zahl gesendeter Nachrichten und empfangener Befehle.
+Hausautomation). Den Zustand der Verbindung zeigt [Status › Verbindungen](#62-verbindungen).
 Änderungen wirken **sofort**; die Verbindung wird mit den neuen Werten neu aufgebaut.
 Ein fehlender Broker beeinträchtigt das Laden nicht.
 
@@ -448,8 +461,8 @@ Ein fehlender Broker beeinträchtigt das Laden nicht.
 Ein Energiezähler am RS-485-Anschluss der Steuerung (Modbus RTU) liefert Messwerte für die
 Anzeige, den Verlauf und ein Energiemanagement. Er dient **nur der Anzeige**: Die Steuerung
 lädt ohne Zähler genauso, und Schutzfunktionen hängen nur dann von ihm ab, wenn Sie das
-ausdrücklich einschalten (`contactor_monitor` = 4, `overcurrent_enable`). Oben steht der
-Zustand der Verbindung. Änderungen wirken nach einem Neustart.
+ausdrücklich einschalten (`contactor_monitor` = 4, `overcurrent_enable`). Den Zustand der
+Verbindung zeigt [Status › Verbindungen](#62-verbindungen). Änderungen wirken nach einem Neustart.
 
 | Parameter | Werk | Beschreibung |
 | --- | --- | --- |
@@ -485,7 +498,6 @@ Sie es deshalb nur in einem vertrauenswürdigen Netz.
 | MAC-Adresse | Hardware-Adresse der Netzwerkschnittstelle (vom Hersteller vergeben, wie in der Originalfirmware); unter ihr kennt der Router die Wallbox, z. B. für eine feste IP-Adresse |
 | Prüfsumme | Prüfsumme der laufenden Firmware; „beschädigt, Laden gesperrt“, wenn sie nicht stimmt (z. B. nach einem unvollständigen Update) |
 | Letztes Update | nur nach einem Firmware-Update: erfolgreich oder fehlgeschlagen |
-| Uhrzeit | Uhrzeit der Steuerung mit Zeitserver und wann zuletzt abgeglichen; „unbekannt“ ohne Zeitserver. Nach jedem Neustart ist sie unbekannt, bis der Zeitserver antwortet (keine Pufferbatterie). |
 
 **Neu starten** startet die Steuerung neu, z. B. damit geänderte Netzwerk- oder
 Zählereinstellungen wirken. Ein laufender Ladevorgang wird vorher geordnet beendet. Die Seite
@@ -540,7 +552,7 @@ Ein Fahrzeug sollte während des Updates nicht angesteckt sein.
 | Anzeige „getrennt“, Inhalt grau | Verbindung unterbrochen (WLAN, Netz, Steuerung startet neu). Die Seite verbindet sich selbst neu. |
 | Anmeldung wird immer wieder abgefragt | Falsche Zugangsdaten. Der Browser schickt nach einer Änderung manchmal noch die alten: neuen Tab oder privates Fenster öffnen. |
 | „zu viele Fehlversuche“ | Sperre nach falschen Anmeldungen ([Abschnitt 3](#3-erste-anmeldung)). Warten (höchstens 5 Minuten) und dann richtig anmelden. Auch Programme mit veralteten Zugangsdaten (z. B. ein Energiemanagement) lösen die Sperre aus; dort die Zugangsdaten anpassen. |
-| Fahrzeug lädt nicht | Übersicht: Zeile unter dem Ring („Vorgabe: Laden aus“, „Laden gesperrt“) und Kachel Fehler prüfen; Auswertung › Fehler. Bei „Wartet auf Freigabe“ fehlt die Freigabe ([10.4](#104-freigabe-und-verfügbarkeit)). |
+| Fahrzeug lädt nicht | Übersicht: Zeile unter dem Ring („Vorgabe: Laden aus“, „Laden gesperrt“) und Kachel Fehler prüfen; Status › Fehler. Bei „Wartet auf Freigabe“ fehlt die Freigabe ([10.4](#104-freigabe-und-verfügbarkeit)). |
 | Zähler „gestört“ | [7.4](#74-zähler) |
 | Firmware-Update fehlgeschlagen | Unter System steht „Letztes Update: fehlgeschlagen“; es läuft die bisherige Firmware. Update wiederholen, vorher evcc und andere Abfragen anhalten. Steht die Steuerung danach im Update-Betrieb (alle LEDs der Steuerung an oder blinkend, Weboberfläche nicht erreichbar), die Seite des Bootloaders unter der bisherigen Adresse oder unter 192.168.0.8 öffnen und die Datei dort hochladen ([8.1](#81-firmware-update)). |
 | Passwort vergessen / Steuerung unerreichbar | **Werksreset:** Reset-Taster der Steuerung gedrückt halten (insgesamt etwa 10 Sekunden). Die Power-LED bleibt zunächst etwa 5 Sekunden dunkel, dann blinkt sie langsam; nach weiteren 5 Sekunden blinkt sie schnell, dann loslassen (geht auch beim Einschalten). Alle Einstellungen und die Zugangsdaten sind danach im Werkszustand (`admin` / `wallfree`, Netzwerk per DHCP). Kurzes Drücken startet die Steuerung nur neu. |
@@ -652,7 +664,7 @@ E/F Fehler bzw. nicht verfügbar).
 
 ### 10.5 Fehler
 
-| Kennung (Auswertung › Fehler) | Text (Status) | Bedeutung | Aufgehoben |
+| Kennung (Status › Fehler) | Text (Status) | Bedeutung | Aufgehoben |
 | --- | --- | --- | --- |
 | `CABLE-REJECT` | Kabel abgewiesen | Kabel mit zu geringer Belastbarkeit (D2/D3) | anderes Kabel |
 | `PP-INVALID` | PP ungültig | Kabelcodierung nicht lesbar oder kein Kabel bei verbundenem Fahrzeug | Ursache entfällt |
