@@ -44,7 +44,7 @@ ZTEST(api_sysconf, test_defaults_and_json)
 			       "\"net_netmask\":\"255.255.255.0\",\"net_gateway\":\"192.168.0.1\","
 			       "\"net_hostname\":\"\",\"telnet_enable\":false,\"meter_type\":0,"
 			       "\"meter_address\":1,\"meter_baud\":9600,\"meter_framing\":0,"
-			       "\"mqtt_enable\":false,\"mqtt_broker\":\"0.0.0.0\",\"mqtt_port\":1883,"
+			       "\"mqtt_enable\":false,\"mqtt_broker\":\"\",\"mqtt_port\":1883,"
 			       "\"mqtt_user\":\"\",\"mqtt_password\":null,\"mqtt_prefix\":\"\","
 			       "\"mqtt_interval\":1,\"mqtt_commands\":false,\"mqtt_discovery\":true,"
 			       "\"ntp_enable\":true,"
@@ -101,10 +101,17 @@ ZTEST(api_sysconf, test_mqtt_params)
 	zassert_false(c.mqtt_enable, "Werkszustand aus");
 	zassert_false(c.mqtt_commands, "Werkszustand ohne Befehle");
 	zassert_is_null(set("mqtt_broker", S("192.168.1.50")));
-	zassert_equal(c.mqtt_broker, 0xC0A801D7);
-	zassert_is_null(set("mqtt_broker", S("0.0.0.0")), "keiner");
+	zassert_str_equal(c.mqtt_broker, "192.168.1.50");
+	zassert_is_null(set("mqtt_broker", S("")), "keiner");
+	zassert_not_null(set("mqtt_broker", S("0.0.0.0")));
 	zassert_not_null(set("mqtt_broker", S("224.0.0.1")));
 	zassert_is_null(set("mqtt_broker", S("127.0.0.1")), "Simulation");
+	/* SOLL-MQTT-02: auch ein Name (DNS), ohne Port */
+	zassert_is_null(set("mqtt_broker", S("homeassistant.local")));
+	zassert_str_equal(c.mqtt_broker, "homeassistant.local");
+	zassert_not_null(set("mqtt_broker", S("broker:1883")), "Port ist mqtt_port");
+	zassert_not_null(set("mqtt_broker", S("a b")));
+	zassert_not_null(set("mqtt_broker", S("192.168.1.300")));
 
 	zassert_is_null(set("mqtt_port", N(1)));
 	zassert_is_null(set("mqtt_port", N(65535)));
@@ -138,7 +145,7 @@ ZTEST(api_sysconf, test_mqtt_params)
 			     S("12345678901234567890123456789012345678901234567890123456789012345")));
 
 	/* einschalten nur mit Broker */
-	zassert_is_null(set("mqtt_broker", S("0.0.0.0")));
+	zassert_is_null(set("mqtt_broker", S("")));
 	zassert_is_null(set("mqtt_enable", N(1)));
 	zassert_not_null(wf_sys_check(&c));
 	zassert_is_null(set("mqtt_broker", S("192.168.1.50")));
@@ -159,7 +166,7 @@ ZTEST(api_sysconf, test_live_and_repair)
 	zassert_is_null(set("net_hostname", S("nicht-live")));
 	wf_sys_take_live(&a, &c);
 	zassert_true(a.mqtt_enable && a.mqtt_commands);
-	zassert_equal(a.mqtt_broker, 0x0A000002);
+	zassert_str_equal(a.mqtt_broker, "10.0.0.2");
 	zassert_str_equal(a.mqtt_password, "pw");
 	zassert_str_equal(a.mqtt_prefix, "x/y");
 	zassert_str_equal(a.hostname, "", "Netzwerte erst nach Neustart");
@@ -407,4 +414,22 @@ ZTEST(api_sysconf, test_import)
 	orig[404] = 0x0101; /* oberes Byte ohne Bedeutung */
 	zassert_equal(wf_sys_import_orig(&c, lookup, NULL, &err), 4);
 	zassert_true(c.dhcp);
+}
+
+/* mqtt_broker frueher als IPv4 unter 3021: beim Laden uebernehmen */
+ZTEST(api_sysconf, test_migrate_broker)
+{
+	struct wf_sysconf a;
+	const uint8_t old[4] = {192, 168, 1, 41}, none[4] = {0};
+
+	wf_sysconf_defaults(&a);
+	wf_sys_migrate_broker(&a, old, sizeof(old));
+	zassert_str_equal(a.mqtt_broker, "192.168.1.41");
+	wf_sys_migrate_broker(&a, (const uint8_t[]){10, 0, 0, 1}, 4);
+	zassert_str_equal(a.mqtt_broker, "192.168.1.41", "neuer Wert hat Vorrang");
+	wf_sysconf_defaults(&a);
+	wf_sys_migrate_broker(&a, none, sizeof(none));
+	zassert_str_equal(a.mqtt_broker, "", "0.0.0.0 = keiner");
+	wf_sys_migrate_broker(&a, old, 3);
+	zassert_str_equal(a.mqtt_broker, "", "falsche Laenge");
 }

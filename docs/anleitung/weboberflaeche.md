@@ -420,7 +420,7 @@ Ein fehlender Broker beeinträchtigt das Laden nicht.
 | Parameter | Werk | Beschreibung |
 | --- | --- | --- |
 | MQTT-Client (`mqtt_enable`) | aus | Schaltet die Verbindung zum Broker ein. Einschaltbar erst mit eingetragener Broker-Adresse. |
-| IPv4-Adresse des Brokers (`mqtt_broker`) | 0.0.0.0 | Adresse des Brokers als Zahl (z. B. 192.168.178.10); Namen werden nicht aufgelöst. |
+| Broker (`mqtt_broker`) | leer | Name oder Adresse des Brokers, z. B. `homeassistant.local` oder `192.168.178.10`, ohne Port (der steht im nächsten Feld). Ein Name wird bei jedem Verbindungsaufbau neu aufgelöst. |
 | Port des Brokers (`mqtt_port`) | 1883 | TCP-Port des Brokers. Verschlüsselte Verbindungen (TLS, meist 8883) werden nicht unterstützt. |
 | Benutzer am Broker (`mqtt_user`) | leer | Benutzername am Broker; leer = ohne Anmeldung. |
 | Passwort am Broker (`mqtt_password`) | leer | Passwort am Broker. Es wird nie angezeigt („unverändert“); ein leeres Feld lässt das gespeicherte Passwort unverändert. |

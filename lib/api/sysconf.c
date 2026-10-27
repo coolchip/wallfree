@@ -21,7 +21,7 @@ static const struct wf_syspar pars[] = {
 	{"meter_baud", 3018, WF_SYS_CODE, "Baudrate RS-485: 2400..115200"},
 	{"meter_framing", 3019, WF_SYS_CODE, "Rahmenformat: 0 = 8N1, 1 = 8E1, 2 = 8O1, 3 = 8N2"},
 	{"mqtt_enable", 3020, WF_SYS_BOOL, "MQTT-Client, wirkt sofort"},
-	{"mqtt_broker", 3021, WF_SYS_IPV4, "IPv4-Adresse des Brokers"},
+	{"mqtt_broker", 3031, WF_SYS_TEXT, "Broker: Name oder IPv4-Adresse"},
 	{"mqtt_port", 3022, WF_SYS_CODE, "Port des Brokers 1..65535"},
 	{"mqtt_user", 3023, WF_SYS_TEXT, "Benutzer am Broker, leer = ohne Anmeldung"},
 	{"mqtt_password", 3024, WF_SYS_SECRET, "Passwort am Broker (nicht lesbar)"},
@@ -156,10 +156,6 @@ static const char *check_ip(const struct wf_syspar *p, uint32_t v)
 	if (p->id == 3013 && v != 0 && !unicast(v)) {
 		return "keine gültige Gateway-Adresse";
 	}
-	/* Broker: auch 127.x (PC-Simulation mit Broker auf demselben Rechner) */
-	if (p->id == 3021 && v != 0 && !unicast(v) && (v >> 24) != 127) {
-		return "keine gültige Broker-Adresse";
-	}
 	return NULL;
 }
 
@@ -214,16 +210,49 @@ static char *text_field(struct wf_sysconf *c, uint16_t id, size_t *max)
 	case 3029:
 		*max = WF_NTP_SERVER_MAX;
 		return c->ntp_server;
+	case 3031:
+		*max = WF_MQTT_BROKER_MAX;
+		return c->mqtt_broker;
 	default:
 		*max = WF_HOSTNAME_MAX;
 		return c->hostname;
 	}
 }
 
+/* Broker: Name oder IPv4 ohne Port (Port ist mqtt_port); IPv4 auch 127.x (PC-Simulation) */
+static const char *check_broker(const char *h, size_t n)
+{
+	char host[WF_MQTT_BROKER_MAX + 1];
+	uint16_t port;
+	bool numeric = true;
+
+	if (n == 0) {
+		return NULL;
+	}
+	if (n > WF_MQTT_BROKER_MAX || memchr(h, ':', n) != NULL ||
+	    wf_ntp_parse_server(h, n, host, &port) != 0) {
+		return "Name oder IPv4-Adresse des Brokers (Port extra)";
+	}
+	for (size_t i = 0; i < n; i++) {
+		numeric &= (h[i] >= '0' && h[i] <= '9') || h[i] == '.';
+	}
+	if (numeric) {
+		uint32_t v;
+
+		if (wf_ipv4_parse(host, &v) != 0 || (!unicast(v) && (v >> 24) != 127)) {
+			return "keine gültige Broker-Adresse";
+		}
+	}
+	return NULL;
+}
+
 static const char *check_text(uint16_t id, const char *h, size_t n)
 {
 	if (id == 3014) {
 		return check_host(h, n);
+	}
+	if (id == 3031) {
+		return check_broker(h, n);
 	}
 	if (id == 3029) {
 		char host[WF_NTP_SERVER_MAX + 1];
@@ -312,8 +341,7 @@ static void code_put(struct wf_sysconf *c, uint16_t id, uint32_t v)
 
 static uint32_t *ip_field(struct wf_sysconf *c, uint16_t id)
 {
-	return id == 3011 ? &c->ip : id == 3012 ? &c->netmask
-		: id == 3013 ? &c->gateway : &c->mqtt_broker;
+	return id == 3011 ? &c->ip : id == 3012 ? &c->netmask : &c->gateway;
 }
 
 static bool *bool_field(struct wf_sysconf *c, uint16_t id)
@@ -383,7 +411,7 @@ const char *wf_sys_check(const struct wf_sysconf *c)
 	if (c->gateway != 0 && ((c->gateway & m) != (c->ip & m) || c->gateway == c->ip)) {
 		return "Gateway liegt nicht im Netz der Adresse";
 	}
-	if (c->mqtt_enable && c->mqtt_broker == 0) {
+	if (c->mqtt_enable && c->mqtt_broker[0] == '\0') {
 		return "MQTT: Broker-Adresse fehlt (mqtt_broker)";
 	}
 	return NULL;
@@ -393,7 +421,7 @@ const char *wf_sys_repair(struct wf_sysconf *c)
 {
 	const char *what = NULL;
 
-	if (c->mqtt_enable && c->mqtt_broker == 0) {
+	if (c->mqtt_enable && c->mqtt_broker[0] == '\0') {
 		c->mqtt_enable = false;
 		what = "MQTT ohne Broker, aus";
 	}
@@ -405,13 +433,26 @@ const char *wf_sys_repair(struct wf_sysconf *c)
 	return what;
 }
 
+void wf_sys_migrate_broker(struct wf_sysconf *c, const uint8_t *buf, size_t n)
+{
+	if (n != 4 || c->mqtt_broker[0] != '\0') {
+		return;
+	}
+	uint32_t v = ((uint32_t)buf[0] << 24) | ((uint32_t)buf[1] << 16) | ((uint32_t)buf[2] << 8) |
+		     buf[3];
+
+	if (v != 0) {
+		wf_ipv4_format(v, c->mqtt_broker);
+	}
+}
+
 void wf_sys_take_live(struct wf_sysconf *dst, const struct wf_sysconf *src)
 {
 	dst->mqtt_enable = src->mqtt_enable;
 	dst->mqtt_commands = src->mqtt_commands;
 	dst->mqtt_port = src->mqtt_port;
 	dst->mqtt_interval = src->mqtt_interval;
-	dst->mqtt_broker = src->mqtt_broker;
+	memcpy(dst->mqtt_broker, src->mqtt_broker, sizeof(dst->mqtt_broker));
 	memcpy(dst->mqtt_user, src->mqtt_user, sizeof(dst->mqtt_user));
 	memcpy(dst->mqtt_password, src->mqtt_password, sizeof(dst->mqtt_password));
 	memcpy(dst->mqtt_prefix, src->mqtt_prefix, sizeof(dst->mqtt_prefix));

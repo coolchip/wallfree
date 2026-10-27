@@ -689,7 +689,7 @@ abgelehnt (E14). Namen sind Vorschlaege (WARP-angelehnt, englisch).
 | `meter_baud` | Bd | 2400, 4800, 9600, 19200, 38400, 57600, 115200 | 9600 | ja | (386) | ja | SOLL-MTR-02 |
 | `meter_framing` | Code | 0 = 8N1, 1 = 8E1, 2 = 8O1, 3 = 8N2 | 0 | ja | – | ja | SOLL-MTR-02 |
 | `mqtt_enable` | 0/1 | 0..1 (1 nur mit `mqtt_broker`) | 0 | ja | – | nein | F30, SOLL-MQTT-01 |
-| `mqtt_broker` | IPv4 | Einzeladresse (auch 127.x fuer die PC-Simulation) oder 0.0.0.0 (keiner) | 0.0.0.0 | ja | – | nein | SOLL-MQTT-02 |
+| `mqtt_broker` | Text | Name (per DNS, bei jedem Verbindungsversuch neu aufgeloest) oder IPv4-Einzeladresse (auch 127.x fuer die PC-Simulation), ohne Port; leer = keiner (bis 2026-10-27 nur IPv4, alter Wert wird beim Start uebernommen) | leer | ja | – | nein | SOLL-MQTT-02 |
 | `mqtt_port` | – | 1..65535 | 1883 | ja | – | nein | SOLL-MQTT-02 |
 | `mqtt_user`, `mqtt_password` | Text | 0..32 / 0..64 druckbare ASCII-Zeichen, leer = ohne Anmeldung; Passwort nicht lesbar | leer | ja | – | nein | SOLL-MQTT-02 |
 | `mqtt_prefix` | Text | 0..64 Zeichen, leer = `wallfree/<MAC-Ende>` | leer | ja | – | nein | SOLL-MQTT-12 |

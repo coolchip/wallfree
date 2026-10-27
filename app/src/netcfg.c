@@ -52,6 +52,14 @@ static void load(struct wf_sysconf *c)
 			LOG_WRN("%s: gespeicherter Wert ungueltig, Default", p->name);
 		}
 	}
+	/* mqtt_broker frueher als IPv4 unter 3021 (wf_sys_migrate_broker) */
+	if (storage_read_raw(wf_sys_find("mqtt_broker")->id, buf, sizeof(buf)) <= 0) {
+		int n = storage_read_raw(WF_SYS_ID_BROKER_OLD, buf, sizeof(buf));
+
+		if (n > 0) {
+			wf_sys_migrate_broker(c, buf, (size_t)n);
+		}
+	}
 	fix = wf_sys_repair(c); /* z. B. feste Adresse widerspruechlich: lieber DHCP als kein Netz */
 	if (fix != NULL) {
 		LOG_WRN("gespeicherte Konfiguration: %s", fix);

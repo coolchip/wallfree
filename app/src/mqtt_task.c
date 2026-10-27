@@ -31,6 +31,7 @@
 #include "meter_task.h"
 #include "mqtt_task.h"
 #include "netcfg.h"
+#include "resolve.h"
 #include "sysinfo.h"
 
 LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_INF);
@@ -393,10 +394,7 @@ static void client_setup(void)
 	const char *host = net_hostname_get();
 
 	mqtt_client_init(&client);
-	broker.sin_family = NET_AF_INET;
-	broker.sin_port = net_htons(cfg.mqtt_port);
-	broker.sin_addr.s_addr = net_htonl(cfg.mqtt_broker);
-	client.broker = &broker;
+	client.broker = &broker; /* Adresse setzt broker_connect (resolve4) */
 	client.evt_cb = evt_cb;
 	client.client_id.utf8 = (const uint8_t *)host;
 	client.client_id.size = strlen(host);
@@ -435,6 +433,12 @@ static int broker_connect(atomic_val_t gen)
 	int r;
 
 	client_setup();
+	/* SOLL-MQTT-02: Name oder Adresse; Name bei jedem Verbindungsversuch neu aufloesen */
+	r = resolve4(cfg.mqtt_broker, cfg.mqtt_port, &broker);
+	if (r != 0) {
+		LOG_WRN("Broker %s: Name nicht aufgeloest (%d)", cfg.mqtt_broker, r);
+		return r;
+	}
 	connack = false;
 	r = mqtt_connect(&client);
 	if (r != 0) {

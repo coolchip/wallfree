@@ -22,6 +22,7 @@ extern "C" {
 #define WF_MQTT_PW_MAX 64
 #define WF_MQTT_PREFIX_MAX 64
 #define WF_NTP_SERVER_MAX 64
+#define WF_MQTT_BROKER_MAX 64
 #define WF_SYS_VAL_MAX 64 /**< groesster kodierter Wert (NVM_MAX_LEN) */
 
 struct wf_sysconf {
@@ -40,7 +41,7 @@ struct wf_sysconf {
 	bool mqtt_discovery;    /**< Home-Assistant-Erkennung (SOLL-MQTT-40) */
 	uint16_t mqtt_port;
 	uint16_t mqtt_interval; /**< s, 0 = ohne Bremse */
-	uint32_t mqtt_broker;   /**< 0 = keiner */
+	char mqtt_broker[WF_MQTT_BROKER_MAX + 1]; /**< Name oder IPv4, "" = keiner */
 	char mqtt_user[WF_MQTT_USER_MAX + 1];
 	char mqtt_password[WF_MQTT_PW_MAX + 1]; /**< nie ausgegeben */
 	char mqtt_prefix[WF_MQTT_PREFIX_MAX + 1]; /**< "" = wallfree/<MAC-Ende> */
@@ -80,6 +81,13 @@ size_t wf_sys_count(void);
 const struct wf_syspar *wf_sys_at(size_t i);
 const struct wf_syspar *wf_sys_find(const char *name);
 const struct wf_syspar *wf_sys_by_id(uint16_t id);
+
+/**
+ * Bis 2026-10-27 lag mqtt_broker als IPv4 (4 Byte) unter Kennung 3021, seitdem als Name oder
+ * Adresse unter 3031. Ist 3031 nicht gespeichert, den alten Wert uebernehmen (0.0.0.0 = keiner).
+ */
+#define WF_SYS_ID_BROKER_OLD 3021
+void wf_sys_migrate_broker(struct wf_sysconf *c, const uint8_t *buf, size_t n);
 
 /** Einen Wert setzen (Text-IP, true/false bzw. 0/1, Text). @return NULL oder Fehlertext */
 const char *wf_sys_set(struct wf_sysconf *c, const struct wf_syspar *p, const struct wf_jval *v);

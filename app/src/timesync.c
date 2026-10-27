@@ -5,7 +5,7 @@
  * Ladelogik benutzt die Uhrzeit nie; ohne Zeitserver bleiben alle Zeiten relativ zum Start.
  *
  * Ablauf: Server bestimmen (ntp_server, sonst Zeitserver aus DHCP Option 42, sonst
- * pool.ntp.org), Name per DNS aufloesen, eine SNTP-Abfrage; Erfolg -> Uhrzeit = Antwort minus
+ * pool.ntp.org), Name per DNS aufloesen (resolve.c), eine SNTP-Abfrage; Erfolg -> Uhrzeit = Antwort minus
  * Laufzeit (Basis), naechster Abgleich nach 6 h; Fehlschlag -> nach 60 s, verdoppelt bis 1 h.
  * Die Steuerung hat keine Pufferbatterie: nach jedem Start ist die Uhrzeit wieder unbekannt.
  */
@@ -13,13 +13,13 @@
 #include <string.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-#include <zephyr/net/dns_resolve.h>
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/sntp.h>
 #include <wallfree/api/ntp.h>
 #include <wallfree/api/sysconf.h>
 #include "http_api.h"
 #include "netcfg.h"
+#include "resolve.h"
 #include "timesync.h"
 
 LOG_MODULE_REGISTER(timesync, LOG_LEVEL_INF);
@@ -87,51 +87,6 @@ void timesync_notify(void)
 	k_sem_give(&ts_wake);
 }
 
-#if defined(CONFIG_DNS_RESOLVER)
-static K_SEM_DEFINE(dns_done, 0, 1);
-static struct net_sockaddr_in dns_addr;
-static bool dns_ok;
-
-static void dns_cb(enum dns_resolve_status status, struct dns_addrinfo *info, void *user_data)
-{
-	ARG_UNUSED(user_data);
-	if (status == DNS_EAI_INPROGRESS && info != NULL && info->ai_family == NET_AF_INET) {
-		memcpy(&dns_addr, &info->ai_addr, sizeof(dns_addr));
-		dns_ok = true;
-		return;
-	}
-	if (status != DNS_EAI_INPROGRESS) {
-		k_sem_give(&dns_done); /* fertig (DNS_EAI_ALLDONE) oder Fehler */
-	}
-}
-#endif
-
-/* @return 0 und Adresse in @p sa oder < 0 */
-static int resolve(const char *host, uint16_t port, struct net_sockaddr_in *sa)
-{
-	memset(sa, 0, sizeof(*sa));
-	sa->sin_family = NET_AF_INET;
-	sa->sin_port = net_htons(port);
-	if (net_addr_pton(NET_AF_INET, host, &sa->sin_addr) == 0) {
-		return 0;
-	}
-#if defined(CONFIG_DNS_RESOLVER)
-	dns_ok = false;
-	k_sem_reset(&dns_done);
-	if (dns_get_addr_info(host, DNS_QUERY_TYPE_A, NULL, dns_cb, NULL, TS_TIMEOUT_MS) < 0) {
-		return -EIO;
-	}
-	(void)k_sem_take(&dns_done, K_MSEC(TS_TIMEOUT_MS + 1000));
-	if (!dns_ok) {
-		return -ENOENT;
-	}
-	sa->sin_addr = dns_addr.sin_addr;
-	return 0;
-#else
-	return -ENOTSUP; /* Simulation: kein DNS (Fallstricke) */
-#endif
-}
-
 /* Server nach SOLL-TIME-02: eingestellt, sonst DHCP Option 42, sonst pool.ntp.org */
 static void choose(const struct wf_sysconf *c, char *host, uint16_t *port)
 {
@@ -159,7 +114,7 @@ static int sync_once(const struct wf_sysconf *c)
 	struct sntp_time ts;
 
 	choose(c, host, &port);
-	int r = resolve(host, port, &sa);
+	int r = resolve4(host, port, &sa);
 
 	if (r < 0) {
 		LOG_WRN("Zeitserver %s: Name nicht aufgeloest (%d)", host, r);
