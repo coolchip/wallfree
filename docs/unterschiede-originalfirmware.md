@@ -90,5 +90,5 @@ genaue Festlegung jedes Punkts steht in der [Soll-Spezifikation](soll-spezifikat
   Originalfirmware nie. Ein Import dieser Einstellungen in Wallfree (Shell-Befehl
   `evse import-original`) ist eingebaut, auf einer Steuerung aber noch nicht ausgeführt.
 - **Voraussetzung:** eine Sicherung der Originalfirmware. Wallfree enthält sie nicht und kann sie
-  nicht auslesen; sie muss vor dem ersten Update gesichert werden (z. B. über die
-  Debug-Schnittstelle der Steuerung).
+  nicht auslesen; sie muss vor dem ersten Update über die Debug-Schnittstelle der Steuerung
+  gesichert werden. Schritt für Schritt: [Umrüsten auf Wallfree und zurück](umruesten.md).
