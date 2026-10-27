@@ -48,7 +48,8 @@ können Menschen gefährden. Software-Tests belegen keine elektrische Sicherheit
   CP-Oszilloskop.
 - Firmware-Update über den Bootloader der Steuerung, mit Vorprüfung der Datei und Prüfung
   des Ergebnisses.
-- Bedienungsanleitung: [docs/anleitung/weboberflaeche.md](docs/anleitung/weboberflaeche.md).
+- Bedienungsanleitung: [docs/anleitung/weboberflaeche.md](docs/anleitung/weboberflaeche.md);
+  Vergleich mit der Originaloberfläche: [docs/vergleich-weboberflaeche.md](docs/vergleich-weboberflaeche.md).
 
 **Wartung**
 
@@ -78,6 +79,7 @@ und Rückweg Schritt für Schritt: [Umrüsten auf Wallfree und zurück](docs/umr
 | [docs/test-und-simulation.md](docs/test-und-simulation.md) | PC-Tests, Ende-zu-Ende-Simulation, Browser-Durchlauf, evcc-Test |
 | [docs/simulation-bedienung.md](docs/simulation-bedienung.md) | Simulation starten und bedienen (Optionen, Shell-Kommando `sim`, Beispielabläufe) |
 | [docs/pruefstecker.md](docs/pruefstecker.md) | Prüfstecker (Bauanleitung) und Prüfablauf mit Fahrzeugnachbildung |
+| [docs/vergleich-weboberflaeche.md](docs/vergleich-weboberflaeche.md) | Weboberfläche vorher und nachher: was aus den Seiten der Originaloberfläche wird |
 | [docs/anleitung/weboberflaeche.md](docs/anleitung/weboberflaeche.md) | Bedienungsanleitung der Weboberfläche (PDF: `scripts/anleitung-pdf.sh`) |
 | [boards/phoenix/ev_cc_ac1/](boards/phoenix/ev_cc_ac1/) | Zephyr-Board-Beschreibung (Pins aus der Originalfirmware, am Testgerät bis auf Schütz und PWM bestätigt) |
 | [app/](app/) | Anwendung für die Steuerung: Hardwareschicht, Threads, Shell; zusätzlich als PC-Simulation |

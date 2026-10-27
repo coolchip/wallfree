@@ -402,7 +402,7 @@ Fuer die spaetere Veroeffentlichung der Firmware vorbereiten:
 - Liste der Funktionen (Ladelogik, evcc/WARP-API, MQTT mit Home-Assistant-Erkennung, Zaehler,
   Uhrzeit, Protokoll ueber Neustarts, CP-Oszilloskop, Update ueber die Weboberflaeche).
 - Rueckweg zur Originalfirmware (auf dem Testgerät geprueft): Anleitung [umruesten.md](umruesten.md).
-- Vorher-Nachher-Vergleich der Weboberflaeche (Original gegen Wallfree, nur eigene Bilder).
+- Vorher-Nachher-Vergleich der Weboberflaeche: [vergleich-weboberflaeche.md](vergleich-weboberflaeche.md).
 - Kompletter Simulator auf dem PC (native_sim mit Hardwaremodell, Ersatz-Bootloader, evcc).
 - Vor der Veroeffentlichung: Zeiten der Git-Commits pruefen (Nutzer 2026-10-27; Claude erinnert
   daran, der Nutzer weiss, was gemeint ist).
