@@ -941,9 +941,10 @@ function SystemPage({ onBusy, expert, setExpert }) {
 			<tr><td>Firmware</td><td class="num">Wallfree ${si.firmware}<br />
 				<small class="muted">Build ${si.build}</small></td></tr>
 			<tr><td>Laufzeit</td><td class="num">${dur(si.uptime_ms)}</td></tr>
-			<tr><td>Letzter Reset</td><td class="num">${resetText(si.reset_reason, si.reset_detail)}</td></tr>
-			<tr><td>Uhrzeit</td><td class="num">${si.time ? new Date(si.time.time_ms).toLocaleString('de-DE')
-				+ ' (' + si.time.server + ', abgeglichen vor ' + dur(si.time.synced_ms) + ')' : 'unbekannt (kein Zeitserver)'}</td></tr>
+			<tr><td>Letzter Reset</td><td class="num wrap">${resetText(si.reset_reason, si.reset_detail)}</td></tr>
+			<tr><td>Uhrzeit</td><td class="num">${si.time ? html`${new Date(si.time.time_ms).toLocaleString('de-DE')}<br />
+				<small class="muted wrap">${si.time.server}, abgeglichen vor ${dur(si.time.synced_ms)}</small>`
+				: 'unbekannt (kein Zeitserver)'}</td></tr>
 			${si.mac && html`<tr><td>MAC-Adresse</td><td class="num">${si.mac}</td></tr>`}
 			${si.image && html`<tr><td>Prüfsumme</td><td class="num ${si.image.ok ? '' : 'bad'}">
 				${si.image.crc}${si.image.ok ? '' : ' – beschädigt, Laden gesperrt'}</td></tr>`}

@@ -61,6 +61,7 @@ table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { font-size: 12px; color: var(--muted); font-weight: 600; }
 td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.num.wrap, td.num .wrap { white-space: normal; }
 td .row { flex-wrap: nowrap; }
 td .row.edit { justify-content: flex-end; } /* OK-Tasten untereinander am rechten Rand */
 td .row input { flex: 0 1 100px; width: 100px; min-width: 60px; }
