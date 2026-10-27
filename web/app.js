@@ -725,6 +725,13 @@ function trailer(buf) {
 	return dv.getUint32(o + 4, true) === o && parseInt(crc, 16) === dv.getUint32(o + 8, true) ? crc : 'bad';
 }
 
+// Firmwarestand als Text: "Wallfree 0.1 (Bau d2863d9)"; Kennung "<Version>+<Bau>" aus dem Abbild,
+// aeltere Abbilder tragen nur den Commit
+function fwName(tag) {
+	const i = tag.indexOf('+');
+	return i < 0 ? 'Wallfree (Bau ' + tag + ')' : 'Wallfree ' + tag.slice(0, i) + ' (Bau ' + tag.slice(i + 1) + ')';
+}
+
 // Vorpruefung: was der Bootloader selbst nicht prueft. @return {version, crc} (fremd: beide
 // null) oder Fehlertext
 function checkImage(buf) {
@@ -806,7 +813,7 @@ function Update({ onBusy }) {
 			'Weboberfläche nicht mehr erreichbar. Wirklich aufspielen?';
 		const others = '\n\nVorher evcc und andere Programme anhalten, die die Wallbox abfragen, und ' +
 			'weitere Browser-Tabs schließen: Jede Anfrage während des Hochladens bricht das Update ab.';
-		if (!confirm((ver ? 'Firmware ' + ver + ' aufspielen? Ein laufender Ladevorgang wird beendet.'
+		if (!confirm((ver ? fwName(ver) + ' aufspielen? Ein laufender Ladevorgang wird beendet.'
 			: foreign) + others)) return;
 		setMsg(null);
 		setT0(Date.now());
@@ -843,10 +850,10 @@ function Update({ onBusy }) {
 			const ok = si.update_result && si.update_result.ok && si.image && si.image.ok &&
 				si.image.crc === c.crc;
 			setStep(5);
-			setMsg({ ok, text: ok ? 'Update erfolgreich, Firmware ' + si.firmware + '. Seite lädt neu …'
+			setMsg({ ok, text: ok ? 'Update erfolgreich, ' + fwName(si.firmware + '+' + si.build) + '. Seite lädt neu …'
 				: si.image && !si.image.ok ? 'Update unvollständig angekommen: Die Firmware ist ' +
 					'beschädigt, Laden ist gesperrt. Bitte das Update wiederholen.'
-				: 'Update fehlgeschlagen, es läuft Firmware ' + si.firmware + '.' });
+				: 'Update fehlgeschlagen, es läuft ' + fwName(si.firmware + '+' + si.build) + '.' });
 			if (ok) setTimeout(() => location.reload(), 3000);
 		} catch (e) {
 			quiet = false;
@@ -858,7 +865,7 @@ function Update({ onBusy }) {
 	return html`<${Card} title="Firmware-Update">
 		<div class="row"><input type="file" accept=".bin" disabled=${busy} onChange=${pick} /></div>
 		${c && html`<p class=${typeof c === 'string' ? 'bad msg' : c.version ? 'msg' : 'warn msg'}>
-			${typeof c === 'string' ? c : c.version ? 'Wallfree ' + c.version + ', ' +
+			${typeof c === 'string' ? c : c.version ? fwName(c.version) + ', ' +
 			Math.round(file.buf.byteLength / 1024) + ' KB, Prüfsumme ' + c.crc : 'Kein Wallfree-Abbild (z. B. Originalfirmware)'}</p>`}
 		${busy && html`<div class="progress">
 			<p><strong>Update läuft – bitte warten.</strong> Das dauert meist weniger als eine Minute
@@ -890,7 +897,8 @@ function SystemPage({ onBusy }) {
 	}, []);
 	return html`<${Card} title="System">
 		${si && html`<table>
-			<tr><td>Firmware</td><td class="num">${si.firmware}</td></tr>
+			<tr><td>Firmware</td><td class="num">Wallfree ${si.firmware}<br />
+				<small class="muted">Bau ${si.build}</small></td></tr>
 			<tr><td>Laufzeit</td><td class="num">${dur(si.uptime_ms)}</td></tr>
 			<tr><td>Letzter Reset</td><td class="num">${resetText(si.reset_reason, si.reset_detail)}</td></tr>
 			<tr><td>Uhrzeit</td><td class="num">${si.time ? new Date(si.time.time_ms).toLocaleString('de-DE')

@@ -13,11 +13,14 @@ LOG_MODULE_REGISTER(sysinfo, LOG_LEVEL_INF);
 #ifndef WALLFREE_VERSION
 #define WALLFREE_VERSION "unbekannt"
 #endif
+#ifndef WALLFREE_BUILD
+#define WALLFREE_BUILD "unbekannt"
+#endif
 
-/* Kennung im Abbild: die Weboberflaeche erkennt daran vor einem Update ein
- * Wallfree-Abbild und dessen Version (SOLL-BOOT-32) */
+/* Kennung im Abbild "WALLFREE-IMAGE:<Version>+<Bauzeichen>": die Weboberflaeche erkennt daran
+ * vor einem Update ein Wallfree-Abbild und dessen Version (SOLL-BOOT-32) */
 #define IMAGE_TAG "WALLFREE-IMAGE:"
-static const char image_tag[] = IMAGE_TAG WALLFREE_VERSION;
+static const char image_tag[] = IMAGE_TAG WALLFREE_VERSION "+" WALLFREE_BUILD;
 
 static enum wf_reset reason;
 static enum wf_reset_detail detail; /* SOLL-RT-14: welche Ueberwachung bzw. Ausnahme */
@@ -95,7 +98,9 @@ void sysinfo_json(struct wf_jbuf *b)
 {
 	wf_jb_raw(b, "{");
 	wf_jb_key(b, "firmware", true);
-	wf_jb_str(b, sysinfo_version());
+	wf_jb_str(b, WALLFREE_VERSION);
+	wf_jb_key(b, "build", false);
+	wf_jb_str(b, WALLFREE_BUILD);
 	wf_jb_key(b, "reset_reason", false);
 	wf_jb_str(b, wf_reset_name(reason));
 	wf_jb_key(b, "reset_detail", false);

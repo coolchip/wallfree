@@ -467,7 +467,7 @@ Sie es deshalb nur in einem vertrauenswürdigen Netz.
 
 | Anzeige | Bedeutung |
 | --- | --- |
-| Firmware | Stand der Firmware |
+| Firmware | Version der Firmware (z. B. „Wallfree 0.1“), darunter klein das Bauzeichen (Stand des Quelltexts, für Fehlermeldungen) |
 | Laufzeit | Zeit seit dem letzten Start |
 | Letzter Reset | Grund des letzten Starts: Einschalten, Neustart auf Anforderung (Oberfläche oder Wartungszugang), Firmware-Update, Werksreset, Reset-Taster, Spannungseinbruch, Watchdog, Überwachung bzw. Schnittstelle hing (die Überwachung hat neu gestartet; in Klammern, welche: z. B. „Ladelogik reagierte nicht“), Programmfehler (mit Programmstelle im Protokoll) |
 | MAC-Adresse | Hardware-Adresse der Netzwerkschnittstelle (vom Hersteller vergeben, wie in der Originalfirmware); unter ihr kennt der Router die Wallbox, z. B. für eine feste IP-Adresse |

@@ -88,7 +88,7 @@ await send('Fetch.enable', { handleAuthRequests: true, patterns: [{ urlPattern: 
 const out = {};
 await send('Page.navigate', { url: base + '#/system' });
 await sleep(3000);
-const version = await evalJs("fetch('/system/info').then((r) => r.json()).then((j) => j.firmware)");
+const version = await evalJs("fetch('/system/info').then((r) => r.json()).then((j) => j.firmware + '+' + j.build)");
 out.version = version;
 await choose(image(version, 0xffffffff));
 out.bad = await text();
@@ -116,8 +116,8 @@ chrome.kill();
 
 const checks = [
 	['Vorpruefung lehnt ungueltige Datei ab', out.bad.includes('Kein Firmware-Abbild')],
-	['Vorpruefung erkennt Wallfree mit Version', out.good.includes('Wallfree ' + version)],
-	['Rueckfrage nennt die Version', dialogs.length === 1 && dialogs[0].includes(version)],
+	['Vorpruefung erkennt Wallfree mit Version', out.good.includes('Wallfree ' + version.replace('+', ' (Bau ') + ')')],
+	['Rueckfrage nennt die Version', dialogs.length === 1 && dialogs[0].includes(version.split('+')[0])],
 	['Ablauf bis Erfolg', out.done.includes('Update erfolgreich')],
 	['waehrend des Updates: Hinweisleiste "Update laeuft", nie ausgegraut',
 		out.heads.some((h) => h.startsWith('Update läuft')) && !out.heads.some((h) => h.endsWith('|offline'))],

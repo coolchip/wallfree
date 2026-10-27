@@ -46,10 +46,15 @@ foreach(f index.html app.js style.css vendor/preact-htm.js)
   generate_inc_file_for_target(app ${CMAKE_CURRENT_SOURCE_DIR}/../web/${f} ${gen_dir}/${n}.gz.inc --gzip)
 endforeach()
 zephyr_include_directories(${ZEPHYR_BINARY_DIR}/include/generated)
-# Firmwarestand fuer /system/info (git describe, sonst "unbekannt")
-execute_process(COMMAND git describe --always --dirty
+# Firmwarestand: Version aus VERSION (Major.Minor, Zwischenstaende "-dev"), Bauzeichen = Commit
+# (Tags ausgeschlossen, bei Aenderungen "-dirty", ohne Git "unbekannt")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../VERSION)
+file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/../VERSION WALLFREE_VERSION LIMIT_COUNT 1)
+execute_process(COMMAND git describe --always --dirty --exclude=*
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  OUTPUT_VARIABLE WALLFREE_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-if(WALLFREE_VERSION)
-  target_compile_definitions(app PRIVATE WALLFREE_VERSION="${WALLFREE_VERSION}")
+  OUTPUT_VARIABLE WALLFREE_BUILD OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+if(NOT WALLFREE_BUILD)
+  set(WALLFREE_BUILD unbekannt)
 endif()
+target_compile_definitions(app PRIVATE WALLFREE_VERSION="${WALLFREE_VERSION}"
+  WALLFREE_BUILD="${WALLFREE_BUILD}")

@@ -121,7 +121,7 @@ Seite in den Upload und braeche ihn ab): erzeugt Testabbilder mit der Kennung de
 Version und Anhang, prueft die Vorpruefung (ungueltige Datei abgelehnt, Wallfree mit
 Version erkannt), die Rueckfrage, waehrend des Ablaufs Kopf "Update laeuft" ohne Ausgrauen, den
 Ablauf bis "Update erfolgreich" und nach dem Neuladen
-"Letztes Update: erfolgreich" (Simulation 2026-10-24: bestanden).
+"Letztes Update: erfolgreich" (Simulation 2026-10-27: bestanden).
 
 ## Netz-Lasttest
 

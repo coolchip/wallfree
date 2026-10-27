@@ -1,6 +1,6 @@
 # Implementierungsstand
 
-Stand: 2026-10-26. **Auf Hardware nur ohne Last gelaufen** (Testgerät, Schuetz abgeklemmt, kein
+Stand: 2026-10-27. **Auf Hardware nur ohne Last gelaufen** (Testgerät, Schuetz abgeklemmt, kein
 Fahrzeug; Ergebnisse: [Pruefungen auf dem Testgerät](#pruefungen-auf-box-t)); bestandene Tests belegen
 keine elektrische Sicherheit. Rahmen und Begruendungen: [Architektur](architektur.md);
 Tests: [Test und Simulation](test-und-simulation.md).
@@ -71,7 +71,7 @@ TIM1 und ADC1 stehen nicht im Board-Devicetree, weil die Anwendung sie direkt st
 | [auth.c](../app/src/auth.c) | Zugangsdaten (HA1), Werkszugang, Passwortaenderung, Nonce-Geheimnis je Start | SOLL-API-07 |
 | [netcfg.c](../app/src/netcfg.c) | Geraete-MAC aus dem OTP (`0x1FFF7800`) vor DHCP, Netz-/Systemparameter, Hostname, DHCP oder feste Adresse, Telnet; Aendern (atomar), Import; `mqtt_*` sofort in die laufende Konfiguration und MQTT neu verbinden; Netzwerk-LED PC2 | 10.1, F20, F25, SOLL-LED-06, SOLL-MQTT-31 |
 | [shell_evse.c](../app/src/shell_evse.c) | `evse status`, `param list/get/set`, `current`, `enable`, `avail`, `pause`, `pwm5`, `lock`, `unlock`, `errors [clear]`, `selftest`, `reboot`, `bootloader`, `boot` (Diagnose: RCC_CSR und BKP10..16 beim Start), `ack`, `nvm`, `meter`, `mqtt`, `sys list/set`, `factory-reset confirm`, `import-original` | SOLL-SH-01..11/19/20, SOLL-MTR-33, SOLL-MQTT-32 |
-| [sysinfo.c](../app/src/sysinfo.c) | Resetgrund, Firmwarestand (`git describe`, im Abbild als `WALLFREE-IMAGE:<version>`), Laufzeit, Ergebnis eines Updates (BKP12), Pruefung des eigenen Abbilds (CRC32 gegen den Anhang, ungueltig -> ERR-INTERNAL); `GET /system/info` | SOLL-RT-14, SOLL-BOOT-32/33/35 |
+| [sysinfo.c](../app/src/sysinfo.c) | Resetgrund, Firmwarestand (Version und Bauzeichen, im Abbild als `WALLFREE-IMAGE:<version>+<bau>`), Laufzeit, Ergebnis eines Updates (BKP12), Pruefung des eigenen Abbilds (CRC32 gegen den Anhang, ungueltig -> ERR-INTERNAL); `GET /system/info` | SOLL-RT-14, SOLL-BOOT-32/33/35 |
 | [meter_task.c](../app/src/meter_task.c) | Zaehlerthread (niedrigste Anwendungsprioritaet, Stack 1280 B, nicht ueberwacht), nur mit `meter_type` != 0; Momentaufnahme unter Sperre, Bus ohne Sperre; Ereignisse in den gemeinsamen Ringpuffer | SOLL-MTR-01/03/10..14 |
 | CP-Aufnahme in [hw_stm32.c](../app/src/hw_stm32.c), `GET /evse/cp_scope` | ADC2 (CP+ IN0, CP- IN9, 28 Zyklen) per Software gestartet im TIM1-CC2-Interrupt (Prio wie TIM1-Update), DMA2 Stream2 Kanal 1, CCR2 = 60 + 8 i (t = 1000 - CCR2/2 us); Simulation aus dem Modell. Auf dem Testgerät geprueft (`6eb0e08`, 2026-10-27): Aufnahme gelingt, im Leerlauf Tastgrad 1000, CP+ 11,87..11,93 V; CC2 loest im zentrierten Modus 1 einmal je Periode aus | SOLL-API-34 |
 | [timesync.c](../app/src/timesync.c), [ntp.c](../lib/api/ntp.c), [resolve.c](../app/src/resolve.c) | Uhrzeit per SNTP: Thread niedrigster Prioritaet (Stack 2048 B, nicht ueberwacht), Server nach SOLL-TIME-02, DNS asynchron ohne Heap (gemeinsam mit MQTT), Basis = Antwort minus Laufzeit, an das Protokoll weitergereicht | SOLL-TIME-01..04 |
@@ -165,6 +165,7 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Punkt | Umsetzung | Grund |
 | --- | --- | --- |
 | Neustart | nur geordnet: `evse_request_shutdown` (wirkt wie fehlende Verfuegbarkeit -> S7 mit 5-s-Frist -> S10), warten bis Schuetz aus, hoechstens 15 s, dann sicherer Zustand und Reset; gilt fuer Shell, HTTP und Werksreset. `kernel reboot` ist entfernt | SOLL-RT-22, SOLL-SH-20 |
+| Versionsnummer | Hauptversion.Nebenversion ohne Patch aus der Datei `VERSION`; `0.x`, bis das Laden auf der Hardware nachgewiesen ist, `1.0` nach Stufe C; Zwischenstaende `0.2-dev`. Veroeffentlichung = Git-Tag `v0.x` auf dem Commit, danach `VERSION` auf die naechste `-dev`. Bauzeichen = Commit (`git describe --exclude=*`, bei Aenderungen `-dirty`). Kennung im Abbild `WALLFREE-IMAGE:0.1+<commit>`; `/system/info`: `firmware` = Version, `build` = Bauzeichen; Log, Shell und Home Assistant zeigen `0.1+<commit>`. Weboberflaeche: "Wallfree 0.1", darunter klein "Bau <commit>"; Vorpruefung des Updates "Wallfree 0.1 (Bau <commit>)", aeltere Abbilder ohne Version "Wallfree (Bau <commit>)". `scripts/build-image.sh`: `wallfree-0.1.bin` nur bei sauberem Stand mit Tag `v0.1` auf HEAD, sonst `wallfree-<version>-<commit>[-dirty].bin` | Nutzer 2026-10-27; ausgeschriebener Name statt "WF"; ein Dateiname gehoert so immer zu genau einem Stand |
 | Abbild ungueltig (SOLL-BOOT-35) | ERR-INTERNAL beim Start (Klasse P, kein Laden, loescht sich nur durch Neustart mit gueltigem Abbild), Logmeldung, `image.ok = false`; CRC mit `nvm_crc32` (bitweise, etwa 150 ms beim Start, vor dem IWDG von Wallfree) bestaetigt (Nutzer 2026-10-26) | SOLL-BOOT-35 |
 | Update-Uebergabe | wie der Neustart geordnet (Ladeende, hoechstens 15 s), dann BKP10..15 und Reset statt BKP19-Reset allein; IP/Maske der aktuellen Adresse, ohne Adresse 0 (Bootloader: 192.168.0.8); eine zweite Anforderung waehrend Neustart/Update -> 409 bzw. Meldung, bestaetigt (Nutzer 2026-10-26) | SOLL-BOOT-30/31 |
 | Update in der Weboberflaeche | Vorpruefung: hoechstens 320 KB (Sektor 4..6), Start-SP wie die Bootloader-Pruefung, Reset-Vektor ungerade in `0x08010000..0x0806FFFF`, Kennung `WALLFREE-IMAGE:` mit Version. Wer antwortet, zeigt `GET /system/info` ohne eigene Auswertung des Bootloader-Textes: JSON = Wallfree (auch 401), sonst HTML = Bootloader. Fristen: bis 60 s auf den Bootloader, Upload 30 s (wie der Bootloader), bis 180 s auf Wallfree; die Antwort des Bootloaders auf den Upload wird nicht ausgewertet (er startet 1 s danach neu). Erfolg = `update_result.ok`, `image.ok` und `image.crc` gleich dem Anhang der Datei; eine Datei mit Wallfree-Kennung ohne gueltigen Anhang wird abgelehnt. Ab der Uebergabe bis Wallfree zurueck stellt die Seite keine Anfragen ausser denen des Ablaufs (auch kein WebSocket). Fremdes Abbild: nach dem Upload Ende ohne Ergebnis; bestaetigt (Nutzer 2026-10-26) | SOLL-BOOT-32/35 |
@@ -370,13 +371,6 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
 - Energiezaehler an RS-485 (kein Zaehler vorhanden).
 - Import aus Sektor 3 auf der Steuerung noch nicht ausgefuehrt (fuer das Testgerät ungeeignet: er setzte
   LD 3, CR 9 und die feste Adresse 192.168.0.8).
-- **Versionsnummer einfuehren** (Nutzer 2026-10-27, noch nicht umgesetzt): Hauptversion.Nebenversion
-  ohne Patch, Start bei `0.1`; `0.x`, bis das Laden auf der Hardware nachgewiesen ist, `1.0` nach
-  Stufe C. Zwischenstaende `0.2-dev` mit Commit als Bauzeichen. Quelle: Datei `VERSION` im
-  Repository, Veroeffentlichung mit Git-Tag `v0.x`. Anzeige "Wallfree 0.1", darunter klein
-  "Bau <commit>"; Abbild `wallfree-0.1.bin` (ausgeschriebener Name statt "WF"); Kennung im Abbild
-  (`WALLFREE-IMAGE:`) und Vorpruefung des Updates auf die neue Form umstellen;
-  `scripts/build-image.sh` benennt danach.
 - Browser-Durchlauf um Zugangsdaten-Seite und Netz/System erweitern (Parameter schreiben ueber
   Auswahlliste und Kaestchen ist von Hand in der Simulation geprueft).
 
