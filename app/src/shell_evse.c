@@ -386,22 +386,6 @@ static int cmd_errors_clear(const struct shell *sh, size_t argc, char **argv)
 }
 
 /* SOLL-SH-07 */
-/* SOLL-SH-12: Ziel von PE1 an der Hardware suchen */
-static int cmd_pe1_test(const struct shell *sh, size_t argc, char **argv)
-{
-	ARG_UNUSED(argc);
-	ARG_UNUSED(argv);
-	bool ok = evse_pe1_test(evse_acquire(), k_uptime_get(), 1000);
-
-	evse_release();
-	if (!ok) {
-		shell_error(sh, "nur in S1 ohne Fahrzeug (CP A) und mit Schuetz aus");
-		return -EBUSY;
-	}
-	shell_print(sh, "PE1 fuer 1 s High");
-	return 0;
-}
-
 static int cmd_selftest(const struct shell *sh, size_t argc, char **argv)
 {
 	ARG_UNUSED(argc);
@@ -599,8 +583,6 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_evse,
 	SHELL_CMD_ARG(unlock, NULL, "Entriegeln anfordern", cmd_unlock, 1, 0),
 	SHELL_CMD_ARG(errors, &sub_errors, "aktive Fehler, Historie", cmd_errors, 1, 0),
 	SHELL_CMD_ARG(selftest, NULL, "RCM-Selbsttest (nur S1, CP A)", cmd_selftest, 1, 0),
-	SHELL_CMD_ARG(pe1-test, NULL, "Diagnose: PE1 1 s High (Ziel unbekannt), nur S1, CP A",
-		      cmd_pe1_test, 1, 0),
 	SHELL_CMD_ARG(reboot, NULL, "geordneter Neustart (SOLL-RT-22)", cmd_reboot, 1, 0),
 	SHELL_CMD_ARG(bootloader, NULL, "Update: Uebergabe an den Bootloader (SOLL-SH-10)",
 		      cmd_bootloader, 1, 0),

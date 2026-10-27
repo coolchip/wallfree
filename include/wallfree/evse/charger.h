@@ -153,7 +153,7 @@ struct evse_outputs {
 	bool dout[EVSE_DOUT_COUNT];  /**< ER, LR, VR, CR */
 	bool led[EVSE_LED_COUNT];    /**< true = an (Pegel macht die Hardwareschicht) */
 	enum evse_led_mode led_mode[EVSE_LED_COUNT];
-	bool pe1;                    /**< D5-Ausgang (F15), High nur bei evse_pe1_test */
+	bool pe1;                    /**< D5-Ausgang, immer Low (F15) */
 };
 
 struct evse {
@@ -198,7 +198,6 @@ struct evse {
 	evse_ms_t charge_ms;
 
 	/* Schuetz und CP */
-	evse_ms_t pe1_test_until;    /**< Diagnose PE1 (SOLL-SH-12), 0 = aus */
 	bool contactor;
 	evse_ms_t contactor_off_since;
 	evse_ms_t contactor_off_at_19; /**< Nachlauf Code 38 */
@@ -263,13 +262,6 @@ bool evse_lock_command(struct evse *e, bool lock, evse_ms_t now);
  * kein Test laeuft. @return true, wenn gestartet.
  */
 bool evse_selftest_command(struct evse *e, evse_ms_t now);
-
-/**
- * Diagnose (SOLL-SH-12): PE1 fuer @p ms (hoechstens 2000) High, um seine Wirkung an der Hardware
- * zu finden (das Relais C3/C4 ist es nicht, Testgeraet). Nur in S1 ohne Fahrzeug (CP A) und mit Schuetz aus;
- * verlaesst die Steuerung diesen Zustand, faellt PE1 sofort ab. @return true, wenn gestartet.
- */
-bool evse_pe1_test(struct evse *e, evse_ms_t now, evse_ms_t ms);
 
 /**
  * Neustart vorbereiten (SOLL-RT-22): wirkt wie fehlende Verfuegbarkeit,
