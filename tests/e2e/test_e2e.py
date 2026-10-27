@@ -786,6 +786,35 @@ class T5Mqtt(SimCase):
         self.assertIn("Bereich", st["last_reject"])
         self.assertEqual(self.sim.get_json("/evse/external_current", self.auth)["current"], 12000)
 
+    def test_06b_home_assistant(self):
+        # SOLL-MQTT-40/41: Erkennung retained unter homeassistant/, Ladestrom nur mit Befehlen
+        node = "wallfree_000000"  # Simulation ohne MAC
+        T5Mqtt.sub.terminate()
+        T5Mqtt.sub = self.broker.subscribe("homeassistant/#")
+        retained, p = self.broker.wait(f"homeassistant/sensor/{node}/state/config")
+        self.assertTrue(retained)
+        cfg = json.loads(p)
+        self.assertEqual(cfg["~"], self.PREFIX)
+        self.assertEqual(cfg["stat_t"], "~/evse/state")
+        self.assertEqual(cfg["avty_t"], "~/online")
+        self.assertEqual(cfg["dev"]["ids"], [node])
+        _, p = self.broker.wait(f"homeassistant/number/{node}/charge_current/config")
+        self.assertEqual(json.loads(p)["cmd_t"], "~/evse/external_current_update")
+        time.sleep(0.5)
+        topics = {t for _, t, _ in self.broker.lines}
+        self.assertNotIn(f"homeassistant/sensor/{node}/power/config", topics, "ohne Zaehler")
+        # ausgeschaltet: leere retained Nachrichten entfernen die Elemente
+        self.config({"mqtt_discovery": False})
+        self.mqtt_state(lambda s: s["connection_state"] == 2)
+        time.sleep(1)
+        T5Mqtt.sub.terminate()
+        T5Mqtt.sub = self.broker.subscribe("homeassistant/#")
+        time.sleep(1)
+        self.assertEqual([x for x in self.broker.lines if x[2:] and x[2]], [], "nichts mehr gespeichert")
+        self.config({"mqtt_discovery": True})
+        self.mqtt_state(lambda s: s["connection_state"] == 2)
+        self.resubscribe()
+
     def test_07_gespeicherter_befehl_ignoriert(self):
         # SOLL-MQTT-22: retained beim Abonnieren ausgeliefert -> ignoriert
         topic = self.PREFIX + "/evse/external_current_update"

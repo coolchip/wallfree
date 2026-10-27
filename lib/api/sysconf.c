@@ -28,6 +28,7 @@ static const struct wf_syspar pars[] = {
 	{"mqtt_prefix", 3025, WF_SYS_TEXT, "Topic-Präfix, leer = wallfree/<MAC-Ende>"},
 	{"mqtt_interval", 3026, WF_SYS_CODE, "Mindestabstand je Topic in s, 0..3600"},
 	{"mqtt_commands", 3027, WF_SYS_BOOL, "Befehle annehmen (Ladestrom setzen)"},
+	{"mqtt_discovery", 3030, WF_SYS_BOOL, "Home Assistant: Wallbox automatisch als Gerät anlegen"},
 	{"ntp_enable", 3028, WF_SYS_BOOL, "Uhrzeit von einem Zeitserver holen (SNTP), wirkt sofort"},
 	{"ntp_server", 3029, WF_SYS_TEXT,
 	 "Zeitserver (Name oder IPv4, optional :Port), leer = vom Router per DHCP, sonst pool.ntp.org"},
@@ -47,6 +48,7 @@ void wf_sysconf_defaults(struct wf_sysconf *c)
 	c->meter_framing = WF_FRAMING_8N1;
 	c->mqtt_port = 1883;
 	c->mqtt_interval = 1;
+	c->mqtt_discovery = true;           /* Nutzer 2026-10-27 */
 	c->ntp_enable = true;               /* Nutzer 2026-10-26 */
 }
 
@@ -317,7 +319,8 @@ static uint32_t *ip_field(struct wf_sysconf *c, uint16_t id)
 static bool *bool_field(struct wf_sysconf *c, uint16_t id)
 {
 	return id == 3010 ? &c->dhcp : id == 3015 ? &c->telnet
-		: id == 3020 ? &c->mqtt_enable : id == 3028 ? &c->ntp_enable : &c->mqtt_commands;
+		: id == 3020 ? &c->mqtt_enable : id == 3028 ? &c->ntp_enable
+		: id == 3030 ? &c->mqtt_discovery : &c->mqtt_commands;
 }
 
 const char *wf_sys_set(struct wf_sysconf *c, const struct wf_syspar *p, const struct wf_jval *v)
@@ -413,6 +416,7 @@ void wf_sys_take_live(struct wf_sysconf *dst, const struct wf_sysconf *src)
 	memcpy(dst->mqtt_password, src->mqtt_password, sizeof(dst->mqtt_password));
 	memcpy(dst->mqtt_prefix, src->mqtt_prefix, sizeof(dst->mqtt_prefix));
 	dst->ntp_enable = src->ntp_enable;
+	dst->mqtt_discovery = src->mqtt_discovery;
 	memcpy(dst->ntp_server, src->ntp_server, sizeof(dst->ntp_server));
 }
 

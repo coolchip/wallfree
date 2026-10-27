@@ -233,6 +233,7 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Retain bei Befehlen | eine mit Retain veroeffentlichte Nachricht kommt bei bestehendem Abo ohne Retain-Kennung an (MQTT-3.3.1-9) und wird angenommen; ignoriert wird die gespeicherte Kopie, die der Broker beim Abonnieren ausliefert | genau dieser Fall wuerde nach jedem Neustart einen alten Sollwert setzen (SOLL-MQTT-22) |
 | Ereignisse | vor dem Verbinden entstandene werden verworfen | SOLL-MQTT-11 |
 | Broker-Adresse | Pruefung wie Gateway, zusaetzlich 127.x erlaubt | PC-Simulation mit Broker auf demselben Rechner; auf der Steuerung schlaegt die Verbindung nur fehl |
+| Home-Assistant-Erkennung | Konfigurationen aus [ha.c](../lib/api/ha.c) beim Verbinden (nach `online`), Abkuerzungen (`stat_t`, `val_tpl`, `~` = Praefix), Knoten `wallfree_<MAC-Ende>` (Simulation ohne MAC: `000000`); Nutzdatenpuffer 640 B (groesste Konfiguration mit 64 Zeichen Praefix passt); Ladestrom-Zahlenfeld 0..80 A, 1..5 A lehnt die Steuerung ab (Meldung im MQTT-Status) **(zu bestaetigen)** | SOLL-MQTT-40..42; +2,3 KB Flash |
 
 ## Parameterspeicher
 
@@ -325,6 +326,7 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 | Simulation: stdout blockgepuffert, wenn das Log in eine Datei geht | Meldungen erscheinen Kilobytes spaeter; sah wie ein Log-Stillstand nach Telnet-Abbruch aus (kein Befund fuer die Steuerung) | stdout zeilengepuffert |
 | Simulation: Socket-Treiber NSOS ohne `shutdown` | ruhende HTTP-Verbindungen werden nie getrennt; ein offener Browser-Tab belegte alle 4 Plaetze | in der Simulation 8 Plaetze, 24 Deskriptoren |
 | Telnet-Ausgabe bei gleichzeitigem HTTP-Verkehr (Testgerät, schon mit `477bb1b`) | `kernel thread stacks` bricht ab, die Telnet-Ausgabe haengt etwa 9 s, HTTP-Abfragen und WebSocket-Takt stehen dabei 3..5 s | Diagnose per Telnet nur ohne Last aussagekraeftig; Telnet ist Entwicklungszugang (F20). Ursache nicht untersucht |
+| Simulation: Socket-Ersatz NSOS stuerzt selten ab (SIGSEGV in `nsos_isr`, `sys_dlist_is_empty`), vor allem beim Broker-Neustart in T5Mqtt; etwa 1..2 von 12 Laeufen, schon vor SNTP und Discovery | ein Ende-zu-Ende-Lauf scheitert gelegentlich mit "Connection refused" | nicht in Wallfree; Lauf wiederholen. DNS-Resolver in der Simulation aus (ohne DNS-Server nutzlos) |
 | Simulation: Telnet-Backend setzt kein `SO_REUSEADDR` | nach Neustart blockiert TIME_WAIT den Port | `bind` setzt es in der Simulation |
 | `twister --coverage` | bricht in dieser Version ab | `scripts/run-tests.sh --coverage` ruft gcovr direkt |
 | Umrechnung `float` -> `int64_t` auf dem Cortex-M3 (`__aeabi_f2lz`) | zieht die Double-Softfloat-Routinen nach (+3,5 KB Flash), ohne dass der Quelltext `double` enthaelt | Float32 der Zaehler ganzzahlig dekodieren (`f32_scaled` in meter.c) |
@@ -376,7 +378,6 @@ Nicht beauftragt; gesammelt mit dem Nutzer (2026-10-26). Beauftragte Punkte steh
 | Idee | Nutzen | Aufwand, Bedenken |
 | --- | --- | --- |
 | Shell in der Weboberflaeche (ueber den angemeldeten WebSocket), danach Telnet entfernen (Nutzer ueberlegt) | gleiche Anmeldung und Bremse wie die API, kein offener Port 23, etwa 20 KB und ein Thread weniger, Fallstrick "Telnet bremst HTTP" entfaellt | Shell weg, wenn der HTTP-Server haengt (dann Debugger und Ueberwachung). Verworfen (Nutzer 2026-10-26): eigene Anmeldung fuer Telnet |
-| Home-Assistant-Erkennung (MQTT Discovery) | Wallbox erscheint in Home Assistant automatisch mit Sensoren, Schalter, Ladestrom | einige hundert Byte Text je Element; bei F30 bewusst ausgeschlossen |
 | S0-Zaehler an einem Digitaleingang | Energie und Leistung mit einem schon vorhandenen Zaehler ohne RS-485 | Anschluss: S0+ an 12 V der Steuerung, S0- an einen freien Eingang (IN oder ML), neue Eingangsfunktion "S0" (ausserhalb der Originalcodes); ob der Eingang genug Laststrom zieht (S0 meist >= 1..10 mA) und unter 3 V faellt, erst messen. Keine Phasenwerte; Ueberstrom und Schuetzueberwachung ueber Zaehler gehen damit nicht; Eingaenge alle 8 ms gemessen, 2 Bloecke entprellt (S0-Impulse 30..90 ms, bei 22 kW und 1000 Imp./kWh etwa 6 Imp./s: passt). Neukauf lohnt kaum: der unterstuetzte Eastron SDM72D-M (Modbus) kostet etwa gleich viel und liefert mehr |
 | Ladesitzungen (Beginn, Dauer, Energie, Ende-Grund) | Abrechnung, Ueberblick | sinnvoll mit Zaehler; nur am Sitzungsende in Sektor 7 speichern |
 | OCPP 1.6J (zurueckgestellt, Nutzer 2026-10-26) | Abrechnung ueber Backends (Dienstwagen) | grob 25..40 KB Flash, 6..10 KB RAM, rund 25 Konfigurationsschluessel; die meisten Backends verlangen TLS (passt kaum); wenige Privatanwender |

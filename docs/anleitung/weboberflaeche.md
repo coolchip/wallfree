@@ -424,6 +424,7 @@ Ein fehlender Broker beeinträchtigt das Laden nicht.
 | Passwort am Broker (`mqtt_password`) | leer | Passwort am Broker. Es wird nie angezeigt („unverändert“); ein leeres Feld lässt das gespeicherte Passwort unverändert. |
 | Topic-Präfix (`mqtt_prefix`) | leer | Anfang aller Topics; leer = `wallfree/` und das Ende der Hardwareadresse. Zustände erscheinen unter `<Präfix>/evse/state`, `<Präfix>/evse/limits` usw., die Erreichbarkeit unter `<Präfix>/online` (`true`/`false`). |
 | Mindestabstand je Topic (`mqtt_interval`) | 1 s | Höchstens eine Nachricht je Topic in diesem Abstand (0..3600 s); Zwischenstände werden mit dem dann aktuellen Wert nachgeholt. 0 = jede Änderung sofort. |
+| Home Assistant: Wallbox automatisch als Gerät anlegen (`mqtt_discovery`) | an | Die Steuerung meldet sich bei Home Assistant selbst an (MQTT Discovery): Dort erscheint das Gerät „Wallfree“ mit Zustand, Fahrzeug angeschlossen, Lädt, Fehler, erlaubtem Strom und Vorgabe, mit Zähler auch Leistung und Energie, mit „Befehle annehmen“ zusätzlich ein Feld für den Ladestrom. In Home Assistant ist nur die MQTT-Integration mit demselben Broker nötig. Ohne Home Assistant hat die Einstellung keine Wirkung. |
 | Befehle annehmen (`mqtt_commands`) | aus | Ein = die Steuerung nimmt den Ladestrom über das Topic `<Präfix>/evse/external_current_update` an (Wert in mA). **Jeder mit Schreibrecht am Broker kann dann den Ladestrom vorgeben.** Nur einschalten, wenn der Broker abgesichert ist. Gespeicherte (retained) Befehle werden ignoriert. |
 
 ### 7.4 Zähler

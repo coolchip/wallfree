@@ -37,6 +37,7 @@ struct wf_sysconf {
 	uint8_t meter_framing;  /**< enum wf_framing */
 	bool mqtt_enable;
 	bool mqtt_commands;     /**< Befehle annehmen (SOLL-MQTT-20) */
+	bool mqtt_discovery;    /**< Home-Assistant-Erkennung (SOLL-MQTT-40) */
 	uint16_t mqtt_port;
 	uint16_t mqtt_interval; /**< s, 0 = ohne Bremse */
 	uint32_t mqtt_broker;   /**< 0 = keiner */

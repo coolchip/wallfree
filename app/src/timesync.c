@@ -31,15 +31,12 @@ LOG_MODULE_REGISTER(timesync, LOG_LEVEL_INF);
 K_THREAD_STACK_DEFINE(ts_stack, TS_STACK);
 static struct k_thread ts_thread;
 static K_SEM_DEFINE(ts_wake, 0, 1);
-static K_SEM_DEFINE(dns_done, 0, 1);
 
 static struct k_spinlock lock;
 static int64_t base_ms;   /* Uhrzeit bei Laufzeit 0, 0 = unbekannt */
 static int64_t synced_at; /* Laufzeit des letzten Erfolgs */
 static char last_server[WF_NTP_SERVER_MAX + 1];
 
-static struct net_sockaddr_in dns_addr;
-static bool dns_ok;
 
 static void set_base(int64_t b, const char *server)
 {
@@ -90,6 +87,11 @@ void timesync_notify(void)
 	k_sem_give(&ts_wake);
 }
 
+#if defined(CONFIG_DNS_RESOLVER)
+static K_SEM_DEFINE(dns_done, 0, 1);
+static struct net_sockaddr_in dns_addr;
+static bool dns_ok;
+
 static void dns_cb(enum dns_resolve_status status, struct dns_addrinfo *info, void *user_data)
 {
 	ARG_UNUSED(user_data);
@@ -102,6 +104,7 @@ static void dns_cb(enum dns_resolve_status status, struct dns_addrinfo *info, vo
 		k_sem_give(&dns_done); /* fertig (DNS_EAI_ALLDONE) oder Fehler */
 	}
 }
+#endif
 
 /* @return 0 und Adresse in @p sa oder < 0 */
 static int resolve(const char *host, uint16_t port, struct net_sockaddr_in *sa)
@@ -112,6 +115,7 @@ static int resolve(const char *host, uint16_t port, struct net_sockaddr_in *sa)
 	if (net_addr_pton(NET_AF_INET, host, &sa->sin_addr) == 0) {
 		return 0;
 	}
+#if defined(CONFIG_DNS_RESOLVER)
 	dns_ok = false;
 	k_sem_reset(&dns_done);
 	if (dns_get_addr_info(host, DNS_QUERY_TYPE_A, NULL, dns_cb, NULL, TS_TIMEOUT_MS) < 0) {
@@ -123,6 +127,9 @@ static int resolve(const char *host, uint16_t port, struct net_sockaddr_in *sa)
 	}
 	sa->sin_addr = dns_addr.sin_addr;
 	return 0;
+#else
+	return -ENOTSUP; /* Simulation: kein DNS (Fallstricke) */
+#endif
 }
 
 /* Server nach SOLL-TIME-02: eingestellt, sonst DHCP Option 42, sonst pool.ntp.org */

@@ -14,6 +14,7 @@
  * Nur gebaut und in der PC-Simulation geprueft, auf Hardware nicht ausgefuehrt.
  */
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -21,6 +22,7 @@
 #include <zephyr/net/mqtt.h>
 #include <zephyr/net/socket.h>
 #include <wallfree/api/events.h>
+#include <wallfree/api/ha.h>
 #include <wallfree/api/evse_api.h>
 #include <wallfree/api/meter_json.h>
 #include <wallfree/evse/param.h>
@@ -29,6 +31,7 @@
 #include "meter_task.h"
 #include "mqtt_task.h"
 #include "netcfg.h"
+#include "sysinfo.h"
 
 LOG_MODULE_REGISTER(mqtt, LOG_LEVEL_INF);
 
@@ -49,9 +52,10 @@ static uint8_t rx_buf[128];      /* eingehender Kopf mit Topic */
 /* Alles laeuft in diesem Thread nacheinander: Die Puffer dienen beim Senden
  * (Nutzdaten, Topic), beim Empfang eines Befehls (Nutzdaten, Topic) und beim
  * Verbinden (Will-Topic, nur waehrend mqtt_connect gelesen). */
-static char pay[448];
+static char pay[WF_HA_PAYLOAD_MAX];
 static char topic[MQ_TOPIC_MAX];
 BUILD_ASSERT(sizeof(pay) >= WF_MQ_PAYLOAD_MAX);
+BUILD_ASSERT(sizeof(topic) >= WF_HA_TOPIC_MAX);
 static struct net_sockaddr_in broker;
 static struct mqtt_utf8 user, password, will_msg;
 static struct mqtt_topic will_topic;
@@ -133,10 +137,10 @@ static void set_conn(uint8_t conn)
 	k_mutex_unlock(&st_mtx);
 }
 
-static bool publish(const char *name, const char *data, size_t len, bool retain)
+/* Topic steht schon in topic[] (Laenge n), n <= 0: keins */
+static bool publish_topic(int n, const char *data, size_t len, bool retain)
 {
 	struct mqtt_publish_param p = {0};
-	int n = wf_mq_topic_name(topic, sizeof(topic), prefix, name);
 	int r = -ENOMEM;
 
 	if (n > 0) {
@@ -156,6 +160,61 @@ static bool publish(const char *name, const char *data, size_t len, bool retain)
 	}
 	k_mutex_unlock(&st_mtx);
 	return r == 0;
+}
+
+static bool publish(const char *name, const char *data, size_t len, bool retain)
+{
+	return publish_topic(wf_mq_topic_name(topic, sizeof(topic), prefix, name), data, len,
+			     retain);
+}
+
+/* Index einer Groesse in meters/0/values (wie wf_meter_values_json), -1 = nicht vorhanden */
+static int meter_index(uint8_t type, enum meter_q q)
+{
+	int idx = 0;
+
+	if (type == METER_NONE || !meter_has(type, q)) {
+		return -1;
+	}
+	for (int k = 0; k < (int)q; k++) {
+		idx += meter_has(type, (enum meter_q)k) ? 1 : 0;
+	}
+	return idx;
+}
+
+/*
+ * SOLL-MQTT-40/41: Home-Assistant-Erkennung beim Verbinden, retained. Ausgeschaltet oder
+ * entfallend (ohne Zaehler, ohne Befehle): leere Nachricht, Home Assistant entfernt das Element.
+ */
+static void publish_discovery(void)
+{
+	char node[24], name[40], mac[18];
+	uint8_t type = meter_task_type();
+	struct wf_ha_ctx c = {.base = prefix, .node = node, .name = name,
+			      .version = sysinfo_version(), .commands = cfg.mqtt_commands,
+			      .power_idx = meter_index(type, METER_P),
+			      .energy_idx = meter_index(type, METER_E_IMP)};
+
+	netcfg_mac(mac); /* "xx:xx:xx:a1:b2:c3" -> wallfree_a1b2c3; Simulation ohne MAC: 000000 */
+	if (strlen(mac) != 17) {
+		strcpy(mac, "00:00:00:00:00:00");
+	}
+	snprintf(node, sizeof(node), "wallfree_%c%c%c%c%c%c", mac[9], mac[10], mac[12], mac[13],
+		 mac[15], mac[16]);
+	snprintf(name, sizeof(name), "Wallfree %s", node + 9);
+	for (int i = 0;; i++) {
+		struct wf_jbuf b;
+
+		wf_jb_init(&b, pay, sizeof(pay));
+		int r = wf_ha_config(i, &c, topic, sizeof(topic), &b);
+
+		if (r < 0) {
+			break;
+		}
+		bool on = r == 1 && cfg.mqtt_discovery;
+
+		(void)publish_topic((int)strlen(topic), pay, on ? b.len : 0, true);
+	}
 }
 
 static void render(int t, struct wf_jbuf *b)
@@ -431,6 +490,7 @@ static void session(atomic_val_t gen)
 	while (evse_task_event_get(&ev_seq, &ev)) {
 	}
 	(void)publish("online", "true", 4, true);
+	publish_discovery();
 	if (cfg.mqtt_commands) {
 		subscribe();
 	}
