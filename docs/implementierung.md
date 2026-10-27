@@ -401,8 +401,6 @@ Fuer die spaetere Veroeffentlichung der Firmware vorbereiten:
 
 - Liste der Funktionen (Ladelogik, evcc/WARP-API, MQTT mit Home-Assistant-Erkennung, Zaehler,
   Uhrzeit, Protokoll ueber Neustarts, CP-Oszilloskop, Update ueber die Weboberflaeche).
-- Behobene Fehler bzw. Abweichungen gegenueber der Originalfirmware (Markierungen [ABW] in der
-  Soll-Spezifikation, z. B. Auswertung der gepulsten LD-Rueckmeldung).
 - Rueckweg zur Originalfirmware ist moeglich (auf dem Testgerät geprueft), mit Anleitung.
 - Vorher-Nachher-Vergleich der Weboberflaeche (Original gegen Wallfree, nur eigene Bilder).
 - Kompletter Simulator auf dem PC (native_sim mit Hardwaremodell, Ersatz-Bootloader, evcc).
