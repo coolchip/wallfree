@@ -350,7 +350,7 @@ auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/do
 | Eingaenge (Stufe A) | EN (Schluesselschalter, 0/12 V), ML, XR, IN je 12 V -> `inputs` Bit 1..4; XR mit D8: ab -> S10, an -> S1; IN Code 8 -> 6 A, Code 11 -> 16 A |
 | Ausgaenge, LEDs (Stufe A) | ER/LR/VR/CR je 12 V an der Klemme (Register-Ausgaenge 30..33); Front-LED ER rot, VR blau, CR gruen; Power- und Error-LED; mit `dip_override` D8 -> S10, CP -12 V, Error-LED an (`dip_override` in S10 nicht schreibbar, SOLL-PAR-40) |
 | Verriegelung (Stufe B) | LD ist ein Impuls von grob 60..100 ms waehrend der Fahrt: Code 22 noetig, mit Code 3 schlaegt Verriegeln fehl; mit D9 aus entriegelt der Automat in S1 bei CP A sofort wieder (SOLL-LOCK-23). Das Testgerät: `in_function_ld` 22, `out_function_cr` 40 (gruen im Leerlauf wie das zweite Gerät, Nutzer 2026-10-24) |
-| Reset-Taster | kurz -> Neustart (`reset_pin`); gehalten -> Neustart und nach 5 s Werksreset (NRST vermutlich gepulst, PD2 gehalten) |
+| Reset-Taster | wirkt auf NRST und PD2; der Prozessor bleibt nach dem Druecken etwa 5 s im Reset, auch wenn der Taster gehalten wird (vermutlich RC-Glied an NRST), und startet dann. Kurz oder unter etwa 5 s -> nur Neustart (`reset_pin`); gehalten -> nach etwa 5 s blinkt die Power-LED 1 Hz, nach weiteren 5 s Werksreset, also insgesamt etwa 10 s (Testgerät 2026-10-27: nach dem Druecken etwa 5 s dunkel (Prozessor im Reset), dann blinkt die Power-LED 1 Hz (Wallfree wartet); Loslassen vor Ablauf -> nur Neustart, Startereignis um die Wartezeit spaeter) |
 | Parameterspeicher | `FLASH_SR` beim Start `0xc0` (aus dem Bootloader, Fallstricke); erste Speicherung danach fehlerfrei |
 | Update | ueber die Weboberflaeche in etwa 20 s, Erfolg nur bei passender Pruefsumme; Rueckweg zur Originalfirmware 0.81 und zurueck geprueft (Sektor 3 und 7 erhalten). Fruehere Abbrueche: jede Abfrage waehrend des Uploads bricht ihn im Bootloader ab (Seite fragt deshalb nichts ab); wechselnde MAC von Bootloader und Wallfree verzoegerte per ARP-Cache (behoben mit Geraete-MAC) |
 | Netzlast (`scripts/net-load.py`) | Mit kooperativen Netz-Threads startete das Testgerät unter 4 parallelen Abfragern neu (Fallstricke); seit `eca1ad4` kein Neustart: 83 Anfragen/s, hoechstens 123 ms; 3 WebSockets, Takt 2,0 s; 2300 Verbindungsabbrueche in 60 s ohne Rest; 30 min Dauerlast mit 2 WebSockets und MQTT ohne Neustart, WebSocket-Luecke hoechstens 2,1 s |
@@ -370,7 +370,6 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
 - **Stufe C** mit Pruefstecker ([Pruefstecker](pruefstecker.md), Freigabe in wallbe2/AGENTS.md
   noch offen): CP-PWM, Schuetz, Modul-LEDs Connect/Ready, Laden mit evcc.
 - Reaktionszeit RCM -> PE2 am Oszilloskop (SOLL-PROT-05).
-- Power-LED blinkt waehrend der 5-s-Wartezeit vor dem Werksreset (`50a06ea`), auf dem Testgerät ansehen.
 - Energiezaehler an RS-485 (kein Zaehler vorhanden).
 - Import aus Sektor 3 auf der Steuerung noch nicht ausgefuehrt (fuer das Testgerät ungeeignet: er setzte
   LD 3, CR 9 und die feste Adresse 192.168.0.8).

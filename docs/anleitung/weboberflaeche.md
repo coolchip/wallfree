@@ -524,7 +524,7 @@ Ein Fahrzeug sollte während des Updates nicht angesteckt sein.
 | Fahrzeug lädt nicht | Übersicht: Zeile unter dem Ring („Vorgabe: Laden aus“, „Laden gesperrt“) und Kachel Fehler prüfen; Insights › Fehler. Bei „Wartet auf Freigabe“ fehlt die Freigabe ([10.4](#104-freigabe-und-verfügbarkeit)). |
 | Zähler „gestört“ | [7.4](#74-zähler) |
 | Firmware-Update fehlgeschlagen | Unter System steht „Letztes Update: fehlgeschlagen“; es läuft die bisherige Firmware. Update wiederholen, vorher evcc und andere Abfragen anhalten. Steht die Steuerung danach im Update-Betrieb (alle LEDs der Steuerung an oder blinkend, Weboberfläche nicht erreichbar), die Seite des Bootloaders unter der bisherigen Adresse oder unter 192.168.0.8 öffnen und die Datei dort hochladen ([8.1](#81-firmware-update)). |
-| Passwort vergessen / Steuerung unerreichbar | **Werksreset:** Reset-Taster der Steuerung gedrückt halten. Die Steuerung startet neu, die Power-LED blinkt langsam; nach 5 Sekunden blinkt sie schnell, dann loslassen (geht auch beim Einschalten). Alle Einstellungen und die Zugangsdaten sind danach im Werkszustand (`admin` / `wallfree`, Netzwerk per DHCP). Kurzes Drücken startet die Steuerung nur neu. |
+| Passwort vergessen / Steuerung unerreichbar | **Werksreset:** Reset-Taster der Steuerung gedrückt halten (insgesamt etwa 10 Sekunden). Die Power-LED bleibt zunächst etwa 5 Sekunden dunkel, dann blinkt sie langsam; nach weiteren 5 Sekunden blinkt sie schnell, dann loslassen (geht auch beim Einschalten). Alle Einstellungen und die Zugangsdaten sind danach im Werkszustand (`admin` / `wallfree`, Netzwerk per DHCP). Kurzes Drücken startet die Steuerung nur neu. |
 
 ## 10 Anhang
 

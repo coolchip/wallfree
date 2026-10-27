@@ -152,11 +152,12 @@ wiedergibt [ANN]; Bestaetigung in H1/H2.
 | LED Ready (gruen) | PE13 | aktiv Low | Abschnitt 11 | FW |
 | LED Status Modem | PE10/PE11 | aktiv Low | aus (Mobilfunk nicht im Umfang) | FW |
 | (Netzwerkstatus) | PC2 | Ausgang | Netzwerkanzeige (SOLL-LED-06), aktiv Low, gruene LED an der Netzwerkbuchse | FW, Testgerät 2026-10-27 |
-| Reset-Taster | **PD2** [HYP] | Low = gedrueckt [HYP] | Werksreset beim Start (SOLL-BOOT-20) | FW (`main`), HB S. 16 |
+| Reset-Taster | **PD2** | Low = gedrueckt | Werksreset beim Start (SOLL-BOOT-20) | FW (`main`), HB S. 16, Testgerät |
 
-Hinweis: Laut HB S. 16 startet "einfache Betaetigung" das Geraet neu. Da das Original PD2
-nur beim Start liest, liegt der Taster vermutlich zusaetzlich am NRST oder an einer
-Reset-Schaltung [HYP]; offen fuer die Hardwarepruefung.
+Hinweis: Der Taster wirkt zusaetzlich auf NRST. Auf dem Testgerät bleibt der Prozessor nach dem Druecken
+etwa 5 s im Reset, auch wenn der Taster gehalten wird, und startet dann; erst ab da laufen die
+5 s nach SOLL-BOOT-20. Fuer einen Werksreset haelt man also etwa 10 s (Testgerät 2026-10-24/27;
+vermutlich RC-Glied an NRST, Beschaltung nicht verfolgt).
 
 ### 2.3 Anforderungen an Ein-/Ausgangssignale
 
@@ -1144,7 +1145,6 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 | CP-Treiber (Polaritaet, Pegel), ADC-Skalierung CP/PP/Versorgung | Original-Skalierung uebernommen [ANN] | H1/H2 |
 | RCM: Inversionsstufe, direkter Pfad SWITCH_1/2 -> Schuetztreiber, Konfigurationspins | [HYP] | H1/H3 |
 | Quelle an PE0 (Klemme CT) | [HYP] | H1 |
-| Reset-Taster: PD2 und/oder NRST (HB: einfache Betaetigung = Neustart) | offen | H1 |
 | "Automatische Entriegelung bei Stromausfall" (HB S. 9): Hardwarefunktion? | in der Firmware nicht gefunden | H1 |
 | Bootloader: Pruefungen, Nutzung von BKP-Registern, loescht er Sektor 7, Start-SP | aus dem Testgerät ausgelesen (H0, RDP 0), eigener Webserver fuer den Upload; Analyse offen | [Bootloader](../../wallbe2/docs/bootloader.md#stand-und-offene-fragen) |
 | IWDG-Umprogrammierung im Betrieb; Loeschzeit Sektor 7 | Loeschzeit hoechstens 4000 ms laut Zephyr-Devicetree (`stm32f2.dtsi`, `max-erase-time`), nicht am Datenblatt geprueft (DS6329 fehlt); IWDG-Umprogrammierung ueber Register umgesetzt, auf Hardware ungeprueft | Datenblatt, H1 |
