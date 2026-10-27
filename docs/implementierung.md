@@ -370,6 +370,13 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
 - Energiezaehler an RS-485 (kein Zaehler vorhanden).
 - Import aus Sektor 3 auf der Steuerung noch nicht ausgefuehrt (fuer das Testgerät ungeeignet: er setzte
   LD 3, CR 9 und die feste Adresse 192.168.0.8).
+- **Versionsnummer einfuehren** (Nutzer 2026-10-27, noch nicht umgesetzt): Hauptversion.Nebenversion
+  ohne Patch, Start bei `0.1`; `0.x`, bis das Laden auf der Hardware nachgewiesen ist, `1.0` nach
+  Stufe C. Zwischenstaende `0.2-dev` mit Commit als Bauzeichen. Quelle: Datei `VERSION` im
+  Repository, Veroeffentlichung mit Git-Tag `v0.x`. Anzeige "Wallfree 0.1", darunter klein
+  "Bau <commit>"; Abbild `wallfree-0.1.bin` (ausgeschriebener Name statt "WF"); Kennung im Abbild
+  (`WALLFREE-IMAGE:`) und Vorpruefung des Updates auf die neue Form umstellen;
+  `scripts/build-image.sh` benennt danach.
 - Browser-Durchlauf um Zugangsdaten-Seite und Netz/System erweitern (Parameter schreiben ueber
   Auswahlliste und Kaestchen ist von Hand in der Simulation geprueft).
 
