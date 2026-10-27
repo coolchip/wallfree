@@ -64,14 +64,14 @@ können Menschen gefährden. Software-Tests belegen keine elektrische Sicherheit
 evcc), HTTPS.
 
 Was Wallfree anders macht als die Originalfirmware und worauf man beim Umrüsten achten muss:
-[Unterschiede zur Originalfirmware](docs/unterschiede-originalfirmware.md). Sichern, Aufspielen
-und Rückweg Schritt für Schritt: [Umrüsten auf Wallfree und zurück](docs/umruesten.md).
+[Unterschiede zur Originalfirmware](docs/unterschiede-originalfirmware.md). Aufspielen und
+Rückweg Schritt für Schritt: [Umrüsten auf Wallfree und zurück](docs/umruesten.md).
 
 ## Inhalt
 
 | Pfad | Inhalt |
 | --- | --- |
-| [docs/umruesten.md](docs/umruesten.md) | Originalfirmware sichern, Wallfree aufspielen, Rückweg, Notfälle |
+| [docs/umruesten.md](docs/umruesten.md) | Wallfree aufspielen, Rückweg zur Originalfirmware, wenn etwas schiefgeht |
 | [docs/unterschiede-originalfirmware.md](docs/unterschiede-originalfirmware.md) | Unterschiede zur Originalfirmware mit Grund, Hinweise zum Umrüsten und zum Rückweg |
 | [docs/soll-spezifikation.md](docs/soll-spezifikation.md) | Soll-Verhalten der Firmware (Kennungen `SOLL-*`), Entscheidungen F1..F32 |
 | [docs/architektur.md](docs/architektur.md) | Rahmenentscheidungen mit Begründung: Zephyr, Speicheraufteilung, Bootloader, Parameterspeicher, evcc/WARP, Inbetriebnahmestufen |

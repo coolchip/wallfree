@@ -83,12 +83,12 @@ genaue Festlegung jedes Punkts steht in der [Soll-Spezifikation](soll-spezifikat
 
 - **Zurück zur Originalfirmware:** Wallfree benutzt den vorhandenen Bootloader der Steuerung und
   verändert ihn nicht. Über denselben Weg (Weboberfläche, System, Firmware-Update) lässt sich
-  eine Sicherung der Originalfirmware wieder aufspielen; die Weboberfläche fragt bei fremden
+  die Originalfirmware wieder aufspielen; die Weboberfläche fragt bei fremden
   Abbildern ausdrücklich nach. Auf einer Steuerung geprüft.
 - **Einstellungen der Originalfirmware** bleiben dabei erhalten: Wallfree speichert seine
   eigenen Einstellungen in einem anderen Bereich des Flash und schreibt den Bereich der
   Originalfirmware nie. Ein Import dieser Einstellungen in Wallfree (Shell-Befehl
   `evse import-original`) ist eingebaut, auf einer Steuerung aber noch nicht ausgeführt.
-- **Voraussetzung:** eine Sicherung der Originalfirmware. Wallfree enthält sie nicht und kann sie
-  nicht auslesen; sie muss vor dem ersten Update über die Debug-Schnittstelle der Steuerung
-  gesichert werden. Schritt für Schritt: [Umrüsten auf Wallfree und zurück](umruesten.md).
+- **Voraussetzung:** eine Firmwaredatei des Herstellers. Wallfree enthält die Originalfirmware
+  nicht und kann die installierte nicht auslesen. Schritt für Schritt:
+  [Umrüsten auf Wallfree und zurück](umruesten.md).

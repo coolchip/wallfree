@@ -401,8 +401,12 @@ Fuer die spaetere Veroeffentlichung der Firmware vorbereiten:
 
 - Liste der Funktionen (Ladelogik, evcc/WARP-API, MQTT mit Home-Assistant-Erkennung, Zaehler,
   Uhrzeit, Protokoll ueber Neustarts, CP-Oszilloskop, Update ueber die Weboberflaeche).
-- Rueckweg zur Originalfirmware (auf dem Testgerät geprueft): Anleitung [umruesten.md](umruesten.md).
-- Vorher-Nachher-Vergleich der Weboberflaeche: [vergleich-weboberflaeche.md](vergleich-weboberflaeche.md).
+- Rueckweg zur Originalfirmware (auf dem Testgerät geprueft): Anleitung [umruesten.md](umruesten.md), nur
+  ueber Weboberflaeche und Bootloader; keine Sicherung per Debugger beschrieben, weil kaum jemand
+  die Ausruestung hat (Nutzer 2026-10-27).
+- Vorher-Nachher-Vergleich der Weboberflaeche: [vergleich-weboberflaeche.md](vergleich-weboberflaeche.md);
+  Originalseiten nur als Text, keine Bildschirmfotos (Logo, Texte und Geraetedaten des Herstellers;
+  Nutzer 2026-10-27).
 - Kompletter Simulator auf dem PC (native_sim mit Hardwaremodell, Ersatz-Bootloader, evcc).
 - Vor der Veroeffentlichung: Zeiten der Git-Commits pruefen (Nutzer 2026-10-27; Claude erinnert
   daran, der Nutzer weiss, was gemeint ist).
