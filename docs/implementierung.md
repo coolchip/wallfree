@@ -229,7 +229,7 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Punkt | Umsetzung | Grund |
 | --- | --- | --- |
 | Zeiten | Takt 100 ms; Keepalive 60 s; CONNACK-Frist 10 s; Neuverbindung nach 1 s, verdoppelt bis 60 s | wie der WebSocket-Takt; Keepalive ist der Zephyr-Default; 60 s Hoechstwartezeit begrenzt die Last bei dauerhaft fehlendem Broker |
-| toter Broker | Zephyr wertet unbeantwortete PINGREQ nicht aus: Die Anwendung trennt, wenn ein PINGREQ eine Keepalive-Spanne lang offen ist. Zephyr pingt nur in Sendepausen; bei Dauerversand (Zaehlerwerte jede Sekunde) erkennt erst TCP den Ausfall (Wiederholungen bis zum Abbruch) | Erkennungszeit auf der Steuerung in H1 ansehen |
+| toter Broker | Zephyr wertet unbeantwortete PINGREQ nicht aus: Die Anwendung trennt, wenn ein PINGREQ eine Keepalive-Spanne lang offen ist; Erkennung also 60..120 s nach der letzten Nachricht (Testgerät: 121 s). Zephyr pingt nur in Sendepausen; bei Dauerversand (Zaehlerwerte jede Sekunde) erkennt erst TCP den Ausfall (Wiederholungen bis zum Abbruch) | Testgerät ohne Zaehler bestaetigt; Dauerversand mit Zaehler noch zu messen |
 | Aenderungserkennung | FNV-1a-Pruefsumme der Nutzdaten statt einer Kopie je Topic | spart RAM; eine Kollision (2^-32 je Aenderung) verschiebt eine Meldung bis zur naechsten Aenderung |
 | Neukonfiguration | nur wenn sich ein `mqtt_*`-Wert aendert: `online` = `false`, DISCONNECT, sofort neu verbinden | ein geordnetes DISCONNECT loest den Last Will nicht aus |
 | Neustart der Steuerung | kein `online` = `false` vorab; der Broker meldet den Last Will nach 1,5 x Keepalive (bis 90 s) | der Neustart beendet die Verbindung ohne TCP-Abbau |
@@ -361,6 +361,7 @@ auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/do
 | evcc 0.317.2 | Anmeldung und WebSocket ohne Fehler, ohne Fahrzeug "car disconnected", `external_current` = 0 |
 | Version (`v0.1`, 2026-10-27) | Update auf 0.1 erfolgreich, `/system/info` mit `firmware` 0.1 und `build` d45de9d, Pruefsumme passt zur Datei, Protokoll laeuft ueber den Update-Neustart weiter. Kopfzeile: Netzkabel gezogen -> nach wenigen Sekunden "getrennt" mit Hinweisleiste, eingesteckt -> wenige Sekunden bis "verbunden", ohne Neustart |
 | MQTT per Name, Home-Assistant-Erkennung (`v0.1`, 2026-10-27) | Broker `broker.lan` (Mosquitto, ohne Anmeldung) aufgeloest und sofort verbunden; nach `online` 6 Konfigurationen retained, Ladestrom/Leistung/Energie als leere Nachricht entfernt (ohne `mqtt_commands`, ohne Zaehler); Geraet mit `sw` `0.1+d45de9d`. Gefunden: Wertvorlage "Zustand" auf 95 Byte gekuerzt (ohne `}}`), behoben in 0.2-dev. Mit `590465a`: `mqtt_commands` an -> Ladestrom-Feld 0..16 A (Drehschalter), aus -> wieder entfernt; kein Home Assistant vorhanden, Pruefung nur mit `mosquitto_sub` |
+| Toter Broker (`b5ce020`, 2026-10-27) | Test-Broker auf dem PC (Mosquitto, Port 18830), per SIGSTOP eingefroren (TCP bleibt offen, keine Antworten): letzte Nachricht 21:11:07, PINGREQ nach 60 s ohne Antwort, Trennung mit -116 (ETIMEDOUT) nach 121 s (106 s nach dem Einfrieren); nach dem Auftauen sofort wieder verbunden, `online` retained. Ohne Zaehler (kein Dauerversand); der Fall mit Zaehler ist offen |
 | Protokoll, Uhrzeit, CP-Aufnahme (`6eb0e08`, 2026-10-27) | Ereignisprotokoll uebersteht den Neustart; Uhrzeit von `pool.ntp.org` (Router meldet per DHCP keinen Zeitserver, DNS ueber DHCP funktioniert); CP-Aufnahme im Leerlauf +11,9 V |
 | Stacks | siehe [Ressourcen](#ressourcen); keiner ueber 82 % |
 
@@ -377,6 +378,15 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
   Sendepegel an A/B, Abfrage, Fehlerzaehler bei offener und vertauschter Leitung.
 - Ziel von PE1 und Ansteuerung des Relais C3/C4 (F15): Testgerät 2026-10-27 (Wallfree `c54fa08` mit einem Diagnosebefehl, danach wieder entfernt): PE1 geht 1 s auf High (GPIOE ODR und IDR Bit 1 per SWD gelesen, ohne Anhalten, `wallbe2/analysis/box-t/pe1-gpioe.log`), das Relais an C3/C4 klickt nicht, keine LED reagiert. PE1 schaltet das Relais C3/C4 also nicht direkt; Ziel weiter offen. Spaeter untersuchen, was an PE1
   haengt und wie das Relais angesteuert wird (Nutzer 2026-10-27).
+- **HTTP-Aussetzer am Testgerät (2026-10-27, `b5ce020`): jede Minute bei Sekunde 29 etwa 8..10 s
+  keine Antwort auf HTTP (erst Zeitueberschreitung, dann etwa 5 s Verbindung abgelehnt), Ping
+  ungestoert, unabhaengig vom MQTT-Broker. Die Minutenabrufe der Weboberflaeche (`/system/log`,
+  `/system/info`) loesen ihn nicht aus (je 0,07 s), in der Simulation tritt er nicht auf.
+  Vermutung: ein anderes Geraet belegt jede Minute die 4 Verbindungsplaetze
+  (`HTTP_SERVER_MAX_CLIENTS`), die erst nach 10 s Untaetigkeit frei werden. Klaeren, wer das Testgerät
+  abfragt; sonst mit Telnet-Log untersuchen.
+- Toter MQTT-Broker bei Dauerversand (Zaehlerwerte jede Sekunde): Erkennung erst ueber TCP, Zeit
+  offen; mit dem Zaehler messen.
 - Mit der naechsten groesseren Aenderung: Firmware-Abbild bauen, Bilder und PDF der Anleitung neu
   erzeugen. Das Testgerät und die Bilder zeigen noch "Insights" statt "Auswertung" (Nutzer 2026-10-27:
   dafuer allein kein neues Abbild und keine neue Anleitung).
