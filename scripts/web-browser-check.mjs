@@ -77,7 +77,8 @@ const out = {};
 await send('Page.navigate', { url: base });
 await sleep(3000);
 out.simple1 = await text();
-const conn = "(() => { const e = document.querySelector('header .grow'); return e.innerText.trim() + '|' + e.title + '|' + document.querySelector('main').className; })()";
+// Zustand am Logo-Punkt, Hinweisleiste nur bei Stoerung (Kopfzeile Variante A)
+const conn = "(() => { const e = document.querySelector('.logo .conn'); const b = document.querySelector('header .banner'); return e.dataset.conn + '|' + e.title + '|' + (b ? b.innerText.trim() : '') + '|' + document.querySelector('main').className; })()";
 out.mode1 = await evalJs(conn);
 await shot('1-einfach');
 
@@ -125,9 +126,11 @@ ws.close();
 chrome.kill();
 
 const checks = [
-	['WebSocket live', out.mode1.startsWith('verbunden|live')],
-	['getrennt: grau', out.mode2.startsWith('getrennt|') && out.mode2.endsWith('|offline')],
-	['wieder verbunden', out.mode3.startsWith('verbunden|') && !out.mode3.endsWith('offline')],
+	['WebSocket live', out.mode1.startsWith('verbunden|verbunden – live') && out.mode1.includes('||')],
+	['getrennt: grau, Hinweisleiste', out.mode2.startsWith('getrennt|') && out.mode2.includes('Verbindung zur Wallbox getrennt')
+		&& out.mode2.endsWith('|offline')],
+	['wieder verbunden, ohne Hinweisleiste', out.mode3.startsWith('verbunden|') && out.mode3.includes('||')
+		&& !out.mode3.endsWith('offline')],
 	['Ereignis Start (live nachgereicht)', out.simple2.includes('S0 Start → S1 Bereit')],
 	['Laden', out.simple2.includes('Lädt') && out.simple2.includes('Schütz ein')],
 	['Maximum wirkt sichtbar', out.simple2.includes('begrenzt durch Maximum Drehschalter (32 A)')],

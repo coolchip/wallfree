@@ -1148,7 +1148,9 @@ function useRoute() {
 }
 
 // Wortmarke (Entwurf des Nutzers) als Text: passt sich Kopfhoehe und dunklem Modus an
-const Logo = () => html`<h1 class="logo"><a href="#/"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" /><path d="M18.5 4 8 18h7l-2 10 11-14h-7z" /></svg>Wall<span>free</span></a></h1>`;
+// Verbindungszustand als Punkt am Logo (Nutzer 2026-10-27, Variante A); Text beim Zeigen
+const Logo = ({ conn }) => html`<h1 class="logo"><a href="#/"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" /><path d="M18.5 4 8 18h7l-2 10 11-14h-7z" /></svg>Wall<span>free</span>${conn
+	&& html`<i class="conn dot ${conn.dot}" data-conn=${conn.text} title=${conn.title} aria-label=${conn.text}></i>`}</a></h1>`;
 
 function Main() {
 	const live = useLive();
@@ -1161,8 +1163,11 @@ function Main() {
 		: live.online === false ? 'getrennt' : '…';
 	return html`
 		<header>
-			<${Logo} /><span class="grow muted" title=${live.mode === 'live' ? 'live (WebSocket)' : live.mode === 'poll' ? 'Abfrage alle 2 s' : ''}><span class="dot ${dot}"></span> ${conn}</span>
+			<${Logo} conn=${{ dot, text: conn, title: conn + (live.mode === 'live' ? ' – live (WebSocket)'
+				: live.mode === 'poll' ? ' – Abfrage alle 2 s' : '') }} />
 			<nav class="top">${AREAS.map(([k, t]) => html`<a href=${'#/' + k} class=${area === k ? 'sel' : ''}>${t}</a>`)}</nav>
+			${updating ? html`<div class="banner warn">Update läuft – die Steuerung startet neu, bitte warten.</div>`
+				: live.online === false && html`<div class="banner bad">Verbindung zur Wallbox getrennt – angezeigte Werte sind nicht aktuell.</div>`}
 		</header>
 		<main class=${live.online === false && !updating ? 'offline' : ''}>
 			${area === 'insights' ? html`<${Insights} live=${live} />`

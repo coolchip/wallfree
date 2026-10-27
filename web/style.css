@@ -20,7 +20,13 @@ header h1 { font-size: 18px; margin: 0; }
 .logo svg { width: 24px; height: 24px; flex: none; margin-right: 7px; }
 .logo rect { fill: var(--logo-free); } .logo path { fill: var(--card); }
 .logo span { color: var(--logo-free); padding-right: .08em; }
-header .grow { flex: 1; }
+header nav.top { margin-left: auto; }
+.logo a { position: relative; }
+.logo .conn { position: absolute; left: 17px; top: -4px; width: 11px; height: 11px; border: 2px solid var(--card); }
+.banner { flex-basis: calc(100% + 32px); margin: 4px -16px -10px; padding: 7px 16px; font-size: 14px;
+	border-top: 1px solid currentColor; }
+.banner.bad { background: color-mix(in srgb, var(--bad) 10%, var(--card)); }
+.banner.warn { background: color-mix(in srgb, var(--warn) 12%, var(--card)); }
 header { flex-wrap: wrap; }
 nav { display: flex; gap: 4px; flex-wrap: wrap; }
 nav a { padding: 6px 12px; border-radius: 8px; color: var(--fg); text-decoration: none; border: 1px solid transparent; }

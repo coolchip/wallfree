@@ -90,12 +90,13 @@ bis höchstens 5 Minuten. Während der Sperre wird auch das richtige Passwort ab
 
 Die **Kopfzeile** enthält:
 
-- **Wallfree**: Ein Klick führt zur Übersicht.
-- die **Verbindungsanzeige**:
-  - grüner Punkt **verbunden**: Die Seite erhält laufend Daten von der Steuerung.
-  - roter Punkt **getrennt**: Seit 5 Sekunden kommen keine Daten. Der Inhalt wird grau und
-    lässt sich nicht bedienen, bis die Verbindung wieder steht. Die Seite verbindet sich
-    selbständig neu.
+- **Wallfree**: Ein Klick führt zur Übersicht. Der **Punkt am Logo** zeigt die Verbindung:
+  - grün: Die Seite erhält laufend Daten von der Steuerung (Text beim Zeigen mit der Maus).
+  - rot: Seit 5 Sekunden kommen keine Daten. Unter der Kopfzeile erscheint die rote Leiste
+    „Verbindung zur Wallbox getrennt – angezeigte Werte sind nicht aktuell“; der Inhalt wird
+    grau und lässt sich nicht bedienen, bis die Verbindung wieder steht. Die Seite verbindet
+    sich selbständig neu.
+  - orange mit der Leiste „Update läuft“: während eines Firmware-Updates (Abschnitt 8.1).
 - die **Bereiche** Übersicht, Insights, Einstellungen und System.
 
 ![Anzeige bei getrennter Verbindung](bilder/getrennt.png)
@@ -491,7 +492,7 @@ alle Einstellungen bleiben erhalten.
    beendet.
 4. Die Seite zeigt „Update läuft – bitte warten“ mit der verstrichenen Zeit und den Stufen
    Vorbereiten, Übertragen und Neustart. Das dauert meist weniger als eine Minute; die Steuerung ist
-   in dieser Zeit nicht erreichbar, im Kopf steht „Update läuft …“. Die Seite **nicht
+   in dieser Zeit nicht erreichbar, unter der Kopfzeile steht „Update läuft“. Die Seite **nicht
    schließen** (der Browser fragt sonst nach).
 5. Nach „Update erfolgreich“ lädt die Seite neu. Erfolgreich heißt: Die Prüfsumme der laufenden
    Firmware stimmt mit der Datei überein. Unter System steht dann die neue Firmware und
