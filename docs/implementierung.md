@@ -380,16 +380,14 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
   haengt und wie das Relais angesteuert wird (Nutzer 2026-10-27).
 - **HTTP-Aussetzer am Testgerät (2026-10-27, `b5ce020`): jede Minute bei Sekunde 29 etwa 8..10 s
   keine Antwort auf HTTP (erst Zeitueberschreitung, dann etwa 5 s Verbindung abgelehnt), Ping
-  ungestoert, unabhaengig vom MQTT-Broker. Die Minutenabrufe der Weboberflaeche (`/system/log`,
-  `/system/info`) loesen ihn nicht aus (je 0,07 s), in der Simulation tritt er nicht auf.
-  Vermutung: ein anderes Geraet belegt jede Minute die 4 Verbindungsplaetze
-  (`HTTP_SERVER_MAX_CLIENTS`), die erst nach 10 s Untaetigkeit frei werden. Klaeren, wer das Testgerät
-  abfragt; sonst mit Telnet-Log untersuchen.
+  ungestoert. Ursache: offene Tabs der Weboberflaeche im Handy-Browser des Nutzers; mit allen
+  Tabs geschlossen 3 min ohne Aussetzer. Jeder Tab haelt einen WebSocket und damit einen der 4
+  Verbindungsplaetze (`HTTP_SERVER_MAX_CLIENTS`) dauerhaft; Verbindungen ohne Anfrage werden erst
+  nach 10 s Untaetigkeit frei. Headless Chrome auf dem PC loest es mit einem Tab nicht aus
+  (Simulation mit 4 Plaetzen). Auch evcc braucht einen WebSocket. Abhilfe offen (mehr Plaetze, RAM
+  bei 90,7 %; kuerzere Frist fuer reine HTTP-Verbindungen; Begrenzung der WebSockets je Gegenstelle).
 - Toter MQTT-Broker bei Dauerversand (Zaehlerwerte jede Sekunde): Erkennung erst ueber TCP, Zeit
   offen; mit dem Zaehler messen.
-- Mit der naechsten groesseren Aenderung: Firmware-Abbild bauen, Bilder und PDF der Anleitung neu
-  erzeugen. Das Testgerät und die Bilder zeigen noch "Insights" statt "Auswertung" (Nutzer 2026-10-27:
-  dafuer allein kein neues Abbild und keine neue Anleitung).
 - Import aus Sektor 3 auf der Steuerung noch nicht ausgefuehrt (fuer das Testgerät ungeeignet: er setzte
   LD 3, CR 9 und die feste Adresse 192.168.0.8).
 
