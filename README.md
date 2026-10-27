@@ -11,6 +11,56 @@ noch nicht geprueft.**
 Eine Ladesteuerung schaltet Netzspannung und ueberwacht Fehlerstroeme. Fehler in der Firmware
 koennen Menschen gefaehrden. Software-Tests belegen keine elektrische Sicherheit.
 
+## Funktionen
+
+**Laden**
+
+- Ladeablauf nach IEC 61851-1: Control Pilot mit PWM, Kabelerkennung (Proximity), Ladeschuetz,
+  Steckerverriegelung mit Rueckmeldung (dauernd wie bei Phoenix oder gepulst wie bei wallbe,
+  einstellbar).
+- Alle Betriebsarten, die DIP-Schalter und Drehschalter der Steuerung erlauben, dazu die
+  Funktionen der fuenf Eingaenge und vier Ausgaenge wie in der Originalfirmware.
+- Fehlerstromueberwachung mit Selbsttest des Sensors, Schuetzueberwachung (Spannung hinter dem
+  Schuetz), Pruefung von CP, Kabelkodierung und Versorgung; bei Fehlern sicherer Zustand (Schuetz
+  aus, Ladesignal weg). Ueberstromabschaltung ist vorbereitet, aber ohne Messquelle der
+  Ladelogik nicht verfuegbar (der Energiezaehler dient nur der Anzeige).
+- Eigener Schutzthread im 1-ms-Takt, Watchdog, geordnetes Ladeende vor jedem Neustart, Pruefsumme
+  des eigenen Abbilds (ein beschaedigtes Abbild laedt nicht).
+
+**Anbindung**
+
+- [evcc](https://evcc.io) ueber die Vorlage `tinkerforge-warp-ws`: Wallfree spricht die WARP-API
+  (HTTP und WebSocket) mit Benutzer und Passwort (Digest).
+- MQTT mit Zustaenden, Ereignissen und optionaler Stromvorgabe; Home-Assistant-Erkennung
+  (Geraet mit Sensoren und Ladestrom-Feld legt sich selbst an); Broker per Name oder Adresse.
+- Energiezaehler ueber RS-485/Modbus RTU zur Anzeige und fuer evcc: ABB B23, Eastron SDM630,
+  Eastron SDM72D-M (beide Versionen). Nicht fuer Schutzfunktionen.
+- Uhrzeit per Zeitserver (SNTP).
+
+**Weboberflaeche** (im Flash, ohne Cloud)
+
+- Uebersicht mit Zustand, Ladestrom und Vorgabe-Tasten, letzten Ereignissen.
+- Insights: Verlauf ueber 48 h, Ladestromgrenzen, Fehler mit Ruecksetzbedingung,
+  Zaehlerwerte, Ereignisprotokoll (uebersteht Neustarts, mit Fehlversuchen bei der Anmeldung),
+  Status der Ladelogik, CP-Oszilloskop.
+- Einstellungen fuer Laden, Netzwerk, MQTT, Zaehler und Anmeldedaten, jeder Parameter mit
+  Bereich, Werkseinstellung und Erklaerung.
+- Firmware-Update ueber den Bootloader der Steuerung, mit Vorpruefung der Datei und Pruefung
+  des Ergebnisses.
+- Bedienungsanleitung: [docs/anleitung/weboberflaeche.md](docs/anleitung/weboberflaeche.md).
+
+**Wartung**
+
+- Rueckweg zur Originalfirmware ueber denselben Bootloader; die Originaleinstellungen bleiben
+  dabei erhalten (auf einer Steuerung geprueft). Ein Import dieser Einstellungen in Wallfree ist
+  eingebaut, auf einer Steuerung aber noch nicht ausgefuehrt.
+- Telnet-Shell fuer Diagnose (ab Werk aus).
+- Kompletter Simulator auf dem PC: die ganze Firmware mit nachgebildeter Hardware, Fahrzeug,
+  Zaehler und Bootloader, Weboberflaeche und evcc wie an der echten Steuerung.
+
+**Nicht enthalten:** OCPP, RFID, Modbus TCP, Mobilfunk, Lastmanagement mehrerer Boxen (kann
+evcc), HTTPS.
+
 ## Inhalt
 
 | Pfad | Inhalt |
