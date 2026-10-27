@@ -1144,7 +1144,9 @@ class T7Zeit(SimCase):
         self.assertEqual(self.sim.request("GET", "/evse/state", auth=bad, retry=False).status, 401)
         log = self.sim.get_json("/system/log", self.auth)["entries"]
         self.assertEqual(log[0]["event"]["type"], "boot")
-        self.assertNotIn("wall_ms", log[0], "vor dem Abgleich ohne Uhrzeit")
+        # vor dem Abgleich entstanden, nachgetragen: Uhrzeit = Abgleich - Laufzeit + t_ms
+        self.assertAlmostEqual(log[0]["wall_ms"] / 1000, self.UNIX, delta=30,
+                               msg="Eintrag vor dem Abgleich nachgetragen")
         self.assertEqual(log[-1]["kind"], "auth_fail")
         self.assertGreater(log[-1].get("wall_ms", 0) / 1000, self.UNIX - 30)
 

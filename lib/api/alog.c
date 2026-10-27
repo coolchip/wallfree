@@ -53,6 +53,18 @@ bool wf_alog_restore(struct wf_alog *l)
 void wf_alog_set_wall_base(struct wf_alog *l, int64_t wall_base)
 {
 	l->wall_base = wall_base;
+	if (wall_base == 0) {
+		return;
+	}
+	/* Eintraege dieses Starts von vor dem Zeitabgleich nachtragen, damit sie auch nach
+	 * dem naechsten Neustart eine Uhrzeit haben */
+	for (uint32_t s = oldest(l); s < l->next_seq; s++) {
+		struct wf_alog_entry *e = &l->e[s % WF_ALOG_SIZE];
+
+		if (e->boot == l->boot && e->wall == 0) {
+			e->wall = wall_base + e->t;
+		}
+	}
 }
 
 static struct wf_alog_entry *newest(struct wf_alog *l)

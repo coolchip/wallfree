@@ -234,8 +234,9 @@ Eintrag mit Anzahl zusammengefasst. Unbekannte Fehlversuche können auf einen Zu
 im Netz oder auf ein Gerät mit veralteten Zugangsdaten hinweisen.
 
 Das Ereignisprotokoll übersteht Neustarts, Updates und Werksreset, aber keinen Stromausfall. Einträge
-aus einem früheren Start zeigen statt der Uhrzeit „früherer Start“, solange die Steuerung keine
-Uhrzeit von einem Zeitserver hat.
+aus einem früheren Start zeigen „unbekannte Zeit“, wenn die Steuerung in diesem Start keine
+Uhrzeit von einem Zeitserver hatte. Mit Zeitserver erhalten auch die Einträge aus den ersten
+Sekunden nach dem Start (vor dem Zeitabgleich) nachträglich ihre Uhrzeit.
 
 **Protokoll löschen** entfernt nach einer Rückfrage alle Einträge. Das Löschen selbst bleibt als
 erster Eintrag „Ereignisprotokoll gelöscht von …“ mit der Adresse des Geräts stehen.

@@ -306,7 +306,7 @@ function EventLog({ live, all }) {
 		const d = new Date(ms);
 		return d.toDateString() === today ? d.toLocaleTimeString('de-DE') : d.toLocaleString('de-DE');
 	};
-	const time = (x) => (x.wall_ms ? fmtTime(x.wall_ms) : x.boot === boot ? fmtTime(off + x.t_ms) : 'früherer Start');
+	const time = (x) => (x.wall_ms ? fmtTime(x.wall_ms) : x.boot === boot ? fmtTime(off + x.t_ms) : 'unbekannte Zeit');
 	const text = (x) => (x.kind === 'event' ? evText(x.event) : x.kind === 'cleared' ? 'Ereignisprotokoll gelöscht von ' + x.addr
 		: 'Anmeldung fehlgeschlagen von ' + x.addr + (x.count > 1 ? ' (' + x.count + '×)' : ''));
 	const clear = async () => {
@@ -325,7 +325,7 @@ function EventLog({ live, all }) {
 			</tr>`)}
 		</table>`}
 		${all && html`<p class="muted msg">Letzte 48 Einträge, auch über Neustarts hinweg (nicht über einen Stromausfall). ${synced
-			? 'Uhrzeiten vom Zeitserver.' : 'Ohne Zeitserver sind Uhrzeiten auf wenige Sekunden genau, Einträge früherer Starts haben keine.'}</p>`}
+			? 'Uhrzeiten vom Zeitserver.' : 'Ohne Zeitserver sind Uhrzeiten auf wenige Sekunden genau; Einträge früherer Starts haben keine (unbekannte Zeit).'}</p>`}
 		${all && html`<div class="row"><button onClick=${clear}>Protokoll löschen</button></div>`}
 		${msg && html`<${Msg} m=${msg} />`}
 	<//>`;

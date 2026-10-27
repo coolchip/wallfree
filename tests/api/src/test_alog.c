@@ -191,12 +191,21 @@ ZTEST(api_alog, test_restore)
 	zassert_equal(e.boot, 2);
 	zassert_equal(e.seq, 3, "Nummern laufen ueber den Neustart weiter");
 
-	/* Uhrzeit: nur Eintraege nach dem Setzen tragen sie */
+	/* Uhrzeit: neue Eintraege tragen sie, die dieses Starts werden nachgetragen, die eines
+	 * frueheren Starts nicht (dessen Startzeitpunkt ist unbekannt) */
 	zassert_equal(e.wall, 0);
 	wf_alog_set_wall_base(&l, 1793000000000);
 	wf_alog_event(&l, &(struct wf_event){.t = 700, .type = WF_EV_CONTACTOR});
 	zassert_true(wf_alog_get(&l, &seq, &e));
 	zassert_equal(e.wall, 1793000000700);
+	seq = 0;
+	zassert_true(wf_alog_get(&l, &seq, &e));
+	zassert_equal(e.boot, 1);
+	zassert_equal(e.wall, 0, "frueherer Start bleibt ohne Uhrzeit");
+	(void)wf_alog_get(&l, &seq, &e);
+	zassert_true(wf_alog_get(&l, &seq, &e));
+	zassert_equal(e.boot, 2);
+	zassert_equal(e.wall, 1793000000050, "vor dem Abgleich: nachgetragen");
 	zassert_true(wf_alog_restore(&l));
 	zassert_equal(l.wall_base, 0, "nach Neustart wieder unbekannt");
 

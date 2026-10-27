@@ -1017,7 +1017,12 @@ static void update_outputs(struct evse *e, evse_ms_t now)
 	o->lock_pulse = e->lock.out_lock;
 	o->unlock_pulse = e->lock.out_unlock;
 	o->rcm_test = e->rcm.out_test;
-	o->pe1 = false; /* F15 */
+	/* F15: im Betrieb immer Low; High nur fuer die Diagnose (SOLL-SH-12) */
+	if (e->pe1_test_until != 0 && (now >= e->pe1_test_until || e->state != EVSE_S1_IDLE ||
+				       evse_cp_raw(&e->cp) != EVSE_CP_A || e->contactor)) {
+		e->pe1_test_until = 0;
+	}
+	o->pe1 = e->pe1_test_until != 0;
 
 	for (int i = 0; i < EVSE_DOUT_COUNT; i++) {
 		o->dout[i] = evse_dout_eval(e, e->cfg.out_function[i], now);
@@ -1149,6 +1154,16 @@ bool evse_selftest_command(struct evse *e, evse_ms_t now)
 		return false;
 	}
 	return evse_rcm_selftest_start(&e->rcm, &e->rcm_lv, now);
+}
+
+bool evse_pe1_test(struct evse *e, evse_ms_t now, evse_ms_t ms)
+{
+	if (e->state != EVSE_S1_IDLE || evse_cp_raw(&e->cp) != EVSE_CP_A || e->contactor || ms <= 0 ||
+	    ms > 2000) {
+		return false;
+	}
+	e->pe1_test_until = now + ms;
+	return true;
 }
 
 void evse_request_shutdown(struct evse *e)

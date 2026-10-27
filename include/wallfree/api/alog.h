@@ -60,7 +60,10 @@ void wf_alog_init(struct wf_alog *l);
  */
 bool wf_alog_restore(struct wf_alog *l);
 
-/** Uhrzeit bekannt geworden (SNTP): ms seit 1970 bei Laufzeit 0, 0 = wieder unbekannt */
+/**
+ * Uhrzeit bekannt geworden (SNTP): ms seit 1970 bei Laufzeit 0, 0 = wieder unbekannt.
+ * Eintraege des laufenden Starts ohne Uhrzeit erhalten sie nachtraeglich.
+ */
 void wf_alog_set_wall_base(struct wf_alog *l, int64_t wall_base);
 
 /** Fehlversuch; zaehlt im juengsten Eintrag weiter, wenn der dieselbe Adresse betrifft. */

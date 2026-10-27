@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Tests Bedienfunktionen fuer Shell/Schnittstelle: Selbsttest auf Anforderung
- * (SOLL-SH-07), Fehlerhistorie (SOLL-ERR-01), geordnetes Ende vor Neustart
- * (SOLL-RT-22).
+ * (SOLL-SH-07), Diagnose PE1 (SOLL-SH-12), Fehlerhistorie (SOLL-ERR-01), geordnetes Ende
+ * vor Neustart (SOLL-RT-22).
  */
 #include <zephyr/ztest.h>
 #include <string.h>
@@ -38,6 +38,29 @@ ZTEST(evse_service, test_selftest_command)
 	s.car = EVSE_CP_B;
 	sim_run(&s, 100);
 	zassert_false(evse_selftest_command(&s.e, s.now), "nicht mit Fahrzeug");
+}
+
+ZTEST(evse_service, test_pe1_test)
+{
+	sim_start(&s);
+	zassert_false(evse_pe1_test(&s.e, s.now, 1000), "nicht in S0");
+	sim_boot(&s);
+	zassert_false(s.e.out.pe1, "im Betrieb Low (F15)");
+	zassert_false(evse_pe1_test(&s.e, s.now, 2001), "hoechstens 2 s");
+	zassert_true(evse_pe1_test(&s.e, s.now, 1000));
+	sim_run(&s, 500);
+	zassert_true(s.e.out.pe1);
+	sim_run(&s, 600);
+	zassert_false(s.e.out.pe1, "nach 1 s wieder Low");
+
+	/* Fahrzeug angesteckt: sofort Low, neuer Test abgelehnt */
+	zassert_true(evse_pe1_test(&s.e, s.now, 2000));
+	sim_run(&s, 100);
+	zassert_true(s.e.out.pe1);
+	s.car = EVSE_CP_B;
+	sim_run(&s, 100);
+	zassert_false(s.e.out.pe1, "verlaesst S1/CP A");
+	zassert_false(evse_pe1_test(&s.e, s.now, 1000), "nicht mit Fahrzeug");
 }
 
 ZTEST(evse_service, test_selftest_command_fails_with_bad_sensor)

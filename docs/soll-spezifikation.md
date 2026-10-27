@@ -883,6 +883,7 @@ nacheinander; gesendet wird ein Objekt je Rahmen (auch fuer Browser einfach).
 | SOLL-SH-09 | `evse import-original` | einmalige Uebernahme aus Sektor 3 (SOLL-NVM-10), nur im sicheren Zustand |
 | SOLL-SH-10 | `evse bootloader` | Update-Uebergabe (SOLL-BOOT-30) |
 | SOLL-SH-11 | `evse reboot` | Neustart nach SOLL-RT-22 (HTTP: `POST /system/restart`). Zephyrs `kernel reboot` ist entfernt (`CONFIG_REBOOT=n`), weil es die Wartezeit umgehen wuerde (SOLL-SH-20) |
+| SOLL-SH-12 | `evse pe1-test` | Diagnose: PE1 fuer 1 s High, um die Zuordnung PE1 -> Relais C3/C4 an der Hardware zu pruefen (F15). Nur in S1 ohne Fahrzeug (CP A) und mit Schuetz aus; verlaesst die Steuerung diesen Zustand, faellt PE1 sofort ab. Im Betrieb bleibt PE1 Low. |
 | SOLL-SH-19 | Telnet-Shell ohne Anmeldung, Default **aus** (`telnet_enable` = 0, F20, Nutzer 2026-10-26); in der Weboberflaeche einschaltbar, wirkt nach Neustart. Telnet bleibt in der Firmware (Diagnose). |
 | SOLL-SH-20 | Shell-Kommandos sind gegenueber dem Schutzpfad nicht privilegiert: kein Kommando kann Schutzfunktionen abschalten, das Schuetz direkt einschalten oder Aktorimpulse ausserhalb der Ablaufregeln ausloesen. | AG Sicherheitsgrenzen |
 
@@ -1117,7 +1118,7 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 | F12 | Startwert `external` | keine Einschraenkung (80000), parametrierbar wie WARP `external_defaults`; Sollwert, Grenzen und wirksamer Strom getrennt sichtbar (SOLL-API-32) | ohne Zutun soll geladen werden; ein Startwert 0 wurde erprobt und verworfen, weil ohne evcc nie geladen wuerde | SOLL-CUR-15 |
 | F13 | RCM-Wiederholtest in A | alle 30 s | Ruecksetzen moeglich, ohne den Sensor dauernd zu testen | SOLL-PROT-11 |
 | F14 | Schuetzfehler ruecksetzen | nur Neustart oder Quittierung | ein klebendes Schuetz ist gefaehrlich; das Original loescht den Fehler, sobald die Erkennung entfaellt | SOLL-PROT-23 |
-| F15 | D5/PE1 | wie Original (ohne sichtbare Wirkung), nach H1 neu entscheiden | Ziel von PE1 unbekannt | SOLL-PROT-24 |
+| F15 | D5/PE1 | wie Original (ohne sichtbare Wirkung), nach H1 neu entscheiden; Zuordnung pruefen mit `evse pe1-test` (SOLL-SH-12, Nutzer 2026-10-27) | Ziel von PE1 unbekannt, vermutlich Relais C3/C4 ("reserviert fuer zukuenftige Anwendungen" laut Handbuch der Steuerung) | SOLL-PROT-24 |
 | F16 | Unterspannung | nur Warnung, RCM bleibt aktiv, kein Sprung in den Grundzustand | Schutz hat Vorrang; das Original setzt die RCM-Ueberwachung bei Unterspannung aus | SOLL-PROT-41 |
 | F17 | D6 ohne LD-Eingang | Konfigurationsfehler | sichtbarer Fehler statt still fehlschlagender Verriegelung | SOLL-LOCK-03 |
 | F18 | Eingangscode 18 | wie Code 1 | Portal nicht im Umfang | 9.1 |
