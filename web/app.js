@@ -507,9 +507,12 @@ function fmt(name, v) {
 	if (name === 'state') return STATES[v] || v;
 	if (name === 'cp_status' || name === 'cp_raw') return 'ABCDEF'[v] || v;
 	if (name === 'errors' || name === 'errors_seen') return errText(v);
-	if (name === 'dip_override') return '0x' + v.toString(16);
+	if (name === 'dip_override') return dipText(v) + ' (0x' + v.toString(16) + ')';
 	return v;
 }
+
+// eingeschaltete DIP-Schalter, z. B. "D1, D2, D4"
+const dipText = (v) => [...Array(10).keys()].filter((i) => (v >> i) & 1).map((i) => 'D' + (i + 1)).join(', ') || 'keiner';
 
 function ParamRow({ p, value, onSaved }) {
 	const [edit, setEdit] = useState('');
@@ -567,6 +570,12 @@ function Params({ kinds }) {
 		${info.filter((p) => p.kind === k).map((p) => {
 			// Bitmasken der Klemmen als eine Zeile je Ein-/Ausgang
 			const bits = p.name === 'inputs' ? ['Eingang', DINS] : p.name === 'outputs' ? ['Ausgang', DOUTS] : null;
+			// DIP-Schalter (wirksame Stellung aus dip_override) gleich unter dem Drehschalter
+			if (p.name === 'rotary') {
+				return [html`<${ParamRow} key=${p.name} p=${p} value=${vals[p.name]} onSaved=${load} />`,
+					html`<tr key="dip"><td title="dip_override"><${Terms} text="DIP-Schalter an" /></td>
+						<td class="num">${vals.dip_override === undefined ? '–' : dipText(vals.dip_override)}</td><td class="hide-s"></td><td></td></tr>`];
+			}
 			if (!bits) return html`<${ParamRow} key=${p.name} p=${p} value=${vals[p.name]} onSaved=${load} />`;
 			const v = vals[p.name];
 			return bits[1].map((n, i) => html`<tr key=${p.name + i}><td title=${p.name + ' Bit ' + i}><${Terms} text=${bits[0] + ' ' + n} /></td>

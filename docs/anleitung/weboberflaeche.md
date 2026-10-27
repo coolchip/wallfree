@@ -266,6 +266,7 @@ Innere Zustände der Ladesteuerung, vor allem für die Fehlersuche. Die Werte si
 | Ladedauer des Steckvorgangs | bisherige Ladezeit (Schütz ein) im aktuellen Steckvorgang in ms |
 | Ladeerlaubnis / Freigabe / Verfügbarkeit fehlt | Freigabelogik ([10.4](#104-freigabe-und-verfügbarkeit)) |
 | Drehschalterstellung | Stellung 0..15 beim Start |
+| DIP-Schalter an | eingeschaltete DIP-Schalter, z. B. „D1, D2, D4“ (wirksame Stellung, auch wenn sie über `dip_override` überschrieben ist; [10.1](#101-dip-schalter-und-drehschalter)) |
 | RCM-Selbsttest 0..4 | Selbsttest der Fehlerstromüberwachung: 0 nicht gelaufen, 1 läuft, 2 bestanden, 3 fehlgeschlagen, 4 abgebrochen (klingt ab) |
 | Eingang LD … IN, Ausgang ER … CR | Schaltzustand jedes Digitaleingangs und -ausgangs: an oder aus |
 | Fehlversuche Verriegeln / Entriegeln | Anzahl fehlgeschlagener Versuche im aktuellen Steckvorgang |
