@@ -254,7 +254,7 @@ unterbrochene Verdichten wie ein Erststart aus. Getestetes Verhalten bei Stromau
 
 ## Ressourcen
 
-Stand 2026-10-26 (`6c74041`), `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B, ohne Netz-Shell, 12 Netz-Kontexte: **280 108 B Flash** (85,5 % von 320 KB), **112 748 B RAM** (86,0 %).
+Stand 2026-10-27 (`v0.1`), `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B, ohne Netz-Shell, 12 Netz-Kontexte: **298 008 B Flash** (90,9 % von 320 KB), **118 780 B RAM** (90,6 %).
 Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudget).
 
 | Anteil (gemessen beim Hinzufuegen) | Flash | RAM |
@@ -270,7 +270,7 @@ Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudge
 | Verlauf (Ringpuffer 1,2 KB) und Gliederung der Weboberflaeche in Bereiche (gzip +2,9 KB) | 5,3 KB | 1,5 KB |
 | Energiezaehler: UART-Treiber 2,1 KB, Zephyr-Modbus 2,7 KB, Interrupttabelle 1 KB, Zaehlermodul 1,4 KB, JSON/API/Shell/Parameter 2,9 KB, Weboberflaeche 1,4 KB, Rest (Treiberanteile) | 15,2 KB | 3,9 KB (Stack 1,3 KB, Modbus-Kontext 1 KB, Zaehlerzustand, WebSocket-Rahmen) |
 
-Reserve rund **42 KB Flash und 17,9 KB RAM**. Der RAM ist bis auf die Stacks statisch belegt
+Reserve rund **29 KB Flash und 12 KB RAM** (Uhrzeit, Home-Assistant-Erkennung und CP-Aufnahme seit der Aufstellung oben hinzugekommen). Der RAM ist bis auf die Stacks statisch belegt
 (kein Wachstum zur Laufzeit); Stacks haben MPU-Schutz (Ueberlauf -> Fault -> sicherer Zustand),
 ihre Auslastung auf dem Testgerät steht in der Tabelle unten (`kernel thread stacks`). Weitere
 Einsparungen in der [Architektur](architektur.md#5-speicherbudget).
