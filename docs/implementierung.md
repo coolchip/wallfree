@@ -422,6 +422,8 @@ Fuer die spaetere Veroeffentlichung der Firmware vorbereiten:
 - Technik und Lizenzen: [technik-und-lizenzen.md](technik-und-lizenzen.md) (Nutzer 2026-10-27: Tech-Stack
   aufschreiben); Lizenzhinweis auf der Seite System. Zu jeder Veroeffentlichung `LICENSE` und
   `COPYING.picolibc` (Zephyr SDK) beilegen.
+- Lizenzen dateigenau pruefen: `west spdx` (SPDX-Stueckliste der ins Abbild gelinkten Dateien), Liste in
+  `web/lizenzen.txt` und technik-und-lizenzen.md danach ergaenzen (spaeter, Nutzer 2026-10-27).
 - Kompletter Simulator auf dem PC (native_sim mit Hardwaremodell, Ersatz-Bootloader, evcc).
 - Vor der Veroeffentlichung: Zeiten der Git-Commits pruefen (Nutzer 2026-10-27; Claude erinnert
   daran, der Nutzer weiss, was gemeint ist).
