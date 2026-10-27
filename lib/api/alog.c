@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* Log, siehe include/wallfree/api/alog.h */
+/* Ereignisprotokoll, siehe include/wallfree/api/alog.h */
 #include <stdio.h>
 #include <string.h>
 #include <wallfree/api/alog.h>

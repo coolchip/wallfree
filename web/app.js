@@ -236,7 +236,7 @@ function Msg({ m }) {
 	return html`<div class="msg ${m.ok ? 'ok' : 'bad'}">${m.text}</div>`;
 }
 
-// ------------------------------------------------------------ Ereignisse, Log
+// ------------------------------------------------------------ Ereignisse, Ereignisprotokoll
 
 // Resetgrund und genauerer Ausloeser (SOLL-RT-14), Texte fuer Protokoll und System
 const RESET = { power_on: 'Einschalten', user_restart: 'Neustart auf Anforderung', update: 'Firmware-Update',
@@ -307,17 +307,17 @@ function EventLog({ live, all }) {
 		return d.toDateString() === today ? d.toLocaleTimeString('de-DE') : d.toLocaleString('de-DE');
 	};
 	const time = (x) => (x.wall_ms ? fmtTime(x.wall_ms) : x.boot === boot ? fmtTime(off + x.t_ms) : 'früherer Start');
-	const text = (x) => (x.kind === 'event' ? evText(x.event) : x.kind === 'cleared' ? 'Log gelöscht von ' + x.addr
+	const text = (x) => (x.kind === 'event' ? evText(x.event) : x.kind === 'cleared' ? 'Ereignisprotokoll gelöscht von ' + x.addr
 		: 'Anmeldung fehlgeschlagen von ' + x.addr + (x.count > 1 ? ' (' + x.count + '×)' : ''));
 	const clear = async () => {
-		if (!confirm('Alle Einträge des Logs löschen? Das Löschen selbst bleibt als Eintrag stehen.')) return;
+		if (!confirm('Alle Einträge des Ereignisprotokolls löschen? Das Löschen selbst bleibt als Eintrag stehen.')) return;
 		try {
 			await post('/system/log/clear', {});
 			setMsg(null);
 			await load();
 		} catch (e) { setMsg({ ok: false, text: e.message }); }
 	};
-	return html`<${Card} title=${all ? 'Log' : 'Letzte Ereignisse'}>
+	return html`<${Card} title=${all ? 'Ereignisprotokoll' : 'Letzte Ereignisse'}>
 		${list.length === 0 ? html`<p class="muted">Keine Einträge.</p>` : html`<table>
 			${list.slice().reverse().map((x) => html`<tr>
 				<td class="num muted">${time(x)}</td>
@@ -326,7 +326,7 @@ function EventLog({ live, all }) {
 		</table>`}
 		${all && html`<p class="muted msg">Letzte 48 Einträge, auch über Neustarts hinweg (nicht über einen Stromausfall). ${synced
 			? 'Uhrzeiten vom Zeitserver.' : 'Ohne Zeitserver sind Uhrzeiten auf wenige Sekunden genau, Einträge früherer Starts haben keine.'}</p>`}
-		${all && html`<div class="row"><button onClick=${clear}>Log löschen</button></div>`}
+		${all && html`<div class="row"><button onClick=${clear}>Protokoll löschen</button></div>`}
 		${msg && html`<${Msg} m=${msg} />`}
 	<//>`;
 }
@@ -534,7 +534,7 @@ function ParamRow({ p, value, onSaved }) {
 		<td class="num">${value === undefined ? '–' : opts ? value
 			: bool ? (value ? 'ja' : 'nein') : fmt(p.name, value) + ' ' + p.unit}</td>
 		<td class="num hide-s muted">${writable && !bool && !opts ? p.min + '…' + p.max : ''}</td>
-		<td>${writable && html`<div class="row">
+		<td>${writable && html`<div class="row edit">
 			${opts ? html`<select value=${edit === '' ? value : edit} onChange=${(e) => setEdit(e.target.value)}>
 					${opts.map((t, i) => html`<option value=${i}>${i} – ${t}${i === p.default ? ' (Werk)' : ''}</option>`)}</select>`
 				: bool ? html`<input type="checkbox" checked=${edit === '' ? !!value : edit === '1'}

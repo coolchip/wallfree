@@ -67,7 +67,7 @@ static struct http_header hdr_auth = {.name = "WWW-Authenticate", .value = chall
 static char retry_after[12];
 static struct http_header hdr_retry = {.name = "Retry-After", .value = retry_after};
 static struct wf_rl rl; /* Bremse je Absender (nur Server-Thread) */
-/* Log (SOLL-ERR-11), Server- und WebSocket-Thread; uebersteht Neustarts
+/* Ereignisprotokoll (SOLL-ERR-11), Server- und WebSocket-Thread; uebersteht Neustarts
  * im Backup-SRAM (SOLL-ERR-12) */
 static struct wf_alog alog HW_RETAINED;
 static K_MUTEX_DEFINE(alog_mtx);
@@ -754,7 +754,7 @@ static void system_log(struct http_client_ctx *client, struct res *r,
 	rsp->final_chunk = next == WF_ALOG_DONE;
 }
 
-/* SOLL-ERR-13: Log loeschen; der erste neue Eintrag nennt den Absender */
+/* SOLL-ERR-13: Ereignisprotokoll loeschen; der erste neue Eintrag nennt den Absender */
 static void system_log_clear(struct http_client_ctx *client, struct res *r,
 			     struct http_response_ctx *rsp)
 {
@@ -764,7 +764,7 @@ static void system_log_clear(struct http_client_ctx *client, struct res *r,
 	k_mutex_lock(&alog_mtx, K_FOREVER);
 	wf_alog_clear(&alog, addr, k_uptime_get());
 	k_mutex_unlock(&alog_mtx);
-	LOG_INF("Log geloescht von %u.%u.%u.%u", addr >> 24, (addr >> 16) & 255, (addr >> 8) & 255,
+	LOG_INF("Ereignisprotokoll geloescht von %u.%u.%u.%u", addr >> 24, (addr >> 16) & 255, (addr >> 8) & 255,
 		addr & 255);
 	strcpy(out, "{}");
 	respond(rsp, HTTP_200_OK, 2);

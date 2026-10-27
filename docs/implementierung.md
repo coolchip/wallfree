@@ -48,7 +48,7 @@ Reines C99, getestet auf `native_sim/native/64` mit ztest.
 | [reset.c](../lib/api/reset.c) | Resetgrund aus Flags und Backup-Code | SOLL-RT-14 | api_reset |
 | [ratelimit.c](../lib/api/ratelimit.c) | Bremse gegen Passwort-Durchprobieren je Absenderadresse | SOLL-API-07 | api_ratelimit |
 | [events.c](../lib/api/events.c) | Ereignisse aus dem Vergleich zweier Momentaufnahmen, Ringpuffer, JSON | SOLL-ERR-10 | api_events |
-| [alog.c](../lib/api/alog.c) | Log: Ringpuffer (48, Backup-SRAM), Zusammenfassen wiederholter Fehlversuche, Loeschen mit Eintrag, JSON in Teilen | SOLL-ERR-11..13 | api_alog |
+| [alog.c](../lib/api/alog.c) | Ereignisprotokoll: Ringpuffer (48, Backup-SRAM), Zusammenfassen wiederholter Fehlversuche, Loeschen mit Eintrag, JSON in Teilen | SOLL-ERR-11..13 | api_alog |
 | [meter.c](../lib/meter/meter.c) | Zaehler: Modelltabellen (ABB B23, SDM630, SDM72D-M V2/V1), Dekodierung Float32/U16/U32/S32/U64 mit Ungueltig-Kennungen, Plausibilitaet, Abfragezyklus mit Ruhepause, Wiederholung und Zusatzpause nach Timeout, Satzbildung, Zustand, Fehlerzaehler, Ereignisse; Bus hinter `struct meter_bus` | SOLL-MTR-01/03..15 | `tests/meter` (meter) |
 | [meter_sim.c](../lib/meter/meter_sim.c) | nur PC: Antworten eines Zaehlers je Modell (Tests, Simulation) | – | meter |
 | [meter_json.c](../lib/api/meter_json.c) | `meters/0/value_ids`, `/values` (Tausendstel als Dezimalzahl, ungueltig `null`), `/state` mit Fehlerzaehlern | SOLL-MTR-30/31 | meter |
@@ -77,7 +77,7 @@ TIM1 und ADC1 stehen nicht im Board-Devicetree, weil die Anwendung sie direkt st
 | [timesync.c](../app/src/timesync.c), [ntp.c](../lib/api/ntp.c), [resolve.c](../app/src/resolve.c) | Uhrzeit per SNTP: Thread niedrigster Prioritaet (Stack 2048 B, nicht ueberwacht), Server nach SOLL-TIME-02, DNS asynchron ohne Heap (gemeinsam mit MQTT), Basis = Antwort minus Laufzeit, an das Protokoll weitergereicht | SOLL-TIME-01..04 |
 | [mqtt_task.c](../app/src/mqtt_task.c) | MQTT-Thread (niedrigste Anwendungsprioritaet, Stack 2048 B, nicht ueberwacht): Verbinden mit Last Will, Neuverbindung 1..60 s, Takt 100 ms fuer Zustaende und Ereignisse, Befehl `evse/external_current_update`, Status | SOLL-MQTT-01..04/10..12/20..23/30 |
 | [meter_bus_modbus.c](../app/src/meter_bus_modbus.c) | nur Steuerung: Zephyr-Modbus-Client auf UART4 (`modbus0`, DE an PC12), Baudrate/Format aus den Parametern, Fehler auf Timeout/Rahmen/Ausnahme abgebildet | SOLL-MTR-02/04, F29 |
-| [web/](../web/) | Werkszugang -> Zugangsdaten festlegen; Uebersicht: Zustand, Fahrzeug, Fehler, Zaehler (Leistung, Zaehlerstand), Ladestrom als Ring mit Vorgabe-Tasten, letzte Ereignisse; Insights: Verlauf, Ladestrom als Wertetabelle, Fehler mit Quittierung, Zaehlerwerte mit Fehlerzaehlern, Log, Status der Ladelogik; Einstellungen: Laden (Parameter mit Bereich, Default, Herkunftsfeld, Hilfetext), Netzwerk, MQTT, Zaehler (je mit Zustand, Passwortfeld nur schreibbar), Zugang; System: Firmware, Laufzeit, Resetgrund, letztes Update, Neustart, Firmware-Update (Vorpruefung der Datei, Ablauf mit Fortschritt) | SOLL-API-31/33, SOLL-ERR-10/11, SOLL-MTR-32, SOLL-MQTT-32 |
+| [web/](../web/) | Werkszugang -> Zugangsdaten festlegen; Uebersicht: Zustand, Fahrzeug, Fehler, Zaehler (Leistung, Zaehlerstand), Ladestrom als Ring mit Vorgabe-Tasten, letzte Ereignisse; Insights: Verlauf, Ladestrom als Wertetabelle, Fehler mit Quittierung, Zaehlerwerte mit Fehlerzaehlern, Ereignisprotokoll, Status der Ladelogik; Einstellungen: Laden (Parameter mit Bereich, Default, Herkunftsfeld, Hilfetext), Netzwerk, MQTT, Zaehler (je mit Zustand, Passwortfeld nur schreibbar), Zugang; System: Firmware, Laufzeit, Resetgrund, letztes Update, Neustart, Firmware-Update (Vorpruefung der Datei, Ablauf mit Fortschritt) | SOLL-API-31/33, SOLL-ERR-10/11, SOLL-MTR-32, SOLL-MQTT-32 |
 | [history.c](../lib/api/history.c), [history_task.c](../app/src/history_task.c) | Verlauf: Mittelwerte je 10 min im Ringpuffer (RAM), Ausgabe in Teilen; Abtastung je Sekunde auf der Systemworkqueue | SOLL-API-33 |
 | [hw_sim.c](../app/src/hw_sim.c), [sim_host.c](../app/src/sim_host.c) | nur `native_sim`: Hardwaremodell mit simuliertem Zaehler hinter `meter_bus.h` und Neustart per `execv` ([Test und Simulation](test-und-simulation.md)) | – |
 
@@ -148,7 +148,7 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Telnet aus | `shell_stop`: Port 23 bleibt offen, Kommandos werden nicht ausgefuehrt | Zephyr kann den Telnet-Port zur Laufzeit nicht schliessen |
 | Telnet-Optionen | `CONFIG_SHELL_TELNET_SUPPORT_COMMAND` (in Zephyr als experimentell markiert): Echo und Zeichenmodus werden auf Anfrage des Clients ausgehandelt; mit `mode character` funktionieren Historie und Zeilenbearbeitung. Der Server bietet den Modus nicht von sich aus an. Kosten 0,3 KB Flash | Nutzerwunsch 2026-10-20 (Pfeil hoch fuer den letzten Befehl) |
 
-### Ereignisse und Log
+### Ereignisse und Ereignisprotokoll
 
 | Punkt | Umsetzung | Grund |
 | --- | --- | --- |
@@ -158,7 +158,7 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Puffer | 48 Eintraege im Backup-SRAM (3,5 von 4 KB, entlastet den RAM um 1,8 KB); Fehlversuche und Ereignisse teilen sich den Puffer; aeltester Eintrag faellt heraus, Luecke in `seq` zeigt Verlust; `seq` und Startnummer laufen ueber Neustarts weiter. Beim Start uebernommen, wenn Kennung, Version und Nummern stimmen, sonst neu (Stromausfall). Fehlversuche verschiedener Starts werden nicht zusammengefasst. Simulation: Inhalt per Umgebungsvariable ueber den Neustart (execv), nicht als Datei, damit Beenden wie ein Stromausfall wirkt; bestaetigt (Nutzer 2026-10-27) | Nutzer 2026-10-26 (Ereignishistorie); Backup-SRAM nutzen weder Bootloader noch Originalfirmware (keine Zugriffe im Code) |
 | Ausloeser des Resets | BKP18 = `"WD"` + Detail + Zusatz, BKP17 = PC bei Ausnahme; beim Start gelesen und geloescht; `reset_detail` in `/system/info`, Startereignis `boot` | SOLL-RT-14 |
 | Abruf | `GET /system/log` mit Digest, im Werkszugang 403; liefert alle vorhandenen Eintraege, aelteste zuerst, in Teilen (kein Abschneiden); der Abruf selbst wird nicht protokolliert | SOLL-API-07 |
-| Loeschen (SOLL-ERR-13) | `POST /system/log/clear`, im Werkszugang 403; erster neuer Eintrag `{"kind":"cleared","addr"}`, Nummern laufen weiter; Formatversion 2 (beim Update von Version 1 beginnt das Log einmal neu); die Weboberflaeche blendet live empfangene Ereignisse von vor dem Loeschen aus **(zu bestaetigen)** | Loeschen soll nachvollziehbar bleiben: wer das Passwort kennt, kann seine Fehlversuche nicht spurlos entfernen |
+| Loeschen (SOLL-ERR-13) | `POST /system/log/clear`, im Werkszugang 403; erster neuer Eintrag `{"kind":"cleared","addr"}`, Nummern laufen weiter; Formatversion 2 (beim Update von Version 1 beginnt das Ereignisprotokoll einmal neu); die Weboberflaeche blendet live empfangene Ereignisse von vor dem Loeschen aus, bestaetigt (Nutzer 2026-10-27) | Loeschen soll nachvollziehbar bleiben: wer das Passwort kennt, kann seine Fehlversuche nicht spurlos entfernen |
 | Absender beim WebSocket | aus Zephyr-Interna ermittelt (Kopfzeilenfeld des Client-Kontexts, Zephyr 4.4.2); bei Zephyr-Updates pruefen | der WebSocket-Callback liefert keinen TCP-Socket |
 
 ### Bedienung und System
@@ -198,7 +198,7 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Vorgabe setzen | Tasten − / 6 / 10 / 16 / 32 A / + / "Laden aus", wirken sofort; −/+ in 1-A-Schritten zwischen 6 A und dem Maximum; Tasten ueber dem Maximum entfallen; nicht am Ring ziehbar. Hinweis: eine externe Vorgabe (z. B. Energiemanagement) kann den Wert ueberschreiben | Nutzer 2026-10-21: am Ring ziehen ist auf dem Handy fummelig |
 | Ladestrom (Insights) | Tabelle Vorgabe, Maximum Drehschalter, Kabel, "Stromgrenze ueber Digitaleingang" (Grenze `input`, Funktionscodes 8..15; "Eingang" allein war unverstaendlich; in der Zeile "begrenzt durch ..." kurz "Digitaleingang"), Erlaubt, Messwert; wirkende Grenze orange mit "begrenzt"; keine Balken | Nutzer 2026-10-21 |
 | Zaehleranzeige | Karte "Zaehler" in der Uebersicht immer, ohne Zaehler leer (Nutzer 2026-10-21: Anordnung bleibt gleich); mit Zaehler Leistung in kW, Zaehlerstand in kWh, Zustand; ungueltige Werte als "–"/"ungueltig"; Insights: Tabelle aller Messwerte, Fehlerzaehler; Einstellungen: `meter_type` und `meter_framing` als Auswahlliste | SOLL-MTR-32; Nutzer 2026-10-23 bestaetigt |
-| Ereignisse | Uebersicht: letzte 8 Ereignisse; Insights: ganzes Log mit Fehlversuchen und Taste "Log loeschen". Vorgeschichte aus `GET /system/log` beim Oeffnen, danach live ueber `evse/event` (ohne WebSocket alle 5 s neu); Uhrzeit = Startzeitpunkt + `t_ms` (Hinweis unter dem Protokoll: "Uhrzeiten auf wenige Sekunden genau"); Startzeitpunkt = Browserzeit zur Mitte der Anfrage - `uptime_ms` aus `/system/info`, bei jedem Abruf neu (mindestens jede Minute), damit ein lange offener Tab nicht mit dem Gang des Quarzes auseinanderlaeuft. Verlauf entsprechend: `age_ms` gilt zum Abrufzeitpunkt. Genauigkeit: Netzlaufzeit (ms) plus Quarzabweichung mal Alter des Eintrags (bei 20–50 ppm nach 48 h etwa 3–9 s) | keine Uhrzeit auf der Steuerung (F32) |
+| Ereignisse | Uebersicht: letzte 8 Ereignisse; Insights: ganzes Ereignisprotokoll mit Fehlversuchen und Taste "Protokoll loeschen". Vorgeschichte aus `GET /system/log` beim Oeffnen, danach live ueber `evse/event` (ohne WebSocket alle 5 s neu); Uhrzeit = Startzeitpunkt + `t_ms` (Hinweis unter dem Protokoll: "Uhrzeiten auf wenige Sekunden genau"); Startzeitpunkt = Browserzeit zur Mitte der Anfrage - `uptime_ms` aus `/system/info`, bei jedem Abruf neu (mindestens jede Minute), damit ein lange offener Tab nicht mit dem Gang des Quarzes auseinanderlaeuft. Verlauf entsprechend: `age_ms` gilt zum Abrufzeitpunkt. Genauigkeit: Netzlaufzeit (ms) plus Quarzabweichung mal Alter des Eintrags (bei 20–50 ppm nach 48 h etwa 3–9 s) | keine Uhrzeit auf der Steuerung (F32) |
 
 ### Energiezaehler
 
@@ -266,7 +266,7 @@ Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudge
 | Parameterspeicher | 8,2 KB | 5,1 KB |
 | Shell-Kommandos, Resetgrund, Fehlerhistorie | 6 KB | – |
 | Netz-/Systemparameter, Bremse | 5,7 KB | – |
-| Ereignisse, Netzwerk-LED, Log, `/evse/limits`, Ereignisanzeige | 5,1 KB | 3,9 KB |
+| Ereignisse, Netzwerk-LED, Ereignisprotokoll, `/evse/limits`, Ereignisanzeige | 5,1 KB | 3,9 KB |
 | Ladelogik `lib/evse` (Code und Konstanten inkl. Parametertabelle mit Hilfetexten) | 15,7 KB | – |
 | MQTT: Zephyr-Bibliothek (3.1.1, TCP) 4,2 KB, Thread und Anbindung, Parameter (8 Werte mit Hilfetext), `/mqtt/state`, Shell, Weboberflaeche | 9,1 KB | 5,1 KB (Stack 2 KB, Puffer 0,9 KB, Client, Status, Konfigurationskopien) |
 | Verlauf (Ringpuffer 1,2 KB) und Gliederung der Weboberflaeche in Bereiche (gzip +2,9 KB) | 5,3 KB | 1,5 KB |
@@ -359,7 +359,7 @@ auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/do
 | evcc 0.317.2 | Anmeldung und WebSocket ohne Fehler, ohne Fahrzeug "car disconnected", `external_current` = 0 |
 | Version (`v0.1`, 2026-10-27) | Update auf 0.1 erfolgreich, `/system/info` mit `firmware` 0.1 und `build` d45de9d, Pruefsumme passt zur Datei, Protokoll laeuft ueber den Update-Neustart weiter. Kopfzeile: Netzkabel gezogen -> nach wenigen Sekunden "getrennt" mit Hinweisleiste, eingesteckt -> wenige Sekunden bis "verbunden", ohne Neustart |
 | MQTT per Name, Home-Assistant-Erkennung (`v0.1`, 2026-10-27) | Broker `broker.lan` (Mosquitto, ohne Anmeldung) aufgeloest und sofort verbunden; nach `online` 6 Konfigurationen retained, Ladestrom/Leistung/Energie als leere Nachricht entfernt (ohne `mqtt_commands`, ohne Zaehler); Geraet mit `sw` `0.1+d45de9d`. Gefunden: Wertvorlage "Zustand" auf 95 Byte gekuerzt (ohne `}}`), behoben in 0.2-dev. Mit `590465a`: `mqtt_commands` an -> Ladestrom-Feld 0..16 A (Drehschalter), aus -> wieder entfernt; kein Home Assistant vorhanden, Pruefung nur mit `mosquitto_sub` |
-| Protokoll, Uhrzeit, CP-Aufnahme (`6eb0e08`, 2026-10-27) | Log uebersteht den Neustart; Uhrzeit von `pool.ntp.org` (Router meldet per DHCP keinen Zeitserver, DNS ueber DHCP funktioniert); CP-Aufnahme im Leerlauf +11,9 V |
+| Protokoll, Uhrzeit, CP-Aufnahme (`6eb0e08`, 2026-10-27) | Ereignisprotokoll uebersteht den Neustart; Uhrzeit von `pool.ntp.org` (Router meldet per DHCP keinen Zeitserver, DNS ueber DHCP funktioniert); CP-Aufnahme im Leerlauf +11,9 V |
 | Stacks | siehe [Ressourcen](#ressourcen); keiner ueber 82 % |
 
 Bekannte Grenzen: Keep-Alive-Verbindungen belegen je einen der 4 HTTP-Plaetze bis 10 s;
@@ -403,3 +403,5 @@ Fuer die spaetere Veroeffentlichung der Firmware vorbereiten:
 - Rueckweg zur Originalfirmware ist moeglich (auf dem Testgerät geprueft), mit Anleitung.
 - Vorher-Nachher-Vergleich der Weboberflaeche (Original gegen Wallfree, nur eigene Bilder).
 - Kompletter Simulator auf dem PC (native_sim mit Hardwaremodell, Ersatz-Bootloader, evcc).
+- Vor der Veroeffentlichung: Zeiten der Git-Commits pruefen (Nutzer 2026-10-27; Claude erinnert
+  daran, der Nutzer weiss, was gemeint ist).

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Log (SOLL-ERR-11): fehlgeschlagene Anmeldungen mit
+ * Ereignisprotokoll (SOLL-ERR-11): fehlgeschlagene Anmeldungen mit
  * Absenderadresse und Ereignisse (SOLL-ERR-10) in einem Ringpuffer, der Neustarts
  * uebersteht (Backup-SRAM, wf_alog_restore), JSON fuer GET /system/log. Jeder Eintrag
  * traegt die Nummer des Starts und, falls bekannt, die Uhrzeit (SOLL-ERR-12). Fortlaufende Nummer je Eintrag (Luecke =
@@ -27,7 +27,7 @@ extern "C" {
 enum wf_alog_kind {
 	WF_ALOG_AUTH_FAIL = 0, /**< falsches Passwort: addr, count */
 	WF_ALOG_EVENT,         /**< Ereignis nach SOLL-ERR-10: ev */
-	WF_ALOG_CLEARED,       /**< Log geloescht (SOLL-ERR-13): addr des Ausloesers */
+	WF_ALOG_CLEARED,       /**< Protokoll geloescht (SOLL-ERR-13): addr des Ausloesers */
 };
 
 struct wf_alog_entry {

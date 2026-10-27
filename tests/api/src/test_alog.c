@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* Tests Log (SOLL-ERR-11..13) */
+/* Tests Ereignisprotokoll (SOLL-ERR-11..13) */
 #include <string.h>
 #include <zephyr/ztest.h>
 #include <wallfree/api/alog.h>

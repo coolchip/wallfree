@@ -256,8 +256,8 @@ static const struct evse_param params[] = {
 
 	/* 10.3 Status */
 	STATUS("state", 2000, "", st_state, "Automatenzustand S0..S10"),
-	STATUS("cp_status", 2001, "", st_cp_status, "CP-Status A..F (0..5) mit Erzwingung"),
-	STATUS("cp_raw", 2002, "", st_cp_raw, "CP-Rohzustand A..E (0..4)"),
+	STATUS("cp_status", 2001, "", st_cp_status, "CP-Status A..F mit Erzwingung"),
+	STATUS("cp_raw", 2002, "", st_cp_raw, "CP-Rohzustand A..E"),
 	STATUS("cp_pos", 2003, "mV", st_cp_pos, "CP positives Plateau"),
 	STATUS("cp_neg", 2004, "mV", st_cp_neg, "CP negatives Plateau (Betrag)"),
 	STATUS("cable", 2005, "A", st_cable, "Kabelwert PP"),

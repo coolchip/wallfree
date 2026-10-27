@@ -28,7 +28,7 @@ scripts/run-tests.sh --coverage   # zusaetzlich Abdeckung von lib/ (gcovr)
 | `tests/evse/prot` | Verriegelung, RCM-Selbsttest, Schuetzueberwachung |
 | `tests/evse/charger` | Automat mit Simulationsmodell (`sim.c`: Fahrzeug, Kabel, RCM-Sensor, Aktor, Schuetz, 1-ms-Schritte), Ausgaenge, Parameter, Persistenz, API-Abbildung, Ereignisse |
 | `tests/nvm` | Speicherformat mit simuliertem Flash: Stromausfall nach jedem Byte beim Anhaengen und Verdichten, Ausfall beim Loeschen, Pruefsummenfehler, voller Bereich; Sektor-3-Leser |
-| `tests/api` | MD5 (RFC-1321-Vektoren), Digest (RFC-2617-Beispiel, Rundlauf wie evcc, Fehlformen), JSON, Systemparameter inkl. Zaehler- und MQTT-Parameter (Grenzen, Praefixregeln, Passwort nicht lesbar, sofort wirksame Werte, Korrektur beim Start), MQTT-Versandregel und Befehlstabelle, Resetgrund, Bremse, Log (inkl. Loeschen) |
+| `tests/api` | MD5 (RFC-1321-Vektoren), Digest (RFC-2617-Beispiel, Rundlauf wie evcc, Fehlformen), JSON, Systemparameter inkl. Zaehler- und MQTT-Parameter (Grenzen, Praefixregeln, Passwort nicht lesbar, sofort wirksame Werte, Korrektur beim Start), MQTT-Versandregel und Befehlstabelle, Resetgrund, Bremse, Ereignisprotokoll (inkl. Loeschen) |
 | `tests/meter` | Zaehler mit gescriptetem Bus: Anfragen je Modell, Dekodierung mit Registerwerten von Hand (ABB-Ganzzahlen, Eastron-Float32), Ungueltig-Kennungen, NaN/unendlich, Grenzen, Wiederholung und Zusatzpause nach Timeout, Zaehler je Fehlerart, Teilerfolg im Zyklus, Zustandsfolge, Veralten nach 10 s, gesunkener Zaehlerstand, Rundlauf mit dem simulierten Zaehler, JSON |
 
 Zuordnung Modul -> Anforderung -> Test: [Implementierung](implementierung.md#module-der-ladelogik-und-bausteine).
@@ -104,7 +104,7 @@ Simulation (Zugangsdaten vorher geaendert; laeuft schon eine zweite, eigenen Tel
 beantwortet Chrome selbst. Ablauf: Seite laden ("verbunden" ueber WebSocket), `sim car C` (Laden; Ring
 zeigt "begrenzt durch Maximum Drehschalter (32 A)", ohne Zaehler "32 A erlaubt"), Knopf
 "Laden aus" (S6 -> S7 -> S3, "Vorgabe: Laden aus"), Insights (Ladestrom-Tabelle, Verlauf
-mit laufendem Intervall, Log mit Fehlversuch und Taste "Log loeschen"), Einstellungen/Netzwerk und /Zaehler,
+mit laufendem Intervall, Ereignisprotokoll mit Fehlversuch und Taste "Protokoll loeschen"), Einstellungen/Netzwerk und /Zaehler,
 System, Zurueck-Taste (Adresse im Hash), `sim car A`, Netz im Browser 7 s trennen ("getrennt", grau)
 und wieder verbinden ("verbunden"); Screenshots und Texte im Ausgabeverzeichnis.
 Mit `meter` (in der Simulation `meter_type` != 0) zusaetzlich: Zaehlerkarte mit Leistung beim

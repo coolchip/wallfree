@@ -272,7 +272,7 @@ class T1Api(SimCase):
         finally:
             ws.close()
 
-    def test_11a_log(self):
+    def test_11a_ereignisprotokoll(self):
         # SOLL-ERR-11: falsche Anmeldung mit Absender und Ereignisse in GET /system/log
         self.assertEqual(self.sim.request("GET", "/system/log").status, 401)
         bad = Digest(USER, "falsch-falsch")
@@ -296,7 +296,7 @@ class T1Api(SimCase):
         self.assertTrue(any(e["type"] == "contactor" and e["on"] for e in ev), ev)
         self.assertTrue(any(e["type"] == "state" for e in ev), ev)
 
-    def test_11a_log_loeschen(self):
+    def test_11a_ereignisprotokoll_loeschen(self):
         # SOLL-ERR-13: nur angemeldet; danach nur der Loescheintrag mit Absender, Nummern weiter
         self.assertEqual(self.sim.request("POST", "/system/log/clear", b"").status, 401)
         before = self.sim.get_json("/system/log", self.auth)["entries"]
