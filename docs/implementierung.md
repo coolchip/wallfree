@@ -379,6 +379,7 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
 
 - **Stufe C** mit Pruefstecker ([Pruefstecker](pruefstecker.md), Freigabe in wallbe2/AGENTS.md
   noch offen, Entwurf in Abschnitt 7 dort): CP-PWM, Schuetz, Modul-LEDs Connect/Ready, Laden mit evcc.
+  Ablauf in der Simulation mit den Einstellungen des Testgeräts geprobt (E2E `T8StufeC`, 2026-10-28).
 - Fehlerstrom und Reaktionszeit RCM -> Schuetz am Oszilloskop (SOLL-PROT-04..12): Ablauf C4 in
   [Pruefstecker](pruefstecker.md#5-pruefablauf-stufe-c) (Pruefdraht mit 9 mA DC durch den Summenstromwandler).
 - Energiezaehler an RS-485: Eastron SDM72D-M-2 des Nutzers anschliessen (spaeter, Nutzer 2026-10-27);

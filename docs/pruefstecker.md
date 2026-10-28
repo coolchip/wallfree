@@ -105,6 +105,11 @@ Steckerkontakten (nicht nur an den Messbuchsen):
 
 ## 5. Pruefablauf Stufe C
 
+Probe in der Simulation: `T8StufeC` in [tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py) spielt C1..C4
+und die WARP-Seite von C6 mit den Einstellungen des Testgeräts durch (DIP 111, Drehschalter 4, LD 22,
+CR 40; Schalter -> `sim`-Kommandos) und prueft die Erwartungen dieses Abschnitts; Pegel und Zeiten
+am Oszilloskop zeigt sie nicht.
+
 Allgemein: Wallfree wird nur ueber Shell und API gesteuert; der Nutzer schaltet F1, bedient die
 Schalter am Pruefstecker und misst an CP/PE (Messbuchsen) bzw. an grossen Klemmen. Vor jedem
 Schritt nennt Claude Aktion und Beobachtungspunkte. Abbruch: unerwartetes Schuetzklicken,
@@ -128,18 +133,22 @@ Stellungen, je > 1 s warten (SOLL-PP-03).
 | 680 / 220 / 100 | 20 / 32 / 63 A, keine Fehler |
 | 47 | ERR-PP-INVALID |
 
-Dabei bleibt CP A (+12 V); D9 aus verriegelt erst bei Fahrzeug (B).
+Dabei bleibt CP +12 V DC, Zustand S1, nicht verriegelt; D9 aus verriegelt erst bei Fahrzeug (B).
+Bei den Fehlern zeigt `evse status` "CP E": Das ist der gemeldete Status (mit Fehler E,
+SOLL-CP-08), nicht der Pegel.
 
 **C2 Fahrzeug erkannt (B), PWM.** S6 auf 220 Ohm (32 A), Schluessel ein, S1 ein.
 
-- Erwartet: Verriegeln (Motor, LD-Impuls, Connect-LED an), RCM-Selbsttest (S4, Ereignis im Log), S3 WAIT bzw. S5 PWM_ON, PWM
+- Erwartet: Verriegeln (Motor, LD-Impuls, Connect-LED an), RCM-Selbsttest (im Protokoll als
+  Zustandsfolge S3 -> S4 -> S5, kein eigenes Ereignis), S5 PWM_ON, PWM
   1 kHz mit 26,6 % (16 A, Drehschalter 4), `cp_pos` etwa 9 V, `cp_neg` etwa 12 V, Ready-LED
   2 Hz, Front-LED gruen (CR 40: B ohne Fehler).
 - Multimeter (DC) an CP-PE zeigt den Mittelwert, etwa 0,266 * 9 V - 0,734 * 12 V = **-6,4 V**.
-- Strom ueber die Schnittstelle: `evse current 10000` -> Tastgrad 16,7 %, Mittelwert etwa
+- Strom ueber die Schnittstelle: `evse current 10000` -> Tastgrad 16,6 % (abgeschnitten), Mittelwert etwa
   -8,5 V; zurueck mit `evse current 80000`.
 - Schluessel aus -> Ladeerlaubnis weg, PWM aus (CP +9 V DC); Schluessel ein -> PWM wieder an.
-- Nach `wakeup_delay` (30 s) in B: Weckfolge einmal je Steckvorgang (Ereignis im Log).
+- Nach `wakeup_delay` (30 s) in B: Weckfolge einmal je Steckvorgang, 3 s -12 V DC, 0,75 s
+  +12 V DC, dann wieder PWM; kein Protokolleintrag, nur am Oszilloskop zu sehen (Zustand bleibt S5).
 - S1 aus (A) -> PWM aus, Entriegeln (Motor), S1.
 
 **C3 Laden ohne Schuetzspule (C).** S1 ein, warten bis PWM, dann S2 ein.
@@ -150,9 +159,12 @@ Dabei bleibt CP A (+12 V); D9 aus verriegelt erst bei Fahrzeug (B).
   Durchgang C3-C4 (an C3/C4 nichts angeschlossen; keine MCU-Leitung schaltet C3/C4, siehe Implementierung).
 - S2 aus (B) -> Schuetz-Soll aus, PWM bleibt; S2 ein -> wieder ein (`contactor_min_off` 500 ms).
 - S3 statt S2 (D) -> ERR-STATE-D, Schuetz-Soll aus.
-- S4 kurz druecken waehrend C -> ERR-CP-INVALID, Schuetz-Soll sofort aus.
-- S5 ein waehrend PWM -> ERR-DIODE, CP 3 s -12 V, dann +12 V (SOLL-CP-07), Schuetz-Soll aus.
-- Schluessel aus waehrend C -> geordnetes Ende (SOLL-SM), Schuetz-Soll aus.
+- S4 kurz druecken waehrend C -> ERR-CP-INVALID, Schuetz-Soll sofort aus; nach dem Loslassen
+  (>= 1,2 V) erlischt der Fehler und es laedt ohne Abstecken wieder (SOLL-SM-91, wie Original).
+- S5 ein waehrend PWM -> ERR-DIODE, CP 3 s -12 V, dann +12 V (SOLL-CP-07), Schuetz-Soll aus;
+  der Fehler bleibt nach S5 aus bis zum Abstecken (S1 aus).
+- Schluessel aus waehrend C -> S7 STOPPING, PWM aus; Schuetz-Soll bleibt, bis S2 aus (das
+  Fahrzeug reagiert) oder nach `stop_timeout` 5 s, dann S3.
 - Die Schuetzueberwachung (Via Sense, CT) prueft nur im Aus-Zustand; ohne Spule bleibt sie
   ruhig. Ein ERR-CONTACTOR hier waere ein Befund (CT-Beschaltung).
 
@@ -169,7 +181,8 @@ Wallbox: Batterie + -> R5 -> S7 -> Pruefdraht -> Batterie -. Der Draht beruehrt 
   nach dem letzten Versuch (`rcm_retest_interval`), bestanden -> Fehler geloescht. S7 gedrueckt
   halten waehrend des Selbsttests -> Selbsttest scheitert, Fehler bleibt (Gegenprobe).
 - **C4b Fehlerstrom beim Laden.** Pruefstecker wie C3 (S1 + S2, S6 CHARGING, Schuetz-Soll 1),
-  dann S7. Erwartet: Schuetz-Soll sofort 0, CP +12 V DC, ERR-RCM-DC6 verriegelt. S2/S1 aus und
+  dann S7. Erwartet: Schuetz-Soll sofort 0, CP +12 V DC, ERR-RCM-DC6 verriegelt (nur DC6; die
+  Simulation setzt immer DC6 und AC30 zusammen). S2/S1 aus und
   wieder ein laedt nicht, bis in A (S1 aus) ein Selbsttest bestanden hat (SOLL-PROT-08/11).
 - **C4c Reaktionszeit.** Messpunkt fuer das Abschalten ist der Relaiskontakt C1/C2; PE2 auf der
   Platine erst, wenn ein Messpunkt bekannt ist (Fotos). Bedingung fuer die Kontaktschleife: Der
@@ -195,7 +208,8 @@ Schuetzspule anschliessen (Nutzer, spannungsfrei), F1 ein. Wiederholen von C3:
 **C6 evcc.** evcc auf dem PC (Docker wie in [Test und Simulation](test-und-simulation.md#evcc-gegen-die-simulation),
 Vorlage `tinkerforge-warp-ws`, eigene Konfiguration gegen das Testgerät, Zugangsdaten des Testgeräts),
 Schuetzspule wie in C5. Erwartet: evcc verbindet; S1 ein -> "connected", S2 ein -> "charging";
-Modus Aus -> Ladestrom 0, Schuetz faellt, PWM bleibt; Modus Sofort -> Schuetz wieder ein;
+Modus Aus -> Ladestrom 0 = Stromsperre: PWM aus (CP +12 V DC), Schuetz faellt, sobald S2 aus ist,
+sonst nach `stop_timeout` 5 s; Modus Sofort -> PWM und Schuetz wieder ein;
 Strom in evcc aendern -> Tastgrad folgt; S1 aus -> "disconnected". Ohne Zaehler und ohne Last
 zeigt evcc keine Leistung.
 

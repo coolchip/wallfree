@@ -1204,3 +1204,216 @@ class T7Zeit(SimCase):
     def test_04_ungueltiger_server(self):
         r = self.sim.request("POST", "/system/config", {"ntp_server": "a b"}, auth=self.auth)
         self.assertEqual(r.status, 400, r)
+
+
+class T8StufeC(SimCase):
+    """Probe des Pruefablaufs Stufe C (docs/pruefstecker.md, Abschnitt 5) mit den Einstellungen
+    des Testgeraets: DIP 111 (D1, D2, D3, D4, D6, D7), Drehschalter 4 (16 A), LD 22, CR 40.
+    Schalter des Pruefsteckers: S1 -> sim car B, S2 -> C, S3 -> D, S4 -> E, S5 -> sim diode 0,
+    S6 -> sim cable, Schluessel -> sim din en, S7 (Pruefdraht) -> sim rcm fault. Die Erwartungen
+    sind die des Ablaufs; was nur die Hardware zeigt (Pegel, Zeiten am Oszilloskop), fehlt."""
+
+    extra_args = ("--dip=111", "--rotary=4")
+
+    def stat(self):
+        """sim status als Woerterbuch (car, duty, contactor, locked, ER, VR, CR, C, R, ...)"""
+        return dict(re.findall(r"(\w+)=(\w+)", self.shell("sim status")))
+
+    def zustand(self):
+        return re.search(r"Zustand\s+(S\d+)", self.shell("evse status")).group(1)
+
+    def wait_zustand(self, want, timeout=10):
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < timeout:
+            z = self.zustand()
+            if z == want:
+                return
+            time.sleep(0.2)
+        self.fail(f"{want} nicht erreicht, zuletzt {z}")
+
+    def wait_stat(self, key, value, timeout=10):
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < timeout:
+            s = self.stat()
+            if s[key] == value:
+                return s
+            time.sleep(0.1)
+        self.fail(f"{key}={value} nicht erreicht, zuletzt {s}")
+
+    def aktiv(self):
+        """aktive Fehler aus evse errors"""
+        return re.findall(r"aktiv: (ERR-[\w-]+)", self.shell("evse errors"))
+
+    def laden(self):
+        """Pruefstecker S1 und S2 ein bis CHARGING"""
+        self.shell("sim car B")
+        self.wait_zustand("S5", 15)
+        self.shell("sim car C")
+        self.wait_zustand("S6")
+
+    def abstecken(self):
+        self.shell("sim car A")
+        self.wait_stat("locked", "0", 10)
+
+    def test_00_aufbau(self):
+        T8StufeC.auth = self.set_credentials()
+        self.assertIn("gespeichert", self.shell("evse param set in_function_ld 22"))
+        self.assertIn("gespeichert", self.shell("evse param set out_function_cr 40"))
+        self.wait_zustand("S1", 25)  # Anlauf 20 s
+
+    def test_c1_pp_klassen(self):
+        for cable, want, err in (("13", "13 A", "ERR-CABLE-REJECT"), ("20", "20 A", None),
+                                 ("32", "32 A", None), ("63", "63 A", None),
+                                 ("invalid", None, "ERR-PP-INVALID"), ("0", "0 A", None)):
+            self.shell(f"sim cable {cable}")
+            time.sleep(1.5)  # PP-Uebernahme nach > 1 s
+            if want:
+                self.assertIn(f"cable = {want}", self.shell("evse param get cable"), cable)
+            self.assertEqual(self.aktiv(), [err] if err else [], cable)
+            s = self.stat()
+            # CP bleibt +12 V DC; "CP E" in evse status ist der Status mit Fehler, nicht der Pegel
+            self.assertEqual((s["car"], s["duty"], s["locked"]), ("A", "1000", "0"), cable)
+            self.assertEqual(self.zustand(), "S1", cable)
+        self.shell("sim cable 32")
+
+    def test_c2_fahrzeug_b(self):
+        self.shell("sim din en 1")  # Schluessel
+        self.shell("sim car B")
+        self.wait_zustand("S5", 15)
+        s = self.stat()
+        self.assertEqual((s["duty"], s["locked"], s["contactor"]), ("266", "1", "0"))
+        self.assertEqual((s["C"], s["CR"], s["VR"]), ("1", "1", "0"), "Connect-LED, gruen")
+        st = self.sim.state(self.auth)
+        self.assertEqual((st["iec61851_state"], st["lock_state"]), (1, 3))
+        # Selbsttest: im Protokoll als Zustand S4 (kein eigenes Ereignis)
+        log = self.sim.get_json("/system/log", self.auth)["entries"]
+        to = [e["event"]["to"] for e in log if e["kind"] == "event" and e["event"]["type"] == "state"]
+        self.assertEqual(to[-3:], [3, 4, 5])
+        self.shell("evse current 10000")
+        self.assertEqual(self.wait_stat("duty", "166", 3)["duty"], "166", "16,6 %, abgeschnitten")
+        self.shell("evse current 80000")
+        self.wait_stat("duty", "266", 3)
+        self.shell("sim din en 0")
+        self.wait_zustand("S3", 3)
+        self.assertEqual(self.stat()["duty"], "1000")
+        self.shell("sim din en 1")
+        self.wait_zustand("S5", 5)
+
+    def test_c2b_weckfolge(self):
+        # wakeup_delay 30 s in B ohne Laden: 3 s -12 V, 0,75 s +12 V, dann wieder PWM
+        self.wait_stat("duty", "0", 40)
+        self.assertEqual(self.zustand(), "S5")
+        self.wait_stat("duty", "1000", 4)
+        self.wait_stat("duty", "266", 2)
+
+    def test_c3_laden(self):
+        self.shell("sim car C")
+        self.wait_zustand("S6")
+        s = self.stat()
+        self.assertEqual((s["contactor"], s["VR"], s["R"]), ("1", "1", "1"), "Schuetz, blau, Ready")
+        self.assertEqual(self.sim.state(self.auth)["iec61851_state"], 2)
+        self.shell("sim car B")
+        self.wait_stat("contactor", "0", 2)
+        self.assertEqual(self.stat()["duty"], "266", "PWM bleibt")
+        self.shell("sim car C")
+        self.wait_stat("contactor", "1", 3)  # contactor_min_off 500 ms
+        # D wird abgewiesen
+        self.shell("sim car D")
+        self.wait_stat("contactor", "0", 2)
+        self.assertEqual(self.aktiv(), ["ERR-STATE-D"])
+        self.assertEqual(self.zustand(), "S9")
+        self.abstecken()
+        self.assertEqual(self.aktiv(), [])
+        # E (S4 kurz): sofort aus; nach dem Loslassen ohne Abstecken wieder Laden (SOLL-SM-91)
+        self.laden()
+        self.shell("sim car E")
+        self.wait_stat("contactor", "0", 1)
+        self.assertEqual(self.aktiv(), ["ERR-CP-INVALID"])
+        self.shell("sim car C")
+        self.wait_zustand("S6", 10)
+        # Diode fehlt (S5): sofort aus, 3 s -12 V, dann +12 V, Fehler bis A
+        self.shell("sim diode 0")
+        s = self.wait_stat("contactor", "0", 1)
+        self.assertEqual(self.aktiv(), ["ERR-DIODE"])
+        self.wait_stat("duty", "0", 1)
+        self.wait_stat("duty", "1000", 5)
+        self.shell("sim diode 1")
+        self.assertEqual(self.aktiv(), ["ERR-DIODE"])
+        self.abstecken()
+        self.assertEqual(self.aktiv(), [])
+        # Schluessel aus: geordnetes Ende, Schuetz bleibt bis S2 aus (B) oder stop_timeout 5 s
+        self.laden()
+        self.shell("sim din en 0")
+        self.wait_zustand("S7", 2)
+        self.assertEqual(self.stat()["contactor"], "1")
+        self.shell("sim car B")
+        self.wait_stat("contactor", "0", 2)
+        self.wait_zustand("S3", 3)
+        self.shell("sim din en 1")
+        self.wait_zustand("S5", 5)
+        self.abstecken()
+
+    def test_c4a_fehlerstrom_ruhe(self):
+        self.wait_zustand("S1")
+        self.shell("sim rcm fault")
+        time.sleep(0.5)
+        # Simulation: setzt DC6 und AC30; der Gleichstrom im Pruefdraht nur DC6
+        self.assertIn("ERR-RCM-DC6", self.aktiv())
+        self.assertEqual(self.zustand(), "S9")
+        self.assertEqual(self.stat()["ER"], "1", "rot")
+        # Gegenprobe: Fehlerstrom waehrend des Selbsttests (rcm_retest_interval 30 s) -> bleibt
+        time.sleep(35)
+        self.assertIn("ERR-RCM-DC6", self.aktiv())
+        self.shell("sim rcm clear")
+        time.sleep(3)
+        self.assertIn("ERR-RCM-DC6", self.aktiv(), "erst mit bestandenem Selbsttest")
+        t0 = time.monotonic()
+        while self.aktiv() and time.monotonic() - t0 < 35:
+            time.sleep(1)
+        self.assertEqual(self.aktiv(), [])
+        self.wait_zustand("S1")
+
+    def test_c4b_fehlerstrom_beim_laden(self):
+        self.laden()
+        self.shell("sim rcm fault")
+        s = self.wait_stat("contactor", "0", 0.5)
+        self.assertEqual(s["duty"], "1000", "CP +12 V DC")
+        self.assertIn("ERR-RCM-DC6", self.aktiv())
+        self.shell("sim rcm clear")
+        # S2/S1 aus und ein laedt nicht, solange in A kein Selbsttest bestanden ist
+        self.shell("sim car B")
+        time.sleep(1)
+        self.shell("sim car C")
+        time.sleep(2)
+        self.assertEqual(self.stat()["contactor"], "0")
+        self.assertIn("ERR-RCM-DC6", self.aktiv())
+        self.abstecken()
+        t0 = time.monotonic()
+        while self.aktiv() and time.monotonic() - t0 < 35:
+            time.sleep(1)
+        self.assertEqual(self.aktiv(), [])
+        self.laden()
+        self.abstecken()
+
+    def test_c6_warp(self):
+        # was evcc ueber die WARP-Schnittstelle sieht und setzt (evcc selbst: test-und-simulation.md)
+        self.assertEqual(self.sim.state(self.auth)["iec61851_state"], 0)
+        self.shell("sim car B")
+        self.wait_zustand("S5", 15)
+        self.assertEqual(self.sim.state(self.auth)["iec61851_state"], 1)
+        self.shell("sim car C")
+        st = self.sim.wait_state(self.auth, lambda s: s["charger_state"] == 3, what="Laden")
+        self.assertEqual(st["iec61851_state"], 2)
+        r = self.sim.request("POST", "/evse/external_current", {"current": 0}, auth=self.auth)
+        self.assertEqual(r.status, 200, r)
+        # Modus Aus: Stromsperre, PWM aus; der Pruefstecker bleibt in C, also stop_timeout 5 s
+        self.assertEqual(self.wait_stat("duty", "1000", 1)["contactor"], "1")
+        self.wait_stat("contactor", "0", 6)
+        r = self.sim.request("POST", "/evse/external_current", {"current": 10000}, auth=self.auth)
+        self.assertEqual(r.status, 200, r)
+        self.wait_stat("duty", "166", 3)
+        self.wait_stat("contactor", "1", 5)
+        self.sim.request("POST", "/evse/external_current", {"current": 32000}, auth=self.auth)
+        self.wait_stat("duty", "266", 3)  # Drehschalter 16 A begrenzt
+        self.abstecken()
+        self.assertEqual(self.sim.state(self.auth)["iec61851_state"], 0)
