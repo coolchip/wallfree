@@ -301,6 +301,12 @@ int hw_mcu_temp(int32_t *dc)
 	return 0;
 }
 
+int hw_adc_vref(int32_t *mv)
+{
+	*mv = 2495;
+	return 0;
+}
+
 void hw_contactor_off_regs(void)
 {
 	m.contactor = false;

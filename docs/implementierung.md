@@ -63,7 +63,7 @@ TIM1 und ADC1 stehen nicht im Board-Devicetree, weil die Anwendung sie direkt st
 | Datei | Inhalt | Anforderungen |
 | --- | --- | --- |
 | [main.c](../app/src/main.c) | Startablauf: GPIO, Parameterspeicher (ungueltig -> neu anlegen), Reset-Taster 5 s -> Bereich loeschen, gespeicherte Werte laden, DIP/Drehschalter, Messung, Threads | SOLL-BOOT-01..10/20 |
-| [hw_stm32.c](../app/src/hw_stm32.c) | TIM1 CH1/PE9 (PSC 49, center-aligned Modus 1, ARR 1000, 1 kHz), ADC1 10 Raenge in zwei 5er-Gruppen (Temperatursensor 480 Takte, sonst 28; SOLL-API-35), Start im TIM1-Update-Interrupt bei CNT < 50 bzw. > 950, DMA2 Stream0 zirkular 80 Worte, Skalierung wie Original; MCO1 = HSE an PA8; PA15-Resetimpuls 11 ms; fruehe sichere Pinpegel; sicherer Zustand per Register | SOLL-RT-01..03, SOLL-IO-02, SOLL-BOOT-02/09, SOLL-RT-20 |
+| [hw_stm32.c](../app/src/hw_stm32.c) | TIM1 CH1/PE9 (PSC 49, center-aligned Modus 1, ARR 1000, 1 kHz), ADC1 10 Raenge in zwei 5er-Gruppen (Rang 10 je Block abwechselnd Temperatursensor und VREFINT, umgeschaltet in der DMA-Unterbrechung, beide 480 Takte, sonst 28; SOLL-API-35), Start im TIM1-Update-Interrupt bei CNT < 50 bzw. > 950, DMA2 Stream0 zirkular 80 Worte, Skalierung wie Original; MCO1 = HSE an PA8; PA15-Resetimpuls 11 ms; fruehe sichere Pinpegel; sicherer Zustand per Register | SOLL-RT-01..03, SOLL-IO-02, SOLL-BOOT-02/09, SOLL-RT-20 |
 | [hw_gpio.c](../app/src/hw_gpio.c) | alle Ein-/Ausgaenge aus `zephyr,user`; RCM-Flankeninterrupt schaltet PE2 per Register ab und setzt einen Schutz-Latch, der Ein-Befehle sperrt; PE0-Flankenzeitstempel; PB2 erst nach der ersten Ausgabe | SOLL-PROT-01/05, SOLL-IO-01/21 |
 | [evse_task.c](../app/src/evse_task.c) | Schutzthread (Prio 0, 1 ms): RCM-Pegel, Ueberwachung Automat (100 ms) und Messbloecke (50 ms), IWDG 250 ms, Wartungsmodus fuer Flash-Loeschen; Automatenthread (Prio 2, 10 ms und je Messblock); Ereigniserkennung; Fault-Handler: sicherer Zustand, Neustart | SOLL-RT-04/05/10..12/21 |
 | [storage.c](../app/src/storage.c) | Flash-Adapter (Sektor 7 lesen/schreiben/loeschen, Sektor 3 nur lesen, Lage beim Bauen geprueft); Speicher-Thread (Prio 12): Verriegelungszustand speichern, Verdichten im sicheren Zustand; Werksreset, Import | SOLL-NVM-01..05/10, SOLL-RT-13, SOLL-BOOT-04/20/21 |
@@ -391,7 +391,7 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
 - Prozessortemperatur (SOLL-API-35) auf dem Testgerät pruefen: Wert plausibel (kalte Box nach laengerer Pause
   etwa Raumtemperatur plus wenige Grad), steigt nach dem Einschalten langsam an. `8198151` rechnete
   mit VREF+ 3,3 V und zeigte 132 Grad; mit 2,495 V (Faktor der Originalfirmware) ergibt derselbe
-  Rohwert etwa 32 Grad. Ob die Referenz wirklich 2,495 V hat, zeigt spaeter das Bauteil. `8d466ea`: 31,8 Grad knapp 3 min nach dem Start.
+  Rohwert etwa 32 Grad. Ob die Referenz wirklich 2,495 V hat, zeigt `adc_vref_mv` in `/system/info` (aus VREFINT, +-2,5 %). `8d466ea`: 31,8 Grad knapp 3 min nach dem Start.
   Bestaetigt (Nutzer 2026-10-28): Anzeige "Prozessortemperatur" in Status -> Verbindungen, ganze Grad,
   Hinweis "kann um einige Grad abweichen". Abgleichparameter vorgesehen (Nutzer
   2026-10-28, spaeter): Verschiebung in 0,1 Grad, einmal an der kalten Box gegen ein Thermometer

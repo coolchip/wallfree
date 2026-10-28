@@ -48,6 +48,8 @@ static volatile uint32_t dma_buf[DMA_WORDS];
 static volatile uint32_t group_toggle;
 static struct hw_block block;
 static volatile bool block_valid;
+/* Rang 10 wechselt je Messblock zwischen Temperatursensor und interner Referenz (SOLL-API-35) */
+static bool rank10_vref;
 
 /* ------------------------------------------------ sicherer Zustand (Register) */
 
@@ -287,7 +289,15 @@ static void dma2_s0_isr(const void *arg)
 	block.din[EVSE_DIN_EN] = (int32_t)(sum[6] * 1066u / 1000u);
 	block.din[EVSE_DIN_XR] = (int32_t)(sum[7] * 1066u / 1000u);
 	block.supply = (int32_t)(sum[8] * 457u / 1000u);
-	block.temp_raw = (int32_t)sum[9];
+	if (rank10_vref) {
+		block.vref_raw = (int32_t)sum[9];
+	} else {
+		block.temp_raw = (int32_t)sum[9];
+	}
+	/* Rang 10 ist gewandelt, Gruppe 1 startet fruehestens 0,5 ms spaeter: Wechsel jetzt sicher */
+	rank10_vref = !rank10_vref;
+	LL_ADC_REG_SetSequencerRanks(ADC1, LL_ADC_REG_RANK_10,
+				     rank10_vref ? LL_ADC_CHANNEL_VREFINT : LL_ADC_CHANNEL_TEMPSENSOR);
 	block.seq++;
 	block.at_ms = k_uptime_get();
 	block_valid = true;
@@ -317,6 +327,18 @@ int hw_mcu_temp(int32_t *dc)
 	int32_t uv = (int32_t)((int64_t)b.temp_raw * 2495000 / (PASSES * 4096));
 
 	*dc = (uv - 760000) / 250 + 250;
+	return 0;
+}
+
+int hw_adc_vref(int32_t *mv)
+{
+	struct hw_block b;
+
+	if (!hw_get_block(&b) || b.vref_raw <= 0) {
+		return -EAGAIN;
+	}
+	/* VREFINT 1,21 V typisch (Datenblatt 1,18..1,24 V): VREF+ = 1,21 V * 4096 / Messwert */
+	*mv = (int32_t)((int64_t)1210 * 4096 * PASSES / b.vref_raw);
 	return 0;
 }
 
@@ -378,9 +400,11 @@ static void adc_init(void)
 		LL_ADC_REG_SetSequencerRanks(ADC1, ranks[r], channels[r]);
 		LL_ADC_SetChannelSamplingTime(ADC1, channels[r], LL_ADC_SAMPLINGTIME_28CYCLES);
 	}
-	/* Temperatursensor braucht mindestens 10 us Abtastzeit (Datenblatt): 480 Takte bei
-	 * ADCCLK 25 MHz = 19,2 us. Letzter Rang der Gruppe 2, CP- ist dann laengst gewandelt */
+	/* Temperatursensor und interne Referenz brauchen mindestens 10 us Abtastzeit (Datenblatt):
+	 * 480 Takte bei ADCCLK 25 MHz = 19,2 us. Letzter Rang der Gruppe 2, CP- ist dann laengst
+	 * gewandelt */
 	LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_TEMPSENSOR, LL_ADC_SAMPLINGTIME_480CYCLES);
+	LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_VREFINT, LL_ADC_SAMPLINGTIME_480CYCLES);
 
 	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA2);
 	LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_0);

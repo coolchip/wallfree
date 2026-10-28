@@ -20,7 +20,8 @@ struct hw_block {
 	int32_t pp;
 	int32_t din[EVSE_DIN_COUNT];
 	int32_t supply;
-	int32_t temp_raw;
+	int32_t temp_raw;  /**< Summe Rang 10 im Block mit Temperatursensor */
+	int32_t vref_raw;  /**< Summe Rang 10 im Block mit interner Referenz, 0 = noch keiner */
 	uint32_t seq;
 	int64_t at_ms;
 };
@@ -42,6 +43,13 @@ bool hw_get_block(struct hw_block *out);
  * also fuer Aenderungen brauchbar, nicht als Absolutwert). @return 0 oder -EAGAIN ohne Messblock
  */
 int hw_mcu_temp(int32_t *dc);
+
+/**
+ * Referenzspannung VREF+ des ADC in mV, berechnet aus der internen Referenz (VREFINT, typisch
+ * 1,21 V, Streuung +-2,5 %). Nur zur Kontrolle der in der Skalierung angenommenen 2,495 V.
+ * @return 0 oder -EAGAIN ohne Messung
+ */
+int hw_adc_vref(int32_t *mv);
 
 /** Wird bei jedem neuen Messblock gegeben. */
 extern struct k_sem hw_block_sem;

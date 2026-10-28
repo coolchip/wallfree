@@ -121,6 +121,12 @@ void sysinfo_json(struct wf_jbuf *b)
 	} else {
 		wf_jb_raw(b, "null");
 	}
+	wf_jb_key(b, "adc_vref_mv", false);
+	if (hw_adc_vref(&temp) == 0) {
+		wf_jb_int(b, temp);
+	} else {
+		wf_jb_raw(b, "null");
+	}
 	wf_jb_key(b, "time", false); /* SOLL-TIME-03 */
 	timesync_json(b);
 	char mac[18];
