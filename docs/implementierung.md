@@ -297,7 +297,7 @@ Beim RAM (Heap umgesetzt, Nutzer 2026-10-21):
 | Kandidat | Ersparnis | Befund |
 | --- | --- | --- |
 | **umgesetzt:** System-Heap (`CONFIG_HEAP_MEM_POOL_SIZE`) 16 KB -> 512 B | 15,9 KB | einziger Verweis auf `k_malloc` ist `websocket_send_msg` beim Maskieren, das nur die Client-Seite tut (Server: `is_client = 0`); Bau mit Heap 0 scheitert nur an diesem Verweis. Die 512 B halten ihn aufloesbar und fangen einen unerwarteten kleinen Nutzer ab. Kommt eine Zephyr-Funktion mit Heap-Bedarf hinzu (z. B. DNS, `HEAP_MEM_POOL_ADD_SIZE_*`), erneut pruefen |
-| Thread-Stacks | je nach Messung | Messungen mit der Telnet-Shell; der Telnet-Thread entfaellt, der Shell-Thread der Konsole hat 1 KB (wartet nur), Kommandos laufen jetzt im HTTP-Server-Thread: dessen Auslastung mit Konsole auf dem Testgerät noch messen. Das Testgerät (`87b9bef`, 2 h, mit Parameter speichern, Verriegeln, API, ohne Browser/evcc/MQTT): knapp `shell_telnet` 1720/2048, `sysworkq` 800/1024; reichlich `logging` 208/2048, `mqtt` 584/2048 (MQTT aus), `IRQ` 320/2048, `evse_logic` 648/2048, `evse_prot` 192/1024. Unter Last (`a8311ae`, 30 min Browser-Last, 2 WebSockets, MQTT an): `http_server_tid` 2120/4096, `mqtt` 1120/2048, `shell_telnet` 1688/2048, `sysworkq` 800/1024, `ws_push` 1096/2048, `rx_q` 912/1536, die uebrigen unveraendert; kein Stack ueber 82 %. Die Simulation (64 Bit) ist nicht aussagekraeftig |
+| Thread-Stacks | je nach Messung | Mit Konsole (Testgerät, `6a6d3d5`, 4 min, MQTT an, Konsolenkommandos `evse threads/log/status`): `http_server_tid` 1808/4096, `shell_web` 248/1024, `mqtt` 1400/2048, `timesync` 1312/2048, `ws_push` 1096/2048, `rx_q` 920/1792, `sysworkq` 552/1024, `logging` 424/2048, `IRQ` 296/2048; keiner ueber 68 %. Fruehere Messungen mit der Telnet-Shell: Testgerät (`87b9bef`, 2 h, mit Parameter speichern, Verriegeln, API, ohne Browser/evcc/MQTT): knapp `shell_telnet` 1720/2048, `sysworkq` 800/1024; reichlich `logging` 208/2048, `mqtt` 584/2048 (MQTT aus), `IRQ` 320/2048, `evse_logic` 648/2048, `evse_prot` 192/1024. Unter Last (`a8311ae`, 30 min Browser-Last, 2 WebSockets, MQTT an): `http_server_tid` 2120/4096, `mqtt` 1120/2048, `shell_telnet` 1688/2048, `sysworkq` 800/1024, `ws_push` 1096/2048, `rx_q` 912/1536, die uebrigen unveraendert; kein Stack ueber 82 %. Die Simulation (64 Bit) ist nicht aussagekraeftig |
 | `NET_MAX_CONN`/`NET_MAX_CONTEXTS` | – | **erhoeht 10 -> 12** (Nutzer 2026-10-26): im Lasttest 8..9 von 10 belegt (Browser, 2 WebSockets, Abfrager, Telnet, 2 Listener), dazu MQTT und TIME_WAIT; 672 B je TCP-Verbindung |
 | Ethernet-DMA-Puffer (2 x 6 KB) | – | Anzahl fest im HAL-Treiber (4 + 4) |
 
@@ -403,10 +403,9 @@ ist (die Kommandos sind kurz; `evse reboot` und `evse bootloader` kehren sofort 
   ohne Strom, dann kurz nach dem Start) gegen ein Thermometer.
 - Toter MQTT-Broker bei Dauerversand (Zaehlerwerte jede Sekunde): Erkennung erst ueber TCP, Zeit
   offen; mit dem Zaehler messen.
-- Konsole statt Telnet (SOLL-SH-19/21, Nutzer 2026-10-28): auf dem Testgerät pruefen, vor allem die
-  Stack-Auslastung des HTTP-Server-Threads mit Konsolenkommandos (`evse threads`) und des
-  Shell-Threads (1 KB). Taster-Notweg zum Bootloader (SOLL-BOOT-22) auf dem Testgerät erst nach
-  Freigabe in wallbe2/AGENTS.md; Festlegungen Konsole, Reset-Taster und HTTP-Ueberwachung zu bestaetigen.
+- Konsole statt Telnet (SOLL-SH-19/21/22): laeuft auf dem Testgerät (`6a6d3d5`, Stacks unter Ressourcen).
+  Taster-Notweg zum Bootloader (SOLL-BOOT-22) auf dem Testgerät erst nach Freigabe in wallbe2/AGENTS.md;
+  Festlegungen Konsole, Reset-Taster und HTTP-Ueberwachung zu bestaetigen.
 
 ## Ideen fuer spaeter
 
