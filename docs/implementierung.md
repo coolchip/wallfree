@@ -262,7 +262,7 @@ unterbrochene Verdichten wie ein Erststart aus. Getestetes Verhalten bei Stromau
 
 ## Ressourcen
 
-Stand 2026-10-28 (`0.2-dev`), `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B, Shell nur ueber die Konsole, 12 Netz-Kontexte: **279 884 B Flash** (85,4 % von 320 KB), **116 924 B RAM** (89,2 %).
+Stand 2026-10-28 (`0.2-dev`), `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B, Shell nur ueber die Konsole, 12 Netz-Kontexte: **280 856 B Flash** (85,7 % von 320 KB), **116 924 B RAM** (89,2 %).
 Reserven und Einsparmoeglichkeiten: [Architektur](architektur.md#5-speicherbudget).
 
 | Anteil (gemessen beim Hinzufuegen) | Flash | RAM |
