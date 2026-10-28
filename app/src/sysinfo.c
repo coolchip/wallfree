@@ -117,7 +117,10 @@ void sysinfo_json(struct wf_jbuf *b)
 
 	wf_jb_key(b, "mcu_temp_dc", false);
 	if (hw_mcu_temp(&temp) == 0) {
-		wf_jb_int(b, temp);
+		struct wf_sysconf a;
+
+		netcfg_get(&a, NULL);
+		wf_jb_int(b, temp + a.mcu_temp_offset);
 	} else {
 		wf_jb_raw(b, "null");
 	}

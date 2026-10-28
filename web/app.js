@@ -657,6 +657,7 @@ const SYS_PARTS = {
 	netzwerk: ['Netzwerk', ['net_', 'ntp_', 'telnet_']],
 	mqtt: ['MQTT', ['mqtt_']],
 	zaehler: ['Zähler (nur Anzeige)', ['meter_']],
+	temperatur: ['Prozessortemperatur', ['mcu_']],
 };
 
 function SysConfig({ part }) {
@@ -702,13 +703,15 @@ function SysConfig({ part }) {
 				return html`<label title=${p.name}>${p.help.split(':')[0]}<select value=${val(p.name)} onChange=${(e) => set(+e.target.value)}>
 					${opts.map((t, i) => html`<option value=${i}>${t}</option>`)}</select></label>`;
 			}
-			return html`<label title=${p.name}>${p.help}<input value=${val(p.name)} inputmode=${p.type === 'code' ? 'numeric' : null}
+			// mcu_temp_offset hat ein Vorzeichen, die Zifferntastatur am Handy oft keins
+			const num = p.type === 'code' && p.name !== 'mcu_temp_offset';
+			return html`<label title=${p.name}>${p.help}<input value=${val(p.name)} inputmode=${num ? 'numeric' : null}
 				onInput=${(e) => set(p.type === 'code' ? +e.target.value : e.target.value)} /></label>`;
 		})}
 		<div class="row"><button class="primary" type="submit">Speichern</button></div>
 		</form>
 		<${Msg} m=${msg} />
-		${msg && msg.ok && part !== 'zugang' && html`<p class="muted msg">Zustand der Verbindung unter
+		${msg && msg.ok && part !== 'temperatur' && html`<p class="muted msg">Zustand der Verbindung unter
 			<a href="#/status">Status → Verbindungen</a>.</p>`}
 		${cfg.restart_required && html`<div class="row msg"><span class="warn">Gespeicherte Werte wirken erst
 			nach einem Neustart.</span><button onClick=${() => restart(setMsg)}>Jetzt neu starten</button></div>`}
@@ -948,6 +951,7 @@ function SystemPage({ onBusy, expert, setExpert }) {
 		<${Msg} m=${msg} />
 	<//>
 	<${ViewCard} expert=${expert} setExpert=${setExpert} />
+	${expert && html`<${SysConfig} part="temperatur" />`}
 	<${Update} onBusy=${onBusy} />
 	<${Card} title="Lizenz">
 		<p class="msg">Wallfree ist freie Software unter der Apache License 2.0 und wird ohne jede
@@ -1184,7 +1188,8 @@ function Connections({ meter }) {
 			Befehle ${mq.commands}${mq.rejected ? ' (abgelehnt ' + mq.rejected + ': ' + mq.last_reject + ')' : ''}</small>` : ''}</td></tr>
 		<tr><td>Zähler</td><td class="num wrap">${st ? METER_STATUS[st.status] || st.status : METER_STATUS.off}</td></tr>
 		${si.mcu_temp_dc != null && html`<tr><td>Prozessortemperatur</td><td class="num wrap">${Math.round(si.mcu_temp_dc / 10)} °C<br />
-			<small class="muted">kann um einige Grad abweichen</small></td></tr>`}
+			<small class="muted">${a.mcu_temp_offset ? 'abgeglichen um ' + (a.mcu_temp_offset / 10).toLocaleString('de-DE') + ' °C'
+				: 'kann um einige Grad abweichen'}</small></td></tr>`}
 	</table><//>`;
 }
 

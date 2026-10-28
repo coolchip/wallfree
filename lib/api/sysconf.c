@@ -32,6 +32,8 @@ static const struct wf_syspar pars[] = {
 	{"ntp_enable", 3028, WF_SYS_BOOL, "Uhrzeit von einem Zeitserver holen (SNTP), wirkt sofort"},
 	{"ntp_server", 3029, WF_SYS_TEXT,
 	 "Zeitserver (Name oder IPv4, optional :Port), leer = vom Router per DHCP, sonst pool.ntp.org"},
+	{"mcu_temp_offset", 3032, WF_SYS_CODE,
+	 "Abgleich der Prozessortemperatur in 0,1 °C (-450..450), wird zur Messung addiert"},
 };
 #define N_PARS (sizeof(pars) / sizeof(pars[0]))
 
@@ -292,12 +294,15 @@ static const char *check_code(uint16_t id, int64_t v)
 		return v >= 1 && v <= 65535 ? NULL : "Port 1..65535";
 	case 3026:
 		return v >= 0 && v <= 3600 ? NULL : "Intervall 0..3600 s";
+	case 3032:
+		return v >= -450 && v <= 450 ? NULL : "Abgleich -450..450 (0,1 °C)";
 	default:
 		return v >= 0 && v <= 3 ? NULL : "Rahmenformat 0..3";
 	}
 }
 
-static uint32_t code_get(const struct wf_sysconf *c, uint16_t id)
+/* einziger Wert mit Vorzeichen ist mcu_temp_offset; gespeichert als Zweierkomplement */
+static int32_t code_get(const struct wf_sysconf *c, uint16_t id)
 {
 	switch (id) {
 	case 3016:
@@ -310,12 +315,14 @@ static uint32_t code_get(const struct wf_sysconf *c, uint16_t id)
 		return c->mqtt_port;
 	case 3026:
 		return c->mqtt_interval;
+	case 3032:
+		return c->mcu_temp_offset;
 	default:
 		return c->meter_framing;
 	}
 }
 
-static void code_put(struct wf_sysconf *c, uint16_t id, uint32_t v)
+static void code_put(struct wf_sysconf *c, uint16_t id, int32_t v)
 {
 	switch (id) {
 	case 3016:
@@ -332,6 +339,9 @@ static void code_put(struct wf_sysconf *c, uint16_t id, uint32_t v)
 		break;
 	case 3026:
 		c->mqtt_interval = (uint16_t)v;
+		break;
+	case 3032:
+		c->mcu_temp_offset = (int16_t)v;
 		break;
 	default:
 		c->meter_framing = (uint8_t)v;
@@ -380,7 +390,7 @@ const char *wf_sys_set(struct wf_sysconf *c, const struct wf_syspar *p, const st
 		const char *err = check_code(p->id, v->num);
 
 		if (err == NULL) {
-			code_put(c, p->id, (uint32_t)v->num);
+			code_put(c, p->id, (int32_t)v->num);
 		}
 		return err;
 	}
@@ -459,6 +469,7 @@ void wf_sys_take_live(struct wf_sysconf *dst, const struct wf_sysconf *src)
 	dst->ntp_enable = src->ntp_enable;
 	dst->mqtt_discovery = src->mqtt_discovery;
 	memcpy(dst->ntp_server, src->ntp_server, sizeof(dst->ntp_server));
+	dst->mcu_temp_offset = src->mcu_temp_offset;
 }
 
 void wf_sys_json(const struct wf_sysconf *c, struct wf_jbuf *b)
@@ -551,7 +562,7 @@ size_t wf_sys_encode(const struct wf_sysconf *c, const struct wf_syspar *p, uint
 		return 4;
 	}
 	case WF_SYS_CODE: {
-		uint32_t v = code_get(c, p->id);
+		uint32_t v = (uint32_t)code_get(c, p->id);
 
 		buf[0] = (uint8_t)(v >> 24);
 		buf[1] = (uint8_t)(v >> 16);
@@ -605,7 +616,7 @@ int wf_sys_decode(struct wf_sysconf *c, uint16_t id, const void *data, size_t le
 		if (len != 4) {
 			return -1;
 		}
-		uint32_t v = IP(d[0], d[1], d[2], d[3]);
+		int32_t v = (int32_t)IP(d[0], d[1], d[2], d[3]);
 
 		if (check_code(id, v) != NULL) {
 			return -1;

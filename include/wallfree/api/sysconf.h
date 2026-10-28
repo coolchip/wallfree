@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Netz- und Systemparameter der Anwendung (Soll-Spezifikation 10.1: net_*,
- * telnet_enable, meter_*, mqtt_*; F20, F25, F28, F30). Reines C ohne Netzwerk:
+ * telnet_enable, meter_*, mqtt_*, ntp_*, mcu_temp_offset; F20, F25, F28, F30). Reines C ohne Netzwerk:
  * Pruefung, JSON, Kodierung fuer den Parameterspeicher (Kennungen 3010..),
  * Import aus dem Originalbereich. Aenderungen wirken nach einem Neustart,
- * mqtt_* sofort (SOLL-MQTT-31, wf_sys_take_live).
+ * ab Kennung 3020 sofort (SOLL-MQTT-31, wf_sys_take_live).
  */
 #ifndef WALLFREE_API_SYSCONF_H_
 #define WALLFREE_API_SYSCONF_H_
@@ -47,6 +47,7 @@ struct wf_sysconf {
 	char mqtt_prefix[WF_MQTT_PREFIX_MAX + 1]; /**< "" = wallfree/<MAC-Ende> */
 	bool ntp_enable;        /**< Uhrzeit per SNTP holen */
 	char ntp_server[WF_NTP_SERVER_MAX + 1]; /**< Name oder IPv4, optional :Port; "" = automatisch */
+	int16_t mcu_temp_offset; /**< 0,1 Grad, zur Prozessortemperatur addiert (SOLL-API-35) */
 };
 
 /** meter_framing */
@@ -74,7 +75,7 @@ struct wf_syspar {
 };
 
 #define WF_SYS_ID_FIRST 3010
-#define WF_SYS_ID_LIVE  3020 /**< ab hier sofort wirksam (mqtt_*, wf_sys_take_live) */
+#define WF_SYS_ID_LIVE  3020 /**< ab hier sofort wirksam (mqtt_*, ntp_*, mcu_temp_offset) */
 
 void wf_sysconf_defaults(struct wf_sysconf *c);
 size_t wf_sys_count(void);

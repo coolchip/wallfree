@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* Tests Netz- und Systemparameter (10.1 net_*, telnet_enable, meter_*, mqtt_*; F20, F25, F28, F30;
- * SOLL-NVM-10) */
+/* Tests Netz- und Systemparameter (10.1 net_*, telnet_enable, meter_*, mqtt_*, ntp_*,
+ * mcu_temp_offset; F20, F25, F28, F30; SOLL-NVM-10, SOLL-API-35) */
 #include <string.h>
 #include <zephyr/ztest.h>
 #include <wallfree/api/sysconf.h>
@@ -48,7 +48,7 @@ ZTEST(api_sysconf, test_defaults_and_json)
 			       "\"mqtt_user\":\"\",\"mqtt_password\":null,\"mqtt_prefix\":\"\","
 			       "\"mqtt_interval\":1,\"mqtt_commands\":false,\"mqtt_discovery\":true,"
 			       "\"ntp_enable\":true,"
-			       "\"ntp_server\":\"\"}");
+			       "\"ntp_server\":\"\",\"mcu_temp_offset\":0}");
 	zassert_is_null(wf_sys_check(&c));
 	for (size_t i = 0; i < wf_sys_count(); i++) {
 		const struct wf_syspar *p = wf_sys_at(i);
@@ -208,6 +208,41 @@ ZTEST(api_sysconf, test_meter_params)
 	zassert_is_null(set("meter_framing", N(3)));
 	zassert_equal(c.meter_framing, WF_FRAMING_8N2);
 	zassert_not_null(set("meter_framing", N(4)));
+}
+
+/* SOLL-API-35: Abgleich mit Vorzeichen, sofort wirksam */
+ZTEST(api_sysconf, test_temp_offset)
+{
+	struct wf_sysconf a, d;
+	uint8_t buf[8];
+	char out[512];
+	struct wf_jbuf b;
+	const struct wf_syspar *p = wf_sys_find("mcu_temp_offset");
+
+	zassert_equal(c.mcu_temp_offset, 0, "Werkszustand ohne Abgleich");
+	zassert_true(p->id >= WF_SYS_ID_LIVE, "wirkt sofort");
+	zassert_is_null(set("mcu_temp_offset", N(-450)));
+	zassert_is_null(set("mcu_temp_offset", N(450)));
+	zassert_not_null(set("mcu_temp_offset", N(451)));
+	zassert_not_null(set("mcu_temp_offset", N(-451)));
+	zassert_is_null(set("mcu_temp_offset", N(-37)));
+	zassert_equal(c.mcu_temp_offset, -37);
+
+	wf_jb_init(&b, out, sizeof(out));
+	wf_sys_json(&c, &b);
+	zassert_not_null(strstr(out, "\"mcu_temp_offset\":-37}"), "%s", out);
+
+	zassert_equal(wf_sys_encode(&c, p, buf), 4);
+	zassert_mem_equal(buf, "\xff\xff\xff\xdb", 4, "Zweierkomplement");
+	wf_sysconf_defaults(&d);
+	zassert_equal(wf_sys_decode(&d, p->id, buf, 4), 0);
+	zassert_equal(d.mcu_temp_offset, -37);
+	zassert_equal(wf_sys_decode(&d, p->id, "\xff\xff\xfe\x3d", 4), -1, "-451");
+	zassert_equal(wf_sys_decode(&d, p->id, "\x80\x00\x00\x00", 4), -1);
+
+	wf_sysconf_defaults(&a);
+	wf_sys_take_live(&a, &c);
+	zassert_equal(a.mcu_temp_offset, -37);
 }
 
 ZTEST(api_sysconf, test_ipv4_parse)

@@ -129,6 +129,13 @@ class T1Api(SimCase):
         self.assertEqual(info["adc_vref_mv"], 2495)
         cfg = self.sim.get_json("/system/config", self.auth)
         self.assertFalse(cfg["restart_required"])
+        # Abgleich der Temperatur wirkt sofort, ohne Neustart
+        for offset, temp in ((-25, 325), (0, 350)):
+            r = self.sim.request("POST", "/system/config", {"mcu_temp_offset": offset},
+                                 auth=self.auth)
+            self.assertEqual(r.status, 200, r.body)
+            self.assertEqual(self.sim.get_json("/system/info", self.auth)["mcu_temp_dc"], temp)
+        self.assertFalse(self.sim.get_json("/system/config", self.auth)["restart_required"])
         self.assertIsInstance(self.sim.get_json("/system/config_info", self.auth), (list, dict))
         for path in ("/app.js", "/style.css", "/vendor.js"):
             r = self.sim.request("GET", path, auth=self.auth)

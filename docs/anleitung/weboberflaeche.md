@@ -203,7 +203,7 @@ Zustand der Verbindungen der Steuerung; eingestellt werden sie unter Einstellung
 | Uhrzeit | Uhrzeit der Steuerung, darunter der Zeitserver und wann zuletzt abgeglichen; „unbekannt“, solange kein Zeitserver antwortet. Nach jedem Neustart ist sie unbekannt, bis der Zeitserver antwortet (keine Pufferbatterie). |
 | MQTT | aus, nicht verbunden, verbunden oder vom Broker abgelehnt; verbunden mit Broker, Präfix und der Zahl gesendeter Nachrichten und empfangener Befehle |
 | Zähler | kein Zähler, verbinde …, verbunden oder gestört |
-| Prozessortemperatur | Temperatur im Prozessor der Ladesteuerung in °C. Kann um einige Grad abweichen. |
+| Prozessortemperatur | Temperatur im Prozessor der Ladesteuerung in °C. Ohne Abgleich kann sie um einige Grad abweichen; abgleichen lässt sie sich in der Expertenansicht unter System. |
 
 ### 6.3 Fehler
 
@@ -512,6 +512,13 @@ alle Einstellungen bleiben erhalten.
 **Ansicht:** Das Kästchen **Expertenansicht** schaltet die zusätzlichen Seiten und Werte ein
 (Abschnitt 4). Ab Werk ist es aus. Die Wahl speichert der Browser, nicht die Steuerung; ein
 anderes Gerät zeigt also wieder die einfache Ansicht, bis man sie dort umschaltet.
+
+**Prozessortemperatur** (nur Expertenansicht): Der Sensor im Prozessor kann von Chip zu Chip um
+einige Grad abweichen. Zum Abgleich die Wallbox einige Stunden stromlos lassen, damit sie die
+Umgebungstemperatur annimmt, dann einschalten und kurz danach die angezeigte Temperatur
+(Status → Verbindungen) mit einem Thermometer neben der Steuerung vergleichen. Den Unterschied in
+Zehntelgrad eintragen und speichern, er wirkt sofort: Zeigt die Steuerung 34 °C und das
+Thermometer 21,5 °C, ist der Abgleich -125.
 
 **Lizenz:** Wallfree ist freie Software unter der Apache License 2.0. Der Link
 **Lizenzhinweise** zeigt die enthaltene Software anderer Autoren mit ihren Lizenzen.

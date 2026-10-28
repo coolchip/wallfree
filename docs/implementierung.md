@@ -179,6 +179,7 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Resetgrund | BKP19 = `0x5746xxxx` vor Software-Resets; Gruende `supervision_limit`, `fault`, `user_restart`, `factory_reset`, `interface_hang` bzw. aus RCC_CSR | SOLL-RT-14 |
 | Thread-Prioritaeten | Schutzthread 0, Automatenthread 2, Ethernet-RX 4, Netz-RX/TX, TCP-Arbeit und System-Workqueue 5, WebSocket 11, Speicher 12, HTTP-Server, net_mgmt, Shell, Log, Zaehler, MQTT 14; alle preemptiv (`CONFIG_NET_TC_THREAD_PREEMPTIVE`, Ethernet-RX dadurch preemptiv, in Zephyr als experimentell markiert), bestaetigt (Nutzer 2026-10-26) | SOLL-RT-07; mit Zephyrs Vorgabe (kooperativ) liess Netzlast den Automatenthread warten (Fallstricke) |
 | Schnittstellen-Ueberwachung | Speicher-, WebSocket-Thread, System-Workqueue (10 s); HTTP-Server und Telnet gehoeren zu Zephyr und sind nicht ueberwachbar | SOLL-RT-11 |
+| Abgleich Prozessortemperatur | `mcu_temp_offset` (3032, 0,1 Grad, -450..450, Werk 0, sofort wirksam), gespeichert als 4 Byte im Zweierkomplement (einziger Systemwert mit Vorzeichen); `/system/info` meldet `mcu_temp_dc` mit Abgleich. Eingabe auf der Seite System nur in der Expertenansicht (Karte "Prozessortemperatur"), Eingabefeld ohne Zifferntastatur, weil die am Handy oft kein Minus hat; **zu bestaetigen** | SOLL-API-35; Einstellung wird einmal gebraucht, gehoert nicht zu Netzwerk, MQTT oder Zaehler |
 | Netzwerk-LED | PC2 aktiv Low, treibt die gruene LED an der Netzwerkbuchse (Testgerät 2026-10-27: blinkt ohne Kabel mit 1 Hz, mit Verbindung Dauerlicht; die gelbe (PHY, Link) ist ohne Kabel aus); "verbunden" = Link (Carrier) und bevorzugte IPv4-Adresse; Takt aus der Systemworkqueue (haengt diese, steht die LED) | SOLL-LED-06 |
 
 ### Weboberflaeche
@@ -391,10 +392,8 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
   wenn der Nutzer die Steuerung zerlegt). Ziel von PE1 weiter offen.
 - Prozessortemperatur (SOLL-API-35): auf dem Testgerät plausibel (`8d466ea`: 31,8 Grad knapp 3 min nach dem
   Start; `3899732`: 33 Grad), Referenz bestaetigt (`adc_vref_mv` 2493..2494, siehe Fallstricke).
-  Bestaetigt (Nutzer 2026-10-28): Anzeige "Prozessortemperatur" in Status -> Verbindungen, ganze Grad,
-  Hinweis "kann um einige Grad abweichen". Offen: Abgleichparameter (Nutzer 2026-10-28, spaeter):
-  Verschiebung in 0,1 Grad, einmal an der kalten Box gegen ein Thermometer eingestellt; die Steigung
-  streut kaum (RM0033: +-1,5 Grad nach Abgleich), nur die Verschiebung (bis 45 Grad zwischen Chips).
+  Abgleich `mcu_temp_offset` umgesetzt, auf dem Testgerät noch nicht eingestellt: an der kalten Box (Stunden
+  ohne Strom, dann kurz nach dem Start) gegen ein Thermometer.
 - Toter MQTT-Broker bei Dauerversand (Zaehlerwerte jede Sekunde): Erkennung erst ueber TCP, Zeit
   offen; mit dem Zaehler messen.
 
