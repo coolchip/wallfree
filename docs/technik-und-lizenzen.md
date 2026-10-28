@@ -64,7 +64,8 @@ Die Steuerung liefert die Hinweise selbst aus: Die Seite **System** nennt die Li
 MIT- und der BSD-Lizenzen. Der Text der Apache-Lizenz liegt wegen der Größe nur als Verweis bei
 (etwa 4 KB im Flash); er steht in [LICENSE](../LICENSE) und gehört zu jeder Veröffentlichung.
 Ebenso gehört `COPYING.picolibc` aus dem Zephyr SDK
-(`gnu/arm-zephyr-eabi/share/licenses/picolibc/`) zu jedem veröffentlichten Abbild.
+(`gnu/arm-zephyr-eabi/share/licenses/picolibc/`) zu jedem veröffentlichten Abbild. Beides legt
+`scripts/release-package.sh` mit dem Abbild, `lizenzen.txt` und Prüfsummen in ein ZIP-Archiv.
 
 Geprüft mit `west spdx` (SPDX-Stückliste aller Quelldateien, die ins Abbild gelinkt werden): Bis auf
 die vier Zephyr-Dateien oben steht alles unter den Lizenzen der Tabelle. Nicht erfasst werden die

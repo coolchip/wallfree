@@ -23,7 +23,8 @@ durchgeführt worden, ohne Fahrzeug und ohne Last. Was Wallfree anders macht, st
 
 Benötigt werden nur ein PC im selben Netz wie die Steuerung, ein Browser und die Wallfree-Datei
 `wallfree-<version>.bin` (aus einer Veröffentlichung oder selbst gebaut mit
-`scripts/build-image.sh`).
+`scripts/build-image.sh`). Eine Veröffentlichung ist ein ZIP-Archiv mit der Datei, ihrer
+Prüfsumme in `LIESMICH.txt` und den Lizenztexten.
 
 ## 2 Wallfree aufspielen
 
