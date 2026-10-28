@@ -60,7 +60,7 @@ können Menschen gefährden. Software-Tests belegen keine elektrische Sicherheit
 - Kompletter Simulator auf dem PC: die ganze Firmware mit nachgebildeter Hardware, Fahrzeug,
   Zähler und Bootloader, Weboberfläche und evcc wie an der echten Steuerung.
 
-**Nicht enthalten:** OCPP, RFID, Modbus TCP, Mobilfunk, Lastmanagement mehrerer Boxen (kann
+**Nicht enthalten:** OCPP, RFID (als Erweiterung vorgemerkt), Modbus TCP, Mobilfunk, Lastmanagement mehrerer Boxen (kann
 evcc), HTTPS.
 
 Was Wallfree anders macht als die Originalfirmware und worauf man beim Umrüsten achten muss:

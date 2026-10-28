@@ -190,7 +190,7 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Zugangsdaten aendern | Benutzerfeld mit dem aktuellen Benutzer vorbelegt (`GET /credentials` liefert `user`); Hinweis: ohne HTTPS mitlesbar, bei der Anmeldung geht nur ein Pruefwert ueber das Netz, beim Aendern das neue Passwort lesbar | Nutzer 2026-10-21 |
 | Live-Daten | WebSocket `/ws`; schliesst der Server sofort (Browser schickte keine Anmeldung), Abfrage alle 2 s und alle 30 s ein neuer WebSocket-Versuch; nach einer laengeren Verbindung neuer Versuch nach 3 s. Chrome sendet die Digest-Anmeldung beim WebSocket-Aufbau mit; andere Browser ungeprueft | |
 | Verbindungsanzeige | Punkt am Logo (gruen/rot/orange, Text beim Zeigen), bei "getrennt" und waehrend des Updates eine Hinweisleiste in der Kopfzeile (Nutzer 2026-10-27, Variante A von vier Entwuerfen); "verbunden", sobald eine Nachricht oder Abfrage ankommt; 5 s ohne Daten "getrennt": `main.offline` grau, Klicks gesperrt; ein offener, aber stummer WebSocket (Kabel gezogen) wird dann verworfen. Grundlage ist das Lebenszeichen `evse/state` alle 2 s (SOLL-API-06). Abfragen der Live-Daten mit 4 s Zeitlimit. Periodische Nachlader (Parameter, Fehler) zeigen Verbindungsfehler nicht selbst an. Art der Verbindung (WebSocket/Abfrage) nur als Tooltip | Nutzer 2026-10-21: "Abfrage" war nicht greifbar und blieb bei getrennter Steuerung stehen |
-| Verbindungsplaetze | alle Abfragen eines Tabs nacheinander (eine Warteschlange, Zeitlimit 10 s je Anfrage), damit der Browser nur eine HTTP-Verbindung oeffnet; ein verborgener Tab (`document.hidden`) schliesst seinen WebSocket und fragt nichts ab, sichtbar sofort neu verbinden und nachladen; bestaetigt (Nutzer 2026-10-28) | Die Steuerung hat 4 HTTP-Plaetze (`HTTP_SERVER_MAX_CLIENTS`), jede Verbindung haelt ihren nach der letzten Anfrage 10 s. Die Karten von Status luden parallel, der Browser oeffnete dafuer 6 Verbindungen (Browser-Durchlauf); gedrosselte Hintergrund-Tabs wachen im Minutentakt zugleich auf (Offen: HTTP-Aussetzer). Der WebSocket belegt keinen HTTP-Platz (Zephyr gibt ihn nach dem Upgrade frei) |
+| Verbindungsplaetze | alle Abfragen eines Tabs nacheinander (eine Warteschlange, Zeitlimit 10 s je Anfrage), damit der Browser nur eine HTTP-Verbindung oeffnet; ein verborgener Tab (`document.hidden`) schliesst seinen WebSocket und fragt nichts ab, sichtbar sofort neu verbinden und nachladen; bestaetigt (Nutzer 2026-10-28). Auf dem Server schliesst Zephyr ruhende Verbindungen nach 5 s (`HTTP_SERVER_CLIENT_INACTIVITY_TIMEOUT`, Vorgabe 10 s), bestaetigt (Nutzer 2026-10-28) | Die Steuerung hat 4 HTTP-Plaetze (`HTTP_SERVER_MAX_CLIENTS`), jede Verbindung haelt ihren bis zum Ablauf der Frist. Die Karten von Status luden parallel, der Browser oeffnete dafuer 6 Verbindungen (Browser-Durchlauf); gedrosselte Hintergrund-Tabs wachen im Minutentakt zugleich auf. Mit 10 s wies das Testgerät neue Verbindungen trotzdem selten kurz ab (Pruefungen auf dem Testgerät), vermutlich wegen einer vorab geoeffneten, unbenutzten Verbindung von Chrome. 5 s ist ein gaengiger Wert, den andere Server ab Werk nutzen (Apache 2.4 `KeepAliveTimeout`, lighttpd, Node.js `keepAliveTimeout`); kuerzer bringt wenig, weil der Browser nach einer Pause ohnehin neu verbindet. Der WebSocket belegt keinen HTTP-Platz (Zephyr gibt ihn nach dem Upgrade frei) |
 | Expertenansicht | ab Werk einfache Ansicht: Status nur Verlauf, Fehler, Ereignisprotokoll; Einstellungen ohne Reiter "Laden". Kaestchen "Expertenansicht" auf der Seite System schaltet Ladestrom-Tabelle, CP-Oszilloskop, Zaehlerrohwerte, Ladelogik und "Laden" zu. Gespeichert im `localStorage` des Browsers (`wallfree.expert`), ohne ihn einfach; nur Anzeige, API unveraendert | Nutzer 2026-10-27: fuer Menschen, die sich nicht mit den Parametern beschaeftigen wollen; im Browser, weil es eine Anzeigevorliebe ist (kein Flash-Schreibzugriff, kein Einfluss auf das Laden) |
 | Lizenzhinweis | Karte "Lizenz" unter System: Apache-2.0, ohne Gewaehrleistung, Link auf `/lizenzen.txt` (`web/lizenzen.txt`, gzip etwa 1,8 KB): Liste der Fremdsoftware im Abbild mit Lizenz, Volltexte MIT (Preact) und BSD-3-Clause (ST); Apache- und picolibc-Text nur als Verweis (Flash). Urheberzeile "Copyright 2026 Sebastian Balling" (Nutzer 2026-10-27) | MIT und BSD verlangen den Hinweis bei Weitergabe des Binaers; Nutzer 2026-10-27 |
 | Favicon | Blitz weiss auf Tuerkis (#009670, abgerundetes Quadrat), SVG als `data:`-URL in `index.html` (etwa 200 Byte) | Nutzer 2026-10-22 (Variante 2 von 5); keine eigene Datei im Flash, keine Anfrage an die Steuerung, keine vergebliche Anfrage nach `/favicon.ico` |
@@ -300,7 +300,8 @@ Beim RAM (Heap umgesetzt, Nutzer 2026-10-21):
 Bestaetigt auf dem Testgerät: Pinbelegung und Pegel der Eingaenge, Ausgaenge, LEDs, DIP/Drehschalter,
 Reset-Taster und CP-Messung; PHY-Takt und -Reset (Netz laeuft); IWDG-Umprogrammierung und
 Loeschen von Sektor 7 im Betrieb (Verdichten gelaufen); RTC-Backup-Register ohne RTC-Takt
-(Resetgrund, Update-Ergebnis); Freigabe ruhender HTTP-Verbindungen nach 10 s (Lasttest).
+(Resetgrund, Update-Ergebnis); Freigabe ruhender HTTP-Verbindungen nach Ablauf der Frist (Lasttest,
+mit der Zephyr-Vorgabe 10 s; die eingestellten 5 s sind auf dem Testgerät noch zu pruefen).
 Noch offen:
 
 - PE2 High = Schuetz ein und RCM "High = ausgeloest" (Inversion zum Bender-Ausgang) stammen aus
@@ -368,7 +369,7 @@ auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/do
 | Protokoll, Uhrzeit, CP-Aufnahme (`6eb0e08`, 2026-10-27) | Ereignisprotokoll uebersteht den Neustart; Uhrzeit von `pool.ntp.org` (Router meldet per DHCP keinen Zeitserver, DNS ueber DHCP funktioniert); CP-Aufnahme im Leerlauf +11,9 V |
 | Stacks | siehe [Ressourcen](#ressourcen); keiner ueber 82 % |
 
-Bekannte Grenzen: Keep-Alive-Verbindungen belegen je einen der 4 HTTP-Plaetze bis 10 s;
+Bekannte Grenzen: Keep-Alive-Verbindungen belegen je einen der 4 HTTP-Plaetze bis 5 s;
 weitere werden abgewiesen. Stumme Verbindungen, die staendig nachkommen, blockieren die
 Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fallstricke.
 
@@ -381,11 +382,10 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
   Sendepegel an A/B, Abfrage, Fehlerzaehler bei offener und vertauschter Leitung.
 - Ziel von PE1 und Ansteuerung des Relais C3/C4 (F15): Testgerät 2026-10-27 (Wallfree `c54fa08` mit einem Diagnosebefehl, danach wieder entfernt): PE1 geht 1 s auf High (GPIOE ODR und IDR Bit 1 per SWD gelesen, ohne Anhalten, `wallbe2/analysis/box-t/pe1-gpioe.log`), das Relais an C3/C4 klickt nicht, keine LED reagiert. PE1 schaltet das Relais C3/C4 also nicht direkt; Ziel weiter offen. Spaeter untersuchen, was an PE1
   haengt und wie das Relais angesteuert wird (Nutzer 2026-10-27).
-- Seltene kurze Abweisung neuer HTTP-Verbindungen bei sichtbaren Tabs (Testgerät `7cfd6fa`): einmal
-  2,5 s in 7,5 min mit 2 sichtbaren Tabs auf Status (Pruefungen auf dem Testgerät). Vermutlich haelt
-  Chrome zusaetzlich zur benutzten Verbindung eine vorab geoeffnete, die erst nach der Frist von
-  10 s frei wird. Moegliche Abhilfe auf dem Server: `HTTP_SERVER_CLIENT_INACTIVITY_TIMEOUT`
-  10 -> 3 s (in der Simulation nicht pruefbar, Fallstricke); offen, ob noetig.
+- Frist 5 s fuer ruhende HTTP-Verbindungen (Festlegung Verbindungsplaetze) auf dem Testgerät pruefen:
+  `net-load.py` Stufe `idle` (Freigabe nach 5 s) und `scripts/web-tabs-load.mjs` mit Abfrage
+  daneben (mit 10 s einmal 2,5 s Abweisung in 7,5 min); in der Simulation nicht pruefbar
+  (Fallstricke).
 - Toter MQTT-Broker bei Dauerversand (Zaehlerwerte jede Sekunde): Erkennung erst ueber TCP, Zeit
   offen; mit dem Zaehler messen.
 - Import aus Sektor 3 auf der Steuerung noch nicht ausgefuehrt (fuer das Testgerät ungeeignet: er setzte
@@ -406,7 +406,8 @@ Nicht beauftragt; gesammelt mit dem Nutzer (2026-10-26). Beauftragte Punkte steh
 | Lastmanagement mehrerer Boxen | – | kann evcc; nicht in der Firmware |
 | Phasenumschaltung 1p/3p ueber C3/C4 (Nutzer 2026-10-27, spaeter) | Laden ab etwa 1,4 kW statt 4,1 kW (PV-Ueberschuss); evcc kann die Umschaltung ueber die WARP-Schnittstelle steuern | setzt eine Ansteuerung des Relais C3/C4 voraus; PE1 ist es nicht (Testgerät 2026-10-27, unter Offen). C3/C4 schaltet nur die Spule eines zweiten Schuetzes (wie C1/C2, Handbuch: Last nie direkt); ueblich: Schuetz 1 L1+N, Schuetz 2 L2+L3; Umschalten nur ohne Last (Laden unterbrechen, Pause, neu starten); Rueckmeldung des zweiten Schuetzes ueber einen Hilfskontakt an einem Eingang; zweites Schuetz nie ohne das erste. WARP: WARP2 mit Energy Manager und externem Schuetz (230-V-Schaltausgang, Hilfskontakt-Rueckmeldung, Laden wird vor dem Umschalten unterbrochen), WARP3 mit zwei eingebauten zweipoligen 63-A-Hutschienenschuetzen (Ersatzteil `WARP-CON-2P-63A`, Hersteller nicht genannt, auf dem Produktfoto "EKMF6320" laut Nutzer 2026-10-27; 63 A gilt je Pol, Reserve fuer Dauerlast und Waerme; fuer 11 kW genuegt vermutlich ein kleineres, der Nutzer wuerde ein anderes waehlen; das zweite schaltet L2/L3 und bleibt bei einphasigem Anschluss immer aus; WARP3-Betriebsanleitung 1.2, Abschnitt 5 und 13.7). Installation durch eine Elektrofachkraft |
 | Zweite Sprache (Englisch) | Nutzer ausserhalb des deutschen Sprachraums (GitHub) | etwa 8..12 KB Flash; Hilfetexte der Parameter kommen aus der Firmware und muessten doppelt vorliegen; Anleitung uebersetzen. Vorerst nur Deutsch (Nutzer 2026-10-27) |
-| Bewusst nicht: TLS fuer die Weboberflaeche, signierte Updates, RFID; gestufter Werksreset (Passwort vergessen nur ueber den kompletten Werksreset, Nutzer 2026-10-26) | – | Platz/Zertifikate; Bootloader prueft nichts; keine Hardware |
+| Kartenleser (RFID), zukuenftige Erweiterung (Nutzer 2026-10-28; Nutzer prueft, ob er einen Leser bekommt) | Freigabe per Karte statt Schluesselschalter; Freigabeliste und Anlernen ueber die zuletzt gelesene Karte in der Weboberflaeche | Leser als Modbus-RTU-Teilnehmer am vorhandenen RS-485-Bus A/B neben dem Zaehler (eigene Adresse, gleiche Baudrate und gleiches Rahmenformat fuer alle Teilnehmer; der Leser im Original stand auf 115200 Bd, Zaehler meist 9600); Abfrage im Zaehler-Thread abwechselnd; Freigabe wirkt wie EN. Befunde zum Leser des Originals (Typen `DE_950`, `MW_R7`, TeraTron, Register, 20 Karten): [wallbe2 hardware.md](../../wallbe2/docs/hardware.md#4-offene-fragen). Flash bei 92 % knapp. Soll-Spezifikation erst bei Umsetzung |
+| Bewusst nicht: TLS fuer die Weboberflaeche, signierte Updates; gestufter Werksreset (Passwort vergessen nur ueber den kompletten Werksreset, Nutzer 2026-10-26) | – | Platz/Zertifikate; Bootloader prueft nichts; keine Hardware |
 
 ### Veroeffentlichung (Ideen des Nutzers, 2026-10-27)
 

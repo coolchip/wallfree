@@ -80,7 +80,7 @@ Messwerte und Zähler der Abfragen zeigt **Status → Zähler** (Expertenansicht
 
 **Original:** RFID-Leser mit Liste freigegebener Karten.
 
-**Wallfree:** entfällt (kein RFID). Freigabe über den Eingang EN, die Schnittstelle oder evcc.
+**Wallfree:** derzeit nicht enthalten (als spätere Erweiterung vorgemerkt). Freigabe über den Eingang EN, die Schnittstelle oder evcc.
 
 ### Neu in Wallfree
 

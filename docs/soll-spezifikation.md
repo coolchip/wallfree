@@ -85,7 +85,8 @@ Beispielkonfiguration der vorhandenen Wallbox: [Hardware, Ist-Einstellungen](../
 
 ### 1.4 Abgrenzung (nicht im Umfang)
 
-Kartenleser/RFID, OCPP, Mobilfunk, Master-Slave/Lastverteilung, Modbus TCP und die
+Kartenleser/RFID (zukuenftige Erweiterung, Nutzer 2026-10-28; Ideen in implementierung.md), OCPP,
+Mobilfunk, Master-Slave/Lastverteilung, Modbus TCP und die
 Modbus-Register-Schnittstelle des Originals, TLS, Nachbau der Originalweboberflaeche.
 **Im Umfang, aber nur zur Anzeige:** Energiezaehler ueber Modbus RTU (F28, Abschnitt
 [12.5](#125-energiezaehler-modbus-rtu-nur-anzeige)). Fuer OCPP wird spaeter eine

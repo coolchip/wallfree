@@ -22,7 +22,7 @@ genaue Festlegung jedes Punkts steht in der [Soll-Spezifikation](soll-spezifikat
   der Originalfirmware gibt es nicht mehr. evcc wird über die Vorlage `tinkerforge-warp-ws`
   angebunden. Ab Werk gilt der Zugang `admin` / `wallfree`, der beim ersten Aufruf geändert
   werden muss.
-- **Nicht enthalten:** RFID, OCPP, Mobilfunk, Lastmanagement mehrerer Ladestationen (das kann
+- **Nicht enthalten:** RFID (als spätere Erweiterung vorgemerkt), OCPP, Mobilfunk, Lastmanagement mehrerer Ladestationen (das kann
   evcc), Modbus TCP.
 
 ## Schutzfunktionen

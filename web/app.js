@@ -10,7 +10,7 @@ import { html, render, useState, useEffect, useRef } from './vendor.js';
 let quiet = false;
 
 // Anfragen nacheinander: Die Steuerung hat nur 4 HTTP-Verbindungsplaetze, und jede Verbindung
-// haelt ihren nach der letzten Anfrage noch 10 s. Parallele Abfragen der Karten oeffnete der
+// haelt ihren nach der letzten Anfrage noch 5 s. Parallele Abfragen der Karten oeffnete der
 // Browser auf mehreren Verbindungen; so braucht ein Tab einen Platz (dazu den WebSocket).
 let queue = Promise.resolve();
 function api(path, opts) {
