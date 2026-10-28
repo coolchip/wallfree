@@ -444,3 +444,18 @@ Fuer die spaetere Veroeffentlichung der Firmware vorbereiten:
 - Kompletter Simulator auf dem PC (native_sim mit Hardwaremodell, Ersatz-Bootloader, evcc).
 - Vor der Veroeffentlichung: Zeiten der Git-Commits pruefen (Nutzer 2026-10-27; Claude erinnert
   daran, der Nutzer weiss, was gemeint ist).
+- Foren fuer die Bekanntmachung (Nutzer 2026-10-28, ergaenzt): GoingElectric
+  [t=12076](https://www.goingelectric.de/forum/viewtopic.php?t=12076) und
+  [t=72540](https://www.goingelectric.de/forum/viewtopic.php?t=72540) (E3/DC easy connect),
+  Photovoltaikforum [WallBe ECO 2.0s Erfahrungen](https://www.photovoltaikforum.com/thread/152535-wallbe-eco-2-0s-erfahrungen/),
+  evcc [GitHub Discussions](https://github.com/evcc-io/evcc/discussions) (z. B.
+  [#994 Wallbe 2.0 eco](https://github.com/evcc-io/evcc/discussions/994)),
+  [energiesparhaus.at](https://www.energiesparhaus.at/forum-zeigt-her-eure-wallbox/68708_10),
+  [KNX-User-Forum](https://knx-user-forum.de/forum/öffentlicher-bereich/knx-eib-forum/2099693-welche-wallboxen-habt-ihr-und-wie-steuert-ihr-sie-an),
+  [LoxWiki wallbe](https://loxwiki.atlassian.net/wiki/spaces/LOX/pages/1596490033/wallbe+Ladestationen)
+  (Loxone-Nutzer), mikrocontroller.net (Firmware-Interessierte).
+- Vermutlich ebenfalls passend (Nutzer 2026-10-28, ungeprueft): wallbe Eco 2.0s, Compleo eco,
+  E3/DC easy connect (laut Foren baugleich mit der Eco 2.0, Phoenix EV-CC-AC1-M3-CBC-RCM-ETH mit
+  angepasster Firmware). Voraussetzung je Geraet: gleicher Controller (nicht der aeltere
+  EM-CP-PP-ETH) und gleicher Bootloader mit Upload ueber die Weboberflaeche; ohne Pruefung an
+  einem Geraet nur als "ungetestet" nennen.
