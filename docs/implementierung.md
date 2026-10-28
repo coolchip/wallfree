@@ -432,7 +432,7 @@ Fuer die spaetere Veroeffentlichung der Firmware vorbereiten:
 - Technik und Lizenzen: [technik-und-lizenzen.md](technik-und-lizenzen.md) (Nutzer 2026-10-27: Tech-Stack
   aufschreiben); Lizenzhinweis auf der Seite System. Paket je Veroeffentlichung:
   `scripts/release-package.sh` (nach `build-image.sh` auf dem Tag) legt `build/wallfree-<version>.zip`
-  an: Abbild, `LIESMICH.txt` (Version, Groesse, CRC32, Sicherheitshinweis), `LICENSE`, `lizenzen.txt`,
+  an: Abbild, `README.txt` (Version, Groesse, CRC32, Sicherheitshinweis), `LICENSE`, `lizenzen.txt`,
   `COPYING.picolibc` (Zephyr SDK), `SHA256SUMS`; verweigert `-dirty`-Abbilder.
 - Lizenzen dateigenau pruefen: `west spdx` (SPDX-Stueckliste der ins Abbild gelinkten Dateien). Ablauf:
   `west spdx --init -d <dir>`, bauen mit `-DCONFIG_BUILD_OUTPUT_META=y` (sonst bricht `west spdx` ab),

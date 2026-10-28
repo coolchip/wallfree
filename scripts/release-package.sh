@@ -2,7 +2,7 @@
 # Veroeffentlichungspaket zusammenstellen:
 #   scripts/release-package.sh [abbild.bin]
 # Ohne Angabe build/wallfree-<VERSION>.bin (veroeffentlichter Stand aus build-image.sh, Tag
-# v<VERSION>). Legt build/wallfree-<name>.zip an mit Abbild, LIESMICH.txt (Version, Build,
+# v<VERSION>). Legt build/wallfree-<name>.zip an mit Abbild, README.txt (Version, Build,
 # Pruefsummen, Hinweise), LICENSE (Apache-2.0), lizenzen.txt (wie /lizenzen.txt der Steuerung),
 # COPYING.picolibc aus dem Zephyr SDK und SHA256SUMS. Das Abbild wird vorher geprueft (Anhang
 # mit CRC32, Kennung WALLFREE-IMAGE).
@@ -34,7 +34,7 @@ cp "$REPO/web/lizenzen.txt" "$STAGE/lizenzen.txt"
 cp "$PICOLIBC" "$STAGE/COPYING.picolibc"
 SIZE=$(wc -c <"$IMG" | tr -d ' ')
 CRC=$(python3 -I -c 'import sys,zlib; d=open(sys.argv[1],"rb").read(); print("%08x" % zlib.crc32(d[:-16]))' "$IMG")
-cat >"$STAGE/LIESMICH.txt" <<EOF
+cat >"$STAGE/README.txt" <<EOF
 Wallfree $TAG
 
 Freie Ersatzfirmware für die Ladesteuerung Phoenix Contact EV-CC-AC1-M3-CBC-RCM-ETH
