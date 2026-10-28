@@ -1,10 +1,11 @@
 # Pruefstecker und Stufe C
 
-Stand: 2026-10-24. Plan fuer einen selbstgebauten Pruefstecker (Fahrzeugnachbildung an der
+Stand: 2026-10-28. Plan fuer einen selbstgebauten Pruefstecker (Fahrzeugnachbildung an der
 Typ-2-Steckdose) und den Pruefablauf der Stufe C auf dem Testgerät (CP-PWM, Verriegelung mit Stecker,
-Schuetz). **Stufe C ist noch nicht freigegeben:** Die Sicherheitsgrenzen in
+Fehlerstrom, Schuetz, evcc). Teile bestellt (Nutzer 2026-10-28). **Stufe C ist noch nicht
+freigegeben:** Die Sicherheitsgrenzen in
 [wallbe2/AGENTS.md](../../wallbe2/AGENTS.md#sicherheitsgrenzen) erlauben derzeit nichts an der
-Steckdose; vor C0 braucht es eine ausdrueckliche Freigabe des Nutzers.
+Steckdose; vor C0 braucht es eine ausdrueckliche Freigabe des Nutzers (Entwurf in Abschnitt 7).
 
 ## 1. Grundsatz: keine Netzspannung im Pruefstecker
 
@@ -72,6 +73,17 @@ immer verbunden, S2/S3 schalten zu).
 | S6 | Drehschalter 1 x 6 | PP-Klassen |
 | Messbuchsen | 3 x 4-mm-Sicherheitsbuchse (CP, PP, PE) | fuer Multimeter/Oszilloskop |
 
+Zubehoer fuer die Fehlerstrompruefung (C4), getrennt vom Stecker:
+
+| Teil | Angabe | Hinweis |
+| --- | --- | --- |
+| Pruefdraht | isolierte Litze, etwa 0,5 mm², 1..2 m | einmal durch den gelben Summenstromwandler, nur spannungsfrei einziehen |
+| Batterie | 9-V-Block mit Clip | Stromquelle fuer Pruefdraht und Kontaktschleife |
+| R5 | 1 kOhm, 0,25 W | etwa 9 mA Gleichstrom im Pruefdraht (Ausloeseschwelle 6 mA DC) |
+| S7 | Taster (Schliesser) | schaltet den Fehlerstrom |
+| R6 | 4,7 kOhm, 0,25 W | Kontaktschleife ueber C1/C2 (nur nach Bedingung in C4) |
+| Oszilloskop | 2 Kanaele | vorhanden |
+
 Belastung: Der hoechste Strom fliesst bei S4 (12 V ueber 1 kOhm, etwa 12 mA); alle Widerstaende
 bleiben weit unter 0,25 W.
 
@@ -103,7 +115,7 @@ Steckdose hat eine **Notentriegelung**; ein **Oszilloskop** ist vorhanden (CP-PW
 Reaktionszeiten direkt messen, Tastkopf an den Messbuchsen CP/PE des Pruefsteckers).
 `unlock_check` bleibt aus.
 
-**C0 Freigabe und Vorbereitung.** Freigabe Stufe C in wallbe2/AGENTS.md (Wortlaut stimmt der
+**C0 Freigabe und Vorbereitung.** Freigabe Stufe C in wallbe2/AGENTS.md (Entwurf Abschnitt 7, Wortlaut stimmt der
 Nutzer ab). Pruefstecker nach Abschnitt 4 geprueft. Schuetzspule weiter abgeklemmt.
 
 **C1 Stecker ohne Fahrzeug (S1 aus), PP-Klassen.** Stecker stecken, S6 nacheinander durch alle
@@ -120,7 +132,7 @@ Dabei bleibt CP A (+12 V); D9 aus verriegelt erst bei Fahrzeug (B).
 
 **C2 Fahrzeug erkannt (B), PWM.** S6 auf 220 Ohm (32 A), Schluessel ein, S1 ein.
 
-- Erwartet: Verriegeln (Motor, LD-Impuls, Connect-LED an), S3 WAIT bzw. S5 PWM_ON, PWM
+- Erwartet: Verriegeln (Motor, LD-Impuls, Connect-LED an), RCM-Selbsttest (S4, Ereignis im Log), S3 WAIT bzw. S5 PWM_ON, PWM
   1 kHz mit 26,6 % (16 A, Drehschalter 4), `cp_pos` etwa 9 V, `cp_neg` etwa 12 V, Ready-LED
   2 Hz, Front-LED gruen (CR 40: B ohne Fehler).
 - Multimeter (DC) an CP-PE zeigt den Mittelwert, etwa 0,266 * 9 V - 0,734 * 12 V = **-6,4 V**.
@@ -142,20 +154,76 @@ Dabei bleibt CP A (+12 V); D9 aus verriegelt erst bei Fahrzeug (B).
 - Die Schuetzueberwachung (Via Sense, CT) prueft nur im Aus-Zustand; ohne Spule bleibt sie
   ruhig. Ein ERR-CONTACTOR hier waere ein Befund (CT-Beschaltung).
 
-**C4 Laden mit Schuetz.** F1 aus, Schuetzspule anklemmen (Nutzer, spannungsfrei), F1 ein.
-Wiederholen von C3:
+**C4 Fehlerstrom und Reaktionszeit (ohne Schuetzspule).** Ziel: SOLL-PROT-04/05/07/08/11
+auf der Hardware, Zeit vom Fehlerstrom bis zum Abschalten (Bender verlangt Schuetz aus binnen
+20 ms, Wallfree-Anteil <= 1 ms). Fehlerstrom ohne Netzspannung: Gleichstrom ueber einen
+zusaetzlichen Draht durch den Summenstromwandler.
+
+Aufbau (Nutzer, F1 aus): Pruefdraht einmal durch den gelben Ringkern fuehren, ausserhalb der
+Wallbox: Batterie + -> R5 -> S7 -> Pruefdraht -> Batterie -. Der Draht beruehrt keine Klemmen.
+
+- **C4a Fehlerstrom im Ruhezustand (kein Stecker).** S7 kurz druecken. Erwartet: ERR-RCM-DC6
+  (SWITCH_2), Front-LED rot, Ereignis im Log; nach dem Loslassen Selbsttest in A fruehestens 30 s
+  nach dem letzten Versuch (`rcm_retest_interval`), bestanden -> Fehler geloescht. S7 gedrueckt
+  halten waehrend des Selbsttests -> Selbsttest scheitert, Fehler bleibt (Gegenprobe).
+- **C4b Fehlerstrom beim Laden.** Pruefstecker wie C3 (S1 + S2, S6 CHARGING, Schuetz-Soll 1),
+  dann S7. Erwartet: Schuetz-Soll sofort 0, CP +12 V DC, ERR-RCM-DC6 verriegelt. S2/S1 aus und
+  wieder ein laedt nicht, bis in A (S1 aus) ein Selbsttest bestanden hat (SOLL-PROT-08/11).
+- **C4c Reaktionszeit.** Messpunkt fuer das Abschalten ist der Relaiskontakt C1/C2; PE2 auf der
+  Platine erst, wenn ein Messpunkt bekannt ist (Fotos). Bedingung fuer die Kontaktschleife: Der
+  Nutzer hat beide Adern an C1 und C2 spannungsfrei abgeklemmt und mit F1 ein gemessen, dass an
+  C1 und C2 gegen PE, L und N **keine Spannung** liegt, bei offenem und (in C3) geschlossenem
+  Relais. Liegt Spannung an, entfaellt C4c in dieser Form. Schleife: Batterie + -> R6 -> C1,
+  C2 -> Batterie -; Oszilloskop-Masse an Batterie -, Kanal 1 hinter S7 (springt mit dem
+  Fehlerstrom), Kanal 2 an C1 (0 V bei geschlossenem Relais, 9 V nach dem Oeffnen). Ausloesen
+  auf Kanal 1. Gemessen wird Sensor + Software + Relaisabfall zusammen; Sollwert < 20 ms.
+  Drei Wiederholungen; Claude liest dazu Fehler und Log.
+- Der AC-Zweig (SWITCH_1, 30 mA rms) bleibt ungeprueft: dafuer braeuchte es einen Wechselstrom
+  von 30 mA im Pruefdraht.
+
+**C5 Laden mit Schuetz.** F1 aus, Pruefdraht entfernen, Adern an C1/C2 wieder anklemmen und
+Schuetzspule anschliessen (Nutzer, spannungsfrei), F1 ein. Wiederholen von C3:
 
 - Schuetz klickt bei C, faellt bei B, E, Diodenfehler, Schluessel aus.
+- `ct_sense` 1 bei eingeschaltetem Schuetz, 0 nach dem Abschalten (Via Sense).
 - Optional misst der Nutzer an den grossen Klemmen am Schuetzausgang L-N (230 V bei ein, 0 V bei
   aus); am Pruefstecker liegt keine Netzspannung (Abschnitt 1).
 - Nach jedem Aus: kein ERR-CONTACTOR (Via Sense sieht keine Spannung mehr).
 
-**C5 offen fuer spaeter.** Reaktionszeit RCM -> PE2 (Oszilloskop, SOLL-PROT-05), Fehlerstrom
-waehrend des Ladens, echtes Fahrzeug (H3).
+**C6 evcc.** evcc auf dem PC (Docker wie in [Test und Simulation](test-und-simulation.md#evcc-gegen-die-simulation),
+Vorlage `tinkerforge-warp-ws`, eigene Konfiguration gegen das Testgerät, Zugangsdaten des Testgeräts),
+Schuetzspule wie in C5. Erwartet: evcc verbindet; S1 ein -> "connected", S2 ein -> "charging";
+Modus Aus -> Ladestrom 0, Schuetz faellt, PWM bleibt; Modus Sofort -> Schuetz wieder ein;
+Strom in evcc aendern -> Tastgrad folgt; S1 aus -> "disconnected". Ohne Zaehler und ohne Last
+zeigt evcc keine Leistung.
+
+**C7 offen fuer spaeter.** Echtes Fahrzeug (H3), Fehlerstrom waehrend des Ladens mit Last, AC-Zweig.
 
 ## 6. Bezug zu den Anforderungen
 
 C1: SOLL-PP-01..05. C2: SOLL-CP-01..05, SOLL-LOCK-14/23, SOLL-EN-01, SOLL-LED-03/04,
-SOLL-CUR. C3/C4: SOLL-SM, SOLL-CP-06/07, SOLL-PROT-20/21, SOLL-RT-20. Ergebnisse werden in
+SOLL-CUR. C3/C5: SOLL-SM, SOLL-CP-06/07, SOLL-PROT-20/21, SOLL-RT-20. C4: SOLL-PROT-04/05/07/08,
+SOLL-PROT-10..12, SOLL-CP-09. C6: evcc-Anbindung (WARP-Schnittstelle). Ergebnisse werden in
 [Implementierung](implementierung.md#offen) und [wallbe2 Hardware](../../wallbe2/docs/hardware.md)
 eingetragen.
+
+## 7. Entwurf der Freigabe Stufe C
+
+Noch nicht freigegeben. Wortlaut stimmt der Nutzer ab; erst dann wird er in die
+Sicherheitsgrenzen von wallbe2/AGENTS.md uebernommen.
+
+> **Freigabe Stufe C das Testgerät (Nutzer JJJJ-MM-TT):** Pruefablauf C1..C6 nach
+> wallfree/docs/pruefstecker.md am Testgerät mit Wallfree, dem Pruefstecker (nur PE, CP, PP bestueckt,
+> nach Abschnitt 4 geprueft) und dem Pruefdraht fuer den Fehlerstrom. Erlaubt fuer Claude:
+> Steuern und Lesen von Wallfree ueber API, Weboberflaeche und Shell (Telnet schaltet nur der
+> Nutzer ein), auch Befehle, die CP-PWM, Ladestrom, Verriegelung und Schuetz-Soll beeinflussen
+> (`evse current`, `enable`, `avail`, `pause`, `lock`, `unlock`, `selftest`, `ack`), Setzen und
+> Zuruecksetzen von Parametern, die ein Schritt nennt; evcc auf dem PC gegen das Testgerät. Der Nutzer
+> stellt den Aufbau her (Stecker, Schalter, F1, Schuetzspule und Adern an C1/C2 sowie
+> Pruefdraht nur spannungsfrei), misst nur an Klemmen und Messbuchsen und entscheidet ueber jeden
+> Schritt. Schuetzspule in C1..C4 abgeklemmt; angeschlossen erst ab C5 nach Ansage. Nicht
+> erlaubt: Schutzfunktionen abschalten oder umgehen (`contactor_monitor`, RCM-Auswertung,
+> `reject_state_d`, `unlock_check` bleiben unveraendert), Fahrzeug oder Last an der Steckdose,
+> Netzspannung im Pruefstecker oder am Pruefdraht, SWD ueber die Freigabe "Wallfree-Test" hinaus.
+> Vor jedem Schritt nennt Claude Befehl, erwartete Reaktion und Abbruchgrund; Abbruch (F1 aus)
+> bei unerwartetem Schuetzklicken, Geruch oder dauerhaft laufendem Motor.

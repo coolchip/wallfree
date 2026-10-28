@@ -377,8 +377,9 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
 ## Offen
 
 - **Stufe C** mit Pruefstecker ([Pruefstecker](pruefstecker.md), Freigabe in wallbe2/AGENTS.md
-  noch offen): CP-PWM, Schuetz, Modul-LEDs Connect/Ready, Laden mit evcc.
-- Reaktionszeit RCM -> PE2 am Oszilloskop (SOLL-PROT-05).
+  noch offen, Entwurf in Abschnitt 7 dort): CP-PWM, Schuetz, Modul-LEDs Connect/Ready, Laden mit evcc.
+- Fehlerstrom und Reaktionszeit RCM -> Schuetz am Oszilloskop (SOLL-PROT-04..12): Ablauf C4 in
+  [Pruefstecker](pruefstecker.md#5-pruefablauf-stufe-c) (Pruefdraht mit 9 mA DC durch den Summenstromwandler).
 - Energiezaehler an RS-485: Eastron SDM72D-M-2 des Nutzers anschliessen (spaeter, Nutzer 2026-10-27);
   Sendepegel an A/B, Abfrage, Fehlerzaehler bei offener und vertauschter Leitung.
 - Statuswert `ct_sense` (Spannung an CT) auf dem Testgerät: ohne Schuetz 0 (bestaetigt 2026-10-28, `3899732`);
