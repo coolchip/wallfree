@@ -711,8 +711,8 @@ gleiche Adresse fuer Router/DHCP wie im Original und keine ARP-Verzoegerung beim
 Bootloader und Wallfree ([Bootloader](../../wallbe2/docs/bootloader.md#update-betrieb-bootloader-box-t-firmware-081)).
 Die Zaehlerparameter (`meter_*`) wirken ebenfalls nach einem Neustart (evcc liest die
 Faehigkeiten nur beim Verbinden, SOLL-MTR-30). Die MQTT-Parameter (`mqtt_*`) wirken **sofort**: Die
-Verbindung zum Broker wird mit den neuen Werten neu aufgebaut (SOLL-MQTT-31). `telnet_enable` = 0 stoppt die Kommandoverarbeitung; Port 23 bleibt offen, solange Telnet im
-Build enthalten ist (Zephyr kann den Port zur Laufzeit nicht schliessen).
+Verbindung zum Broker wird mit den neuen Werten neu aufgebaut (SOLL-MQTT-31). `telnet_enable` = 0 stoppt die Shell und schliesst Port 23 kurz nach dem Start (Verbindungsversuche
+werden abgewiesen; Nutzer 2026-10-28).
 
 Feste Konstanten (keine Parameter, Aenderung nur nach Absprache): Anlauf 5 s (E9),
 Frist geordnetes Ende 5 s (E7), Ueberstrom 1,25 x/5 s und 1,1 x/95 s (E22), Werksreset

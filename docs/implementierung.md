@@ -145,7 +145,7 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | `allowed_charging_current` | 0 ohne PWM, auch im gleichnamigen Statuswert | Spezifikation 12.1 |
 | `POST /evse/params` | jeder Wert einzeln (nicht atomar); Syntaxfehler -> nichts geschrieben | Zustandsregeln stecken in den Schreibfunktionen |
 | Netz-/Systemparameter | wirken erst nach Neustart; `POST /system/restart` nur in S1 ohne Fahrzeug (sonst 409); widerspruechliche gespeicherte Adresse -> Start mit DHCP und Warnung | Adresswechsel im Betrieb wuerde laufende Verbindungen (evcc) kappen; lieber erreichbar als gar kein Netz |
-| Telnet aus | `shell_stop`: Port 23 bleibt offen, Kommandos werden nicht ausgefuehrt | Zephyr kann den Telnet-Port zur Laufzeit nicht schliessen |
+| Telnet aus | `shell_stop`, danach den Socket-Dienst des Telnet-Servers mit `net_socket_service_close` abmelden und seine Sockets schliessen: Port 23 ist zu. Den Dienst erkennt netcfg an seinem Listen-Socket (lokaler Port = Telnet-Port, vorher steht im Kontext fd 0); bis der Shell-Thread den Port geoeffnet hat, alle 250 ms erneut, hoechstens 10 s. E2E `test_03_telnet_aus_port_zu` | Nutzer 2026-10-28: Port zu statt nur Kommandos verweigern. Zephyr startet Telnet vor `main()` ohne Schalter; der Weg ueber die oeffentliche Socket-Dienst-Schnittstelle kommt ohne Aenderung an Zephyr aus |
 | Telnet-Optionen | `CONFIG_SHELL_TELNET_SUPPORT_COMMAND` (in Zephyr als experimentell markiert): Echo und Zeichenmodus werden auf Anfrage des Clients ausgehandelt; mit `mode character` funktionieren Historie und Zeilenbearbeitung. Der Server bietet den Modus nicht von sich aus an. Kosten 0,3 KB Flash | Nutzerwunsch 2026-10-20 (Pfeil hoch fuer den letzten Befehl) |
 
 ### Ereignisse und Ereignisprotokoll
@@ -398,7 +398,8 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
   Claude sichert `/evse/params` und `/system/config`, fuehrt `evse import-original` aus und stellt die
   Werte danach ueber die API zurueck (der Import setzt LD 3, CR 9 und die feste Adresse 192.168.0.8;
   Netzwerte wirken erst nach einem Neustart). Voraussetzung: der Nutzer schaltet Telnet ein (Import
-  gibt es nur in der Shell; mit `telnet_enable` 0 nimmt der Port Verbindungen an, fuehrt aber nichts aus).
+  gibt es nur in der Shell). Risiko: startet die Box zwischen Import und Zurueckstellen neu, ist sie
+  unter 192.168.0.8 (nur noch direkt am PC erreichbar); deshalb nur, wenn der Nutzer vor Ort ist.
 
 ## Ideen fuer spaeter
 

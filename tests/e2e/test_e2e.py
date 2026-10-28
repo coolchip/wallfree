@@ -648,6 +648,30 @@ class T3ZephyrTelnet(SimCase):
         tail = self.sim.log_text().rsplit("Telnet socket", 1)[-1]
         self.assertEqual(tail.count("WebSocket ohne gueltige Anmeldung"), 3)
 
+    def test_03_telnet_aus_port_zu(self):
+        # SOLL-SH-19: telnet_enable 0 schliesst Port 23 nach dem Neustart, 1 oeffnet ihn wieder
+        auth = T3ZephyrTelnet.auth
+        r = self.sim.request("POST", "/system/config", {"telnet_enable": False}, auth=auth)
+        self.assertEqual(r.status, 200, r)
+        boots = self.sim.boots()
+        self.sim.close_shell()
+        self.assertEqual(self.sim.request("POST", "/system/restart", b"", auth=auth).status, 202)
+        t0 = time.monotonic()
+        while self.sim.boots() <= boots or not self.sim.port_open(self.sim.http_port):
+            self.assertLess(time.monotonic() - t0, 15, "kein Neustart")
+            time.sleep(0.1)
+        t0 = time.monotonic()
+        while self.sim.port_open(wfsim.TELNET_PORT):
+            self.assertLess(time.monotonic() - t0, 5, "Telnet-Port bleibt offen")
+            time.sleep(0.1)
+        self.assertIn("geschlossen (telnet_enable = 0)", self.sim.log_text().rsplit("*** Booting Zephyr", 1)[-1])
+        self.assertEqual(self.sim.state(auth)["charger_state"], 0)  # HTTP laeuft weiter
+        r = self.sim.request("POST", "/system/config", {"telnet_enable": True}, auth=auth)
+        self.assertEqual(r.status, 200, r)
+        boots = self.sim.boots()
+        self.assertEqual(self.sim.request("POST", "/system/restart", b"", auth=auth).status, 202)
+        self.sim.wait_restart(boots, timeout=15)  # wartet auch auf den Telnet-Port
+
 
 class Broker:
     """Mosquitto auf 127.0.0.1 und ein Abonnent fuer <prefix>/#; Zeilen "<retain> <topic> <payload>"."""
