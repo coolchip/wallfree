@@ -74,8 +74,9 @@ class Response:
 class Sim:
     """Ein laufender native_sim-Prozess mit eigener Flash-Datei."""
 
-    def __init__(self, exe, workdir, http_port, extra_args=(), env=None):
+    def __init__(self, exe, workdir, http_port, extra_args=(), env=None, telnet=True):
         self.exe = os.path.abspath(exe)
+        self.telnet = telnet  # ohne: Bau wie die Steuerung (test_e2e.T9WieSteuerung)
         self.env = dict(env or {})
         self.workdir = workdir
         self.http_port = http_port
@@ -132,7 +133,7 @@ class Sim:
         while time.monotonic() - t0 < timeout:
             if not self.alive():
                 raise AssertionError(f"Simulation beendet, siehe {self.log_path}")
-            if self.port_open(self.http_port) and self.port_open(TELNET_PORT):
+            if self.port_open(self.http_port) and (not self.telnet or self.port_open(TELNET_PORT)):
                 return
             time.sleep(0.1)
         raise AssertionError(f"HTTP/Telnet nicht erreichbar, siehe {self.log_path}")

@@ -30,6 +30,8 @@ from wfsim import FACTORY, Digest, Sim
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 EXE = os.environ.get("WALLFREE_SIM_EXE", os.path.join(REPO, "build/sim/zephyr/zephyr.exe"))
+# Bau mit Log- und Shell-Konfiguration der Steuerung (ohne Konsolen-Log, ohne Telnet)
+EXE_HW = os.environ.get("WALLFREE_SIM_EXE_HW", os.path.join(REPO, "build/sim-hw/zephyr/zephyr.exe"))
 USER, PASSWORD = "evcc", "geheim-123"
 
 
@@ -1113,6 +1115,41 @@ class T6Update(SimCase):
         info = self.sim.get_json("/system/info", self.auth)
         self.assertEqual(info["reset_reason"], "update")
         self.assertEqual(info["update_result"], {"mode": 2, "ok": False})
+
+
+class T9WieSteuerung(unittest.TestCase):
+    """Bau mit der Log- und Shell-Konfiguration der Steuerung: kein Log auf der Konsole, kein
+    Telnet. Die uebrigen Klassen haben beides; ein fehlendes Log-Backend fiel dort nicht auf
+    (Startschleife auf dem Testgeraet, 2026-10-28). Nur Start, Konsole und Log-Ring (SOLL-SH-22)."""
+
+    def test_start_und_log(self):
+        if not os.path.exists(EXE_HW):
+            self.skipTest(f"{EXE_HW} fehlt (scripts/run-e2e.sh baut es)")
+        tmp = tempfile.mkdtemp(prefix="wallfree-e2e-hw-")
+        sim = Sim(EXE_HW, tmp, free_port(), telnet=False)
+        try:
+            sim.start()
+            time.sleep(3)
+            r = sim.request("POST", "/credentials", {"user": USER, "password": PASSWORD},
+                            auth=Digest(*FACTORY))
+            self.assertEqual(r.status, 200, r)
+            auth = Digest(USER, PASSWORD)
+            st = sim.request("POST", "/system/shell", "evse status", auth=auth).body.decode()
+            self.assertIn("Resetgrund power_on", st)  # keine Startschleife
+            t0 = time.monotonic()
+            while True:  # der Log-Thread verarbeitet bis zu 1 s spaeter
+                log = sim.request("POST", "/system/shell", "evse log", auth=auth).body.decode()
+                if "Zugangsdaten geaendert" in log or time.monotonic() - t0 > 3:
+                    break
+                time.sleep(0.2)
+            self.assertIn("HTTP-Server auf Port", log)
+            self.assertIn("Zugangsdaten geaendert", log)
+            sim.request("POST", "/system/shell", "evse log clear", auth=auth)
+            log = sim.request("POST", "/system/shell", "evse log", auth=auth).body.decode()
+            self.assertNotIn("HTTP-Server auf Port", log)
+        finally:
+            sim.stop()
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 if __name__ == "__main__":

@@ -1010,7 +1010,8 @@ function Console() {
 	};
 	return html`<${Card} title="Konsole">
 		<p class="muted msg">Shell-Kommandos für die Diagnose, z. B. <code>evse status</code>,
-			<code>evse param list lock</code> oder <code>evse threads</code>; <code>evse -h</code> zeigt alle.
+			<code>evse param list lock</code>, <code>evse log</code> (jüngste Meldungen) oder
+			<code>evse threads</code>; <code>evse -h</code> zeigt alle.
 			Kommandos wirken sofort und ohne Rückfrage.</p>
 		${lines.length > 0 && html`<pre class="console" ref=${out}>${lines.map((l) =>
 			html`<b>› ${l.cmd}</b>${'\n'}<span class=${l.bad ? 'bad' : ''}>${l.text}</span>${'\n'}`)}</pre>`}

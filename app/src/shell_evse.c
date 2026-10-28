@@ -12,6 +12,7 @@
 #include <wallfree/api/meter_json.h>
 #include <wallfree/evse/param.h>
 #include "evse_task.h"
+#include "log_ring.h"
 #include "meter_task.h"
 #include "mqtt_task.h"
 #include "netcfg.h"
@@ -597,6 +598,21 @@ static int cmd_threads(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+/* SOLL-SH-22: juengste Logmeldungen, "clear" leert den Ring */
+static int cmd_log(const struct shell *sh, size_t argc, char **argv)
+{
+	if (argc > 1) {
+		if (strcmp(argv[1], "clear") != 0) {
+			shell_error(sh, "nur: evse log [clear]");
+			return -EINVAL;
+		}
+		log_ring_clear();
+		return 0;
+	}
+	log_ring_print(sh);
+	return 0;
+}
+
 static int cmd_uptime(const struct shell *sh, size_t argc, char **argv)
 {
 	ARG_UNUSED(argc);
@@ -648,6 +664,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_evse,
 	SHELL_CMD_ARG(mqtt, NULL, "MQTT: Verbindung und Zaehler", cmd_mqtt, 1, 0),
 	SHELL_CMD_ARG(threads, NULL, "Threads mit Prioritaet und Stack-Auslastung", cmd_threads, 1, 0),
 	SHELL_CMD_ARG(uptime, NULL, "Laufzeit seit dem Start", cmd_uptime, 1, 0),
+	SHELL_CMD_ARG(log, NULL, "[clear] juengste Logmeldungen (seit dem Start, etwa 1,9 KB)",
+		      cmd_log, 1, 1),
 	SHELL_CMD_ARG(factory-reset, NULL, "confirm: Werkseinstellungen und Neustart",
 		      cmd_factory_reset, 1, 1),
 	SHELL_CMD_ARG(import-original, NULL, "Einstellungen aus der Originalfirmware uebernehmen",

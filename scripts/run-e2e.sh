@@ -12,6 +12,12 @@ OUT=${WALLFREE_SIM_OUT:-$REPO/build/sim}
 (cd "$HOME/zephyrproject/zephyr" &&
 	west build -b native_sim/native/64 "$REPO/app" -d "$OUT" >"$OUT.log" 2>&1) ||
 	{ echo "BUILD FAILED (log: $OUT.log)"; exit 1; }
+# zweiter Bau wie die Steuerung: ohne Konsolen-Log und Telnet (T9WieSteuerung)
+(cd "$HOME/zephyrproject/zephyr" &&
+	west build -b native_sim/native/64 "$REPO/app" -d "$OUT-hw" -- \
+		-DCONFIG_LOG_BACKEND_NATIVE_POSIX=n -DCONFIG_SHELL_BACKEND_TELNET=n >"$OUT-hw.log" 2>&1) ||
+	{ echo "BUILD FAILED (log: $OUT-hw.log)"; exit 1; }
 export WALLFREE_SIM_EXE="$OUT/zephyr/zephyr.exe"
+export WALLFREE_SIM_EXE_HW="$OUT-hw/zephyr/zephyr.exe"
 cd "$REPO/tests/e2e"
 exec python3 -m unittest -v test_e2e "$@"

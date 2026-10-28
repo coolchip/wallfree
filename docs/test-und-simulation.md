@@ -8,7 +8,7 @@ Steuerung laeuft). Sie belegen nichts ueber die reale Hardware (Pegel, Zeiten, I
 | Ebene | Umfang | Stand |
 | --- | --- | --- |
 | PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezaehler, MQTT ohne Netz | 219 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zaehler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
-| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zaehler, lokalen MQTT-Broker | 55 Tests, alle bestanden, ca. 195 s (T5Mqtt gelegentlich wegen eines Simulationsfehlers, Fallstricke) |
+| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zaehler, lokalen MQTT-Broker | 68 Tests, alle bestanden, ca. 420 s (T5Mqtt gelegentlich wegen eines Simulationsfehlers, Fallstricke) |
 | Browser-Durchlauf | Weboberflaeche in headless Chrome gegen die Simulation | ohne Zaehler 20 Pruefungen bestanden (2026-10-26); mit Zaehler zuletzt 2026-10-21 bestanden |
 | Netz-Lasttest | `scripts/net-load.py` gegen Simulation (nur Skriptpruefung) und das Testgerät | auf dem Testgerät bestanden ([Implementierung](implementierung.md#pruefungen-auf-box-t)) |
 | MQTT im LAN | Simulation gegen Mosquitto 2.1.2 im Heimnetz (von Hand, 2026-10-21) | Zustaende, Zaehlerwerte (etwa 1/s), Ereignisse, Befehl Ladestrom, `online` true/false |
@@ -40,7 +40,7 @@ Hardwareschicht ist ersetzt; Threads, Ladelogik, Parameterspeicher, HTTP/Digest/
 Weboberflaeche und Telnet-Shell sind der Code der Steuerung.
 
 ```sh
-scripts/run-e2e.sh                # bauen (build/sim) und alle Tests (Python, nur Standardbibliothek)
+scripts/run-e2e.sh                # bauen (build/sim und build/sim-hw wie die Steuerung) und alle Tests
 scripts/run-e2e.sh -k Faults      # Auswahl (unittest -k)
 scripts/sim-run.sh [--build] [--dip=0x109] [--rotary=5] [--http-port=8081] [--reset-button=11000]
 ```
@@ -76,6 +76,7 @@ Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](.
 | T6Update | mit Ersatz-Bootloader: `scripts/update.sh` ueber die API -> Bootloader erhaelt genau die Datei, Resetgrund `update`, `update_result` ok, `image` mit CRC der Datei, Ereignis `update`; `evse bootloader` und Upload von Hand mit ungueltigem Start-SP -> fehlgeschlagen; ohne Upload Zeitablauf -> fehlgeschlagen, zweite Anforderung 409; Update waehrend des Ladens geordnet; Upload wie ein Browser mit zu kurzem letzten Paket -> Bootloader meldet Erfolg, Abbild abgeschnitten, `image.ok` false, ERR-INTERNAL, kein Laden; GET waehrend des Uploads -> Abbruch, Bootloader bleibt, zweiter Upload stellt her; ohne Bootloader -> fehlgeschlagen | SOLL-BOOT-30..35, SOLL-SH-10 |
 | T7Zeit | eigener SNTP-Server auf 127.0.0.1: ohne Zeitserver `time` = null; `ntp_server` setzen wirkt sofort, Uhrzeit des Servers in `/system/info`, neue Protokolleintraege mit `wall_ms`, aeltere ohne; `ntp_enable` aus -> `time` null; ungueltiger Server -> 400 | SOLL-TIME-01..03, SOLL-ERR-12 |
 | T8StufeC | Probe des Pruefablaufs Stufe C ([Pruefstecker](pruefstecker.md#5-pruefablauf-stufe-c)) mit den Einstellungen des Testgeräts (DIP 111, Drehschalter 4, LD 22, CR 40): C1 PP-Klassen, C2 Verriegeln, Selbsttest, PWM 26,6 %/16,6 %, Schluessel, Weckfolge, C3 Laden, B/C/D/E, Diode, Schluessel aus mit `stop_timeout`, C4 Fehlerstrom in Ruhe (Selbsttest scheitert unter Fehlerstrom, besteht danach) und beim Laden (kein Laden bis Selbsttest in A), C6 WARP-Zustaende und Strom 0 als Stromsperre | SOLL-PP, SOLL-CP, SOLL-SM, SOLL-PROT, SOLL-CUR-11 |
+| T9WieSteuerung | zweiter Bau mit der Log- und Shell-Konfiguration der Steuerung (kein Konsolen-Log, kein Telnet): startet ohne Startschleife, Konsole antwortet, `evse log` enthaelt die Startmeldungen und `clear` leert ihn | SOLL-SH-22 |
 | T3Konsole | Konsole `POST /system/shell`: im Werkszugang 403, ohne Anmeldung 401; Text, Filter `evse param list lock`, Kuerzung bei mehr als 2 KB, unbekanntes Kommando, zu lange Zeile 413, `evse threads`; keine Zephyr-Zusatzkommandos (`kernel`, `devmem`, `device`, `date`); Kommando wirkt (`evse current`); `telnet_enable` gibt es nicht mehr (400); `sim sleep 30000` ueber die Konsole haelt den HTTP-Server an -> Neustart `interface_hang`/`http_server` | SOLL-SH-19/21, SOLL-RT-11 |
 
 ### Abweichungen der Simulation von der Steuerung
