@@ -1191,8 +1191,8 @@ function Status({ live, expert }) {
 	const h = useHistory();
 	return html`<${History} h=${h} maxA=${live.limits && live.limits.hardware / 1000} />
 		<${Connections} meter=${live.meter} /><${Errors} /><${EventLog} live=${live} all=${true} />
-		${expert && html`<${CurrentTable} l=${live.limits} meter=${live.meter} /><${Meter} m=${live.meter} />
-			<${Params} kinds=${['status']} /><${CpScope} />`}`;
+		${expert && html`<${CurrentTable} l=${live.limits} meter=${live.meter} /><${CpScope} />
+			<${Meter} m=${live.meter} /><${Params} kinds=${['status']} />`}`;
 }
 
 // "Laden" (Parameter der Ladelogik) nur in der Expertenansicht

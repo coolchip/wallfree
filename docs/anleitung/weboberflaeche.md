@@ -254,7 +254,20 @@ Dieselben Größen wie die Ringanzeige als Zahlen:
 
 Die gerade wirkende Grenze ist orange mit „begrenzt“ markiert.
 
-### 6.6 Zähler
+### 6.6 CP-Oszilloskop
+
+Die Karte **CP-Oszilloskop** (unter „Ladestrom“) zeigt auf Knopfdruck (**Aufnehmen**) den Verlauf
+der Signalleitung zum Fahrzeug über eine PWM-Periode (1 ms), mit den Spannungen der
+Fahrzeugzustände A (12 V, kein Fahrzeug), B (9 V, angeschlossen), C (6 V, lädt), D (3 V, lädt
+mit Lüftung) und −12 V. Daneben steht der Tastgrad, aus dem das Fahrzeug den erlaubten Strom
+abliest. So lässt sich bei einem Fahrzeug, das nicht lädt, sehen, ob es den Zustand richtig
+meldet und ob der negative Teil (−12 V) sauber anliegt.
+
+Die Aufnahme dauert etwa eine Zehntelsekunde und stört das Laden nicht. Sie setzt sich aus
+etwa 110 Perioden zusammen; ändert sich der Zustand während der Aufnahme, ist das Bild
+verwischt, dann einfach erneut aufnehmen.
+
+### 6.7 Zähler
 
 ![Zählerwerte](bilder/status-zaehler.png)
 
@@ -266,7 +279,7 @@ laufend, prüfen Sie Verdrahtung, Adresse und Übertragungsparameter ([7.4](#74-
 „ungültig“ bedeutet: Der Wert fehlt oder ist veraltet. Er wird bewusst nicht als 0
 angezeigt.
 
-### 6.7 Ladelogik
+### 6.8 Ladelogik
 
 ![Ladelogik (Ausschnitt)](bilder/status-ladelogik.png)
 
@@ -295,19 +308,6 @@ Innere Zustände der Ladesteuerung, vor allem für die Fehlersuche. Die Werte si
 | RCM-Selbsttest 0..4 | Selbsttest der Fehlerstromüberwachung: 0 nicht gelaufen, 1 läuft, 2 bestanden, 3 fehlgeschlagen, 4 abgebrochen (klingt ab) |
 | Eingang LD … IN, Ausgang ER … CR | Schaltzustand jedes Digitaleingangs und -ausgangs: an oder aus |
 | Fehlversuche Verriegeln / Entriegeln | Anzahl fehlgeschlagener Versuche im aktuellen Steckvorgang |
-
-### 6.8 CP-Oszilloskop
-
-Die Karte **CP-Oszilloskop** (unter „Ladestrom“) zeigt auf Knopfdruck (**Aufnehmen**) den Verlauf
-der Signalleitung zum Fahrzeug über eine PWM-Periode (1 ms), mit den Spannungen der
-Fahrzeugzustände A (12 V, kein Fahrzeug), B (9 V, angeschlossen), C (6 V, lädt), D (3 V, lädt
-mit Lüftung) und −12 V. Daneben steht der Tastgrad, aus dem das Fahrzeug den erlaubten Strom
-abliest. So lässt sich bei einem Fahrzeug, das nicht lädt, sehen, ob es den Zustand richtig
-meldet und ob der negative Teil (−12 V) sauber anliegt.
-
-Die Aufnahme dauert etwa eine Zehntelsekunde und stört das Laden nicht. Sie setzt sich aus
-etwa 110 Perioden zusammen; ändert sich der Zustand während der Aufnahme, ist das Bild
-verwischt, dann einfach erneut aufnehmen.
 
 ## 7 Einstellungen
 
