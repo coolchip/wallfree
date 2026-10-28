@@ -393,7 +393,7 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
   mit VREF+ 3,3 V und zeigte 132 Grad; mit 2,495 V (Faktor der Originalfirmware) ergibt derselbe
   Rohwert etwa 32 Grad. Ob die Referenz wirklich 2,495 V hat, zeigt spaeter das Bauteil. `8d466ea`: 31,8 Grad knapp 3 min nach dem Start.
   Bestaetigt (Nutzer 2026-10-28): Anzeige "Prozessortemperatur" in Status -> Verbindungen, ganze Grad,
-  Hinweis nur auf die moegliche Abweichung. Abgleichparameter vorgesehen (Nutzer
+  Hinweis "kann um einige Grad abweichen". Abgleichparameter vorgesehen (Nutzer
   2026-10-28, spaeter): Verschiebung in 0,1 Grad, einmal an der kalten Box gegen ein Thermometer
   eingestellt; die Steigung streut kaum (RM0033: +-1,5 Grad nach Abgleich), nur die Verschiebung
   (bis 45 Grad zwischen Chips).

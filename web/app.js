@@ -1184,7 +1184,7 @@ function Connections({ meter }) {
 			Befehle ${mq.commands}${mq.rejected ? ' (abgelehnt ' + mq.rejected + ': ' + mq.last_reject + ')' : ''}</small>` : ''}</td></tr>
 		<tr><td>Zähler</td><td class="num wrap">${st ? METER_STATUS[st.status] || st.status : METER_STATUS.off}</td></tr>
 		${si.mcu_temp_dc != null && html`<tr><td>Prozessortemperatur</td><td class="num wrap">${Math.round(si.mcu_temp_dc / 10)} °C<br />
-			<small class="muted">Sensor im Prozessor der Ladesteuerung; der Absolutwert kann deutlich abweichen</small></td></tr>`}
+			<small class="muted">kann um einige Grad abweichen</small></td></tr>`}
 	</table><//>`;
 }
 

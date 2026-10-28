@@ -203,7 +203,7 @@ Zustand der Verbindungen der Steuerung; eingestellt werden sie unter Einstellung
 | Uhrzeit | Uhrzeit der Steuerung, darunter der Zeitserver und wann zuletzt abgeglichen; „unbekannt“, solange kein Zeitserver antwortet. Nach jedem Neustart ist sie unbekannt, bis der Zeitserver antwortet (keine Pufferbatterie). |
 | MQTT | aus, nicht verbunden, verbunden oder vom Broker abgelehnt; verbunden mit Broker, Präfix und der Zahl gesendeter Nachrichten und empfangener Befehle |
 | Zähler | kein Zähler, verbinde …, verbunden oder gestört |
-| Prozessortemperatur | Temperatur im Prozessor der Ladesteuerung in °C; sie liegt etwas über der Luft im Gehäuse. Der Absolutwert kann deutlich abweichen (bis zu 45 °C zwischen zwei Prozessoren). |
+| Prozessortemperatur | Temperatur im Prozessor der Ladesteuerung in °C. Kann um einige Grad abweichen. |
 
 ### 6.3 Fehler
 
