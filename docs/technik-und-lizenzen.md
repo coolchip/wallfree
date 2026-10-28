@@ -49,6 +49,8 @@ Software anderer Autoren:
 | Software | Lizenz | im Firmware-Abbild |
 | --- | --- | --- |
 | Zephyr RTOS | Apache-2.0 | ja |
+| darin HTTP-Parser (`http_parser.c`, `http_parser_url.c`; Joyent und Node-Beitragende, nach NGINX) | MIT | ja |
+| darin `fnmatch.c`, `getopt.c` (aus NetBSD; Regents of the University of California, FreeBSD Foundation) | BSD-3-Clause | ja |
 | CMSIS | Apache-2.0 | ja |
 | STM32Cube HAL/LL (STMicroelectronics) | BSD-3-Clause | ja |
 | Mbed TLS / TF-PSA-Crypto | Apache-2.0 (wahlweise GPL-2.0-or-later; Wallfree nutzt Apache-2.0) | ja |
@@ -59,7 +61,12 @@ Software anderer Autoren:
 
 Die Steuerung liefert die Hinweise selbst aus: Die Seite **System** nennt die Lizenz und verlinkt
 `/lizenzen.txt` ([web/lizenzen.txt](../web/lizenzen.txt)) mit der Liste oben sowie den Texten der
-MIT- und der BSD-Lizenz. Der Text der Apache-Lizenz liegt wegen der Größe nur als Verweis bei
+MIT- und der BSD-Lizenzen. Der Text der Apache-Lizenz liegt wegen der Größe nur als Verweis bei
 (etwa 4 KB im Flash); er steht in [LICENSE](../LICENSE) und gehört zu jeder Veröffentlichung.
 Ebenso gehört `COPYING.picolibc` aus dem Zephyr SDK
 (`gnu/arm-zephyr-eabi/share/licenses/picolibc/`) zu jedem veröffentlichten Abbild.
+
+Geprüft mit `west spdx` (SPDX-Stückliste aller Quelldateien, die ins Abbild gelinkt werden): Bis auf
+die vier Zephyr-Dateien oben steht alles unter den Lizenzen der Tabelle. Nicht erfasst werden die
+vorgebauten Bibliotheken des SDK (picolibc, libgcc) und die Weboberfläche; sie stehen von Hand in
+der Liste.

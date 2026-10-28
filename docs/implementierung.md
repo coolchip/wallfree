@@ -433,14 +433,11 @@ Fuer die spaetere Veroeffentlichung der Firmware vorbereiten:
   `COPYING.picolibc` (Zephyr SDK) beilegen.
 - Lizenzen dateigenau pruefen: `west spdx` (SPDX-Stueckliste der ins Abbild gelinkten Dateien). Ablauf:
   `west spdx --init -d <dir>`, bauen mit `-DCONFIG_BUILD_OUTPUT_META=y` (sonst bricht `west spdx` ab),
-  `west spdx -d <dir>`. Ergebnis 2026-10-28 (`03cc3ee`): Zephyr Apache-2.0 bis auf `http_parser.c` und
-  `http_parser_url.c` (MIT, Joyent und Node-Beitragende, nach NGINX von Igor Sysoev) sowie `fnmatch.c`
-  und `getopt.c` (BSD-3-Clause, Regents of the University of California, FreeBSD Foundation); diese vier
-  fehlen in `web/lizenzen.txt`. STM32Cube ohne SPDX-Kennung in der Datei (Lizenz in `LICENSE.md`,
-  BSD-3-Clause, schon in der Liste); Mbed TLS / TF-PSA-Crypto Apache-2.0 oder GPL-2.0-or-later (schon
-  in der Liste). Nicht erfasst: picolibc und libgcc (vorgebaut im SDK), Weboberflaeche, eigene Dateien
-  unter `lib/` (Paket ohne Dateianalyse; alle eigenen Quellen tragen Apache-2.0). Umgang mit den vier
-  Dateien bespricht der Nutzer.
+  `west spdx -d <dir>`. Ergebnis 2026-10-28: zusaetzlich zur Liste HTTP-Parser (MIT) und `fnmatch.c`,
+  `getopt.c` (BSD-3-Clause, eigener Wortlaut von Klausel 3), in `web/lizenzen.txt` und
+  technik-und-lizenzen.md ergaenzt. STM32Cube-Dateien ohne SPDX-Kennung (Lizenz in `LICENSE.md`).
+  Nicht erfasst: picolibc, libgcc, Weboberflaeche (von Hand in der Liste). Bei neuen Zephyr-Versionen
+  oder Kconfig-Aenderungen wiederholen.
 - Kompletter Simulator auf dem PC (native_sim mit Hardwaremodell, Ersatz-Bootloader, evcc).
 - Vor der Veroeffentlichung: Zeiten der Git-Commits pruefen (Nutzer 2026-10-27; Claude erinnert
   daran, der Nutzer weiss, was gemeint ist).
