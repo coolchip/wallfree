@@ -1,10 +1,10 @@
 # Wallfree
 
 Freie Ersatzfirmware für die Ladesteuerung **EV-CC-AC1-M3-CBC-RCM-ETH** (STM32F207VET6),
-wie sie u. a. in der wallbe eco 2.0 verbaut ist. Zielgruppe: versierte Anwender.
+wie sie u. a. in der wallbe Eco 2.0 verbaut ist. Zielgruppe: versierte Anwender.
 
 **Status:** Firmware vollständig nach Spezifikation implementiert und auf dem PC getestet
-(Unit-Tests, Ende-zu-Ende-Simulation, Browser, evcc). Auf einer Steuerung (Testgerät) **ohne Last**
+(Unit-Tests, Ende-zu-Ende-Simulation, Browser, evcc). An der Steuerung einer wallbe Eco 2.0 **ohne Last**
 geprüft: Ein-/Ausgänge, Verriegelung, Netz unter Last, MQTT, evcc ohne Fahrzeug, Update über
 die Weboberfläche und Rückweg zur Originalfirmware. **Laden (CP-PWM, Schütz) ist auf Hardware
 noch nicht geprüft.**
@@ -82,7 +82,7 @@ Rückweg Schritt für Schritt: [Umrüsten auf Wallfree und zurück](docs/umruest
 | [docs/pruefstecker.md](docs/pruefstecker.md) | Prüfstecker (Bauanleitung) und Prüfablauf mit Fahrzeugnachbildung |
 | [docs/vergleich-weboberflaeche.md](docs/vergleich-weboberflaeche.md) | Weboberfläche vorher und nachher: was aus den Seiten der Originaloberfläche wird |
 | [docs/anleitung/weboberflaeche.md](docs/anleitung/weboberflaeche.md) | Bedienungsanleitung der Weboberfläche (PDF: `scripts/anleitung-pdf.sh`) |
-| [boards/phoenix/ev_cc_ac1/](boards/phoenix/ev_cc_ac1/) | Zephyr-Board-Beschreibung (Pins aus der Originalfirmware, am Testgerät bis auf Schütz und PWM bestätigt) |
+| [boards/phoenix/ev_cc_ac1/](boards/phoenix/ev_cc_ac1/) | Zephyr-Board-Beschreibung (Pins aus der Originalfirmware, an einer wallbe Eco 2.0 bis auf Schütz und PWM bestätigt) |
 | [app/](app/) | Anwendung für die Steuerung: Hardwareschicht, Threads, Shell; zusätzlich als PC-Simulation |
 | [spike-size/](spike-size/) | Größentest (nur bauen) |
 | [include/wallfree/evse/](include/wallfree/evse/), [lib/evse/](lib/evse/) | Ladelogik als Zephyr-Modul, reines C ohne Hardwarebezug |

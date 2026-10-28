@@ -2,7 +2,7 @@
 
 Diese Anleitung beschreibt, wie man Wallfree auf die Ladesteuerung EV-CC-AC1-M3-CBC-RCM-ETH
 aufspielt und später wieder zur Originalfirmware zurückkehrt. Beides geht über die Weboberfläche,
-ohne das Gehäuse zu öffnen und ohne weitere Geräte. Die Schritte sind an einer Steuerung (Testgerät)
+ohne das Gehäuse zu öffnen und ohne weitere Geräte. Die Schritte sind an der Steuerung einer wallbe Eco 2.0
 durchgeführt worden, ohne Fahrzeug und ohne Last. Was Wallfree anders macht, steht in
 [Unterschiede zur Originalfirmware](unterschiede-originalfirmware.md).
 
