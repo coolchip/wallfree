@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Netz- und Systemparameter der Anwendung (10.1 net_*, telnet_enable,
- * meter_*, mqtt_*). Gespeicherte Werte wirken nach einem Neustart; bis dahin
+ * Netz- und Systemparameter der Anwendung (10.1 net_*, meter_*, mqtt_*,
+ * ntp_*, mcu_temp_offset). Gespeicherte Werte wirken nach einem Neustart; bis dahin
  * laeuft die beim Start angewandte Konfiguration weiter. Ausnahme mqtt_*:
  * sofort (SOLL-MQTT-31).
  */
@@ -10,7 +10,7 @@
 
 #include <wallfree/api/sysconf.h>
 
-/** Beim Start nach storage_init(): laden, Hostname/Adresse/Telnet anwenden. */
+/** Beim Start nach storage_init(): laden, Hostname und Adresse anwenden. */
 void netcfg_init(void);
 
 /** Letzte 3 Byte der MAC als 6 Hexziffern (uid, Hostname, MQTT-Praefix). */

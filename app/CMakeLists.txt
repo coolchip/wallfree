@@ -17,6 +17,7 @@ target_sources(app PRIVATE
   src/main.c
   src/evse_task.c
   src/shell_evse.c
+  src/shell_web.c
   src/storage.c
   src/auth.c
   src/http_api.c

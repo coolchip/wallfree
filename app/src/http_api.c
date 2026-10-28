@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
  * HTTP- und WebSocket-API (Soll-Spezifikation 12.1, SOLL-API-01..07/30,
- * Zaehler SOLL-MTR-30/31, MQTT-Status SOLL-MQTT-30), Umfang fuer evcc ueber die Vorlage
- * tinkerforge-warp-ws.
+ * Zaehler SOLL-MTR-30/31, MQTT-Status SOLL-MQTT-30, Konsole SOLL-SH-19), Umfang fuer evcc
+ * ueber die Vorlage tinkerforge-warp-ws.
  *
  *  - Alle Ressourcen mit HTTP-Digest (MD5, qop=auth). Im Werkszugang
  *    beantwortet die API nur /credentials, sonst 403.
@@ -43,6 +43,7 @@
 #include "mqtt_task.h"
 #include "netcfg.h"
 #include "http_api.h"
+#include "shell_web.h"
 #include "storage.h"
 #include "sysinfo.h"
 
@@ -50,7 +51,7 @@ LOG_MODULE_REGISTER(http_api, LOG_LEVEL_INF);
 
 #define HTTP_PORT      CONFIG_WALLFREE_HTTP_PORT
 #define BODY_MAX       1024
-#define OUT_MAX        1536
+#define OUT_MAX        2048  /* auch Ausgabe der Konsole (SOLL-SH-19) */
 #define WS_MAX         3     /* SOLL-API-07: mindestens 2 */
 #define WS_PERIOD_MS   100
 #define WS_STACK       2048
@@ -216,9 +217,9 @@ static bool gate(struct http_client_ctx *client, struct res *r,
 	return true;
 }
 
-static int dyn_cb(struct http_client_ctx *client, enum http_transaction_status status,
-		  const struct http_request_ctx *req, struct http_response_ctx *rsp,
-		  void *user_data)
+static int dyn_step(struct http_client_ctx *client, enum http_transaction_status status,
+		    const struct http_request_ctx *req, struct http_response_ctx *rsp,
+		    void *user_data)
 {
 	struct res *r = user_data;
 
@@ -262,6 +263,18 @@ static int dyn_cb(struct http_client_ctx *client, enum http_transaction_status s
 	}
 	r->fn(client, r, rsp);
 	return 0;
+}
+
+/* SOLL-RT-11: jeder Aufruf wird auf seine Dauer ueberwacht */
+static int dyn_cb(struct http_client_ctx *client, enum http_transaction_status status,
+		  const struct http_request_ctx *req, struct http_response_ctx *rsp,
+		  void *user_data)
+{
+	evse_task_http_busy(true);
+	int ret = dyn_step(client, status, req, rsp, user_data);
+
+	evse_task_http_busy(false);
+	return ret;
 }
 
 #define JSON_RESOURCE(_id, _path, _methods, _fn, _factory, _body)                                  \
@@ -655,7 +668,7 @@ static void credentials(struct http_client_ctx *client, struct res *r,
 
 JSON_RESOURCE(credentials_r, "/credentials", BIT(HTTP_GET) | BIT(HTTP_POST), credentials, true, 256);
 
-/* ------------------------------------------------ /system (10.1 net_*, telnet_enable) */
+/* ------------------------------------------------ /system (10.1 net_*, Konsole) */
 
 static void system_config(struct http_client_ctx *client, struct res *r,
 			  struct http_response_ctx *rsp)
@@ -857,6 +870,46 @@ JSON_RESOURCE(system_config_info_r, "/system/config_info", BIT(HTTP_GET), system
 JSON_RESOURCE(system_restart_r, "/system/restart", BIT(HTTP_POST), system_restart, false, 16);
 JSON_RESOURCE(system_update_r, "/system/update", BIT(HTTP_POST), system_update, false, 16);
 
+/* SOLL-SH-19: Konsole, eine Kommandozeile je Anfrage, Ausgabe als Text */
+#define SHELL_LINE_MAX (CONFIG_SHELL_CMD_BUFF_SIZE - 1)
+#define SHELL_CUT_NOTE "\n[Ausgabe gekürzt]\n"
+
+static void system_shell(struct http_client_ctx *client, struct res *r,
+			 struct http_response_ctx *rsp)
+{
+	ARG_UNUSED(client);
+	bool cut;
+
+	while (r->body_len > 0 && (r->body[r->body_len - 1] == '\n' ||
+				   r->body[r->body_len - 1] == '\r')) {
+		r->body[--r->body_len] = '\0';
+	}
+	int n = shell_web_exec(r->body, out, sizeof(out) - sizeof(SHELL_CUT_NOTE) + 1, &cut);
+
+	if (n < 0) {
+		n = snprintf(out, sizeof(out), "Konsole belegt\n");
+		respond(rsp, HTTP_409_CONFLICT, (size_t)n);
+		return;
+	}
+	if (cut) {
+		strcpy(out + n, SHELL_CUT_NOTE);
+		n += sizeof(SHELL_CUT_NOTE) - 1;
+	}
+	respond(rsp, HTTP_200_OK, (size_t)n);
+}
+
+static char system_shell_body[SHELL_LINE_MAX + 1];
+static struct res system_shell_res = {.fn = system_shell, .body = system_shell_body,
+				      .body_size = sizeof(system_shell_body)};
+static struct http_resource_detail_dynamic system_shell_detail = {
+	.common = {.type = HTTP_RESOURCE_TYPE_DYNAMIC,
+		   .bitmask_of_supported_http_methods = BIT(HTTP_POST),
+		   .content_type = "text/plain; charset=utf-8"},
+	.cb = dyn_cb,
+	.user_data = &system_shell_res,
+};
+HTTP_RESOURCE_DEFINE(system_shell_r, wallfree_http, "/system/shell", &system_shell_detail);
+
 /* ------------------------------------------------ /mqtt/state (SOLL-MQTT-30) */
 
 static void mqtt_state(struct http_client_ctx *client, struct res *r,
@@ -902,9 +955,8 @@ static uint32_t ws_peer(const struct http_request_ctx *req)
 	return peer_addr(c->fd);
 }
 
-static int ws_setup(int sock, struct http_request_ctx *req, void *user_data)
+static int ws_attach(int sock, struct http_request_ctx *req)
 {
-	ARG_UNUSED(user_data);
 	int64_t wait_ms;
 	enum wf_auth a = checked_auth(ws_peer(req), find_header(req, "Authorization"), "GET", "/ws",
 				      &wait_ms);
@@ -926,6 +978,16 @@ static int ws_setup(int sock, struct http_request_ctx *req, void *user_data)
 	k_mutex_unlock(&ws_mtx);
 	LOG_WRN("WebSocket: alle %d Plaetze belegt", WS_MAX);
 	return -ENOMEM;
+}
+
+static int ws_setup(int sock, struct http_request_ctx *req, void *user_data)
+{
+	ARG_UNUSED(user_data);
+	evse_task_http_busy(true); /* SOLL-RT-11 */
+	int ret = ws_attach(sock, req);
+
+	evse_task_http_busy(false);
+	return ret;
 }
 
 static struct http_resource_detail_websocket ws_detail = {

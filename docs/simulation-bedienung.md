@@ -2,7 +2,8 @@
 
 Die ganze Firmware laeuft als Linux-Programm (`native_sim`) mit einem Modell der Hardware:
 Fahrzeug, Kabel, Eingaenge, Fehlerstromsensor, Verriegelungsaktor und Schuetz. Weboberflaeche,
-HTTP-API, WebSocket und Telnet-Shell sind dieselben wie auf der Steuerung. Was die Simulation
+HTTP-API, WebSocket und Konsole sind dieselben wie auf der Steuerung; zusaetzlich gibt es hier eine
+Telnet-Shell fuer das Modell (auf der Steuerung nicht). Was die Simulation
 nicht abbildet: [Test und Simulation](test-und-simulation.md#abweichungen-der-simulation-von-der-steuerung).
 
 ## Starten
@@ -17,7 +18,7 @@ scripts/sim-run.sh [--build] [--dip=<maske>] [--rotary=<pos>] [--http-port=<port
 | `--dip=<maske>` | DIP-Schalter D1..D10 als Bitmaske, Bit 0 = D1 (Beispiele unten) | 0 (alle aus) |
 | `--rotary=<pos>` | Drehschalter 0..15 (0 = 5 %, 1..9 = 6/10/13/16/20/32/63/70/80 A, 10..15 = Fehler) | 6 (32 A) |
 | `--http-port=<port>` | Port fuer Weboberflaeche und API | 8081 |
-| `--reset-button=<ms>` | Reset-Taster beim Start so lange halten (>= 5000 = Werksreset) | 0 |
+| `--reset-button=<ms>` | Reset-Taster beim Programmstart so lange halten: 5000..9999 = Uebergabe an den Bootloader, ab 10000 = Werksreset; gilt nicht fuer Neustarts der Firmware | 0 |
 
 DIP und Drehschalter gelten wie auf der Steuerung nur beim Start. Haeufige DIP-Masken:
 
@@ -33,14 +34,14 @@ Danach erreichbar:
 
 - Weboberflaeche und API: `http://127.0.0.1:8081/` (Werkszugang `admin` / `wallfree`; beim
   ersten Aufruf muss das Passwort geaendert werden)
-- Telnet-Shell: `telnet 127.0.0.1 2323` (ohne Anmeldung)
+- Telnet-Shell: `telnet 127.0.0.1 2323` (ohne Anmeldung, nur in der Simulation); dieselben Kommandos
+  auch in der Weboberflaeche unter System -> Konsole (Expertenansicht)
 
 Die Einstellungen liegen in `build/sim-flash.bin` und bleiben ueber Neustarts erhalten; Datei
 loeschen = fabrikneu. **Achtung:** `scripts/evcc-sim.sh` setzt bei einer fabrikneuen Datei die
 Zugangsdaten `evcc` / `evcc-sim-test` (wie in `tools/evcc/evcc.yaml`); sie gelten danach auch
 fuer die Weboberflaeche. Passt keiner der beiden Zugaenge, Datei loeschen oder mit
-`--reset-button=6000` starten (beides setzt alle Einstellungen zurueck; die Option wirkt bei jedem
-Start, also danach ohne sie starten). Fragt der Browser danach nicht nach dem Werkszugang, schickt
+`--reset-button=11000` starten (beides setzt alle Einstellungen zurueck). Fragt der Browser danach nicht nach dem Werkszugang, schickt
 er noch die alten Zugangsdaten: neuen Tab oder privates Fenster oeffnen. Beenden mit Strg+C im Terminal der Simulation. Ein Neustart ueber die
 Oberflaeche oder `evse reboot` startet den Prozess selbst neu; das Modell (z. B. angestecktes
 Fahrzeug) bleibt dabei erhalten.
@@ -82,6 +83,7 @@ Die Ladelogik selbst bedient man mit `evse ...` (`evse help`).
 | `sim link <0\|1>` | Netzverbindung fuer die Netzwerk-LED |
 | `sim supply <mV>` | Versorgungsmessung (unter 9000 -> Warnung) |
 | `sim hang` | Messbloecke anhalten; die Ueberwachung muss nach 50 ms zuruecksetzen |
+| `sim sleep <ms>` | aufrufenden Thread blockieren; ueber die Konsole der Weboberflaeche haelt das den HTTP-Server an (Ueberwachung nach 10 s, Neustart nur ohne Ladevorgang) |
 | `sim meter <ok\|off\|frame\|flaky\|bad>` | simulierter Energiezaehler (nur mit `meter_type` != 0): normal, keine Antwort, gestoerte Telegramme, jede zweite Anfrage ohne Antwort, Spannung ausserhalb der Grenze |
 | `sim meter energy <Wh>` | Zaehlerstand setzen (kleiner als bisher -> Ereignis "Zaehlerstand gesunken") |
 
@@ -153,4 +155,4 @@ mosquitto_pub -t wallfree/000000/evse/external_current_update -m 10000
 
 In der Oberflaeche unter Einstellungen/MQTT, dort auch der Verbindungszustand.
 
-**Werksreset:** `scripts/sim-run.sh --reset-button=6000` (Werkszugang danach wieder aktiv).
+**Werksreset:** `scripts/sim-run.sh --reset-button=11000` (Werkszugang danach wieder aktiv).

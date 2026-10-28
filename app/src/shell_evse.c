@@ -52,12 +52,17 @@ static const char *kind_name(uint8_t k)
 	return k == EVSE_PK_CONFIG ? "cfg" : k == EVSE_PK_RUNTIME ? "rt" : "ro";
 }
 
+/* optional nur Namen mit diesem Anfang: die ganze Liste passt nicht in die Konsole */
 static int cmd_param_list(const struct shell *sh, size_t argc, char **argv)
 {
-	ARG_UNUSED(argc);
-	ARG_UNUSED(argv);
+	const char *pre = argc > 1 ? argv[1] : "";
+
 	for (size_t i = 0; i < evse_param_count(); i++) {
 		const struct evse_param *p = evse_param_at(i);
+
+		if (strncmp(p->name, pre, strlen(pre)) != 0) {
+			continue;
+		}
 		struct evse *e = evse_acquire();
 		int32_t v = evse_param_get(e, p);
 
@@ -551,6 +556,55 @@ static int cmd_sys_set(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+/*
+ * SOLL-SH-21: Ersatz fuer Zephyrs kernel thread stacks, nur lesend (kernel enthaelt auch
+ * suspend/kill). Ohne Sperre durchlaufen wie dort: die Ausgabe darf nicht unter
+ * gesperrten Interrupts laufen.
+ */
+static void thread_line(const struct k_thread *t, void *user_data)
+{
+	const struct shell *sh = user_data;
+	size_t size = t->stack_info.size, unused;
+	const char *name = k_thread_name_get((struct k_thread *)t);
+
+	if (k_thread_stack_space_get(t, &unused) != 0) {
+		unused = size;
+	}
+	shell_print(sh, "%-20s %4d %5u/%-5u %3u %%", name != NULL && name[0] ? name : "?",
+		    k_thread_priority_get((struct k_thread *)t), (unsigned int)(size - unused),
+		    (unsigned int)size, size ? (unsigned int)((size - unused) * 100 / size) : 0);
+}
+
+K_KERNEL_STACK_ARRAY_DECLARE(z_interrupt_stacks, CONFIG_MP_MAX_NUM_CPUS, CONFIG_ISR_STACK_SIZE);
+
+static int cmd_threads(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	shell_print(sh, "%-20s %4s %11s", "Thread", "Prio", "Stack");
+	k_thread_foreach_unlocked(thread_line, (void *)sh);
+#ifndef CONFIG_ARCH_POSIX
+	/* Interrupt-Stack: ungenutzte Bytes ab dem unteren Ende (CONFIG_INIT_STACKS) */
+	const uint8_t *buf = K_KERNEL_STACK_BUFFER(z_interrupt_stacks[0]);
+	size_t size = K_KERNEL_STACK_SIZEOF(z_interrupt_stacks[0]), unused = 0;
+
+	while (unused < size && buf[unused] == 0xaa) {
+		unused++;
+	}
+	shell_print(sh, "%-20s %4s %5u/%-5u %3u %%", "IRQ", "", (unsigned int)(size - unused),
+		    (unsigned int)size, (unsigned int)((size - unused) * 100 / size));
+#endif
+	return 0;
+}
+
+static int cmd_uptime(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	shell_print(sh, "Laufzeit %lld ms", (long long)k_uptime_get());
+	return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_errors,
 	SHELL_CMD_ARG(clear, NULL, "quittieren (nur Schuetzfehler; andere loeschen sich selbst)",
 		      cmd_errors_clear, 1, 0),
@@ -563,7 +617,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_sys,
 	SHELL_SUBCMD_SET_END);
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_param,
-	SHELL_CMD_ARG(list, NULL, "alle Parameter", cmd_param_list, 1, 0),
+	SHELL_CMD_ARG(list, NULL, "[Anfang] Parameter, optional nur Namen mit diesem Anfang",
+		      cmd_param_list, 1, 1),
 	SHELL_CMD_ARG(get, NULL, "<name>", cmd_param_get, 2, 0),
 	SHELL_CMD_ARG(set, NULL, "<name> <wert>", cmd_param_set, 3, 0),
 	SHELL_SUBCMD_SET_END);
@@ -591,6 +646,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_evse,
 	SHELL_CMD_ARG(nvm, NULL, "Zustand des Parameterspeichers", cmd_nvm, 1, 0),
 	SHELL_CMD_ARG(meter, NULL, "Energiezaehler: Messwerte und Fehlerzaehler", cmd_meter, 1, 0),
 	SHELL_CMD_ARG(mqtt, NULL, "MQTT: Verbindung und Zaehler", cmd_mqtt, 1, 0),
+	SHELL_CMD_ARG(threads, NULL, "Threads mit Prioritaet und Stack-Auslastung", cmd_threads, 1, 0),
+	SHELL_CMD_ARG(uptime, NULL, "Laufzeit seit dem Start", cmd_uptime, 1, 0),
 	SHELL_CMD_ARG(factory-reset, NULL, "confirm: Werkseinstellungen und Neustart",
 		      cmd_factory_reset, 1, 1),
 	SHELL_CMD_ARG(import-original, NULL, "Einstellungen aus der Originalfirmware uebernehmen",

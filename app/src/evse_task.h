@@ -49,11 +49,15 @@ enum evse_iface {
 	EVSE_IFACE_STORAGE = 0,
 	EVSE_IFACE_WS,
 	EVSE_IFACE_SYSWORKQ,
+	EVSE_IFACE_HTTP, /* meldet Beginn und Ende jedes Aufrufs (evse_task_http_busy) */
 	EVSE_IFACE_COUNT,
 };
 
 /** Lebenszeichen eines Schnittstellen-Threads (Limit 10 s). */
 void evse_task_iface_beat(enum evse_iface id);
+
+/** HTTP-Server betritt (true) bzw. verlaesst einen Aufruf der Anwendung (Limit 10 s je Aufruf). */
+void evse_task_http_busy(bool busy);
 
 /**
  * Naechstes Ereignis (SOLL-ERR-10) ab Nummer @p *seq, siehe wf_ev_ring_get.

@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Netz- und Systemparameter der Anwendung (Soll-Spezifikation 10.1: net_*,
- * telnet_enable, meter_*, mqtt_*, ntp_*, mcu_temp_offset; F20, F25, F28, F30). Reines C ohne Netzwerk:
- * Pruefung, JSON, Kodierung fuer den Parameterspeicher (Kennungen 3010..),
+ * meter_*, mqtt_*, ntp_*, mcu_temp_offset; F25, F28, F30). Reines C ohne Netzwerk:
+ * Pruefung, JSON, Kodierung fuer den Parameterspeicher (Kennungen 3010..; 3015 war
+ * telnet_enable, SOLL-SH-19, und bleibt frei),
  * Import aus dem Originalbereich. Aenderungen wirken nach einem Neustart,
  * ab Kennung 3020 sofort (SOLL-MQTT-31, wf_sys_take_live).
  */
@@ -31,7 +32,6 @@ struct wf_sysconf {
 	uint32_t netmask;
 	uint32_t gateway;   /**< 0 = kein Gateway */
 	char hostname[WF_HOSTNAME_MAX + 1]; /**< "" = automatisch wallfree-<MAC-Ende> */
-	bool telnet;
 	uint8_t meter_type;     /**< enum meter_type, 0 = kein Zaehler */
 	uint8_t meter_addr;     /**< 1..247 */
 	uint32_t meter_baud;

@@ -72,10 +72,9 @@ static void reboot_work_fn(struct k_work *w);
 static K_WORK_DELAYABLE_DEFINE(reboot_work, reboot_work_fn);
 
 /*
- * Kein LOG_PANIC: das Telnet-Log-Backend bricht dabei seine Sende-Arbeit mit
- * k_work_cancel_delayable_sync() auf der Systemworkqueue ab, in der dieser
- * Ablauf selbst laeuft (Selbstblockade bei verbundenem Telnet-Client, erst
- * der IWDG beendete sie; gefunden im PC-Test). Stattdessen bekommt der
+ * Kein LOG_PANIC: ein Shell-Log-Backend (frueher Telnet) bricht dabei seine Sende-Arbeit
+ * mit k_work_cancel_delayable_sync() auf der Systemworkqueue ab, in der dieser Ablauf
+ * selbst laeuft (Selbstblockade, gefunden im PC-Test). Stattdessen bekommt der
  * Log-Thread nach der Meldung REBOOT_LOG_MS zum Ausgeben.
  */
 #define REBOOT_LOG_MS 200
@@ -310,11 +309,24 @@ void evse_task_wdt_feed(void)
 #define IFACE_LIMIT_MS 10000
 
 static atomic_t iface_beat[EVSE_IFACE_COUNT];
-static const char *const iface_names[EVSE_IFACE_COUNT] = {"storage", "ws_push", "sysworkq"};
+static const char *const iface_names[EVSE_IFACE_COUNT] = {"storage", "ws_push", "sysworkq",
+								  "http_server"};
+static const enum wf_reset_detail iface_detail[EVSE_IFACE_COUNT] = {
+	WF_RSTD_IFACE_STORAGE, WF_RSTD_IFACE_WS, WF_RSTD_IFACE_SYSWORKQ, WF_RSTD_IFACE_HTTP};
+static atomic_t http_busy; /* HTTP-Server steckt in einem Aufruf der Anwendung */
 
 void evse_task_iface_beat(enum evse_iface id)
 {
 	atomic_set(&iface_beat[id], (atomic_val_t)k_uptime_get_32());
+}
+
+/* HTTP-Server: meldet sich nicht zyklisch; ueberwacht wird die Dauer jedes Aufrufs */
+void evse_task_http_busy(bool busy)
+{
+	if (busy) {
+		evse_task_iface_beat(EVSE_IFACE_HTTP);
+	}
+	atomic_set(&http_busy, busy);
 }
 
 static void sysworkq_beat_fn(struct k_work *w);
@@ -338,6 +350,9 @@ static void check_ifaces(uint32_t now32)
 	int hung = -1;
 
 	for (int i = 0; i < EVSE_IFACE_COUNT; i++) {
+		if (i == EVSE_IFACE_HTTP && !atomic_get(&http_busy)) {
+			continue;
+		}
 		if (now32 - (uint32_t)atomic_get(&iface_beat[i]) > IFACE_LIMIT_MS) {
 			hung = i;
 		}
@@ -359,8 +374,7 @@ static void check_ifaces(uint32_t now32)
 
 	k_mutex_unlock(&ev_mtx);
 	if (idle) {
-		/* Reihenfolge von iface_names wie WF_RSTD_IFACE_* */
-		hw_reset_detail((enum wf_reset_detail)(WF_RSTD_IFACE_STORAGE + hung));
+		hw_reset_detail(iface_detail[hung]);
 		hw_reset_with(WF_RST_NET_HANG);
 	}
 }

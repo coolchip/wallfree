@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Netz-Lasttest gegen eine laufende Steuerung (Testgeraet) oder die Simulation.
 
-Nur Python-Standardbibliothek; liest nur (GET, WebSocket, Telnet-Diagnose), schreibt keine
-Parameter. Vor und nach jeder Stufe ein Schnappschuss (Laufzeit, Resetgrund, `kernel thread stacks`,
-mit Netz-Shell auch `net conn`); ein Neustart zwischen zwei Schnappschuessen gilt als Fehler.
-    net-load.py HOST -u USER:PW [--http 80] [--telnet 23] STUFE [STUFE ...] [-t SEK]
+Nur Python-Standardbibliothek; liest nur (GET, WebSocket, Konsole `evse threads`), schreibt keine
+Parameter. Vor und nach jeder Stufe ein Schnappschuss (Laufzeit, Resetgrund, Stack-Auslastung);
+ein Neustart zwischen zwei Schnappschuessen gilt als Fehler.
+    net-load.py HOST -u USER:PW [--http 80] STUFE [STUFE ...] [-t SEK]
 Stufen:
     snap    nur Schnappschuss
     http    -n Abfrager (Default 4) ohne Pause, je Anfrage eine neue Verbindung
@@ -19,7 +19,7 @@ Stufen:
             daneben alle 0,5 s eine Anfrage mit neuer Verbindung, groesste Luecke;
             nur auf der Steuerung aussagekraeftig (Simulation trennt ruhende Verbindungen nie)
     long    Dauerlast wie Browser + evcc (2 WebSockets, Abfrage alle 2 s, Seite alle 60 s),
-            alle 5 min Laufzeit ueber HTTP (ohne Telnet)
+            alle 5 min Laufzeit
 """
 import argparse
 import base64
@@ -98,7 +98,7 @@ class Stats:
 
 class Target:
     def __init__(self, a):
-        self.host, self.http, self.telnet = a.host, a.http, a.telnet
+        self.host, self.http = a.host, a.http
         self.user, _, self.pw = a.user.partition(":")
 
     # ------------------------------------------------------------ HTTP
@@ -133,50 +133,26 @@ class Target:
             raise RuntimeError(f"/system/info: {st}")
         return json.loads(body)
 
-    # ------------------------------------------------------------ Telnet
-    def shell(self, cmds, timeout=8):
-        """Kommandos ausfuehren, Ausgabe roh; schonend trennen (FIN nach Lesen, sonst
-        blockiert Zephyr 4.4.2 die Systemworkqueue, implementierung.md Fallstricke)."""
-        s = socket.create_connection((self.host, self.telnet), timeout=3)
-        buf = b""
-
-        def read(until, t):
-            nonlocal buf
-            end = time.monotonic() + t
-            s.settimeout(0.2)
-            while time.monotonic() < end:
-                try:
-                    d = s.recv(4096)
-                    if not d:
-                        break
-                    buf += d
-                except socket.timeout:
-                    pass
-                if until(clean(buf)):
-                    break
-
-        s.sendall(b"\r\n")
-        read(lambda t: t.rstrip().endswith("~$"), 3)
-        buf = b""
-        s.sendall("".join(c + "\r\n" for c in cmds).encode() + b"kernel uptime\r\n")
-        read(lambda t: re.search(r"Uptime: \d+ ms", t) is not None, timeout)
-        read(lambda t: False, 0.3)
-        try:
-            s.shutdown(socket.SHUT_WR)
-            s.settimeout(1)
-            while s.recv(4096):
-                pass
-        except OSError:
-            pass
-        s.close()
-        return clean(buf)
-
-
-def clean(b):
-    b = re.sub(rb"\xff[\xfb-\xfe].", b"", b)
-    b = re.sub(rb"\xff.", b"", b)
-    t = b.decode(errors="replace")
-    return re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", t).replace("\r", "")
+    # ------------------------------------------------------------ Konsole (SOLL-SH-19)
+    def shell(self, cmd, timeout=8):
+        """Ein Kommando ueber POST /system/shell, Ausgabe als Text."""
+        auth = Digest(self.user, self.pw)
+        for _ in range(2):
+            c = self.conn(timeout)
+            try:
+                h = {"Authorization": auth.header("POST", "/system/shell")} if auth.nonce else {}
+                c.request("POST", "/system/shell", body=cmd.encode(), headers=h)
+                r = c.getresponse()
+                body = r.read().decode(errors="replace")
+            finally:
+                c.close()
+            if r.status == 401 and _ == 0:
+                auth.take(r.getheader("WWW-Authenticate"))
+                continue
+            if r.status != 200:
+                raise RuntimeError(f"/system/shell: {r.status} {body}")
+            return body
+        raise RuntimeError("/system/shell: Anmeldung abgelehnt")
 
 
 class WebSocket:
@@ -236,19 +212,13 @@ class WebSocket:
 # ---------------------------------------------------------------- Stufen
 def snapshot(t, label):
     i = t.info()
-    # net conn nur mit CONFIG_NET_SHELL (seit 2026-10-26 aus); sonst ohne TCP-Zustaende
-    out = t.shell(["net conn", "kernel thread stacks"])
-    tcp = out.partition("Send-Seq")[2].partition("\n\n")[0]
-    states = {}
-    for m in re.finditer(r"^0x[0-9a-f]+\s+0x[0-9a-f]+\s.*?(\w+)\s*$", tcp, re.M):
-        states[m.group(1)] = states.get(m.group(1), 0) + 1
-    ctx = len(re.findall(r"^\[\s*\d+\] 0x[0-9a-f]+\s+\d", out.partition("Handler")[0], re.M))
-    states["Kontexte"] = ctx  # von CONFIG_NET_MAX_CONTEXTS
-    stacks = {m.group(1): (int(m.group(2)), int(m.group(3))) for m in re.finditer(
-        r"0x[0-9a-f]+\s+(.+?)\s+\(real size\s+(\d+)\):\s+unused\s+(\d+)", out)}
+    out = t.shell("evse threads")
+    # Zeile: Name, Prioritaet (fehlt bei IRQ), benutzt/Groesse, Prozent
+    stacks = {m.group(1): (int(m.group(3)), int(m.group(3)) - int(m.group(2))) for m in re.finditer(
+        r"^(\S+)\s+(?:-?\d+\s+)?(\d+)/(\d+)\s+\d+ %$", out, re.M)}
     used = ", ".join(f"{k} {sz - un}/{sz}" for k, (sz, un) in sorted(stacks.items()))
     print(f"[{label}] Laufzeit {i['uptime_ms'] / 1000:.0f} s, Reset {i['reset_reason']}, "
-          f"Firmware {i['firmware']}" + (f", TCP {states}" if ctx else ""))
+          f"Firmware {i['firmware']}")
     print(f"[{label}] Stacks: {used}")
     return {"uptime_ms": i["uptime_ms"], "stacks": stacks, "shell": out}
 
@@ -506,7 +476,6 @@ def stage_long(t, a):
     t0, ok, last = time.monotonic(), True, None
     while time.monotonic() - t0 < a.t:
         time.sleep(min(300, a.t - (time.monotonic() - t0)))
-        # nur HTTP: Telnet-Ausgabe haelt unter Last HTTP und WebSocket mehrere s auf (Fallstricke)
         i = t.info()
         snap = {"uptime_ms": i["uptime_ms"]}
         print(f"[long {(time.monotonic() - t0) / 60:.0f} min] Laufzeit {i['uptime_ms'] / 1000:.0f} s, "
@@ -533,7 +502,6 @@ def main():
     p.add_argument("stages", nargs="+")
     p.add_argument("-u", "--user", required=True, help="USER:PW")
     p.add_argument("--http", type=int, default=80)
-    p.add_argument("--telnet", type=int, default=23)
     p.add_argument("-t", type=float, default=60, help="Dauer je Stufe in s")
     p.add_argument("-n", type=int, default=4, help="Abfrager bei http/keep/mixed")
     a = p.parse_args()

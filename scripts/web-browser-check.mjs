@@ -127,6 +127,13 @@ out.settings = await go('#/einstellungen/zaehler');
 await shot('3b-einstellungen-zaehler');
 out.settingsNet = await go('#/einstellungen/netzwerk');
 out.system = await go('#/system');
+// Konsole (SOLL-SH-19): Kommando eingeben und ausfuehren
+await evalJs(`(() => { const e = document.querySelector('input[aria-label=Kommando]');
+	e.value = 'evse status'; e.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+await sleep(100);
+out.consoleClick = await click('Ausführen');
+await sleep(1500);
+out.console = await evalJs("(document.querySelector('pre.console') || {}).innerText || ''");
 await evalJs('history.back()');
 await sleep(1500);
 out.back = await evalJs('location.hash');
@@ -248,9 +255,11 @@ const checks = [
 	['Status: Ladestrom als Werte', out.expert.includes('Maximum Drehschalter') && out.expert.includes('Erlaubt')],
 	['Status: Verlauf ohne Ablesezeile, Hinweis nur beim Zeigen', !out.tipBefore && out.history.includes('jetzt')],
 	['Status: Verlauf (laufendes Intervall)', /jetzt .* · (lädt|angesteckt)/.test(out.history)],
-	['Einstellungen Netzwerk ohne Zustandszeile', out.settingsNet.includes('DHCP') && out.settingsNet.includes('Telnet')
+	['Einstellungen Netzwerk ohne Zustandszeile', out.settingsNet.includes('DHCP') && !out.settingsNet.includes('Telnet')
 		&& !out.settingsNet.includes('Broker') && !out.settingsNet.includes('Aktiv:')],
 	['System', out.system.includes('Firmware') && out.system.includes('Neu starten')],
+	['System: Konsole (Expertenansicht)', out.consoleClick && out.console.includes('› evse status')
+		&& out.console.includes('Zustand  S')],
 	['System: Lizenzhinweis', out.system.includes('Apache License 2.0') && out.system.includes('Lizenzhinweise')],
 	['Zurueck-Taste', out.back === '#/einstellungen/netzwerk'],
 	['Ereignisprotokoll mit Loeschen', out.expert2.includes('Protokoll löschen')],

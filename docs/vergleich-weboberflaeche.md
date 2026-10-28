@@ -39,8 +39,7 @@ Die Funktionen der Ein- und Ausgänge stehen unter **Einstellungen → Laden**, 
 
 **Original:** MAC, DHCP, Adresse, Maske und Gateway in je vier Feldern, Gerätename, Seriennummer.
 
-**Wallfree:** **Einstellungen → Netzwerk** mit DHCP oder fester Adresse, Hostname, Zeitserver
-und dem Schalter für die Telnet-Shell. Aktive Adresse und Uhrzeit zeigt **Status → Verbindungen**,
+**Wallfree:** **Einstellungen → Netzwerk** mit DHCP oder fester Adresse, Hostname und Zeitserver. Aktive Adresse und Uhrzeit zeigt **Status → Verbindungen**,
 die MAC-Adresse steht unter System.
 
 ![Einstellungen Netzwerk](anleitung/bilder/einstellungen-netzwerk.png)

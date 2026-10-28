@@ -190,7 +190,7 @@ DIP/Drehschalter-Bitfolge. H2 – CP/PX-Skalierung mit EV-Simulator.
 | Schutz-ISR | Interrupt hoechster Anwendungsprioritaet (EXTI3/EXTI4/EXTI9_5 fuer PE3/PE4/PE6, EXTI0 fuer PE0) | Ereignis | Fehlerstrom -> Schuetz sofort aus; Sense-Zeitstempel |
 | Schutzthread | Thread, hoechste Thread-Prioritaet | 1 ms | zyklische Kontrolle der RCM-Pegel, Schuetzueberwachung, Versorgung, Ueberwachung der anderen Threads, IWDG |
 | Automatenthread | Thread unter dem Schutzthread | 10 ms und bei Messblock-Ereignis | CP-/PP-Auswertung, Ladeautomat, Strom/PWM, Verriegelung, Ausgaenge, LEDs |
-| Netz-/Shell-Threads | niedrige Prioritaet | ereignisgesteuert | HTTP, WebSocket, Telnet-Shell, Parameterspeicher-Schreiben |
+| Netz-/Shell-Threads | niedrige Prioritaet | ereignisgesteuert | HTTP (mit Konsole), WebSocket, Parameterspeicher-Schreiben |
 | Zaehlerthread | niedrigste Prioritaet, nur mit konfiguriertem Zaehler | 1 s | Zaehlerabfrage (SOLL-MTR-10); nicht in der Thread-Ueberwachung (SOLL-MTR-03) |
 
 | Kennung | Anforderung | Quelle |
@@ -208,7 +208,7 @@ DIP/Drehschalter-Bitfolge. H2 – CP/PX-Skalierung mit EV-Simulator.
 | Kennung | Anforderung | Quelle |
 | --- | --- | --- |
 | SOLL-RT-10 | Jeder ueberwachte Thread meldet sich zyklisch beim Schutzthread. Limits: Automatenthread **100 ms**, Messblock-Ereignis (ADC) **50 ms**, Schutzthread selbst ueber den IWDG. Ueberschreitung -> sofort sicherer Zustand (SOLL-RT-20), Ursache sichern, danach Reset. | E3, F4 (Startwerte, nach H1 nachschaerfen) |
-| SOLL-RT-11 | Netz- und Shell-Threads: Limit 10 s. Ueberschreitung -> Fehlermeldung im Protokoll; Neustart nur, wenn das Schuetz aus ist und kein Ladevorgang laeuft (kein Abschalten unter Last nur wegen der Schnittstelle). Umsetzung: ueberwacht werden Speicher-Thread, WebSocket-Thread und System-Workqueue; HTTP-Server- und Telnet-Thread gehoeren zu Zephyr und melden sich nicht (nicht ueberwacht). Neustart nur in S1/S9/S10 mit Schuetz aus. | F4 |
+| SOLL-RT-11 | Netz- und Shell-Threads: Limit 10 s. Ueberschreitung -> Fehlermeldung im Protokoll; Neustart nur, wenn das Schuetz aus ist und kein Ladevorgang laeuft (kein Abschalten unter Last nur wegen der Schnittstelle). Umsetzung: ueberwacht werden Speicher-Thread, WebSocket-Thread und System-Workqueue (zyklische Meldung) sowie der HTTP-Server: Er gehoert zu Zephyr und meldet sich nicht zyklisch; ueberwacht wird, dass jeder Aufruf der Anwendung (Anfrage, Datei, Konsole, WebSocket-Aufbau) nach hoechstens 10 s zurueckkehrt. Ein Haenger im Zephyr-Code ausserhalb dieser Aufrufe (z. B. blockierendes Senden) wird nicht erkannt. Neustart nur in S1/S9/S10 mit Schuetz aus. | F4 |
 | SOLL-RT-12 | IWDG wird nur vom Schutzthread nachgeladen, wenn alle Limits eingehalten sind. Zeitlimit **250 ms** im Betrieb. **[ABW]** Original: Task-Limit 60 s + IWDG ~3 s. | E3, F4 |
 | SOLL-RT-13 | Fuer Flash-Loeschvorgaenge (blockieren den Bus fuer Sekunden, Arch §3) wird das IWDG-Limit **vorher** auf den Maximalwert verlaengert und danach zurueckgesetzt; Loeschen nur im sicheren Zustand (SOLL-NVM-05). Laenge der Loeschzeit und Umprogrammierbarkeit des IWDG im Betrieb sind gegen RM0033/DS6329 zu pruefen. | Arch §3, [ANN] |
 | SOLL-RT-14 | Grund des letzten Resets (Watchdog, Fault, Update, Werksreset, Spannungseinbruch) wird ueber den Neustart erhalten (RTC-Backup-Register, nicht BKP10..16, die der Bootloader nutzt, siehe SOLL-BOOT-30) und ist als Status lesbar. Umsetzung: Code "WF"+Grund in **BKP19** vor jedem Software-Reset, beim Start mit den Flags aus RCC_CSR verknuepft (Watchdog vor Software, NRST-Pin zuletzt, weil jede interne Quelle den Pin pulst, RM0033 RCC); lesbar ueber `GET /system/info` und `evse status`. Zusaetzlich steht bei Ueberwachung und Prozessorausnahme der genaue Ausloeser (Automatenthread, Messbloecke, Speicher-/WebSocket-Thread, System-Workqueue, Ausnahme mit Grund und PC) in BKP18/BKP17 und erscheint als `reset_detail` und im Startereignis (SOLL-ERR-12). | Original BKP19, [ANN]; Detail: Nutzer 2026-10-26 (Lasttest, Logmeldung ging mit dem Reset verloren) |
@@ -683,7 +683,6 @@ abgelehnt (E14). Namen sind Vorschlaege (WARP-angelehnt, englisch).
 | `external_current_default` | mA | 0, 6000..80000 | 80000 | ja | – | nein | F12 |
 | `enable_register_default` | 0/1 | 0..1 | 0 | ja | – (neu, F19) | nein | F19 |
 | `net_dhcp`, `net_ip`, `net_netmask`, `net_gateway`, `net_hostname` | – | IPv4 / Text | DHCP an (F25), statisch 192.168.0.8/24, 192.168.0.1, `wallfree-<MAC-Ende>` | ja | 404 (DHCP), 315..318 / 319..322 / 323..326 (IP / Maske / Gateway), laut Original-Webseite `lan.html` | nein | F25 |
-| `telnet_enable` | 0/1 | 0..1 | 0 | ja | – | nein | F20 (ab Werk aus, Nutzer 2026-10-26) |
 | `web_user`, `web_password` | Text | Benutzer 1..32 Zeichen, Passwort 8..64 Zeichen (gespeichert als Hash) | `admin` / Default-Passwort, **Aenderung beim ersten Zugriff erzwungen** | ja | – | nein | F20 |
 | `unlock_check` | 0/1 | 0..1 | 0 | ja | – | ja | F27 |
 | `meter_type` | Code | 0 kein Zaehler, 1 ABB B23, 2 Eastron SDM630, 3 Eastron SDM72D-M V2, 4 Eastron SDM72D-M (V1) | 0 | ja | – | ja | F28, SOLL-MTR-01 |
@@ -698,7 +697,7 @@ abgelehnt (E14). Namen sind Vorschlaege (WARP-angelehnt, englisch).
 | `mqtt_interval` | s | 0..3600 (0 = ohne Bremse) | 1 | ja | – | nein | SOLL-MQTT-11 |
 | `mqtt_commands` | 0/1 | 0..1 | 0 | ja | – | nein | SOLL-MQTT-20 |
 
-Netz- und Systemparameter (`net_*`, `telnet_enable`) wirken **nach einem Neustart**
+Netz- und Systemparameter (`net_*`) wirken **nach einem Neustart**
 (`POST /system/restart` oder Shell); bis dahin laeuft die beim Start angewandte Konfiguration.
 Pruefung: Einzeladresse (1..223, nicht 127), Netzmaske zusammenhaengend /8../30, Gateway im Netz
 der Adresse oder 0.0.0.0, Hostname 1..32 Zeichen aus Buchstaben, Ziffern, '-' (leer =
@@ -711,8 +710,7 @@ gleiche Adresse fuer Router/DHCP wie im Original und keine ARP-Verzoegerung beim
 Bootloader und Wallfree ([Bootloader](../../wallbe2/docs/bootloader.md#update-betrieb-bootloader-box-t-firmware-081)).
 Die Zaehlerparameter (`meter_*`) wirken ebenfalls nach einem Neustart (evcc liest die
 Faehigkeiten nur beim Verbinden, SOLL-MTR-30). Die MQTT-Parameter (`mqtt_*`) wirken **sofort**: Die
-Verbindung zum Broker wird mit den neuen Werten neu aufgebaut (SOLL-MQTT-31). `telnet_enable` = 0 stoppt die Shell und schliesst Port 23 kurz nach dem Start (Verbindungsversuche
-werden abgewiesen; Nutzer 2026-10-28).
+Verbindung zum Broker wird mit den neuen Werten neu aufgebaut (SOLL-MQTT-31).
 
 Feste Konstanten (keine Parameter, Aenderung nur nach Absprache): Anlauf 5 s (E9),
 Frist geordnetes Ende 5 s (E7), Ueberstrom 1,25 x/5 s und 1,1 x/95 s (E22), Werksreset
@@ -810,7 +808,7 @@ Blinkformen: 1 Hz (500 ms an/500 ms aus), 2 Hz (250/250 ms), 5 Hz (100/100 ms).
 
 | Kennung | LED | Soll | Quelle |
 | --- | --- | --- | --- |
-| SOLL-LED-01 | Power (PE15) | blinkt 1 Hz, sobald die Firmware laeuft (auch in S0); 5 Hz nach Werksreset bis zum Loslassen des Tasters | Ist §11, Ist §14 |
+| SOLL-LED-01 | Power (PE15) | blinkt 1 Hz, sobald die Firmware laeuft (auch in S0); Reset-Taster beim Start: 1 Hz in den ersten 5 s, 5 Hz von 5 bis 10 s (Loslassen = Notweg zum Bootloader, SOLL-BOOT-22), nach dem Werksreset dauerhaft an bis zum Loslassen | Ist §11, Ist §14 |
 | SOLL-LED-02 | Error (PE14) | an bei jedem aktiven Fehler sowie in S9/S10 | Ist §11 |
 | SOLL-LED-03 | Connect (PE12) | an bei LOCKED; sonst blinkt 1 Hz bei gueltigem Kabelwert und D1; sonst aus | Ist §11 |
 | SOLL-LED-04 | Ready (PE13) | Schuetz ein: an; sonst PWM an: 2 Hz; sonst Status B/C/D: 1 Hz; sonst aus | Ist §11, HB S. 16 |
@@ -871,12 +869,12 @@ nacheinander; gesendet wird ein Objekt je Rahmen (auch fuer Browser einfach).
 | SOLL-API-20 | Alle Zugriffe von aussen (HTTP, Shell, spaeter OCPP) laufen ueber eine gemeinsame Schicht mit Funktionen: Slot schreiben, Freigabe/Verfuegbarkeit/Pause/5 %/Verriegelungs-/Entriegelungswunsch setzen, Parameter lesen/schreiben (mit Grenzpruefung und Fehlercode), Status lesen, Fehler quittieren, Ereignisse abonnieren. | AG, Belege §7 (Zugriffsschicht des Originals als Vorbild) |
 | SOLL-API-21 | Die Schicht ist nicht blockierend fuer die Ladelogik (Nachrichten oder kurze, begrenzte Sperren). | SOLL-RT-07 |
 
-### 12.3 Shell (Telnet, ggf. UART)
+### 12.3 Shell (Weboberflaeche; in der Simulation zusaetzlich Telnet)
 
 | Kennung | Kommando | Wirkung |
 | --- | --- | --- |
 | SOLL-SH-01 | `evse status` | Zustand, CP, PP, Strom, Fehler, Verriegelung, Schuetz |
-| SOLL-SH-02 | `evse param list` / `get <name>` / `set <name> <wert>` | Parameter; `set` mit Grenzpruefung, Fehlermeldung bei Ablehnung |
+| SOLL-SH-02 | `evse param list [Anfang]` / `get <name>` / `set <name> <wert>` | Parameter; `set` mit Grenzpruefung, Fehlermeldung bei Ablehnung |
 | SOLL-SH-03 | `evse current <mA>` | Slot `external` |
 | SOLL-SH-04 | `evse enable 0|1`, `evse avail 0|1`, `evse pause 0|1`, `evse pwm5 0|1` | Laufzeitwerte (10.2) |
 | SOLL-SH-05 | `evse lock 0|1`, `evse unlock` | Verriegelungswunsch, Entriegeln-Anforderung |
@@ -886,8 +884,9 @@ nacheinander; gesendet wird ein Objekt je Rahmen (auch fuer Browser einfach).
 | SOLL-SH-09 | `evse import-original` | einmalige Uebernahme aus Sektor 3 (SOLL-NVM-10), nur im sicheren Zustand |
 | SOLL-SH-10 | `evse bootloader` | Update-Uebergabe (SOLL-BOOT-30) |
 | SOLL-SH-11 | `evse reboot` | Neustart nach SOLL-RT-22 (HTTP: `POST /system/restart`). Zephyrs `kernel reboot` ist entfernt (`CONFIG_REBOOT=n`), weil es die Wartezeit umgehen wuerde (SOLL-SH-20) |
-| SOLL-SH-19 | Telnet-Shell ohne Anmeldung, Default **aus** (`telnet_enable` = 0, F20, Nutzer 2026-10-26); in der Weboberflaeche einschaltbar, wirkt nach Neustart. Telnet bleibt in der Firmware (Diagnose). |
+| SOLL-SH-19 | Konsole in der Weboberflaeche: `POST /system/shell`, Koerper = eine Kommandozeile (Text, hoechstens 255 Zeichen), Anmeldung und Bremse wie die uebrige API (SOLL-API-07), im Werkszugang 403. Antwort `text/plain` mit der Ausgabe des Kommandos, hoechstens 2 KB; laengere Ausgabe wird gekuerzt und endet mit einem Hinweis. Ein Kommando je Anfrage, kein Live-Log, keine Vervollstaendigung. Die Weboberflaeche zeigt die Konsole unter System nur in der Expertenansicht. **Kein Telnet auf der Steuerung** (Nutzer 2026-10-28): kein offener Port ohne Anmeldung; in der PC-Simulation bleibt Telnet als Testzugang (Kommando `sim`). Der fruehere Parameter `telnet_enable` (Kennung 3015) entfaellt, ein gespeicherter Wert wird ignoriert. |
 | SOLL-SH-20 | Shell-Kommandos sind gegenueber dem Schutzpfad nicht privilegiert: kein Kommando kann Schutzfunktionen abschalten, das Schuetz direkt einschalten oder Aktorimpulse ausserhalb der Ablaufregeln ausloesen. | AG Sicherheitsgrenzen |
+| SOLL-SH-21 | Von Zephyrs Zusatzkommandos bleibt keines: `kernel` enthaelt `thread suspend/resume/kill` (koennte Schutz- und Automatenthread anhalten, SOLL-SH-20) und ist nicht einzeln abschaltbar, `devmem` schreibt beliebige Register (SOLL-SH-20), `device` und `date` werden nicht gebraucht. Ersatz fuer die Diagnose: `evse threads` (Threads mit Prioritaet und Stack-Auslastung, nur lesend) und `evse uptime`. | AG Sicherheitsgrenzen, Nutzer 2026-10-28 |
 
 ### 12.4 Update ueber den Bootloader
 
@@ -1068,8 +1067,9 @@ Nutzer 2026-10-26 (ersetzt F32 "keine Uhrzeit"). Die Uhrzeit dient nur der Anzei
 
 | Kennung | Anforderung | Quelle |
 | --- | --- | --- |
-| SOLL-BOOT-20 | Ist PD2 beim Start Low, wird gewartet (IWDG wird bedient, Schuetz aus): ununterbrochen **5 s** Low -> Werkseinstellungen schreiben (Sektor 7 loeschen/neu, sicherer Zustand gegeben), dann Power-LED 5 Hz bis zum Loslassen, dann weiterer Start. Kuerzer -> normaler Start. **[ABW]** zum Handbuch (> 10 s), wie Original (E22). | Ist §14, E22, HB S. 16 |
+| SOLL-BOOT-20 | Ist PD2 beim Start Low, wird gewartet (IWDG wird bedient, Schuetz aus). Losgelassen vor 5 s -> normaler Start; zwischen 5 und 10 s -> Notweg zum Bootloader (SOLL-BOOT-22); ununterbrochen **10 s** Low -> Werkseinstellungen schreiben (Sektor 7 loeschen/neu, sicherer Zustand gegeben), dann Power-LED an bis zum Loslassen, dann weiterer Start. Mit der Reset-Verzoegerung von etwa 5 s (Hinweis Abschnitt 2.2) haelt man fuer den Werksreset insgesamt etwa 15 s, passend zum Handbuch (> 10 s). **[ABW]** Original: Werksreset schon nach 5 s (E22). | Ist §14, E22, HB S. 16, Nutzer 2026-10-28 (zu bestaetigen) |
 | SOLL-BOOT-21 | Werkseinstellungen = Defaults aus Abschnitt 10 (auch Zugangsdaten mit erneutem Aenderungszwang); Sektor 3 bleibt unberuehrt. Auch per Shell (SOLL-SH-08). | E20 |
+| SOLL-BOOT-22 | **Notweg zum Bootloader** (eigene Erweiterung): Taster beim Start zwischen 5 und 10 s losgelassen -> Uebergabe an den Original-Bootloader wie SOLL-BOOT-30, aber ohne Adresse (BKP13/14 = 0): Der Bootloader nimmt dann seine feste Adresse 192.168.0.8/24. Damit laesst sich eine Firmware aufspielen, auch wenn Weboberflaeche oder Netzkonfiguration nicht mehr erreichbar sind. Ohne Upload kehrt der Bootloader nach seinen Wartezeiten in die vorhandene Firmware zurueck (wallbe2 docs/bootloader.md). Ladelogik und Schuetz sind dabei noch nicht gestartet. | Nutzer 2026-10-28 (zu bestaetigen) |
 
 Pruefung Abschnitt 13: PC – Parameterformat mit simuliertem Flash (Anhaengen, voller
 Bereich, Verdichten, Stromausfall an jeder Stelle, kaputte Pruefsumme), Import aus einem
@@ -1125,7 +1125,7 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 | F17 | D6 ohne LD-Eingang | Konfigurationsfehler | sichtbarer Fehler statt still fehlschlagender Verriegelung | SOLL-LOCK-03 |
 | F18 | Eingangscode 18 | wie Code 1 | Portal nicht im Umfang | 9.1 |
 | F19 | Startwert Freigabe 400 | Parameter `enable_register_default`, Default 0 | wie Original, aber einstellbar | SOLL-EN-03 |
-| F20 | Zugriffsschutz | Web/API von Anfang an mit Benutzer/Passwort (Default mit Aenderungszwang); Telnet offen, ab Werk aus (Nutzer 2026-10-26; bleibt fuer Diagnose in der Firmware) | die API steuert das Laden; Telnet nur fuer die Entwicklung | SOLL-API-07, SOLL-SH-19 |
+| F20 | Zugriffsschutz | Web/API von Anfang an mit Benutzer/Passwort (Default mit Aenderungszwang); Shell nur ueber die angemeldete Weboberflaeche, kein Telnet auf der Steuerung (Nutzer 2026-10-28) | die API steuert das Laden; ein offener Port ohne Anmeldung waere eine zweite, ungeschuetzte Steuerung | SOLL-API-07, SOLL-SH-19 |
 | F21 | Pause persistent | nein | wie Original (468 nur im RAM); eine Pause soll keinen Neustart ueberdauern | 10.2 |
 | F22 | Typ in `/info/name` | `warp2` | bei `warp3`/`warp4` wuerde evcc eine nicht vorhandene Phasenumschaltung bedienen | SOLL-API-01 |
 | F23 | D/E/F an evcc | ehrlich 3/4 | evcc soll einen Fehler melden statt eines falschen Zustands | 12.1 |

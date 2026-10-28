@@ -49,8 +49,8 @@ einfache Webseite annimmt. Er bleibt beim Umrüsten unverändert und ist auch de
 7. DIP-Schalter, Drehschalter und Status prüfen, erst dann ein Fahrzeug anschließen.
 
 Die Einstellungen der Originalfirmware bleiben im Flash erhalten; Wallfree speichert seine
-eigenen in einem anderen Bereich. Die Telnet-Shell hat einen Befehl `evse import-original`, der
-sie übernimmt; er ist auf einer Steuerung noch nicht ausgeführt worden.
+eigenen in einem anderen Bereich. Die Konsole der Weboberfläche (System, Expertenansicht) hat einen
+Befehl `evse import-original`, der sie übernimmt; er ist auf einer Steuerung noch nicht ausgeführt worden.
 
 Spätere Updates von Wallfree laufen über die eigene Weboberfläche
 ([Abschnitt 8.1 der Anleitung](anleitung/weboberflaeche.md#81-firmware-update)).
@@ -86,3 +86,11 @@ die Originalfirmware. Weder Wallfree noch die Originalfirmware verändern ihn.
   gültiges Programm da, bleibt der Bootloader im Update-Betrieb. Hängt die Firmware, startet der
   Watchdog die Steuerung immer wieder neu; beim fünften Mal öffnet der Bootloader für 2 Minuten
   seine Seite unter 192.168.0.8. Dort eine passende Datei hochladen.
+- **Weboberfläche von Wallfree nicht erreichbar, Update darüber also nicht möglich:** Notweg über
+  den Reset-Taster der Steuerung. Taster gedrückt halten: Die Power-LED bleibt etwa 5 Sekunden
+  dunkel, blinkt dann langsam und nach weiteren 5 Sekunden schnell. **Während sie schnell blinkt,
+  loslassen.** Wallfree übergibt dann an den Bootloader, der unter **192.168.0.8** auf eine Datei
+  wartet (PC dazu im Netz 192.168.0.x); dort Wallfree oder die Originalfirmware hochladen. Kommt
+  keine Datei, startet nach einigen Minuten wieder die bisherige Firmware. Die Einstellungen
+  bleiben erhalten. Wer zu lange hält (bis die LED dauerhaft leuchtet), löst stattdessen den
+  Werksreset aus.

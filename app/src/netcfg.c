@@ -1,17 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Netz- und Systemparameter (10.1, F20, F25, SOLL-SH-19), siehe netcfg.h.
+ * Netz- und Systemparameter (10.1, F25), siehe netcfg.h.
  * Die Zaehlerparameter (meter_*) liegen mit im Satz; sie wertet meter_task
  * beim Start aus. Die MQTT-Parameter (mqtt_*) wirken sofort (SOLL-MQTT-31):
  * Sie werden beim Speichern auch in die laufende Konfiguration uebernommen,
  * und mqtt_task baut die Verbindung neu auf.
- *
- * Telnet: Zephyr startet die Telnet-Shell vor main() ohne Moeglichkeit, das
- * abzuschalten. Mit telnet_enable = 0 stoppt netcfg die Shell (shell_stop) und
- * schliesst danach Port 23: Der Telnet-Server ist ein Socket-Dienst, er wird
- * an seinem Listen-Socket erkannt und mit net_socket_service_close() samt
- * Sockets abgemeldet. Ganz entfernen laesst sich Telnet nur im Build
- * (CONFIG_SHELL_BACKEND_TELNET=n).
  *
  * Nur gebaut, auf Hardware nicht ausgefuehrt.
  */
@@ -26,8 +19,6 @@
 #include <zephyr/net/ethernet.h>
 #include <zephyr/net/hostname.h>
 #include <zephyr/net/socket.h>
-#include <zephyr/net/socket_service.h>
-#include <zephyr/shell/shell_telnet.h>
 #include "hw.h"
 #include "mqtt_task.h"
 #include "netcfg.h"
@@ -40,69 +31,12 @@ static struct wf_sysconf active; /* beim Start angewandt */
 static struct wf_sysconf saved;  /* gespeichert, wirkt nach Neustart */
 static K_MUTEX_DEFINE(mtx);
 
-/* ------------------------------------------------ Telnet schliessen */
-
-struct telnet_find {
-	int fd;
-	const struct net_socket_service_desc *svc;
-};
-
-static void telnet_match(const struct net_socket_service_desc *svc, void *user_data)
-{
-	struct telnet_find *f = user_data;
-
-	if (svc->pev_len == SHELL_TELNET_POLLFD_COUNT && svc->pev[0].event.fd == f->fd) {
-		f->svc = svc;
-	}
-}
-
-/* Vor der Initialisierung steht im Telnet-Kontext fd 0: nur der Socket auf dem Telnet-Port zaehlt */
-static bool telnet_listening(int fd)
-{
-	struct net_sockaddr_in a;
-	net_socklen_t len = sizeof(a);
-
-	return fd >= 0 && zsock_getsockname(fd, (struct net_sockaddr *)&a, &len) == 0 &&
-	       a.sin_family == NET_AF_INET && net_ntohs(a.sin_port) == CONFIG_SHELL_TELNET_PORT;
-}
-
-/* Der Shell-Thread oeffnet den Port erst nach dem Start; bis dahin erneut versuchen */
-#define TELNET_CLOSE_TRIES 40
-#define TELNET_CLOSE_STEP  K_MSEC(250)
-
-static void telnet_close_fn(struct k_work *w);
-static K_WORK_DELAYABLE_DEFINE(telnet_close_work, telnet_close_fn);
-
-static void telnet_close_fn(struct k_work *w)
-{
-	static int tries;
-	struct shell_telnet *t = shell_backend_telnet_get_ptr()->iface->ctx;
-	struct telnet_find f = {.fd = t->fds[0].fd}; /* IPv4-Listen-Socket */
-
-	if (telnet_listening(f.fd)) {
-		net_socket_service_foreach(telnet_match, &f);
-	}
-	if (f.svc != NULL && net_socket_service_close(f.svc) == 0) {
-		for (int i = 0; i < SHELL_TELNET_POLLFD_COUNT; i++) {
-			t->fds[i].fd = -1;
-		}
-		LOG_INF("Telnet: Port %d geschlossen (telnet_enable = 0)", CONFIG_SHELL_TELNET_PORT);
-		return;
-	}
-	if (++tries < TELNET_CLOSE_TRIES) {
-		k_work_reschedule(k_work_delayable_from_work(w), TELNET_CLOSE_STEP);
-	} else {
-		LOG_ERR("Telnet: Port %d nicht geschlossen", CONFIG_SHELL_TELNET_PORT);
-	}
-}
-
 static void load(struct wf_sysconf *c)
 {
 	uint8_t buf[WF_SYS_VAL_MAX];
 	const char *fix;
 
 	wf_sysconf_defaults(c);
-	c->telnet = IS_ENABLED(CONFIG_WALLFREE_TELNET_DEFAULT);
 	for (size_t i = 0; i < wf_sys_count(); i++) {
 		const struct wf_syspar *p = wf_sys_at(i);
 		int n = storage_read_raw(p->id, buf, sizeof(buf));
@@ -239,10 +173,6 @@ static void apply(const struct wf_sysconf *c)
 		}
 	}
 #endif
-	if (!c->telnet) {
-		(void)shell_stop(shell_backend_telnet_get_ptr());
-		k_work_reschedule(&telnet_close_work, K_NO_WAIT);
-	}
 	LOG_INF("Netz: %s, Hostname %s", c->dhcp ? "DHCP" : "fest", host);
 }
 

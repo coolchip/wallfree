@@ -35,6 +35,19 @@ async function request(path, opts) {
 const post = (path, body) => api(path, {
 	method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
 });
+// Konsole (SOLL-SH-19): Kommandozeile hin, Ausgabe als Text zurueck
+const shell = (line) => {
+	const run = queue.then(async () => {
+		if (quiet) throw new Error('Update läuft');
+		const r = await fetch('/system/shell', { method: 'POST', body: line, cache: 'no-store',
+			signal: AbortSignal.timeout(20000) });
+		const t = await r.text();
+		if (!r.ok) throw new Error(r.status === 413 ? 'Kommandozeile zu lang' : t || r.status + ' ' + r.statusText);
+		return t;
+	});
+	queue = run.catch(() => {});
+	return run;
+};
 // Periodisch laden, nur solange die Seite sichtbar ist, beim Zurueckkehren sofort. Gedrosselte
 // Hintergrund-Tabs wachen im Handy-Browser alle zugleich im Minutentakt auf; ihre Abfragen
 // belegten dann die wenigen Verbindungsplaetze der Steuerung (implementierung.md).
@@ -282,7 +295,7 @@ const RESET = { power_on: 'Einschalten', user_restart: 'Neustart auf Anforderung
 	unknown: 'unbekannt' };
 const RESET_DETAIL = { charger_thread: 'Ladelogik reagierte nicht', measurement_blocks: 'Messung blieb aus',
 	storage_thread: 'Speicher-Thread', websocket_thread: 'WebSocket-Thread', system_workqueue: 'System-Workqueue',
-	fault: 'Prozessorausnahme' };
+	http_server: 'HTTP-Server', fault: 'Prozessorausnahme' };
 const resetText = (r, d) => (RESET[r] || r) + (d ? ' (' + (RESET_DETAIL[d] || d) + ')' : '');
 
 function evText(e) {
@@ -654,7 +667,7 @@ async function restart(setMsg) {
 
 // Einstellungen Netzwerk, MQTT, Zaehler: Teil von /system/config nach Namensanfang
 const SYS_PARTS = {
-	netzwerk: ['Netzwerk', ['net_', 'ntp_', 'telnet_']],
+	netzwerk: ['Netzwerk', ['net_', 'ntp_']],
 	mqtt: ['MQTT', ['mqtt_']],
 	zaehler: ['Zähler (nur Anzeige)', ['meter_']],
 	temperatur: ['Prozessortemperatur', ['mcu_']],
@@ -952,11 +965,61 @@ function SystemPage({ onBusy, expert, setExpert }) {
 	<//>
 	<${ViewCard} expert=${expert} setExpert=${setExpert} />
 	${expert && html`<${SysConfig} part="temperatur" />`}
+	${expert && html`<${Console} />`}
 	<${Update} onBusy=${onBusy} />
 	<${Card} title="Lizenz">
 		<p class="msg">Wallfree ist freie Software unter der Apache License 2.0 und wird ohne jede
 			Gewährleistung bereitgestellt. Sie enthält Zephyr, Preact, htm und weitere Software anderer
 			Autoren: <a href="/lizenzen.txt" target="_blank">Lizenzhinweise</a>.</p>
+	<//>`;
+}
+
+// Ein Kommando je Anfrage; Verlauf mit Pfeil hoch/runter nur in dieser Seite
+function Console() {
+	const [lines, setLines] = useState([]);
+	const [cmd, setCmd] = useState('');
+	const [busy, setBusy] = useState(false);
+	const hist = useRef({ list: [], pos: 0 });
+	const out = useRef(null);
+	const input = useRef(null);
+	useEffect(() => {
+		if (out.current) out.current.scrollTop = out.current.scrollHeight;
+		if (input.current && lines.length) input.current.focus();
+	}, [lines]);
+	const run = async (ev) => {
+		ev.preventDefault();
+		const c = cmd.trim();
+		if (!c || busy) return;
+		const h = hist.current;
+		if (h.list[h.list.length - 1] !== c) h.list = [...h.list, c].slice(-50);
+		h.pos = h.list.length;
+		setCmd('');
+		setBusy(true);
+		let text, bad = false;
+		try { text = await shell(c); } catch (e) { text = e.message; bad = true; }
+		setLines((l) => [...l.slice(-19), { cmd: c, text: text.replace(/\s+$/, ''), bad }]);
+		setBusy(false);
+	};
+	const key = (ev) => {
+		const h = hist.current;
+		if (ev.key === 'ArrowUp' && h.pos > 0) h.pos--;
+		else if (ev.key === 'ArrowDown' && h.pos < h.list.length) h.pos++;
+		else return;
+		ev.preventDefault();
+		setCmd(h.list[h.pos] || '');
+	};
+	return html`<${Card} title="Konsole">
+		<p class="muted msg">Shell-Kommandos für die Diagnose, z. B. <code>evse status</code>,
+			<code>evse param list lock</code> oder <code>evse threads</code>; <code>evse -h</code> zeigt alle.
+			Kommandos wirken sofort und ohne Rückfrage.</p>
+		${lines.length > 0 && html`<pre class="console" ref=${out}>${lines.map((l) =>
+			html`<b>› ${l.cmd}</b>${'\n'}<span class=${l.bad ? 'bad' : ''}>${l.text}</span>${'\n'}`)}</pre>`}
+		<form class="row" onSubmit=${run}>
+			<input class="mono" ref=${input} value=${cmd} onInput=${(e) => setCmd(e.target.value)} onKeyDown=${key}
+				maxlength="255" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="evse status"
+				aria-label="Kommando" />
+			<button type="submit" disabled=${busy}>${busy ? 'Läuft …' : 'Ausführen'}</button>
+		</form>
 	<//>`;
 }
 

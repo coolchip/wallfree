@@ -254,13 +254,13 @@ class Sim:
         self._read(lambda t: False, 0.2)  # Reste (Logzeilen, alte Prompts) abholen
         # Endmarke: Logzeilen zeichnen das Prompt jederzeit neu, ein Prompt allein
         # zeigt das Ende der Ausgabe nicht sicher an
-        self.tn.sendall(cmd.encode() + b"\r\nkernel uptime\r\n")
-        out = self._read(lambda t: re.search(r"Uptime: \d+ ms", t) is not None, timeout)
-        out = re.split(r"Uptime: \d+ ms", out)[0]
+        self.tn.sendall(cmd.encode() + b"\r\nevse uptime\r\n")
+        out = self._read(lambda t: re.search(r"Laufzeit \d+ ms", t) is not None, timeout)
+        out = re.split(r"Laufzeit \d+ ms", out)[0]
         # Echo des Kommandos kommt nicht immer zurueck
         i = out.find(cmd)
         rest = out[i + len(cmd):] if i >= 0 else out
-        rest = rest.replace("kernel uptime", "")
+        rest = rest.replace("evse uptime", "")
         # Logmeldungen laufen ebenfalls ueber die Telnet-Shell
         lines = [ln for ln in rest.splitlines()
                  if ln.strip() not in ("", "~$") and not LOG_LINE.match(ln.lstrip("~$ "))]

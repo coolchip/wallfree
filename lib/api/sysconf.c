@@ -13,7 +13,6 @@ static const struct wf_syspar pars[] = {
 	{"net_netmask", 3012, WF_SYS_IPV4, "Netzmaske (ohne DHCP)"},
 	{"net_gateway", 3013, WF_SYS_IPV4, "Gateway (ohne DHCP), 0.0.0.0 = keins"},
 	{"net_hostname", 3014, WF_SYS_HOST, "Hostname, leer = wallfree-<MAC-Ende>"},
-	{"telnet_enable", 3015, WF_SYS_BOOL, "Telnet-Shell einschalten (Zugang ohne Passwort)"},
 	{"meter_type", 3016, WF_SYS_CODE,
 	 "Zählertyp: 0 keiner, 1 ABB B23, 2 Eastron SDM630, 3 Eastron "
 	 "SDM72D-M V2, 4 Eastron SDM72D-M (V1, nur Summenwerte)"},
@@ -44,7 +43,6 @@ void wf_sysconf_defaults(struct wf_sysconf *c)
 	c->ip = IP(192, 168, 0, 8);         /* wie Original */
 	c->netmask = IP(255, 255, 255, 0);
 	c->gateway = IP(192, 168, 0, 1);
-	c->telnet = false;                  /* F20: ab Werk aus (Nutzer 2026-10-26) */
 	c->meter_addr = 1;                  /* Werkseinstellung der Eastron-Zaehler */
 	c->meter_baud = 9600;
 	c->meter_framing = WF_FRAMING_8N1;
@@ -356,7 +354,7 @@ static uint32_t *ip_field(struct wf_sysconf *c, uint16_t id)
 
 static bool *bool_field(struct wf_sysconf *c, uint16_t id)
 {
-	return id == 3010 ? &c->dhcp : id == 3015 ? &c->telnet
+	return id == 3010 ? &c->dhcp
 		: id == 3020 ? &c->mqtt_enable : id == 3028 ? &c->ntp_enable
 		: id == 3030 ? &c->mqtt_discovery : &c->mqtt_commands;
 }

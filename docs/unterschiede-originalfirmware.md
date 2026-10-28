@@ -78,6 +78,7 @@ genaue Festlegung jedes Punkts steht in der [Soll-Spezifikation](soll-spezifikat
 | Freigabe über Schnittstelle | jeder Wert ungleich 0 gilt als 1 | nur 0 und 1 | eindeutig |
 | Werkseinstellungen | wallbe: LR 17, CR 40, LD 22; Phoenix 1.27: LR 29, CR 17, LD 3, Schützüberwachung aus | nach Handbuch der Steuerung: ER 15, LR 29, VR 16, CR 17, LD 3, EN 1, XR 2, IN 11, ML 4; Schützüberwachung an (Spannung am Ladepunkt) | das Handbuch ist die Referenz; Schützüberwachung aus Sicherheitsgründen an |
 | Einheit der Ströme an der Schnittstelle | 0,1 A bzw. A | mA wie WARP | kompatibel zu evcc |
+| Reset-Taster beim Start gehalten | nach 5 s Werkseinstellungen | Loslassen zwischen 5 und 10 s startet den Bootloader (Notweg zum Aufspielen, Adresse 192.168.0.8); nach 10 s Werkseinstellungen. Mit der Verzögerung der Steuerung nach dem Drücken (etwa 5 s) insgesamt etwa 10 bzw. 15 s | Firmware aufspielen auch ohne erreichbare Weboberfläche; Werksreset wie im Handbuch nach über 10 s |
 
 ## Rückweg und Übernahme
 
@@ -87,8 +88,8 @@ genaue Festlegung jedes Punkts steht in der [Soll-Spezifikation](soll-spezifikat
   Abbildern ausdrücklich nach. Auf einer Steuerung geprüft.
 - **Einstellungen der Originalfirmware** bleiben dabei erhalten: Wallfree speichert seine
   eigenen Einstellungen in einem anderen Bereich des Flash und schreibt den Bereich der
-  Originalfirmware nie. Ein Import dieser Einstellungen in Wallfree (Shell-Befehl
-  `evse import-original`) ist eingebaut, auf einer Steuerung aber noch nicht ausgeführt.
+  Originalfirmware nie. Ein Import dieser Einstellungen in Wallfree (Befehl
+  `evse import-original` in der Konsole der Weboberfläche) ist eingebaut, auf einer Steuerung aber noch nicht ausgeführt.
 - **Voraussetzung:** eine Firmwaredatei des Herstellers. Wallfree enthält die Originalfirmware
   nicht und kann die installierte nicht auslesen. Schritt für Schritt:
   [Umrüsten auf Wallfree und zurück](umruesten.md).

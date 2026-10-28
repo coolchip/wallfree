@@ -61,6 +61,7 @@ enum wf_reset_detail {
 	WF_RSTD_IFACE_WS,       /**< WebSocket-Thread haengt */
 	WF_RSTD_IFACE_SYSWORKQ, /**< System-Workqueue haengt */
 	WF_RSTD_FAULT,          /**< Prozessorausnahme, Grund und PC dazu */
+	WF_RSTD_IFACE_HTTP,     /**< HTTP-Server haengt in einem Aufruf der Anwendung */
 	WF_RSTD_COUNT,
 };
 
