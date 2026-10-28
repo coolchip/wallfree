@@ -2,6 +2,8 @@
 
 Freie Ersatzfirmware für die Ladesteuerung **EV-CC-AC1-M3-CBC-RCM-ETH** (STM32F207VET6),
 wie sie u. a. in der wallbe Eco 2.0 verbaut ist. Zielgruppe: versierte Anwender.
+Vermutlich ebenfalls passend, aber **ungetestet:** wallbe Eco 2.0s, Compleo eco und
+E3/DC easy connect (gleiche Ladesteuerung; Bootloader und Bestückung nicht geprüft).
 
 **Status:** Firmware vollständig nach Spezifikation implementiert und auf dem PC getestet
 (Unit-Tests, Ende-zu-Ende-Simulation, Browser, evcc). An der Steuerung einer wallbe Eco 2.0 **ohne Last**

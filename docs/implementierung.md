@@ -179,7 +179,7 @@ Punkte, die die Spezifikation offen liess. Alle vom Nutzer bestaetigt, ausser wo
 | Resetgrund | BKP19 = `0x5746xxxx` vor Software-Resets; Gruende `supervision_limit`, `fault`, `user_restart`, `factory_reset`, `interface_hang` bzw. aus RCC_CSR | SOLL-RT-14 |
 | Thread-Prioritaeten | Schutzthread 0, Automatenthread 2, Ethernet-RX 4, Netz-RX/TX, TCP-Arbeit und System-Workqueue 5, WebSocket 11, Speicher 12, HTTP-Server, net_mgmt, Shell, Log, Zaehler, MQTT 14; alle preemptiv (`CONFIG_NET_TC_THREAD_PREEMPTIVE`, Ethernet-RX dadurch preemptiv, in Zephyr als experimentell markiert), bestaetigt (Nutzer 2026-10-26) | SOLL-RT-07; mit Zephyrs Vorgabe (kooperativ) liess Netzlast den Automatenthread warten (Fallstricke) |
 | Schnittstellen-Ueberwachung | Speicher-, WebSocket-Thread, System-Workqueue (10 s); HTTP-Server und Telnet gehoeren zu Zephyr und sind nicht ueberwachbar | SOLL-RT-11 |
-| Abgleich Prozessortemperatur | `mcu_temp_offset` (3032, 0,1 Grad, -450..450, Werk 0, sofort wirksam), gespeichert als 4 Byte im Zweierkomplement (einziger Systemwert mit Vorzeichen); `/system/info` meldet `mcu_temp_dc` mit Abgleich. Eingabe auf der Seite System nur in der Expertenansicht (Karte "Prozessortemperatur"), Eingabefeld ohne Zifferntastatur, weil die am Handy oft kein Minus hat; **zu bestaetigen** | SOLL-API-35; Einstellung wird einmal gebraucht, gehoert nicht zu Netzwerk, MQTT oder Zaehler |
+| Abgleich Prozessortemperatur | `mcu_temp_offset` (3032, 0,1 Grad, -450..450, Werk 0, sofort wirksam), gespeichert als 4 Byte im Zweierkomplement (einziger Systemwert mit Vorzeichen); `/system/info` meldet `mcu_temp_dc` mit Abgleich. Eingabe auf der Seite System nur in der Expertenansicht (Karte "Prozessortemperatur"), Eingabefeld ohne Zifferntastatur, weil die am Handy oft kein Minus hat; bestaetigt (Nutzer 2026-10-28) | SOLL-API-35; Einstellung wird einmal gebraucht, gehoert nicht zu Netzwerk, MQTT oder Zaehler |
 | Netzwerk-LED | PC2 aktiv Low, treibt die gruene LED an der Netzwerkbuchse (Testgerät 2026-10-27: blinkt ohne Kabel mit 1 Hz, mit Verbindung Dauerlicht; die gelbe (PHY, Link) ist ohne Kabel aus); "verbunden" = Link (Carrier) und bevorzugte IPv4-Adresse; Takt aus der Systemworkqueue (haengt diese, steht die LED) | SOLL-LED-06 |
 
 ### Weboberflaeche
@@ -454,8 +454,8 @@ Fuer die spaetere Veroeffentlichung der Firmware vorbereiten:
   [KNX-User-Forum](https://knx-user-forum.de/forum/öffentlicher-bereich/knx-eib-forum/2099693-welche-wallboxen-habt-ihr-und-wie-steuert-ihr-sie-an),
   [LoxWiki wallbe](https://loxwiki.atlassian.net/wiki/spaces/LOX/pages/1596490033/wallbe+Ladestationen)
   (Loxone-Nutzer), mikrocontroller.net (Firmware-Interessierte).
-- Vermutlich ebenfalls passend (Nutzer 2026-10-28, ungeprueft): wallbe Eco 2.0s, Compleo eco,
-  E3/DC easy connect (laut Foren baugleich mit der Eco 2.0, Phoenix EV-CC-AC1-M3-CBC-RCM-ETH mit
-  angepasster Firmware). Voraussetzung je Geraet: gleicher Controller (nicht der aeltere
-  EM-CP-PP-ETH) und gleicher Bootloader mit Upload ueber die Weboberflaeche; ohne Pruefung an
-  einem Geraet nur als "ungetestet" nennen.
+- Geraeteliste der Veroeffentlichung (Nutzer 2026-10-28): geprueft wallbe Eco 2.0; **ungetestet**
+  wallbe Eco 2.0s, Compleo eco und E3/DC easy connect (laut Foren baugleich mit der Eco 2.0,
+  Phoenix EV-CC-AC1-M3-CBC-RCM-ETH mit angepasster Firmware). Voraussetzung je Geraet: gleicher
+  Controller (nicht der aeltere EM-CP-PP-ETH) und gleicher Bootloader mit Upload ueber die
+  Weboberflaeche.
