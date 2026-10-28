@@ -319,6 +319,7 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 
 | Fallstrick | Folge | Massnahme |
 | --- | --- | --- |
+| ADC-Referenz der Steuerung ist nicht 3,3 V, sondern 2,495 V (Faktor der Originalfirmware) | MCU-Temperatur mit 3,3 V gerechnet: 132 statt etwa 32 Grad (Testgerät) | Spannungen aus ADC-Werten mit 2,495 V rechnen; die uebrigen Kanaele nutzen ohnehin die Skalierung des Originals |
 | `CONFIG_ZVFS_EVENTFD_MAX` = 1 (der Socket-Service belegt den einzigen Platz) | HTTP-Server startet nie; Meldung nur mit `CONFIG_NET_LOG` sichtbar | Wert 2 |
 | `CONFIG_WEBSOCKET_MAX_CONTEXTS` zu klein | weitere WebSocket-Clients werden vor dem Anwendungs-Callback abgewiesen | 3 (SOLL-API-07 verlangt >= 2) |
 | Netz-Threads in Zephyr standardmaessig kooperativ (`NET_TC_THREAD_COOPERATIVE`): RX/TX, TCP-Arbeit, Ethernet-RX, HTTP-Server, net_mgmt; die System-Workqueue ebenfalls (-1) | laufen vor jedem preemptiven Thread und werden nicht unterbrochen; auf dem Testgerät (`477bb1b`, 4 parallele HTTP-Abfrager) wartete der Automatenthread > 50 ms -> `supervision_limit`, mehrere Neustarts in 2 min, je Start ein Lauf des Verriegelungsmotors | alle preemptiv unter dem Automatenthread (Festlegung Thread-Prioritaeten); Lasttest `scripts/net-load.py` |
@@ -388,7 +389,9 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
   Hause ist): Kandidat PB3 (Pin 89, zugleich SWO an der Debug-Leiste) per SWD 1 s High setzen und auf
   das Relais hoeren ([wallbe2 hardware.md](../../wallbe2/docs/hardware.md#4-offene-fragen)).
 - Temperatur MCU (SOLL-API-35) auf dem Testgerät pruefen: Wert plausibel (kalte Box nach laengerer Pause
-  etwa Raumtemperatur plus wenige Grad), steigt nach dem Einschalten langsam an. Festlegung zu
+  etwa Raumtemperatur plus wenige Grad), steigt nach dem Einschalten langsam an. `8198151` rechnete
+  mit VREF+ 3,3 V und zeigte 132 Grad; mit 2,495 V (Faktor der Originalfirmware) ergibt derselbe
+  Rohwert etwa 32 Grad. Ob die Referenz wirklich 2,495 V hat, zeigt spaeter das Bauteil. Festlegung zu
   bestaetigen: Anzeige in Status -> Verbindungen, ganze Grad. Abgleichparameter vorgesehen (Nutzer
   2026-10-28, spaeter): Verschiebung in 0,1 Grad, einmal an der kalten Box gegen ein Thermometer
   eingestellt; die Steigung streut kaum (RM0033: +-1,5 Grad nach Abgleich), nur die Verschiebung

@@ -311,8 +311,10 @@ int hw_mcu_temp(int32_t *dc)
 	if (!hw_get_block(&b)) {
 		return -EAGAIN;
 	}
-	/* VSENSE bei VDDA 3,3 V (angenommen); V25 0,76 V, Steigung 2,5 mV/K (Datenblatt typisch) */
-	int32_t uv = (int32_t)((int64_t)b.temp_raw * 3300000 / (PASSES * 4096));
+	/* VSENSE bei VREF+ 2,495 V: die Originalfirmware rechnet Rang 10 mit 6,0913e-4 = 2,495 V / 4096
+	 * (wallbe2 takt-adc-gpio.md, Tabelle ADC1-Sequenz); mit 3,3 V zeigte das Testgeraet 132 Grad.
+	 * V25 0,76 V, Steigung 2,5 mV/K (Datenblatt typisch) */
+	int32_t uv = (int32_t)((int64_t)b.temp_raw * 2495000 / (PASSES * 4096));
 
 	*dc = (uv - 760000) / 250 + 250;
 	return 0;
