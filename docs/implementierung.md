@@ -357,6 +357,7 @@ auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/do
 | Verriegelung (Stufe B) | LD ist ein Impuls von grob 60..100 ms waehrend der Fahrt: Code 22 noetig, mit Code 3 schlaegt Verriegeln fehl; mit D9 aus entriegelt der Automat in S1 bei CP A sofort wieder (SOLL-LOCK-23). Das Testgerät: `in_function_ld` 22, `out_function_cr` 40 (gruen im Leerlauf wie das zweite Gerät, Nutzer 2026-10-24) |
 | Reset-Taster | wirkt auf NRST und PD2; der Prozessor bleibt nach dem Druecken etwa 5 s im Reset, auch wenn der Taster gehalten wird (vermutlich RC-Glied an NRST), und startet dann. Kurz oder unter etwa 5 s -> nur Neustart (`reset_pin`); gehalten -> nach etwa 5 s blinkt die Power-LED 1 Hz, nach weiteren 5 s Werksreset, also insgesamt etwa 10 s (Testgerät 2026-10-27: nach dem Druecken etwa 5 s dunkel (Prozessor im Reset), dann blinkt die Power-LED 1 Hz (Wallfree wartet); Loslassen vor Ablauf -> nur Neustart, Startereignis um die Wartezeit spaeter) |
 | Parameterspeicher | `FLASH_SR` beim Start `0xc0` (aus dem Bootloader, Fallstricke); erste Speicherung danach fehlerfrei |
+| Import aus Sektor 3 (`c5fce83`, 2026-10-28) | `evse import-original` las die Werte der Originalfirmware 0.81: 16 Werte der Ladelogik uebernommen (u. a. LR 17, CR 9, LD 3; `overcurrent_enable` fehlte im Original und gilt als 0) und 4 Netzwerkwerte (feste Adresse). Danach ueber die API zurueckgestellt (0,3 s, ohne Neustart): LR 29, CR 40, LD 22, DHCP; `restart_required` blieb falsch, kein Fehler. Sicherungen und Ausgabe: `wallbe2/analysis/box-t/import-2026-10-28/` |
 | Update | ueber die Weboberflaeche in etwa 20 s, Erfolg nur bei passender Pruefsumme; Rueckweg zur Originalfirmware 0.81 und zurueck geprueft (Sektor 3 und 7 erhalten). Fruehere Abbrueche: jede Abfrage waehrend des Uploads bricht ihn im Bootloader ab (Seite fragt deshalb nichts ab); wechselnde MAC von Bootloader und Wallfree verzoegerte per ARP-Cache (behoben mit Geraete-MAC) |
 | Browser-Tabs und Verbindungsplaetze (`cfb6def`, 2026-10-28, `scripts/web-tabs-load.mjs`, daneben alle 0,5 s eine Anfrage mit neuer Verbindung) | vorher (`b5ce020`) mit offenen Handy-Tabs jede Minute 8..10 s keine Antwort (Ursache Festlegung Verbindungsplaetze). Frist: 6 stumme Verbindungen, nach 5,1 s wieder erreichbar (`net-load.py idle`). 4 Tabs auf Status, 2 verborgen, 5 min: verborgene 0 Anfragen, sichtbare je 2 Verbindungen nacheinander, 592 von 592 Anfragen beantwortet. Mit der Frist 10 s (`7cfd6fa`) im gleichen Aufbau einmal 2,5 s Abweisung in 7,5 min. Ohne Tabs 6..8 ms |
 | Netzlast (`scripts/net-load.py`) | Mit kooperativen Netz-Threads startete das Testgerät unter 4 parallelen Abfragern neu (Fallstricke); seit `eca1ad4` kein Neustart: 83 Anfragen/s, hoechstens 123 ms; 3 WebSockets, Takt 2,0 s; 2300 Verbindungsabbrueche in 60 s ohne Rest; 30 min Dauerlast mit 2 WebSockets und MQTT ohne Neustart, WebSocket-Luecke hoechstens 2,1 s |
@@ -394,12 +395,6 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
   (bis 45 Grad zwischen Chips).
 - Toter MQTT-Broker bei Dauerversand (Zaehlerwerte jede Sekunde): Erkennung erst ueber TCP, Zeit
   offen; mit dem Zaehler messen.
-- Import aus Sektor 3 auf der Steuerung noch nicht ausgefuehrt. Ablauf auf dem Testgerät (Nutzer 2026-10-28):
-  Claude sichert `/evse/params` und `/system/config`, fuehrt `evse import-original` aus und stellt die
-  Werte danach ueber die API zurueck (der Import setzt LD 3, CR 9 und die feste Adresse 192.168.0.8;
-  Netzwerte wirken erst nach einem Neustart). Voraussetzung: der Nutzer schaltet Telnet ein (Import
-  gibt es nur in der Shell). Risiko: startet die Box zwischen Import und Zurueckstellen neu, ist sie
-  unter 192.168.0.8 (nur noch direkt am PC erreichbar); deshalb nur, wenn der Nutzer vor Ort ist.
 
 ## Ideen fuer spaeter
 
