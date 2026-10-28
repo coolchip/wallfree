@@ -87,7 +87,7 @@ Messwerte und Zähler der Abfragen zeigt **Status → Zähler** (Expertenansicht
 | Seite | Inhalt |
 | --- | --- |
 | Status → Verlauf | Leistung, erlaubter Strom und Zustand in 10-Minuten-Mitteln über 48 h |
-| Status → Verbindungen | Netzwerk, Uhrzeit, MQTT, Zähler und Chiptemperatur auf einen Blick |
+| Status → Verbindungen | Netzwerk, Uhrzeit, MQTT, Zähler und Prozessortemperatur auf einen Blick |
 | Status → Ladestrom | alle Grenzen des Ladestroms und welche gerade gilt (Expertenansicht) |
 | Status → Fehler | aktive Fehler und alle seit dem Start, Quittieren des Schützfehlers |
 | Status → Ereignisprotokoll | die letzten 48 Einträge: Starts mit Grund, Ereignisse, fehlgeschlagene Anmeldungen; übersteht Neustarts und Updates |
