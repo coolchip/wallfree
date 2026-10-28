@@ -300,8 +300,7 @@ Beim RAM (Heap umgesetzt, Nutzer 2026-10-21):
 Bestaetigt auf dem Testgerät: Pinbelegung und Pegel der Eingaenge, Ausgaenge, LEDs, DIP/Drehschalter,
 Reset-Taster und CP-Messung; PHY-Takt und -Reset (Netz laeuft); IWDG-Umprogrammierung und
 Loeschen von Sektor 7 im Betrieb (Verdichten gelaufen); RTC-Backup-Register ohne RTC-Takt
-(Resetgrund, Update-Ergebnis); Freigabe ruhender HTTP-Verbindungen nach Ablauf der Frist (Lasttest,
-mit der Zephyr-Vorgabe 10 s; die eingestellten 5 s sind auf dem Testgerät noch zu pruefen).
+(Resetgrund, Update-Ergebnis); Freigabe ruhender HTTP-Verbindungen nach 5 s (Lasttest).
 Noch offen:
 
 - PE2 High = Schuetz ein und RCM "High = ausgeloest" (Inversion zum Bender-Ausgang) stammen aus
@@ -359,7 +358,7 @@ auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/do
 | Reset-Taster | wirkt auf NRST und PD2; der Prozessor bleibt nach dem Druecken etwa 5 s im Reset, auch wenn der Taster gehalten wird (vermutlich RC-Glied an NRST), und startet dann. Kurz oder unter etwa 5 s -> nur Neustart (`reset_pin`); gehalten -> nach etwa 5 s blinkt die Power-LED 1 Hz, nach weiteren 5 s Werksreset, also insgesamt etwa 10 s (Testgerät 2026-10-27: nach dem Druecken etwa 5 s dunkel (Prozessor im Reset), dann blinkt die Power-LED 1 Hz (Wallfree wartet); Loslassen vor Ablauf -> nur Neustart, Startereignis um die Wartezeit spaeter) |
 | Parameterspeicher | `FLASH_SR` beim Start `0xc0` (aus dem Bootloader, Fallstricke); erste Speicherung danach fehlerfrei |
 | Update | ueber die Weboberflaeche in etwa 20 s, Erfolg nur bei passender Pruefsumme; Rueckweg zur Originalfirmware 0.81 und zurueck geprueft (Sektor 3 und 7 erhalten). Fruehere Abbrueche: jede Abfrage waehrend des Uploads bricht ihn im Bootloader ab (Seite fragt deshalb nichts ab); wechselnde MAC von Bootloader und Wallfree verzoegerte per ARP-Cache (behoben mit Geraete-MAC) |
-| Browser-Tabs und Verbindungsplaetze (`7cfd6fa`, 2026-10-28, `scripts/web-tabs-load.mjs`, daneben alle 0,5 s eine Anfrage mit neuer Verbindung) | vorher (`b5ce020`) mit offenen Handy-Tabs jede Minute 8..10 s keine Antwort (Ursache Festlegung Verbindungsplaetze). Jetzt: 4 Tabs auf Status, 2 verborgen, 3 min: verborgene 0 Anfragen, sichtbare je hoechstens 2 Verbindungen nacheinander; 350 Antworten, einmal 2,5 s Verbindung abgelehnt (Offen). 2 sichtbare Tabs 4,5 min: 533 Antworten, kein Ausfall. Ohne Tabs 200 s: kein Ausfall, 6..8 ms |
+| Browser-Tabs und Verbindungsplaetze (`cfb6def`, 2026-10-28, `scripts/web-tabs-load.mjs`, daneben alle 0,5 s eine Anfrage mit neuer Verbindung) | vorher (`b5ce020`) mit offenen Handy-Tabs jede Minute 8..10 s keine Antwort (Ursache Festlegung Verbindungsplaetze). Frist: 6 stumme Verbindungen, nach 5,1 s wieder erreichbar (`net-load.py idle`). 4 Tabs auf Status, 2 verborgen, 5 min: verborgene 0 Anfragen, sichtbare je 2 Verbindungen nacheinander, 592 von 592 Anfragen beantwortet. Mit der Frist 10 s (`7cfd6fa`) im gleichen Aufbau einmal 2,5 s Abweisung in 7,5 min. Ohne Tabs 6..8 ms |
 | Netzlast (`scripts/net-load.py`) | Mit kooperativen Netz-Threads startete das Testgerät unter 4 parallelen Abfragern neu (Fallstricke); seit `eca1ad4` kein Neustart: 83 Anfragen/s, hoechstens 123 ms; 3 WebSockets, Takt 2,0 s; 2300 Verbindungsabbrueche in 60 s ohne Rest; 30 min Dauerlast mit 2 WebSockets und MQTT ohne Neustart, WebSocket-Luecke hoechstens 2,1 s |
 | MQTT (Mosquitto 2.1 im LAN) | Verbindung sofort nach `mqtt_enable`; Zustaende retained; Befehl als Zahl und JSON, 3 A abgelehnt, ohne `mqtt_commands` wirkungslos, retained Befehl verworfen; nach Broker-Neustart in 4 s verbunden; Last Will bei Uebernahme der Sitzung nach Neustart |
 | evcc 0.317.2 | Anmeldung und WebSocket ohne Fehler, ohne Fahrzeug "car disconnected", `external_current` = 0 |
@@ -382,10 +381,6 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
   Sendepegel an A/B, Abfrage, Fehlerzaehler bei offener und vertauschter Leitung.
 - Ziel von PE1 und Ansteuerung des Relais C3/C4 (F15): Testgerät 2026-10-27 (Wallfree `c54fa08` mit einem Diagnosebefehl, danach wieder entfernt): PE1 geht 1 s auf High (GPIOE ODR und IDR Bit 1 per SWD gelesen, ohne Anhalten, `wallbe2/analysis/box-t/pe1-gpioe.log`), das Relais an C3/C4 klickt nicht, keine LED reagiert. PE1 schaltet das Relais C3/C4 also nicht direkt; Ziel weiter offen. Spaeter untersuchen, was an PE1
   haengt und wie das Relais angesteuert wird (Nutzer 2026-10-27).
-- Frist 5 s fuer ruhende HTTP-Verbindungen (Festlegung Verbindungsplaetze) auf dem Testgerät pruefen:
-  `net-load.py` Stufe `idle` (Freigabe nach 5 s) und `scripts/web-tabs-load.mjs` mit Abfrage
-  daneben (mit 10 s einmal 2,5 s Abweisung in 7,5 min); in der Simulation nicht pruefbar
-  (Fallstricke).
 - Toter MQTT-Broker bei Dauerversand (Zaehlerwerte jede Sekunde): Erkennung erst ueber TCP, Zeit
   offen; mit dem Zaehler messen.
 - Import aus Sektor 3 auf der Steuerung noch nicht ausgefuehrt (fuer das Testgerät ungeeignet: er setzte
