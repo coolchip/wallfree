@@ -394,8 +394,11 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
   (bis 45 Grad zwischen Chips).
 - Toter MQTT-Broker bei Dauerversand (Zaehlerwerte jede Sekunde): Erkennung erst ueber TCP, Zeit
   offen; mit dem Zaehler messen.
-- Import aus Sektor 3 auf der Steuerung noch nicht ausgefuehrt (fuer das Testgerät ungeeignet: er setzte
-  LD 3, CR 9 und die feste Adresse 192.168.0.8).
+- Import aus Sektor 3 auf der Steuerung noch nicht ausgefuehrt. Ablauf auf dem Testgerät (Nutzer 2026-10-28):
+  Claude sichert `/evse/params` und `/system/config`, fuehrt `evse import-original` aus und stellt die
+  Werte danach ueber die API zurueck (der Import setzt LD 3, CR 9 und die feste Adresse 192.168.0.8;
+  Netzwerte wirken erst nach einem Neustart). Voraussetzung: der Nutzer schaltet Telnet ein (Import
+  gibt es nur in der Shell; mit `telnet_enable` 0 nimmt der Port Verbindungen an, fuehrt aber nichts aus).
 
 ## Ideen fuer spaeter
 
@@ -432,8 +435,16 @@ Fuer die spaetere Veroeffentlichung der Firmware vorbereiten:
 - Technik und Lizenzen: [technik-und-lizenzen.md](technik-und-lizenzen.md) (Nutzer 2026-10-27: Tech-Stack
   aufschreiben); Lizenzhinweis auf der Seite System. Zu jeder Veroeffentlichung `LICENSE` und
   `COPYING.picolibc` (Zephyr SDK) beilegen.
-- Lizenzen dateigenau pruefen: `west spdx` (SPDX-Stueckliste der ins Abbild gelinkten Dateien), Liste in
-  `web/lizenzen.txt` und technik-und-lizenzen.md danach ergaenzen (spaeter, Nutzer 2026-10-27).
+- Lizenzen dateigenau pruefen: `west spdx` (SPDX-Stueckliste der ins Abbild gelinkten Dateien). Ablauf:
+  `west spdx --init -d <dir>`, bauen mit `-DCONFIG_BUILD_OUTPUT_META=y` (sonst bricht `west spdx` ab),
+  `west spdx -d <dir>`. Ergebnis 2026-10-28 (`03cc3ee`): Zephyr Apache-2.0 bis auf `http_parser.c` und
+  `http_parser_url.c` (MIT, Joyent und Node-Beitragende, nach NGINX von Igor Sysoev) sowie `fnmatch.c`
+  und `getopt.c` (BSD-3-Clause, Regents of the University of California, FreeBSD Foundation); diese vier
+  fehlen in `web/lizenzen.txt`. STM32Cube ohne SPDX-Kennung in der Datei (Lizenz in `LICENSE.md`,
+  BSD-3-Clause, schon in der Liste); Mbed TLS / TF-PSA-Crypto Apache-2.0 oder GPL-2.0-or-later (schon
+  in der Liste). Nicht erfasst: picolibc und libgcc (vorgebaut im SDK), Weboberflaeche, eigene Dateien
+  unter `lib/` (Paket ohne Dateianalyse; alle eigenen Quellen tragen Apache-2.0). Umgang mit den vier
+  Dateien bespricht der Nutzer.
 - Kompletter Simulator auf dem PC (native_sim mit Hardwaremodell, Ersatz-Bootloader, evcc).
 - Vor der Veroeffentlichung: Zeiten der Git-Commits pruefen (Nutzer 2026-10-27; Claude erinnert
   daran, der Nutzer weiss, was gemeint ist).
