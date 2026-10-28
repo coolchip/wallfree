@@ -107,7 +107,8 @@ System einschalten (im `localStorage` gespeichert), `sim car C` (Laden; Ring
 zeigt "begrenzt durch Maximum Drehschalter (32 A)", ohne Zaehler "32 A erlaubt"), Knopf
 "Laden aus" (S6 -> S7 -> S3, "Vorgabe: Laden aus"), Status (Ladestrom-Tabelle, Verlauf
 mit laufendem Intervall, Ereignisprotokoll mit Fehlversuch und Taste "Protokoll loeschen"), Einstellungen/Netzwerk und /Zaehler,
-System, Zurueck-Taste (Adresse im Hash), `sim car A`, Netz im Browser 7 s trennen ("getrennt", grau)
+System, Zurueck-Taste (Adresse im Hash), `sim car A`, Status neu geladen: alle Abfragen ueber eine TCP-Verbindung; Tab verborgen
+(`document.hidden`): WebSocket zu, 12 s keine Anfrage, wieder sichtbar sofort live; Netz im Browser 7 s trennen ("getrennt", grau)
 und wieder verbinden ("verbunden"). Danach Bedienung wie ein Nutzer (Rueckfragen werden bestaetigt
 und mitgeschrieben): Einstellungen/Laden je ein Wert ueber Auswahlliste (`wakeup_mode`) und
 Kaestchen (`reject_state_d`) mit "OK", Meldung "gespeichert", Wert per API; "Protokoll loeschen"
@@ -139,7 +140,9 @@ Steuerung oder die Simulation (`--http`, `--telnet` fuer andere Ports). Liest nu
 Telnet-Diagnose). Stufen: `http` (parallele Abfragen, je eine Verbindung), `keep` (Keep-Alive),
 `ws` (4 WebSockets, 3 erlaubt, Takt `evse/state`), `churn` (Aufbau ohne Anfrage, RST, halbe
 Anfrage), `idle` (stumme Verbindungen belegen die HTTP-Plaetze), `mixed` (alles zugleich),
-`long` (Browser + evcc, Schnappschuss alle 5 min). Vor und nach jeder Stufe Laufzeit, Resetgrund,
+`long` (Browser + evcc, Schnappschuss alle 5 min), `tabs` (Hintergrund-Tabs wachen zugleich
+auf und halten ihre Verbindung, daneben Erreichbarkeit fuer neue Verbindungen; nur auf der
+Steuerung aussagekraeftig, die Simulation trennt ruhende Verbindungen nie). Vor und nach jeder Stufe Laufzeit, Resetgrund,
 TCP-Zustaende und Stack-Auslastung; ein Neustart gilt als Fehler. Die Simulation taugt nur zum
 Pruefen des Skripts: unter Volllast laeuft ihre Uhr langsamer als die Wanduhr.
 

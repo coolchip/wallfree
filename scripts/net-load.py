@@ -14,6 +14,10 @@ Stufen:
     churn   Verbindungsaufbau ohne Anfrage, mit RST, halbe Anfragen; danach Erreichbarkeit
     idle    alle HTTP-Plaetze mit stummen Verbindungen belegen, Freigabe nach Zeitlimit messen
     mixed   2 WebSockets + http + churn gleichzeitig
+    tabs    -n Hintergrund-Tabs wachen alle 20 s gleichzeitig auf (wie gedrosselte Tabs im
+            Handy-Browser), je eine Abfragerunde mit Keep-Alive, Verbindung bleibt offen;
+            daneben alle 0,5 s eine Anfrage mit neuer Verbindung, groesste Luecke;
+            nur auf der Steuerung aussagekraeftig (Simulation trennt ruhende Verbindungen nie)
     long    Dauerlast wie Browser + evcc (2 WebSockets, Abfrage alle 2 s, Seite alle 60 s),
             alle 5 min Laufzeit ueber HTTP (ohne Telnet)
 """
@@ -444,6 +448,51 @@ def stage_mixed(t, a):
     return reachable_after(t, "mixed") and bool(gaps) and max(gaps) < 5
 
 
+def stage_tabs(t, a):
+    st, sp, gaps, paths = Stats("tabs"), Stats("tabs Probe"), [], ["/evse/state",
+                                                                   "/evse/external_current",
+                                                                   "/evse/limits"]
+
+    def tab(stop):
+        auth, c = Digest(t.user, t.pw), None
+        while not stop.is_set():
+            stop.wait(20 - time.time() % 20)  # alle zugleich, wie die Minutentakte der Drosselung
+            for path in paths:
+                t0 = time.monotonic()
+                try:
+                    if c is None:
+                        c = t.conn()
+                    status, _ = t.get(c, auth, path)
+                    st.ok(status, time.monotonic() - t0)
+                except Exception as e:  # noqa: BLE001
+                    st.fail(e)
+                    if c:
+                        c.close()
+                    c = None
+        if c:
+            c.close()
+
+    def probe(stop):
+        auth, last = Digest(t.user, t.pw), time.monotonic()
+        while not stop.is_set():
+            t0 = time.monotonic()
+            try:
+                status, _ = t.get_once(auth, "/evse/state", timeout=3)
+                sp.ok(status, time.monotonic() - t0)
+                now = time.monotonic()
+                gaps.append(now - last)
+                last = now
+            except Exception as e:  # noqa: BLE001
+                sp.fail(e)
+            stop.wait(0.5)
+
+    run_threads([tab for _ in range(a.n)] + [probe], a.t)
+    print(st.report(a.t))
+    print(sp.report(a.t))
+    print(f"tabs Probe: groesste Luecke {max(gaps):.1f} s")
+    return max(gaps) < 3
+
+
 def stage_long(t, a):
     sh, sp, sw, gaps = Stats("long Abfrage"), Stats("long Seite"), Stats("long ws"), []
     fns = [http_worker(t, sh, True, 2.0, ["/evse/state", "/evse/limits", "/system/info"]),
@@ -492,7 +541,7 @@ def main():
     stages = {"http": lambda: stage_http(t, a, False), "keep": lambda: stage_http(t, a, True),
               "ws": lambda: stage_ws(t, a), "churn": lambda: stage_churn(t, a),
               "idle": lambda: stage_idle(t, a), "mixed": lambda: stage_mixed(t, a),
-              "long": lambda: stage_long(t, a), "snap": lambda: True}
+              "long": lambda: stage_long(t, a), "tabs": lambda: stage_tabs(t, a), "snap": lambda: True}
     bad = [s for s in a.stages if s not in stages]
     if bad:
         sys.exit(f"unbekannte Stufe {bad}")

@@ -9,9 +9,19 @@ import { html, render, useState, useEffect, useRef } from './vendor.js';
 // Updates stellt die Seite deshalb keine Anfragen ausser denen des Update-Ablaufs.
 let quiet = false;
 
-async function api(path, opts) {
+// Anfragen nacheinander: Die Steuerung hat nur 4 HTTP-Verbindungsplaetze, und jede Verbindung
+// haelt ihren nach der letzten Anfrage noch 10 s. Parallele Abfragen der Karten oeffnete der
+// Browser auf mehreren Verbindungen; so braucht ein Tab einen Platz (dazu den WebSocket).
+let queue = Promise.resolve();
+function api(path, opts) {
+	const run = queue.then(() => request(path, opts));
+	queue = run.catch(() => {});
+	return run;
+}
+
+async function request(path, opts) {
 	if (quiet) throw new Error('Update läuft');
-	const r = await fetch(path, Object.assign({ cache: 'no-store' }, opts));
+	const r = await fetch(path, Object.assign({ cache: 'no-store', signal: AbortSignal.timeout(10000) }, opts));
 	let j = null;
 	try { j = await r.json(); } catch (e) { /* leer */ }
 	if (!r.ok) {
@@ -25,6 +35,18 @@ async function api(path, opts) {
 const post = (path, body) => api(path, {
 	method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
 });
+// Periodisch laden, nur solange die Seite sichtbar ist, beim Zurueckkehren sofort. Gedrosselte
+// Hintergrund-Tabs wachen im Handy-Browser alle zugleich im Minutentakt auf; ihre Abfragen
+// belegten dann die wenigen Verbindungsplaetze der Steuerung (implementierung.md).
+function useEvery(load, ms, deps = []) {
+	useEffect(() => {
+		const run = () => { if (!document.hidden) load(); };
+		run();
+		const t = setInterval(run, ms);
+		document.addEventListener('visibilitychange', run);
+		return () => { clearInterval(t); document.removeEventListener('visibilitychange', run); };
+	}, deps);
+}
 // Abruf mit Browserzeit zur Mitte der Anfrage (F32: die Steuerung hat keine Uhr; ihre
 // Zeiten zaehlen ab Start und werden bei jedem Abruf neu gegen die Browseruhr abgeglichen)
 async function timed(path) {
@@ -188,7 +210,7 @@ function useLive() {
 			if (!got || Date.now() - opened < 3000) { startPoll(); later(30000); } else later(3000);
 		};
 		const connect = () => {
-			if (ws) return;
+			if (ws || document.hidden) return;
 			if (quiet) { later(3000); return; }
 			const opened = Date.now();
 			let got = false;
@@ -213,14 +235,28 @@ function useLive() {
 			w.onclose = () => { if (ws === w) lost(opened, got); };
 			w.drop = () => { w.onclose = null; w.close(); lost(opened, got); };
 		};
+		// Im Hintergrund weder WebSocket noch Abfrage (useEvery); sichtbar wieder verbinden
+		const vis = () => {
+			if (document.hidden) {
+				clearInterval(timer); timer = null; clearTimeout(retry);
+				if (ws) { const w = ws; ws = null; w.onclose = null; w.close(); }
+			} else if (!ws && !timer) {
+				lastOk = Date.now();
+				connect();
+			}
+		};
+		document.addEventListener('visibilitychange', vis);
 		// Ein haengender WebSocket (Kabel gezogen) meldet sich nicht von selbst
 		const watch = setInterval(() => {
-			if (!lastOk || Date.now() - lastOk < OFFLINE_MS) return;
+			if (document.hidden || !lastOk || Date.now() - lastOk < OFFLINE_MS) return;
 			setOnline(false);
 			if (ws && ws.readyState === WebSocket.OPEN) ws.drop();
 		}, 1000);
-		connect();
-		return () => { stop = true; if (ws) ws.close(); clearInterval(timer); clearInterval(watch); clearTimeout(retry); };
+		if (!document.hidden) connect();
+		return () => {
+			stop = true; if (ws) ws.close(); clearInterval(timer); clearInterval(watch); clearTimeout(retry);
+			document.removeEventListener('visibilitychange', vis);
+		};
 	}, []);
 	return { state, ext, mode, online, setExt, events, limits, meter };
 }
@@ -289,11 +325,7 @@ function EventLog({ live, all }) {
 		} catch (e) { setErr(e.message); }
 	};
 	const polling = live.mode !== 'live';
-	useEffect(() => {
-		load();
-		const t = setInterval(load, polling ? 5000 : 60000);
-		return () => clearInterval(t);
-	}, [polling]);
+	useEvery(load, polling ? 5000 : 60000, [polling]);
 	if (!log) return err ? html`<${Card} title="Ereignisse"><p class="bad">${err}</p><//>` : null;
 	// SOLL-ERR-13: was vor dem Loeschen live ankam, gehoert nicht mehr dazu
 	const cut = log.filter((x) => x.kind === 'cleared' && x.boot === boot).map((x) => x.t_ms).pop() ?? -1;
@@ -555,12 +587,8 @@ function Params({ kinds }) {
 	const load = async () => {
 		try { setVals(await api('/evse/params')); } catch (e) { /* Verbindung zeigt der Kopf */ }
 	};
-	useEffect(() => {
-		api('/evse/param_info').then(setInfo).catch((e) => setErr(e.message));
-		load();
-		const t = setInterval(load, 2000);
-		return () => clearInterval(t);
-	}, []);
+	useEffect(() => { api('/evse/param_info').then(setInfo).catch((e) => setErr(e.message)); }, []);
+	useEvery(load, 2000);
 	if (err) return html`<p class="bad">${err}</p>`;
 	if (!info) return html`<p class="muted">Lade …</p>`;
 	const groups = [['config', 'Konfiguration (gespeichert)'], ['runtime', 'Laufzeitwerte (nicht gespeichert)'],
@@ -588,7 +616,7 @@ function Errors() {
 	const [d, setD] = useState(null);
 	const [msg, setMsg] = useState(null);
 	const load = () => api('/evse/errors').then(setD).catch(() => { /* Verbindung zeigt der Kopf */ });
-	useEffect(() => { load(); const t = setInterval(load, 3000); return () => clearInterval(t); }, []);
+	useEvery(load, 3000);
 	const ack = async () => {
 		try {
 			const r = await post('/evse/errors/ack', {});
@@ -903,12 +931,7 @@ function ViewCard({ expert, setExpert }) {
 function SystemPage({ onBusy, expert, setExpert }) {
 	const [si, setSi] = useState(null);
 	const [msg, setMsg] = useState(null);
-	useEffect(() => {
-		const load = () => api('/system/info').then(setSi).catch(() => {});
-		load();
-		const t = setInterval(load, 10000);
-		return () => clearInterval(t);
-	}, []);
+	useEvery(() => api('/system/info').then(setSi).catch(() => {}), 10000);
 	return html`<${Card} title="System">
 		${si && html`<table>
 			<tr><td>Firmware</td><td class="num">Wallfree ${si.firmware}<br />
@@ -976,12 +999,7 @@ const flagText = (f) => (f & HF_ERR ? 'Fehler' : f & HF_CHG ? 'lädt' : f & HF_C
 
 function useHistory() {
 	const [h, setH] = useState(null);
-	useEffect(() => {
-		const load = () => timed('/evse/history').then(([j, at]) => setH({ ...j, at })).catch(() => {});
-		load();
-		const t = setInterval(load, 60000);
-		return () => clearInterval(t);
-	}, []);
+	useEvery(() => timed('/evse/history').then(([j, at]) => setH({ ...j, at })).catch(() => {}), 60000);
 	return h;
 }
 
@@ -1142,20 +1160,16 @@ function CpScope() {
 // Seite nur einen der wenigen Verbindungsplaetze der Steuerung braucht
 function Connections({ meter }) {
 	const [d, setD] = useState(null);
-	useEffect(() => {
-		let stop = false;
-		const load = async () => {
-			try {
-				const cfg = await api('/system/config');
-				const si = await api('/system/info');
-				const mq = await api('/mqtt/state');
-				if (!stop) setD({ a: cfg.active, si, mq });
-			} catch (e) { /* naechster Versuch */ }
-		};
-		load();
-		const t = setInterval(load, 10000);
-		return () => { stop = true; clearInterval(t); };
-	}, []);
+	const stop = useRef(false);
+	useEffect(() => () => { stop.current = true; }, []);
+	useEvery(async () => {
+		try {
+			const cfg = await api('/system/config');
+			const si = await api('/system/info');
+			const mq = await api('/mqtt/state');
+			if (!stop.current) setD({ a: cfg.active, si, mq });
+		} catch (e) { /* naechster Versuch */ }
+	}, 10000);
 	if (!d) return html`<${Card} title="Verbindungen"><p class="muted">…</p><//>`;
 	const { a, si, mq } = d;
 	const st = meter && meter.state;

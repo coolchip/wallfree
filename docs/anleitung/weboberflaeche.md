@@ -97,6 +97,9 @@ Die **Kopfzeile** enthält:
     grau und lässt sich nicht bedienen, bis die Verbindung wieder steht. Die Seite verbindet
     sich selbständig neu.
   - orange mit der Leiste „Update läuft“: während eines Firmware-Updates (Abschnitt 8.1).
+
+  Ein Tab im Hintergrund fragt die Steuerung nicht ab und belegt keine ihrer wenigen
+  Verbindungen; beim Zurückholen lädt die Seite sofort neu.
 - die **Bereiche** Übersicht, Status, Einstellungen und System.
 
 ![Anzeige bei getrennter Verbindung](bilder/getrennt.png)

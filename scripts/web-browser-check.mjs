@@ -33,6 +33,8 @@ let id = 0;
 const pending = new Map();
 const logs = [];
 const dialogs = [];
+const netLog = [];
+const conns = new Set(); // TCP-Verbindungen der API-Abfragen in einem Zeitfenster // HTTP-Anfragen und WebSocket-Auf-/Abbau der Seite
 ws.addEventListener('message', (m) => {
 	const d = JSON.parse(m.data);
 	if (d.id && pending.has(d.id)) { pending.get(d.id)(d); pending.delete(d.id); return; }
@@ -46,7 +48,12 @@ ws.addEventListener('message', (m) => {
 		send('Page.handleJavaScriptDialog', { accept: true });
 	} else if (d.method === 'Runtime.consoleAPICalled' || d.method === 'Runtime.exceptionThrown') {
 		logs.push(JSON.stringify(d.params).slice(0, 300));
-	} else if (d.method === 'Network.webSocketCreated' || d.method === 'Network.webSocketClosed' ||
+	}
+	if (d.method === 'Network.requestWillBeSent') netLog.push('http ' + d.params.request.url);
+	if (d.method === 'Network.webSocketCreated') netLog.push('ws+');
+	if (d.method === 'Network.responseReceived' && d.params.type === 'Fetch') conns.add(d.params.response.connectionId);
+	if (d.method === 'Network.webSocketClosed') netLog.push('ws-');
+	if (d.method === 'Network.webSocketCreated' || d.method === 'Network.webSocketClosed' ||
 		d.method === 'Network.webSocketHandshakeResponseReceived') {
 		logs.push(d.method + ' ' + JSON.stringify(d.params.response ? d.params.response.status : d.params.url || ''));
 	}
@@ -128,6 +135,26 @@ await go('#/status');
 await shell('sim car A');
 await sleep(3000);
 out.expert2 = await text();
+// Status mit allen Karten: alle Abfragen ueber eine Verbindung (4 Plaetze auf der Steuerung)
+conns.clear();
+await go('#/einstellungen');
+await go('#/status');
+await sleep(8000);
+out.conns = [...conns];
+// Tab im Hintergrund (Status mit allen Nachladern): WebSocket zu, keine Abfragen; sichtbar wieder live
+const setHidden = (h) => evalJs(`(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => ${h} });
+	document.dispatchEvent(new Event('visibilitychange')); })()`);
+const nh = netLog.length;
+await setHidden(true);
+await sleep(500);
+const n0 = netLog.length;
+out.hideNet = netLog.slice(nh, n0);
+await sleep(12000);
+out.hiddenNet = netLog.slice(n0);
+await setHidden(false);
+await sleep(3000);
+out.visibleMode = await evalJs(conn);
+out.visibleNet = netLog.slice(n0 + out.hiddenNet.length);
 // Verbindungsabbruch: Netz im Browser trennen, nach OFFLINE_MS grau; danach Wiederkehr
 await send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
 await sleep(7000);
@@ -239,6 +266,10 @@ const checks = [
 		&& out.restart[0] === 'user_restart' && out.restart[1] === 'browsertest' && out.restart[2] === 1],
 	['Zugangsdaten: Benutzer vorbelegt, Aenderung und Neuanmeldung', out.pw1[0] === user && out.pw1[1] && !!out.pw1[2]
 		&& out.pw2[1] && !!out.pw2[2]],
+	['Abfragen ueber eine Verbindung', out.conns.length === 1],
+	['Hintergrund: keine Anfragen, WebSocket zu', out.hiddenNet.length === 0 && out.hideNet.includes('ws-')],
+	['Hintergrund: sichtbar wieder live', out.visibleMode.includes('live (WebSocket)') && out.visibleNet.includes('ws+')
+		&& out.visibleNet.some((u) => u.includes('/evse/errors'))],
 	['keine Skriptfehler', !logs.some((l) => l.includes('exceptionDetails'))],
 ];
 if (withMeter) {
