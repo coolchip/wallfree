@@ -146,6 +146,11 @@ Steuerung aussagekraeftig, die Simulation trennt ruhende Verbindungen nie). Vor 
 TCP-Zustaende und Stack-Auslastung; ein Neustart gilt als Fehler. Die Simulation taugt nur zum
 Pruefen des Skripts: unter Volllast laeuft ihre Uhr langsamer als die Wanduhr.
 
+`node scripts/web-tabs-load.mjs <host> <user> <passwort> <tabs> <sekunden> <verborgen> <ausgabe>`
+oeffnet echte Tabs (je eine headless-Chrome-Instanz) auf Status, die ersten verborgen, und meldet
+je Tab Anfragen und benutzte Verbindungen; die Erreichbarkeit misst man daneben. Die Chrome-Prozesse
+werden am Ende beendet.
+
 ## Bilder und PDF der Anleitung
 
 `scripts/doc-screenshots.sh` erzeugt die Bilder in `docs/anleitung/bilder/` (etwa 8 min): eigener

@@ -358,6 +358,7 @@ auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/do
 | Reset-Taster | wirkt auf NRST und PD2; der Prozessor bleibt nach dem Druecken etwa 5 s im Reset, auch wenn der Taster gehalten wird (vermutlich RC-Glied an NRST), und startet dann. Kurz oder unter etwa 5 s -> nur Neustart (`reset_pin`); gehalten -> nach etwa 5 s blinkt die Power-LED 1 Hz, nach weiteren 5 s Werksreset, also insgesamt etwa 10 s (Testgerät 2026-10-27: nach dem Druecken etwa 5 s dunkel (Prozessor im Reset), dann blinkt die Power-LED 1 Hz (Wallfree wartet); Loslassen vor Ablauf -> nur Neustart, Startereignis um die Wartezeit spaeter) |
 | Parameterspeicher | `FLASH_SR` beim Start `0xc0` (aus dem Bootloader, Fallstricke); erste Speicherung danach fehlerfrei |
 | Update | ueber die Weboberflaeche in etwa 20 s, Erfolg nur bei passender Pruefsumme; Rueckweg zur Originalfirmware 0.81 und zurueck geprueft (Sektor 3 und 7 erhalten). Fruehere Abbrueche: jede Abfrage waehrend des Uploads bricht ihn im Bootloader ab (Seite fragt deshalb nichts ab); wechselnde MAC von Bootloader und Wallfree verzoegerte per ARP-Cache (behoben mit Geraete-MAC) |
+| Browser-Tabs und Verbindungsplaetze (`7cfd6fa`, 2026-10-28, `scripts/web-tabs-load.mjs`, daneben alle 0,5 s eine Anfrage mit neuer Verbindung) | vorher (`b5ce020`) mit offenen Handy-Tabs jede Minute 8..10 s keine Antwort (Ursache Festlegung Verbindungsplaetze). Jetzt: 4 Tabs auf Status, 2 verborgen, 3 min: verborgene 0 Anfragen, sichtbare je hoechstens 2 Verbindungen nacheinander; 350 Antworten, einmal 2,5 s Verbindung abgelehnt (Offen). 2 sichtbare Tabs 4,5 min: 533 Antworten, kein Ausfall. Ohne Tabs 200 s: kein Ausfall, 6..8 ms |
 | Netzlast (`scripts/net-load.py`) | Mit kooperativen Netz-Threads startete das Testgerät unter 4 parallelen Abfragern neu (Fallstricke); seit `eca1ad4` kein Neustart: 83 Anfragen/s, hoechstens 123 ms; 3 WebSockets, Takt 2,0 s; 2300 Verbindungsabbrueche in 60 s ohne Rest; 30 min Dauerlast mit 2 WebSockets und MQTT ohne Neustart, WebSocket-Luecke hoechstens 2,1 s |
 | MQTT (Mosquitto 2.1 im LAN) | Verbindung sofort nach `mqtt_enable`; Zustaende retained; Befehl als Zahl und JSON, 3 A abgelehnt, ohne `mqtt_commands` wirkungslos, retained Befehl verworfen; nach Broker-Neustart in 4 s verbunden; Last Will bei Uebernahme der Sitzung nach Neustart |
 | evcc 0.317.2 | Anmeldung und WebSocket ohne Fehler, ohne Fahrzeug "car disconnected", `external_current` = 0 |
@@ -380,16 +381,11 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
   Sendepegel an A/B, Abfrage, Fehlerzaehler bei offener und vertauschter Leitung.
 - Ziel von PE1 und Ansteuerung des Relais C3/C4 (F15): Testgerät 2026-10-27 (Wallfree `c54fa08` mit einem Diagnosebefehl, danach wieder entfernt): PE1 geht 1 s auf High (GPIOE ODR und IDR Bit 1 per SWD gelesen, ohne Anhalten, `wallbe2/analysis/box-t/pe1-gpioe.log`), das Relais an C3/C4 klickt nicht, keine LED reagiert. PE1 schaltet das Relais C3/C4 also nicht direkt; Ziel weiter offen. Spaeter untersuchen, was an PE1
   haengt und wie das Relais angesteuert wird (Nutzer 2026-10-27).
-- **HTTP-Aussetzer am Testgerät (2026-10-27, `b5ce020`): jede Minute bei Sekunde 29 etwa 8..10 s
-  keine Antwort auf HTTP (erst Zeitueberschreitung, dann etwa 5 s Verbindung abgelehnt), Ping
-  ungestoert; mit allen Tabs im Handy-Browser des Nutzers geschlossen 3 min ohne Aussetzer.
-  Ursache: Die Seite oeffnete fuer parallel ladende Karten mehrere Verbindungen (auf Status 6),
-  jede haelt einen der 4 HTTP-Plaetze nach der letzten Anfrage noch 10 s; gedrosselte
-  Hintergrund-Tabs wachen im Minutentakt gleichzeitig auf. Abhilfe in der Weboberflaeche
-  (Festlegung Verbindungsplaetze); auf dem Testgerät nach dem Aufspielen pruefen (`net-load.py` Stufe
-  `tabs` und Handy-Tabs offen lassen). Moegliche Ergaenzung auf dem Server, falls andere Clients
-  ebenso Plaetze halten: Frist `HTTP_SERVER_CLIENT_INACTIVITY_TIMEOUT` 10 -> 3 s (in der
-  Simulation nicht pruefbar, Fallstricke).
+- Seltene kurze Abweisung neuer HTTP-Verbindungen bei sichtbaren Tabs (Testgerät `7cfd6fa`): einmal
+  2,5 s in 7,5 min mit 2 sichtbaren Tabs auf Status (Pruefungen auf dem Testgerät). Vermutlich haelt
+  Chrome zusaetzlich zur benutzten Verbindung eine vorab geoeffnete, die erst nach der Frist von
+  10 s frei wird. Moegliche Abhilfe auf dem Server: `HTTP_SERVER_CLIENT_INACTIVITY_TIMEOUT`
+  10 -> 3 s (in der Simulation nicht pruefbar, Fallstricke); offen, ob noetig.
 - Toter MQTT-Broker bei Dauerversand (Zaehlerwerte jede Sekunde): Erkennung erst ueber TCP, Zeit
   offen; mit dem Zaehler messen.
 - Import aus Sektor 3 auf der Steuerung noch nicht ausgefuehrt (fuer das Testgerät ungeeignet: er setzte
