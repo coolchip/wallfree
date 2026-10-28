@@ -36,6 +36,13 @@ void hw_cp_set_duty(uint16_t permille);
 /** Letzten Messblock kopieren. @return false, wenn noch keiner vorliegt. */
 bool hw_get_block(struct hw_block *out);
 
+/**
+ * Chiptemperatur der MCU in 0,1 Grad C aus dem letzten Messblock (Sensor ADC1_IN16, typische
+ * Kennwerte des Datenblatts, keine Kalibrierung; Streuung zwischen Chips laut RM0033 bis 45 Grad,
+ * also fuer Aenderungen brauchbar, nicht als Absolutwert). @return 0 oder -EAGAIN ohne Messblock
+ */
+int hw_mcu_temp(int32_t *dc);
+
 /** Wird bei jedem neuen Messblock gegeben. */
 extern struct k_sem hw_block_sem;
 

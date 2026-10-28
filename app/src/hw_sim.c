@@ -295,6 +295,12 @@ bool hw_get_block(struct hw_block *out)
 	return ok;
 }
 
+int hw_mcu_temp(int32_t *dc)
+{
+	*dc = 350; /* fester Wert fuer die Anzeige */
+	return 0;
+}
+
 void hw_contactor_off_regs(void)
 {
 	m.contactor = false;

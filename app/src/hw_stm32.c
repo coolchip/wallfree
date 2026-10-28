@@ -304,6 +304,20 @@ bool hw_get_block(struct hw_block *out)
 	return v;
 }
 
+int hw_mcu_temp(int32_t *dc)
+{
+	struct hw_block b;
+
+	if (!hw_get_block(&b)) {
+		return -EAGAIN;
+	}
+	/* VSENSE bei VDDA 3,3 V (angenommen); V25 0,76 V, Steigung 2,5 mV/K (Datenblatt typisch) */
+	int32_t uv = (int32_t)((int64_t)b.temp_raw * 3300000 / (PASSES * 4096));
+
+	*dc = (uv - 760000) / 250 + 250;
+	return 0;
+}
+
 void hw_cp_set_duty(uint16_t permille)
 {
 	if (permille > CP_ARR) {
@@ -362,6 +376,9 @@ static void adc_init(void)
 		LL_ADC_REG_SetSequencerRanks(ADC1, ranks[r], channels[r]);
 		LL_ADC_SetChannelSamplingTime(ADC1, channels[r], LL_ADC_SAMPLINGTIME_28CYCLES);
 	}
+	/* Temperatursensor braucht mindestens 10 us Abtastzeit (Datenblatt): 480 Takte bei
+	 * ADCCLK 25 MHz = 19,2 us. Letzter Rang der Gruppe 2, CP- ist dann laengst gewandelt */
+	LL_ADC_SetChannelSamplingTime(ADC1, LL_ADC_CHANNEL_TEMPSENSOR, LL_ADC_SAMPLINGTIME_480CYCLES);
 
 	LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_DMA2);
 	LL_DMA_DisableStream(DMA2, LL_DMA_STREAM_0);

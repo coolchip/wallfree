@@ -125,6 +125,7 @@ class T1Api(SimCase):
         with open(os.path.join(REPO, "VERSION")) as f:
             self.assertEqual(info["firmware"], f.readline().strip())
         self.assertRegex(info["build"], r"^[0-9a-f]{7,}(-dirty)?$")
+        self.assertEqual(info["mcu_temp_dc"], 350)  # SOLL-API-35, fester Wert der Simulation
         cfg = self.sim.get_json("/system/config", self.auth)
         self.assertFalse(cfg["restart_required"])
         self.assertIsInstance(self.sim.get_json("/system/config_info", self.auth), (list, dict))

@@ -1183,6 +1183,8 @@ function Connections({ meter }) {
 			<small class="muted">${a.mqtt_broker}:${a.mqtt_port}, Präfix ${mq.prefix}, gesendet ${mq.published},
 			Befehle ${mq.commands}${mq.rejected ? ' (abgelehnt ' + mq.rejected + ': ' + mq.last_reject + ')' : ''}</small>` : ''}</td></tr>
 		<tr><td>Zähler</td><td class="num wrap">${st ? METER_STATUS[st.status] || st.status : METER_STATUS.off}</td></tr>
+		${si.mcu_temp_dc != null && html`<tr><td>Temperatur MCU</td><td class="num wrap">${Math.round(si.mcu_temp_dc / 10)} °C<br />
+			<small class="muted">Chip der Steuerung; zeigt Änderungen, der Absolutwert kann je Chip deutlich abweichen</small></td></tr>`}
 	</table><//>`;
 }
 

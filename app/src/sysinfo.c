@@ -113,6 +113,14 @@ void sysinfo_json(struct wf_jbuf *b)
 	wf_jb_int(b, flags);
 	wf_jb_key(b, "uptime_ms", false);
 	wf_jb_int(b, k_uptime_get());
+	int32_t temp;
+
+	wf_jb_key(b, "mcu_temp_dc", false);
+	if (hw_mcu_temp(&temp) == 0) {
+		wf_jb_int(b, temp);
+	} else {
+		wf_jb_raw(b, "null");
+	}
 	wf_jb_key(b, "time", false); /* SOLL-TIME-03 */
 	timesync_json(b);
 	char mac[18];
