@@ -146,6 +146,8 @@ Dabei bleibt CP A (+12 V); D9 aus verriegelt erst bei Fahrzeug (B).
 
 - Erwartet: S6 CHARGING, `contactor` (Soll) 1, Ready-LED an, Front-LED blau (VR 16: C oder D);
   kein Klicken, weil die Spule abgeklemmt ist; an der Steckdose keine Netzspannung.
+- Relais C3/C4 nebenbei: klickt es mit C1/C2 mit? Der Nutzer misst spannungsfrei vorbereitet
+  Durchgang C3-C4 (an C3/C4 nichts angeschlossen; keine MCU-Leitung schaltet C3/C4, siehe Implementierung).
 - S2 aus (B) -> Schuetz-Soll aus, PWM bleibt; S2 ein -> wieder ein (`contactor_min_off` 500 ms).
 - S3 statt S2 (D) -> ERR-STATE-D, Schuetz-Soll aus.
 - S4 kurz druecken waehrend C -> ERR-CP-INVALID, Schuetz-Soll sofort aus.
