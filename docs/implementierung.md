@@ -319,7 +319,7 @@ Gefunden beim Testen; gelten fuer Zephyr 4.4.2 und sind bei Updates erneut zu pr
 
 | Fallstrick | Folge | Massnahme |
 | --- | --- | --- |
-| ADC-Referenz der Steuerung ist nicht 3,3 V, sondern 2,495 V (Faktor der Originalfirmware) | MCU-Temperatur mit 3,3 V gerechnet: 132 statt etwa 32 Grad (Testgerät) | Spannungen aus ADC-Werten mit 2,495 V rechnen; die uebrigen Kanaele nutzen ohnehin die Skalierung des Originals |
+| ADC-Referenz der Steuerung ist nicht 3,3 V, sondern 2,495 V (Faktor der Originalfirmware; auf dem Testgerät ueber VREFINT bestaetigt: `adc_vref_mv` 2493..2494, `3899732`) | MCU-Temperatur mit 3,3 V gerechnet: 132 statt etwa 32 Grad (Testgerät) | Spannungen aus ADC-Werten mit 2,495 V rechnen; die uebrigen Kanaele nutzen ohnehin die Skalierung des Originals |
 | `CONFIG_ZVFS_EVENTFD_MAX` = 1 (der Socket-Service belegt den einzigen Platz) | HTTP-Server startet nie; Meldung nur mit `CONFIG_NET_LOG` sichtbar | Wert 2 |
 | `CONFIG_WEBSOCKET_MAX_CONTEXTS` zu klein | weitere WebSocket-Clients werden vor dem Anwendungs-Callback abgewiesen | 3 (SOLL-API-07 verlangt >= 2) |
 | Netz-Threads in Zephyr standardmaessig kooperativ (`NET_TC_THREAD_COOPERATIVE`): RX/TX, TCP-Arbeit, Ethernet-RX, HTTP-Server, net_mgmt; die System-Workqueue ebenfalls (-1) | laufen vor jedem preemptiven Thread und werden nicht unterbrochen; auf dem Testgerät (`477bb1b`, 4 parallele HTTP-Abfrager) wartete der Automatenthread > 50 ms -> `supervision_limit`, mehrere Neustarts in 2 min, je Start ein Lauf des Verriegelungsmotors | alle preemptiv unter dem Automatenthread (Festlegung Thread-Prioritaeten); Lasttest `scripts/net-load.py` |
@@ -388,15 +388,12 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
   haengt und wie das Relais angesteuert wird (Nutzer 2026-10-27). Naechster Schritt (Nutzer 2026-10-28: wenn er zu
   Hause ist): Kandidat PB3 (Pin 89, zugleich SWO an der Debug-Leiste) per SWD 1 s High setzen und auf
   das Relais hoeren ([wallbe2 hardware.md](../../wallbe2/docs/hardware.md#4-offene-fragen)).
-- Prozessortemperatur (SOLL-API-35) auf dem Testgerät pruefen: Wert plausibel (kalte Box nach laengerer Pause
-  etwa Raumtemperatur plus wenige Grad), steigt nach dem Einschalten langsam an. `8198151` rechnete
-  mit VREF+ 3,3 V und zeigte 132 Grad; mit 2,495 V (Faktor der Originalfirmware) ergibt derselbe
-  Rohwert etwa 32 Grad. Ob die Referenz wirklich 2,495 V hat, zeigt `adc_vref_mv` in `/system/info` (aus VREFINT, +-2,5 %). `8d466ea`: 31,8 Grad knapp 3 min nach dem Start.
+- Prozessortemperatur (SOLL-API-35): auf dem Testgerät plausibel (`8d466ea`: 31,8 Grad knapp 3 min nach dem
+  Start; `3899732`: 33 Grad), Referenz bestaetigt (`adc_vref_mv` 2493..2494, siehe Fallstricke).
   Bestaetigt (Nutzer 2026-10-28): Anzeige "Prozessortemperatur" in Status -> Verbindungen, ganze Grad,
-  Hinweis "kann um einige Grad abweichen". Abgleichparameter vorgesehen (Nutzer
-  2026-10-28, spaeter): Verschiebung in 0,1 Grad, einmal an der kalten Box gegen ein Thermometer
-  eingestellt; die Steigung streut kaum (RM0033: +-1,5 Grad nach Abgleich), nur die Verschiebung
-  (bis 45 Grad zwischen Chips).
+  Hinweis "kann um einige Grad abweichen". Offen: Abgleichparameter (Nutzer 2026-10-28, spaeter):
+  Verschiebung in 0,1 Grad, einmal an der kalten Box gegen ein Thermometer eingestellt; die Steigung
+  streut kaum (RM0033: +-1,5 Grad nach Abgleich), nur die Verschiebung (bis 45 Grad zwischen Chips).
 - Toter MQTT-Broker bei Dauerversand (Zaehlerwerte jede Sekunde): Erkennung erst ueber TCP, Zeit
   offen; mit dem Zaehler messen.
 
@@ -416,9 +413,8 @@ Nicht beauftragt; gesammelt mit dem Nutzer (2026-10-26). Beauftragte Punkte steh
 | Phasenumschaltung 1p/3p ueber C3/C4 (Nutzer 2026-10-27, spaeter) | Laden ab etwa 1,4 kW statt 4,1 kW (PV-Ueberschuss); evcc kann die Umschaltung ueber die WARP-Schnittstelle steuern | setzt eine Ansteuerung des Relais C3/C4 voraus; PE1 ist es nicht (Testgerät 2026-10-27, unter Offen). C3/C4 schaltet nur die Spule eines zweiten Schuetzes (wie C1/C2, Handbuch: Last nie direkt); ueblich: Schuetz 1 L1+N, Schuetz 2 L2+L3; Umschalten nur ohne Last (Laden unterbrechen, Pause, neu starten); Rueckmeldung des zweiten Schuetzes ueber einen Hilfskontakt an einem Eingang; zweites Schuetz nie ohne das erste. WARP: WARP2 mit Energy Manager und externem Schuetz (230-V-Schaltausgang, Hilfskontakt-Rueckmeldung, Laden wird vor dem Umschalten unterbrochen), WARP3 mit zwei eingebauten zweipoligen 63-A-Hutschienenschuetzen (Ersatzteil `WARP-CON-2P-63A`, Hersteller nicht genannt, auf dem Produktfoto "EKMF6320" laut Nutzer 2026-10-27; 63 A gilt je Pol, Reserve fuer Dauerlast und Waerme; fuer 11 kW genuegt vermutlich ein kleineres, der Nutzer wuerde ein anderes waehlen; das zweite schaltet L2/L3 und bleibt bei einphasigem Anschluss immer aus; WARP3-Betriebsanleitung 1.2, Abschnitt 5 und 13.7). Installation durch eine Elektrofachkraft |
 | Zweite Sprache (Englisch) | Nutzer ausserhalb des deutschen Sprachraums (GitHub) | etwa 8..12 KB Flash; Hilfetexte der Parameter kommen aus der Firmware und muessten doppelt vorliegen; Anleitung uebersetzen. Vorerst nur Deutsch (Nutzer 2026-10-27) |
 | Kartenleser (RFID), zukuenftige Erweiterung (Nutzer 2026-10-28; Nutzer prueft, ob er einen Leser bekommt) | Freigabe per Karte statt Schluesselschalter; Freigabeliste und Anlernen ueber die zuletzt gelesene Karte in der Weboberflaeche | Leser als Modbus-RTU-Teilnehmer am vorhandenen RS-485-Bus A/B neben dem Zaehler (eigene Adresse, gleiche Baudrate und gleiches Rahmenformat fuer alle Teilnehmer; der Leser im Original stand auf 115200 Bd, Zaehler meist 9600); Abfrage im Zaehler-Thread abwechselnd; Freigabe wirkt wie EN. Befunde zum Leser des Originals (Typen `DE_950`, `MW_R7`, TeraTron, Register, 20 Karten): [wallbe2 hardware.md](../../wallbe2/docs/hardware.md#4-offene-fragen). Flash bei 92 % knapp. Soll-Spezifikation erst bei Umsetzung |
-| ESP32 als WLAN-Schnittstelle (Nutzer 2026-10-28) | Box ohne Netzwerkkabel | Anschluss an die Bestueckungsflaeche des Modems: USART2 (PD5 TX, PD6 RX, PD3 CTS, PD4 RTS, 115200 Bd in der Originalfirmware), PD0 Einschalten, PD1 Reset, PB10 Status ([Belege §9](../../wallbe2/docs/ladelogik-belege.md#9-nicht-zugeordnete-pins)); welche Pads dort ankommen, erst mit Fotos und Durchgangsmessung (Steuerung muss weiter zerlegt werden, Nutzer spaeter). ESP32 als Netzwerkbruecke (z. B. PPP oder SLIP ueber die UART) waere ein zweiter Netzweg in Zephyr; Flash bei 92 % knapp. Versorgung 3,3 V mit Stromspitzen bis etwa 0,5 A klaeren |
 | Weitere Umbauten der Steuerung (2026-10-28 besprochen) | Batterie oder Goldcap an VBAT (Uhr und Backup-SRAM ueber Stromausfall), Temperaturfuehler DS18B20 an Steckdose oder Schuetz (Strom bei Hitze senken), Display an I2C1 (PB8/PB9 laut Originalfirmware frei), zweiter RS-485-Kanal USART3 fuer den Kartenleser | alle ungeprueft: ob die Pins auf Pads enden, ist offen; feine MCU-Pins (0,5 mm) |
-| Bewusst nicht: TLS fuer die Weboberflaeche, signierte Updates; gestufter Werksreset (Passwort vergessen nur ueber den kompletten Werksreset, Nutzer 2026-10-26) | – | Platz/Zertifikate; Bootloader prueft nichts; keine Hardware |
+| Bewusst nicht: ESP32 als WLAN-Schnittstelle (Nutzer 2026-10-28: zu aufwendig; ESP-AT in Zephyr kann keine Server-Sockets, PPP ueber die UART braucht eigene ESP-Firmware mit Portweiterleitung und 10..20 KB Flash; ohne Kabel geht es einfacher mit einer WLAN-Bridge am Netzwerkanschluss); TLS fuer die Weboberflaeche, signierte Updates; gestufter Werksreset (Passwort vergessen nur ueber den kompletten Werksreset, Nutzer 2026-10-26) | – | Platz/Zertifikate; Bootloader prueft nichts; keine Hardware |
 
 ### Veroeffentlichung (Ideen des Nutzers, 2026-10-27)
 
