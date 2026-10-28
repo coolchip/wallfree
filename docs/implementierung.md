@@ -383,11 +383,15 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
   1 bei eingeschaltetem Schuetz erst in Stufe C (Nutzer 2026-10-28: spaeter).
 - Ziel von PE1 und Ansteuerung des Relais C3/C4 (F15, Nutzer 2026-10-28: spaeter suchen; erst dann
   in der Statusanzeige): Testgerät 2026-10-27 (Wallfree `c54fa08` mit einem Diagnosebefehl, danach wieder entfernt): PE1 geht 1 s auf High (GPIOE ODR und IDR Bit 1 per SWD gelesen, ohne Anhalten, `wallbe2/analysis/box-t/pe1-gpioe.log`), das Relais an C3/C4 klickt nicht, keine LED reagiert. PE1 schaltet das Relais C3/C4 also nicht direkt; Ziel weiter offen. Spaeter untersuchen, was an PE1
-  haengt und wie das Relais angesteuert wird (Nutzer 2026-10-27).
+  haengt und wie das Relais angesteuert wird (Nutzer 2026-10-27). Naechster Schritt (Nutzer 2026-10-28: wenn er zu
+  Hause ist): Kandidat PB3 (Pin 89, zugleich SWO an der Debug-Leiste) per SWD 1 s High setzen und auf
+  das Relais hoeren ([wallbe2 hardware.md](../../wallbe2/docs/hardware.md#4-offene-fragen)).
 - Temperatur MCU (SOLL-API-35) auf dem Testgerät pruefen: Wert plausibel (kalte Box nach laengerer Pause
   etwa Raumtemperatur plus wenige Grad), steigt nach dem Einschalten langsam an. Festlegung zu
-  bestaetigen: Anzeige in Status -> Verbindungen, ganze Grad, ohne Abgleich (ein Abgleichwert waere
-  ein Parameter, falls der Wert auf dem Testgerät stark daneben liegt).
+  bestaetigen: Anzeige in Status -> Verbindungen, ganze Grad. Abgleichparameter vorgesehen (Nutzer
+  2026-10-28, spaeter): Verschiebung in 0,1 Grad, einmal an der kalten Box gegen ein Thermometer
+  eingestellt; die Steigung streut kaum (RM0033: +-1,5 Grad nach Abgleich), nur die Verschiebung
+  (bis 45 Grad zwischen Chips).
 - Toter MQTT-Broker bei Dauerversand (Zaehlerwerte jede Sekunde): Erkennung erst ueber TCP, Zeit
   offen; mit dem Zaehler messen.
 - Import aus Sektor 3 auf der Steuerung noch nicht ausgefuehrt (fuer das Testgerät ungeeignet: er setzte
