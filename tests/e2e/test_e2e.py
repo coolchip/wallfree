@@ -164,6 +164,9 @@ class T1Api(SimCase):
         self.assertEqual(self.sim.get_json("/evse/params", self.auth)["lock_pulse"], new)
 
     def test_08_ladevorgang(self):
+        # Schuetz Soll (C1/C2) und Ist (Spannung an CT): beide aus
+        p = self.sim.get_json("/evse/params", self.auth)
+        self.assertEqual((p["contactor"], p["ct_sense"]), (0, 0))
         self.shell("sim car B")
         # S4 (Selbsttest) meldet ebenfalls 2, aber ohne PWM
         st = self.sim.wait_state(self.auth, lambda s: s["charger_state"] == 2 and
@@ -175,6 +178,8 @@ class T1Api(SimCase):
         st = self.sim.wait_state(self.auth, lambda s: s["charger_state"] == 3, what="Laden")
         self.assertEqual(st["contactor_state"], 3)
         self.assertIn("contactor=1", self.shell("sim status"))
+        p = self.sim.get_json("/evse/params", self.auth)
+        self.assertEqual((p["contactor"], p["ct_sense"]), (1, 1))
         # Sollwert 80 A (F12, keine Einschraenkung), Drehschalter 6 = 32 A begrenzt
         lim = self.sim.get_json("/evse/limits", self.auth)
         self.assertEqual((lim["external"], lim["hardware"], lim["allowed"], lim["limited_by"]),

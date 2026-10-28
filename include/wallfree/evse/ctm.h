@@ -38,6 +38,7 @@ struct evse_ctm {
 	evse_ms_t bad_since;
 	bool bad;     /**< Erkennung aktuell */
 	bool fault;   /**< ERR-CONTACTOR, verriegelnd (F14) */
+	bool sense;   /**< Spannung an CT (Flanke an PE0 juenger als 100 ms), in jedem Modus; Anzeige */
 };
 
 /** Modus zulaessig? Modus 4 nur mit Messquelle (SOLL-PROT-22). */

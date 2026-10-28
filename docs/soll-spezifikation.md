@@ -750,7 +750,8 @@ Diodenschwelle -10 V, Eingangsschwellen 3/9 V, `rcm_retest_interval` 30 s (F13),
 CP-Status und -Rohzustand, Ausgabe (Tastgrad/DC), CP+/CP-/PP/Versorgung als Messwert,
 Kabelwert, wirksamer Strom `I`, `allowed_charging_current`, aktive Slots, Automatenzustand
 S0..S10, Freigabe, Verfuegbarkeit, Ladeerlaubnisquelle, Eingangs-Rohpegel und
--Funktionszustaende, Ausgangszustaende, Verriegelungszustand und -zaehler, Schuetz Soll/Ist,
+-Funktionszustaende, Ausgangszustaende, Verriegelungszustand und -zaehler, Schuetz Soll (Klemme
+C1/C2, `contactor`) und Ist (Spannung an Klemme CT, `ct_sense`, Nutzer 2026-10-28),
 Fehler (aktiv, Historie), Ladedauer, Laufzeit, Resetgrund, Firmwareversion, DIP- und
 Drehschalterstellung (tatsaechlich und wirksam).
 

@@ -15,6 +15,7 @@ void evse_ctm_init(struct evse_ctm *c)
 	c->bad_since = EVSE_MS_NONE;
 	c->bad = false;
 	c->fault = false;
+	c->sense = false;
 }
 
 static bool detect(enum evse_ctm_mode mode, const struct evse_ctm_in *in, evse_ms_t now)
@@ -46,6 +47,7 @@ static bool detect(enum evse_ctm_mode mode, const struct evse_ctm_in *in, evse_m
 void evse_ctm_update(struct evse_ctm *c, enum evse_ctm_mode mode, const struct evse_ctm_in *in,
 		     evse_ms_t now)
 {
+	c->sense = detect(EVSE_CTM_SENSE, in, now);
 	/* SOLL-PROT-21: nur bei ausgeschaltetem Schuetz, nach Verzoegerung */
 	if (in->contactor_on || in->off_since == EVSE_MS_NONE ||
 	    !evse_elapsed_ge(now, in->off_since, EVSE_CTM_CHECK_DELAY_MS)) {

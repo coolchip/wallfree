@@ -8,7 +8,7 @@ Steuerung laeuft). Sie belegen nichts ueber die reale Hardware (Pegel, Zeiten, I
 | Ebene | Umfang | Stand |
 | --- | --- | --- |
 | PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezaehler, MQTT ohne Netz | 219 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zaehler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
-| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zaehler, lokalen MQTT-Broker | 54 Tests, alle bestanden, ca. 195 s (T5Mqtt gelegentlich wegen eines Simulationsfehlers, Fallstricke) |
+| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zaehler, lokalen MQTT-Broker | 55 Tests, alle bestanden, ca. 195 s (T5Mqtt gelegentlich wegen eines Simulationsfehlers, Fallstricke) |
 | Browser-Durchlauf | Weboberflaeche in headless Chrome gegen die Simulation | ohne Zaehler 20 Pruefungen bestanden (2026-10-26); mit Zaehler zuletzt 2026-10-21 bestanden |
 | Netz-Lasttest | `scripts/net-load.py` gegen Simulation (nur Skriptpruefung) und das Testgerät | auf dem Testgerät bestanden ([Implementierung](implementierung.md#pruefungen-auf-box-t)) |
 | MQTT im LAN | Simulation gegen Mosquitto 2.1.2 im Heimnetz (von Hand, 2026-10-21) | Zustaende, Zaehlerwerte (etwa 1/s), Ereignisse, Befehl Ladestrom, `online` true/false |

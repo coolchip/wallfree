@@ -33,7 +33,7 @@ Reines C99, getestet auf `native_sim/native/64` mit ztest.
 | [switches.c](../lib/evse/switches.c) | Drehschalter- und DIP-Dekodierung | 2.2, E11 | evse_current |
 | [lock.c](../lib/evse/lock.c) | Verriegelungszyklus, LD permanent/gepulst, Option `unlock_check` | SOLL-LOCK-01..17, F27 | `tests/evse/prot` (evse_lock) |
 | [rcm.c](../lib/evse/rcm.c) | Fehlerstrom-Latch, Selbsttest-Zeitfolge | SOLL-PROT-04..13 | evse_rcm |
-| [ctm.c](../lib/evse/ctm.c) | Schuetzueberwachung Modi 0..4 | SOLL-PROT-20..23 | evse_ctm |
+| [ctm.c](../lib/evse/ctm.c) | Schuetzueberwachung Modi 0..4; Statuswert `ct_sense` (Spannung an CT, Schuetz Ist, in jedem Modus) | SOLL-PROT-20..23, 10.3 | evse_ctm |
 | [charger.c](../lib/evse/charger.c) | Automat S0..S10, Vorrangliste, Weckfolge, Freigabe, Fehlermodell mit Historie (32 Ereignisse), LEDs, sicherer Zustand, Selbsttest auf Anforderung, geordnetes Ende vor Neustart (`evse_request_shutdown`) | 5, 9.2, 11, SOLL-PROT-01/41, SOLL-LOCK-20..41, SOLL-RT-20 | `tests/evse/charger` (evse_charger, evse_charger2: 45 Szenarien mit Simulationsmodell) |
 | [outputs.c](../lib/evse/outputs.c) | Ausgangsfunktionen 0..42 | 9.3 | evse_outputs (Wahrheitstabelle aller Codes) |
 | [param.c](../lib/evse/param.c) | Parametertabelle (Konfiguration, Laufzeit, Status) mit Name, Kennung, Herkunftsfeld, Einheit, Bereich, Default, Hilfetext; Schreiben mit Grenz-/Zustandspruefung und Fehlercode | 10, SOLL-PAR-01..03/40, E14, SOLL-API-20/30 | evse_param |
@@ -379,7 +379,10 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
 - Reaktionszeit RCM -> PE2 am Oszilloskop (SOLL-PROT-05).
 - Energiezaehler an RS-485: Eastron SDM72D-M-2 des Nutzers anschliessen (spaeter, Nutzer 2026-10-27);
   Sendepegel an A/B, Abfrage, Fehlerzaehler bei offener und vertauschter Leitung.
-- Ziel von PE1 und Ansteuerung des Relais C3/C4 (F15): Testgerät 2026-10-27 (Wallfree `c54fa08` mit einem Diagnosebefehl, danach wieder entfernt): PE1 geht 1 s auf High (GPIOE ODR und IDR Bit 1 per SWD gelesen, ohne Anhalten, `wallbe2/analysis/box-t/pe1-gpioe.log`), das Relais an C3/C4 klickt nicht, keine LED reagiert. PE1 schaltet das Relais C3/C4 also nicht direkt; Ziel weiter offen. Spaeter untersuchen, was an PE1
+- Statuswert `ct_sense` (Spannung an CT) auf dem Testgerät pruefen: ohne Schuetz 0 (geht ohne Pruefstecker),
+  1 bei eingeschaltetem Schuetz erst in Stufe C (Nutzer 2026-10-28: spaeter).
+- Ziel von PE1 und Ansteuerung des Relais C3/C4 (F15, Nutzer 2026-10-28: spaeter suchen; erst dann
+  in der Statusanzeige): Testgerät 2026-10-27 (Wallfree `c54fa08` mit einem Diagnosebefehl, danach wieder entfernt): PE1 geht 1 s auf High (GPIOE ODR und IDR Bit 1 per SWD gelesen, ohne Anhalten, `wallbe2/analysis/box-t/pe1-gpioe.log`), das Relais an C3/C4 klickt nicht, keine LED reagiert. PE1 schaltet das Relais C3/C4 also nicht direkt; Ziel weiter offen. Spaeter untersuchen, was an PE1
   haengt und wie das Relais angesteuert wird (Nutzer 2026-10-27).
 - Toter MQTT-Broker bei Dauerversand (Zaehlerwerte jede Sekunde): Erkennung erst ueber TCP, Zeit
   offen; mit dem Zaehler messen.

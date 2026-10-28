@@ -300,7 +300,8 @@ Innere Zustände der Ladesteuerung, vor allem für die Fehlersuche. Die Werte si
 | keine Digitalkommunikation | 1 = 5-%-Modus und Fahrzeug will laden |
 | aktive Fehler / seit Start aufgetretene Fehler | Fehler als Text ([10.5](#105-fehler)) |
 | Warnungen | 1 = Versorgungsspannung zu niedrig (nur Hinweis, keine Abschaltung) |
-| Schütz Soll | 1 = Schütz soll eingeschaltet sein |
+| Schütz Soll (Klemme C1/C2) | 1 = Schütz soll eingeschaltet sein (Ansteuerung der Spule an C1/C2) |
+| Spannung an Klemme CT (Schütz Ist) | 1 = an CT liegt Netzspannung an. Bei der wallbe hängt CT an L1 hinter dem Schütz: Soll und Ist sollten übereinstimmen; „Soll 0, Spannung 1“ deutet auf einen verklebten Kontakt (L1). Wird angezeigt, auch wenn die Schützüberwachung aus ist |
 | Ladedauer des Steckvorgangs | bisherige Ladezeit (Schütz ein) im aktuellen Steckvorgang in ms |
 | Ladeerlaubnis / Freigabe / Verfügbarkeit fehlt | Freigabelogik ([10.4](#104-freigabe-und-verfügbarkeit)) |
 | Drehschalterstellung | Stellung 0..15 beim Start |

@@ -121,6 +121,7 @@ GETTER(st_errors, e->errors)
 GETTER(st_errors_seen, e->errors_seen)
 GETTER(st_warnings, e->warnings)
 GETTER(st_contactor, e->out.contactor)
+GETTER(st_ct_sense, e->ctm.sense)
 GETTER(st_charge_ms, e->charge_ms)
 GETTER(st_permission, e->permission)
 GETTER(st_release, e->release)
@@ -270,7 +271,7 @@ static const struct evse_param params[] = {
 	STATUS("errors", 2012, "", st_errors, "aktive Fehler (Bitmaske)"),
 	STATUS("errors_seen", 2013, "", st_errors_seen, "seit Start aufgetretene Fehler"),
 	STATUS("warnings", 2014, "", st_warnings, "Warnungen"),
-	STATUS("contactor", 2015, "", st_contactor, "Schütz Soll"),
+	STATUS("contactor", 2015, "", st_contactor, "Schütz Soll (Klemme C1/C2)"),
 	STATUS("charge_time", 2016, "ms", st_charge_ms, "Ladedauer des Steckvorgangs"),
 	STATUS("permission", 2017, "", st_permission, "Ladeerlaubnis"),
 	STATUS("release", 2018, "", st_release, "Freigabe"),
@@ -281,6 +282,7 @@ static const struct evse_param params[] = {
 	STATUS("outputs", 2023, "", st_dout, "Ausgänge ER..CR (Bit 0..3)"),
 	STATUS("lock_attempts", 2024, "", st_lock_attempts, "Fehlversuche Verriegeln"),
 	STATUS("unlock_attempts", 2025, "", st_unlock_attempts, "Fehlversuche Entriegeln"),
+	STATUS("ct_sense", 2026, "", st_ct_sense, "Spannung an Klemme CT (Schütz Ist)"),
 };
 
 size_t evse_param_count(void)

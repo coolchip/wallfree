@@ -230,6 +230,19 @@ ZTEST(evse_ctm, test_sense_ok_and_delay)
 	zassert_false(ctm.fault);
 }
 
+/* Anzeige "Spannung an CT": unabhaengig von Modus und Schuetz-Soll */
+ZTEST(evse_ctm, test_sense_display)
+{
+	cin.contactor_on = true;
+	ctm_run(EVSE_CTM_OFF, 100, true);
+	zassert_true(ctm.sense);
+	ctm_run(EVSE_CTM_OFF, 99, false);
+	zassert_true(ctm.sense, "letzte Flanke juenger als 100 ms");
+	ctm_run(EVSE_CTM_OFF, 2, false);
+	zassert_false(ctm.sense);
+	zassert_false(ctm.fault);
+}
+
 ZTEST(evse_ctm, test_no_nc_modes)
 {
 	cin.ct_no = true;
