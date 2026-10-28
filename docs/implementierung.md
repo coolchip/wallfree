@@ -381,8 +381,8 @@ Weboberflaeche (Laden und Schutz unberuehrt). Telnet-Ausgabe unter Last siehe Fa
 - Reaktionszeit RCM -> PE2 am Oszilloskop (SOLL-PROT-05).
 - Energiezaehler an RS-485: Eastron SDM72D-M-2 des Nutzers anschliessen (spaeter, Nutzer 2026-10-27);
   Sendepegel an A/B, Abfrage, Fehlerzaehler bei offener und vertauschter Leitung.
-- Statuswert `ct_sense` (Spannung an CT) auf dem Testgerät pruefen: ohne Schuetz 0 (geht ohne Pruefstecker),
-  1 bei eingeschaltetem Schuetz erst in Stufe C (Nutzer 2026-10-28: spaeter).
+- Statuswert `ct_sense` (Spannung an CT) auf dem Testgerät: ohne Schuetz 0 (bestaetigt 2026-10-28, `3899732`);
+  1 bei eingeschaltetem Schuetz erst in Stufe C.
 - Ziel von PE1 und Ansteuerung des Relais C3/C4 (F15, Nutzer 2026-10-28: spaeter suchen; erst dann
   in der Statusanzeige): Testgerät 2026-10-27 (Wallfree `c54fa08` mit einem Diagnosebefehl, danach wieder entfernt): PE1 geht 1 s auf High (GPIOE ODR und IDR Bit 1 per SWD gelesen, ohne Anhalten, `wallbe2/analysis/box-t/pe1-gpioe.log`), das Relais an C3/C4 klickt nicht, keine LED reagiert. PE1 schaltet das Relais C3/C4 also nicht direkt; Ziel weiter offen. Spaeter untersuchen, was an PE1
   haengt und wie das Relais angesteuert wird (Nutzer 2026-10-27). Naechster Schritt (Nutzer 2026-10-28: wenn er zu
