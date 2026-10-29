@@ -520,9 +520,9 @@ Zehntelgrad eintragen und speichern, er wirkt sofort: Zeigt die Steuerung 34 °C
 Thermometer 21,5 °C, ist der Abgleich -125.
 
 **Konsole** (nur Expertenansicht): Eingabezeile für die Kommandos der Steuerung, gedacht für die
-Fehlersuche, z. B. `evse status` (Zustand in Kurzform), `evse param list lock` (alle Parameter,
-deren Name mit `lock` beginnt), `evse log` (die jüngsten Meldungen der Steuerung seit dem Start)
-oder `evse threads` (Auslastung der Programmteile); `evse -h`
+Fehlersuche, z. B. `status` (Zustand in Kurzform), `param list lock` (alle Parameter,
+deren Name mit `lock` beginnt), `log` (die jüngsten Meldungen der Steuerung seit dem Start)
+oder `threads` (Auslastung der Programmteile); `help`
 listet alle. Die Tabulatortaste ergänzt Kommandos und Parameternamen; passende Vorschläge erscheinen
 unter der Eingabezeile und lassen sich antippen (auch am Handy). Je Eingabe läuft ein Kommando, die Antwort erscheint darunter (höchstens etwa
 2000 Zeichen, längere werden gekürzt). Mit Pfeil hoch und runter lassen sich frühere Eingaben

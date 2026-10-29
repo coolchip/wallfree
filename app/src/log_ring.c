@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Log-Backend in einen Ring im RAM (SOLL-SH-22): die juengsten Meldungen, lesbar mit
- * evse log in der Konsole. Zugleich das einzige Log-Backend der Steuerung; Zephyrs
+ * log in der Konsole. Zugleich das einzige Log-Backend der Steuerung; Zephyrs
  * Log-Thread verlangt mindestens eines (ohne: Assertion beim Start, Startschleife).
  * Der Ring ueberlebt keinen Neustart.
  */

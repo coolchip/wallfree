@@ -651,7 +651,7 @@ function Errors() {
 				<td>${STATES[h.state] || h.state}</td><td class="bad">${h.set.join(', ')}</td>
 				<td class="ok">${h.cleared.join(', ')}</td></tr>`)}
 		</table>`}
-		${d.truncated && html`<p class="muted msg">Ältere Einträge: Shell "evse errors".</p>`}
+		${d.truncated && html`<p class="muted msg">Ältere Einträge: Shell "errors".</p>`}
 	<//>`;
 }
 
@@ -976,7 +976,7 @@ function SystemPage({ onBusy, expert, setExpert }) {
 
 // Vervollstaendigung (SOLL-SH-23): Kommandobaum einmal von der Steuerung, Namen der Parameter
 // bei Bedarf aus den Parameterbeschreibungen. Liefert die Vorschlaege fuer das letzte Wort.
-const ARG_NAMES = { 'evse param get': 'p', 'evse param set': 'p', 'evse param list': 'p', 'evse sys set': 's' };
+const ARG_NAMES = { 'param get': 'p', 'param set': 'p', 'param list': 'p', 'sys set': 's' };
 function useCompletion() {
 	const tree = useRef(null);
 	const names = useRef({});
@@ -1062,14 +1062,14 @@ function Console() {
 	// Vorschlaege nur, solange es etwas zu waehlen gibt (nicht beim fertig getippten Wort)
 	const show = sugg.opts.length > 0 && !(sugg.opts.length === 1 && sugg.opts[0][0] === sugg.last);
 	return html`<${Card} title="Konsole">
-		<p class="muted msg">Shell-Kommandos für die Diagnose, z. B. <code>evse status</code>, <code>evse log</code> (jüngste
-			Meldungen), <code>evse param list lock</code> oder <code>evse threads</code>; <code>evse -h</code> zeigt
+		<p class="muted msg">Shell-Kommandos für die Diagnose, z. B. <code>status</code>, <code>log</code> (jüngste
+			Meldungen), <code>param list lock</code> oder <code>threads</code>; <code>help</code> zeigt
 			alle. Tab ergänzt Kommandos und Parameternamen. Kommandos wirken sofort und ohne Rückfrage.</p>
 		${lines.length > 0 && html`<pre class="console" ref=${out}>${lines.map((l) =>
 			html`<b>› ${l.cmd}</b>${'\n'}<span class=${l.bad ? 'bad' : ''}>${l.text}</span>${'\n'}`)}</pre>`}
 		<form class="row cmdline" onSubmit=${run}>
 			<input class="mono" ref=${input} value=${cmd} onInput=${(e) => setCmd(e.target.value)} onKeyDown=${key}
-				maxlength="255" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="evse status"
+				maxlength="255" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="status"
 				aria-label="Kommando" />
 			<button type="submit" disabled=${busy}>${busy ? 'Läuft …' : 'Ausführen'}</button>
 		</form>

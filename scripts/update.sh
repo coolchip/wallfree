@@ -4,7 +4,7 @@
 #   scripts/update.sh -u benutzer:passwort adresse[:port] datei.bin
 #       Uebergabe ueber die API, Upload, Warten auf den Neustart, Ergebnis
 #   scripts/update.sh [-u benutzer:passwort] --upload-only adresse[:port] datei.bin
-#       nur Upload, z. B. nach "evse bootloader" in der Shell
+#       nur Upload, z. B. nach "bootloader" in der Shell
 # Der Bootloader wartet bis 2 min auf den Upload; die Uebertragung muss in 30 s fertig sein.
 set -eu
 creds=

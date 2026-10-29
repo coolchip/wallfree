@@ -19,8 +19,8 @@ struct wf_jbuf;
 int shell_web_exec(const char *line, char *buf, size_t size, bool *cut);
 
 /**
- * Kommandobaum als JSON fuer die Vervollstaendigung (SOLL-SH-23): [["evse","Ladelogik"],
- * ["evse status","..."], ...], in Teilen. Erster Aufruf mit 0, dann mit dem Rueckgabewert,
+ * Kommandobaum als JSON fuer die Vervollstaendigung (SOLL-SH-23): [["status","..."],
+ * ["param get","..."], ...], in Teilen. Erster Aufruf mit 0, dann mit dem Rueckgabewert,
  * bis SHELL_WEB_DONE.
  */
 size_t shell_web_commands_json(size_t cursor, struct wf_jbuf *b);

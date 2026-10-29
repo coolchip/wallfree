@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Netz-Lasttest gegen eine laufende Steuerung (Testgeraet) oder die Simulation.
 
-Nur Python-Standardbibliothek; liest nur (GET, WebSocket, Konsole `evse threads`), schreibt keine
+Nur Python-Standardbibliothek; liest nur (GET, WebSocket, Konsole `threads`), schreibt keine
 Parameter. Vor und nach jeder Stufe ein Schnappschuss (Laufzeit, Resetgrund, Stack-Auslastung);
 ein Neustart zwischen zwei Schnappschuessen gilt als Fehler.
     net-load.py HOST -u USER:PW [--http 80] STUFE [STUFE ...] [-t SEK]
@@ -212,7 +212,7 @@ class WebSocket:
 # ---------------------------------------------------------------- Stufen
 def snapshot(t, label):
     i = t.info()
-    out = t.shell("evse threads")
+    out = t.shell("threads")
     # Zeile: Name, Prioritaet (fehlt bei IRQ), benutzt/Groesse, Prozent
     stacks = {m.group(1): (int(m.group(3)), int(m.group(3)) - int(m.group(2))) for m in re.finditer(
         r"^(\S+)\s+(?:-?\d+\s+)?(\d+)/(\d+)\s+\d+ %$", out, re.M)}

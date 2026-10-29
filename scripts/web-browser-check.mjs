@@ -129,7 +129,7 @@ out.settingsNet = await go('#/einstellungen/netzwerk');
 out.system = await go('#/system');
 // Konsole (SOLL-SH-19): Kommando eingeben und ausfuehren
 await evalJs(`(() => { const e = document.querySelector('input[aria-label=Kommando]');
-	e.value = 'evse status'; e.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+	e.value = 'status'; e.dispatchEvent(new Event('input', { bubbles: true })); })()`);
 await sleep(100);
 out.consoleClick = await click('Ausführen');
 await sleep(1500);
@@ -139,12 +139,12 @@ const typeCmd = (v) => evalJs(`(() => { const e = document.querySelector('input[
 	e.value = ${JSON.stringify(v)}; e.dispatchEvent(new Event('input', { bubbles: true })); })()`);
 const pressTab = () => evalJs(`document.querySelector('input[aria-label=Kommando]').dispatchEvent(
 	new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }))`);
-await typeCmd('evse sta');
+await typeCmd('sta');
 await sleep(200);
 await pressTab();
 await sleep(200);
 out.tab1 = await evalJs("document.querySelector('input[aria-label=Kommando]').value");
-await typeCmd('evse param get lock_');
+await typeCmd('param get lock_');
 await sleep(1500); // Parameternamen nachladen
 out.sugg = await evalJs("[...document.querySelectorAll('.sugg button')].map((b) => b.textContent).join(',')");
 await shot('5-konsole');
@@ -273,9 +273,9 @@ const checks = [
 	['Einstellungen Netzwerk ohne Zustandszeile', out.settingsNet.includes('DHCP') && !out.settingsNet.includes('Telnet')
 		&& !out.settingsNet.includes('Broker') && !out.settingsNet.includes('Aktiv:')],
 	['System', out.system.includes('Firmware') && out.system.includes('Neu starten')],
-	['System: Konsole (Expertenansicht)', out.consoleClick && out.console.includes('› evse status')
+	['System: Konsole (Expertenansicht)', out.consoleClick && out.console.includes('› status')
 		&& out.console.includes('Zustand  S')],
-	['Konsole: Tab ergaenzt', out.tab1 === 'evse status '],
+	['Konsole: Tab ergaenzt', out.tab1 === 'status '],
 	['Konsole: Vorschlaege Parameternamen', out.sugg.includes('lock_pulse') && out.sugg.includes('lock_cycle_gap')
 		&& !out.sugg.includes('unlock_pulse')],
 	['System: Lizenzhinweis', out.system.includes('Apache License 2.0') && out.system.includes('Lizenzhinweise')],

@@ -179,7 +179,7 @@ static int cmd_nvm(const struct shell *sh, size_t argc, char **argv)
 static int cmd_factory_reset(const struct shell *sh, size_t argc, char **argv)
 {
 	if (argc < 2 || strcmp(argv[1], "confirm") != 0) {
-		shell_print(sh, "Werkseinstellungen: 'evse factory-reset confirm' (danach Neustart)");
+		shell_print(sh, "Werkseinstellungen: 'factory-reset confirm' (danach Neustart)");
 		return -EINVAL;
 	}
 	int r = storage_factory_reset();
@@ -384,7 +384,7 @@ static int cmd_errors_clear(const struct shell *sh, size_t argc, char **argv)
 				   : "Schuetzfehler nicht quittiert (Ursache besteht oder falscher Zustand)");
 	}
 	if (left & ~(ok ? EVSE_ERR_CONTACTOR : 0)) {
-		print_mask(sh, "weiter aktiv (siehe evse errors):", left & ~(ok ? EVSE_ERR_CONTACTOR : 0));
+		print_mask(sh, "weiter aktiv (siehe errors):", left & ~(ok ? EVSE_ERR_CONTACTOR : 0));
 	} else {
 		shell_print(sh, "keine aktiven Fehler");
 	}
@@ -403,7 +403,7 @@ static int cmd_selftest(const struct shell *sh, size_t argc, char **argv)
 		shell_error(sh, "nur in S1 ohne Fahrzeug (CP A) und wenn kein Test laeuft");
 		return -EBUSY;
 	}
-	shell_print(sh, "RCM-Selbsttest gestartet; Ergebnis: evse param get rcm_selftest "
+	shell_print(sh, "RCM-Selbsttest gestartet; Ergebnis: param get rcm_selftest "
 			"(2 bestanden, 3 fehlgeschlagen)");
 	return 0;
 }
@@ -476,7 +476,7 @@ static int cmd_meter(const struct shell *sh, size_t argc, char **argv)
 	struct wf_jbuf b;
 
 	if (meter_task_type() == METER_NONE) {
-		shell_print(sh, "kein Zaehler konfiguriert (evse sys set meter_type ...)");
+		shell_print(sh, "kein Zaehler konfiguriert (sys set meter_type ...)");
 		return 0;
 	}
 	(void)meter_task_get(&mv);
@@ -603,7 +603,7 @@ static int cmd_log(const struct shell *sh, size_t argc, char **argv)
 {
 	if (argc > 1) {
 		if (strcmp(argv[1], "clear") != 0) {
-			shell_error(sh, "nur: evse log [clear]");
+			shell_error(sh, "nur: log [clear]");
 			return -EINVAL;
 		}
 		log_ring_clear();
@@ -639,37 +639,46 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_param,
 	SHELL_CMD_ARG(set, NULL, "<name> <wert>", cmd_param_set, 3, 0),
 	SHELL_SUBCMD_SET_END);
 
-SHELL_STATIC_SUBCMD_SET_CREATE(sub_evse,
-	SHELL_CMD_ARG(status, NULL, "Zustand der Ladelogik", cmd_status, 1, 0),
-	SHELL_CMD(param, &sub_param, "Parameter", NULL),
-	SHELL_CMD_ARG(ack, NULL, "Schuetzfehler quittieren", cmd_ack, 1, 0),
-	SHELL_CMD(sys, &sub_sys, "Netz- und Systemparameter", NULL),
-	SHELL_CMD_ARG(current, NULL, "<mA> Sollstrom Slot external (0, 6000..80000)", cmd_current,
-		      2, 0),
-	SHELL_CMD_ARG(enable, NULL, "0|1 Freigabe-Register (mit D10)", cmd_enable, 2, 0),
-	SHELL_CMD_ARG(avail, NULL, "0|1 Verfuegbarkeit (mit D10)", cmd_avail, 2, 0),
-	SHELL_CMD_ARG(pause, NULL, "0|1 Laden unterbrechen", cmd_pause, 2, 0),
-	SHELL_CMD_ARG(pwm5, NULL, "0|1 5-%-Modus", cmd_pwm5, 2, 0),
-	SHELL_CMD_ARG(lock, NULL, "0|1 Verriegelungswunsch (mit D9)", cmd_lock, 2, 0),
-	SHELL_CMD_ARG(unlock, NULL, "Entriegeln anfordern", cmd_unlock, 1, 0),
-	SHELL_CMD_ARG(errors, &sub_errors, "aktive Fehler, Historie", cmd_errors, 1, 0),
-	SHELL_CMD_ARG(selftest, NULL, "RCM-Selbsttest (nur S1, CP A)", cmd_selftest, 1, 0),
-	SHELL_CMD_ARG(reboot, NULL, "geordneter Neustart (SOLL-RT-22)", cmd_reboot, 1, 0),
-	SHELL_CMD_ARG(bootloader, NULL, "Update: Uebergabe an den Bootloader (SOLL-SH-10)",
-		      cmd_bootloader, 1, 0),
-	SHELL_CMD_ARG(boot, NULL, "Diagnose: Reset-Flags und Bootloader-Register beim Start",
-		      cmd_boot, 1, 0),
-	SHELL_CMD_ARG(nvm, NULL, "Zustand des Parameterspeichers", cmd_nvm, 1, 0),
-	SHELL_CMD_ARG(meter, NULL, "Energiezaehler: Messwerte und Fehlerzaehler", cmd_meter, 1, 0),
-	SHELL_CMD_ARG(mqtt, NULL, "MQTT: Verbindung und Zaehler", cmd_mqtt, 1, 0),
-	SHELL_CMD_ARG(threads, NULL, "Threads mit Prioritaet und Stack-Auslastung", cmd_threads, 1, 0),
-	SHELL_CMD_ARG(uptime, NULL, "Laufzeit seit dem Start", cmd_uptime, 1, 0),
-	SHELL_CMD_ARG(log, NULL, "[clear] juengste Logmeldungen (seit dem Start, etwa 1,9 KB)",
-		      cmd_log, 1, 1),
-	SHELL_CMD_ARG(factory-reset, NULL, "confirm: Werkseinstellungen und Neustart",
-		      cmd_factory_reset, 1, 1),
-	SHELL_CMD_ARG(import-original, NULL, "Einstellungen aus der Originalfirmware uebernehmen",
-		      cmd_import, 1, 0),
-	SHELL_SUBCMD_SET_END);
+/* Kommandos direkt an der Wurzel, ohne gemeinsamen Vorsatz (SOLL-SH-19); "help" (Zephyr)
+ * listet sie. Namen mit Bindestrich brauchen einen eigenen Bezeichner, sonst wie
+ * SHELL_CMD_ARG_REGISTER (Zephyr 4.4.2, bei Updates pruefen).
+ */
+#define ROOT_CMD_ARG(id, syntax, subcmd, help, handler, mand, opt)                          \
+	static const struct shell_static_entry UTIL_CAT(_shell_, id) =                      \
+		SHELL_CMD_ARG(syntax, subcmd, help, handler, mand, opt);                    \
+	static const TYPE_SECTION_ITERABLE(union shell_cmd_entry, UTIL_CAT(shell_cmd_, id), \
+					   shell_root_cmds, UTIL_CAT(shell_cmd_, id)) = {   \
+		.entry = &UTIL_CAT(_shell_, id)}
 
-SHELL_CMD_REGISTER(evse, &sub_evse, "Ladelogik", NULL);
+SHELL_CMD_ARG_REGISTER(status, NULL, "Zustand der Ladelogik", cmd_status, 1, 0);
+SHELL_CMD_REGISTER(param, &sub_param, "Parameter", NULL);
+SHELL_CMD_ARG_REGISTER(ack, NULL, "Schuetzfehler quittieren", cmd_ack, 1, 0);
+SHELL_CMD_REGISTER(sys, &sub_sys, "Netz- und Systemparameter", NULL);
+SHELL_CMD_ARG_REGISTER(current, NULL, "<mA> Sollstrom Slot external (0, 6000..80000)",
+		       cmd_current, 2, 0);
+SHELL_CMD_ARG_REGISTER(enable, NULL, "0|1 Freigabe-Register (mit D10)", cmd_enable, 2, 0);
+SHELL_CMD_ARG_REGISTER(avail, NULL, "0|1 Verfuegbarkeit (mit D10)", cmd_avail, 2, 0);
+SHELL_CMD_ARG_REGISTER(pause, NULL, "0|1 Laden unterbrechen", cmd_pause, 2, 0);
+SHELL_CMD_ARG_REGISTER(pwm5, NULL, "0|1 5-%-Modus", cmd_pwm5, 2, 0);
+SHELL_CMD_ARG_REGISTER(lock, NULL, "0|1 Verriegelungswunsch (mit D9)", cmd_lock, 2, 0);
+SHELL_CMD_ARG_REGISTER(unlock, NULL, "Entriegeln anfordern", cmd_unlock, 1, 0);
+SHELL_CMD_ARG_REGISTER(errors, &sub_errors, "aktive Fehler, Historie", cmd_errors, 1, 0);
+SHELL_CMD_ARG_REGISTER(selftest, NULL, "RCM-Selbsttest (nur S1, CP A)", cmd_selftest, 1, 0);
+SHELL_CMD_ARG_REGISTER(reboot, NULL, "geordneter Neustart (SOLL-RT-22)", cmd_reboot, 1, 0);
+SHELL_CMD_ARG_REGISTER(bootloader, NULL, "Update: Uebergabe an den Bootloader (SOLL-SH-10)",
+		       cmd_bootloader, 1, 0);
+SHELL_CMD_ARG_REGISTER(boot, NULL, "Diagnose: Reset-Flags und Bootloader-Register beim Start",
+		       cmd_boot, 1, 0);
+SHELL_CMD_ARG_REGISTER(nvm, NULL, "Zustand des Parameterspeichers", cmd_nvm, 1, 0);
+SHELL_CMD_ARG_REGISTER(meter, NULL, "Energiezaehler: Messwerte und Fehlerzaehler", cmd_meter,
+		       1, 0);
+SHELL_CMD_ARG_REGISTER(mqtt, NULL, "MQTT: Verbindung und Zaehler", cmd_mqtt, 1, 0);
+SHELL_CMD_ARG_REGISTER(threads, NULL, "Threads mit Prioritaet und Stack-Auslastung",
+		       cmd_threads, 1, 0);
+SHELL_CMD_ARG_REGISTER(uptime, NULL, "Laufzeit seit dem Start", cmd_uptime, 1, 0);
+SHELL_CMD_ARG_REGISTER(log, NULL, "[clear] juengste Logmeldungen (seit dem Start, etwa 1,9 KB)",
+		       cmd_log, 1, 1);
+ROOT_CMD_ARG(factory_reset, factory-reset, NULL, "confirm: Werkseinstellungen und Neustart",
+	     cmd_factory_reset, 1, 1);
+ROOT_CMD_ARG(import_original, import-original, NULL,
+	     "Einstellungen aus der Originalfirmware uebernehmen", cmd_import, 1, 0);

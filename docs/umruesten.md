@@ -50,7 +50,7 @@ einfache Webseite annimmt. Er bleibt beim Umrüsten unverändert und ist auch de
 
 Die Einstellungen der Originalfirmware bleiben im Flash erhalten; Wallfree speichert seine
 eigenen in einem anderen Bereich. Die Konsole der Weboberfläche (System, Expertenansicht) hat einen
-Befehl `evse import-original`, der sie übernimmt; er ist auf einer Steuerung noch nicht ausgeführt worden.
+Befehl `import-original`, der sie übernimmt; er ist auf einer Steuerung noch nicht ausgeführt worden.
 
 Spätere Updates von Wallfree laufen über die eigene Weboberfläche
 ([Abschnitt 8.1 der Anleitung](anleitung/weboberflaeche.md#81-firmware-update)).
