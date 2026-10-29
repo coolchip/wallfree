@@ -685,11 +685,30 @@ function SysConfig({ part }) {
 		load();
 	}, []);
 	if (!cfg) return null;
-	const val = (n) => (n in edit ? edit[n] : cfg.saved[n]);
+	const codes = new Set(info.filter((p) => p.type === 'code').map((p) => p.name));
+	// Zahlen bleiben beim Tippen Text ("-", "-3,"), umgerechnet wird erst beim Speichern;
+	// den Abgleich der Prozessortemperatur traegt man in Grad ein (API: 0,1 Grad)
+	const TEMP = 'mcu_temp_offset';
+	const shown = (n) => (n === TEMP ? (cfg.saved[n] / 10).toLocaleString('de-DE') : cfg.saved[n]);
+	const val = (n) => (n in edit ? edit[n] : shown(n));
 	const save = async (ev) => {
 		ev.preventDefault();
+		const body = { ...edit };
+		for (const n of Object.keys(body)) {
+			if (!codes.has(n)) continue;
+			const x = Number(String(body[n]).trim().replace(',', '.'));
+			if (String(body[n]).trim() === '' || !Number.isFinite(x)) {
+				setMsg({ ok: false, text: (info.find((p) => p.name === n) || {}).help + ': keine Zahl' });
+				return;
+			}
+			if (n === TEMP && Math.abs(x) > 45) {
+				setMsg({ ok: false, text: 'Abgleich -45..45 °C' });
+				return;
+			}
+			body[n] = n === TEMP ? Math.round(x * 10) : x;
+		}
 		try {
-			const r = await post('/system/config', edit);
+			const r = await post('/system/config', body);
 			setMsg({ ok: true, text: r.restart_required ? 'Gespeichert – wirkt nach Neustart' : 'Gespeichert' });
 			setEdit({});
 			load();
@@ -717,9 +736,10 @@ function SysConfig({ part }) {
 					${opts.map((t, i) => html`<option value=${i}>${t}</option>`)}</select></label>`;
 			}
 			// mcu_temp_offset hat ein Vorzeichen, die Zifferntastatur am Handy oft keins
-			const num = p.type === 'code' && p.name !== 'mcu_temp_offset';
-			return html`<label title=${p.name}>${p.help}<input value=${val(p.name)} inputmode=${num ? 'numeric' : null}
-				onInput=${(e) => set(p.type === 'code' ? +e.target.value : e.target.value)} /></label>`;
+			const num = p.type === 'code' && p.name !== TEMP;
+			const help = p.name === TEMP ? 'Abgleich der Prozessortemperatur in °C (-45..45), wird zur Messung addiert' : p.help;
+			return html`<label title=${p.name}>${help}<input value=${val(p.name)} inputmode=${num ? 'numeric' : null}
+				onInput=${(e) => set(e.target.value)} /></label>`;
 		})}
 		<div class="row"><button class="primary" type="submit">Speichern</button></div>
 		</form>

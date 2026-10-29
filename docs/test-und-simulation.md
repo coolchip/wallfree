@@ -117,7 +117,8 @@ System mit Konsole (`status` ausfuehren, Tab ergaenzt `sta`, Vorschlaege nach
 und wieder verbinden ("verbunden"). Danach Bedienung wie ein Nutzer (Rueckfragen werden bestaetigt
 und mitgeschrieben): Einstellungen/Laden je ein Wert ueber Auswahlliste (`wakeup_mode`) und
 Kaestchen (`reject_state_d`) mit "OK", Meldung "gespeichert", Wert per API; "Protokoll loeschen"
-(danach nur "Ereignisprotokoll geloescht von 127.0.0.1"); Netzwerk: Hostname speichern, Hinweis
+(danach nur "Ereignisprotokoll geloescht von 127.0.0.1"); Prozessortemperatur: "-" und "-3," bleiben beim
+Tippen stehen, "-3,5" und "-3.5" ergeben -35, "abc" -> "keine Zahl"; Netzwerk: Hostname speichern, Hinweis
 "wirkt nach Neustart", "Jetzt neu starten" -> Resetgrund `user_restart`, Hostname aktiv, neue
 Startnummer; Anmeldedaten: Benutzer vorbelegt, Passwort aendern, Neuanmeldung, zurueck. Geaenderte
 Werte setzt der Lauf zurueck. Screenshots und Texte im Ausgabeverzeichnis.

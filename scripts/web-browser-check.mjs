@@ -214,6 +214,27 @@ out.afterClear = await text();
 const log = await api('/system/log');
 out.clearLog = log.entries.map((e) => e.kind + (e.addr ? ' ' + e.addr : '')).join(',');
 
+// Prozessortemperatur: Abgleich in Grad, Zwischenstaende beim Tippen ("-", "-3,") bleiben stehen
+const tempIn = `document.querySelector('label[title=mcu_temp_offset] input')`;
+const typeTemp = async (v) => { await setField(tempIn, v, 'input'); await sleep(100); return evalJs(`${tempIn}.value`); };
+await go('#/system');
+out.temp = [await typeTemp('-'), await typeTemp('-3,')];
+await typeTemp('-3,5');
+await click('Speichern');
+await sleep(1500);
+out.temp.push((await api('/system/config')).saved.mcu_temp_offset, await evalJs(`${tempIn}.value`));
+await typeTemp('-3.5');
+await click('Speichern');
+await sleep(1500);
+out.temp.push((await api('/system/config')).saved.mcu_temp_offset);
+await typeTemp('abc');
+await click('Speichern');
+await sleep(500);
+out.tempBad = await text();
+await typeTemp('0');
+await click('Speichern');
+await sleep(1500);
+
 // Netzwerk: Wert speichern, der erst nach Neustart wirkt; "Jetzt neu starten"
 const cfg0 = await api('/system/config');
 await go('#/einstellungen/netzwerk');
@@ -287,6 +308,8 @@ const checks = [
 	['Laden: Meldung "gespeichert"', out.paramMsg.includes('gespeichert')],
 	['Protokoll loeschen: Rueckfrage, nur Loescheintrag', out.clearClick && dialogs.some((d) => d.includes('Ereignisprotokolls löschen'))
 		&& out.clearLog.startsWith('cleared 127.0.0.1') && out.afterClear.includes('Ereignisprotokoll gelöscht von 127.0.0.1')],
+	['Temperatur: Eingabe in Grad mit Komma und Punkt', JSON.stringify(out.temp) === '["-","-3,",-35,"-3,5",-35]'
+		&& out.tempBad.includes('keine Zahl')],
 	['Netzwerk: Hinweis Neustart', out.netSaved.includes('wirkt nach Neustart') && out.netSaved.includes('Jetzt neu starten')
 		&& out.netSaved.includes('Status → Verbindungen')],
 	['Neustart ueber die Seite: Rueckfrage, Neustart, Wert aktiv', out.restartClick && dialogs.some((d) => d.includes('neu starten'))

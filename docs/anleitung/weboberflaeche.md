@@ -516,8 +516,8 @@ anderes Gerät zeigt also wieder die einfache Ansicht, bis man sie dort umschalt
 einige Grad abweichen. Zum Abgleich die Wallbox einige Stunden stromlos lassen, damit sie die
 Umgebungstemperatur annimmt, dann einschalten und kurz danach die angezeigte Temperatur
 (Status → Verbindungen) mit einem Thermometer neben der Steuerung vergleichen. Den Unterschied in
-Zehntelgrad eintragen und speichern, er wirkt sofort: Zeigt die Steuerung 34 °C und das
-Thermometer 21,5 °C, ist der Abgleich -125.
+°C eintragen (Komma oder Punkt, eine Nachkommastelle) und speichern, er wirkt sofort: Zeigt die
+Steuerung 34 °C und das Thermometer 21,5 °C, ist der Abgleich -12,5.
 
 **Konsole** (nur Expertenansicht): Eingabezeile für die Kommandos der Steuerung, gedacht für die
 Fehlersuche, z. B. `status` (Zustand in Kurzform), `param list lock` (alle Parameter,
