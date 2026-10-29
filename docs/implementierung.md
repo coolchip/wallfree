@@ -421,6 +421,11 @@ Nicht beauftragt; gesammelt mit dem Nutzer (2026-10-26). Beauftragte Punkte steh
 
 Fuer die spaetere Veroeffentlichung der Firmware vorbereiten:
 
+- Repository `github.com/coolchip/wallfree` (`origin`), vorerst privat (Nutzer 2026-10-29). Vor dem
+  Oeffentlichmachen entscheiden, was im Repository bleibt, notfalls die Historie neu schreiben
+  (aendert alle Commit-Kennungen, auf die Doku und Firmware-Builds verweisen): `AGENTS.md`, interne
+  Namen das Testgerät/G ausserhalb der oeffentlichen Dokumente, Verweise auf das private wallbe2, Name des
+  MQTT-Brokers des Nutzers in den Pruefungen; Commits tragen `ballings.sebastian@gmail.com`.
 - Liste der Funktionen (Ladelogik, evcc/WARP-API, MQTT mit Home-Assistant-Erkennung, Zaehler,
   Uhrzeit, Protokoll ueber Neustarts, CP-Oszilloskop, Update ueber die Weboberflaeche).
 - Rueckweg zur Originalfirmware (auf dem Testgerät geprueft): Anleitung [umruesten.md](umruesten.md), nur
