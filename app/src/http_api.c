@@ -898,6 +898,24 @@ static void system_shell(struct http_client_ctx *client, struct res *r,
 	respond(rsp, HTTP_200_OK, (size_t)n);
 }
 
+/* SOLL-SH-23: Kommandobaum fuer die Vervollstaendigung, in Teilen */
+static void system_shell_commands(struct http_client_ctx *client, struct res *r,
+				  struct http_response_ctx *rsp)
+{
+	ARG_UNUSED(client);
+	struct wf_jbuf b;
+
+	wf_jb_init(&b, out, sizeof(out));
+	r->cursor = shell_web_commands_json(r->cursor, &b);
+	rsp->status = HTTP_200_OK;
+	rsp->body = (const uint8_t *)out;
+	rsp->body_len = b.len;
+	rsp->final_chunk = r->cursor == SHELL_WEB_DONE;
+}
+
+JSON_RESOURCE(system_shell_commands_r, "/system/shell_commands", BIT(HTTP_GET),
+	      system_shell_commands, false, 0);
+
 static char system_shell_body[SHELL_LINE_MAX + 1];
 static struct res system_shell_res = {.fn = system_shell, .body = system_shell_body,
 				      .body_size = sizeof(system_shell_body)};

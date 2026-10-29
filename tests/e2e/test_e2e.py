@@ -665,6 +665,18 @@ class T3Konsole(SimCase):
         for cmd in ("kernel thread list", "devmem 0x40020000", "device list", "date get"):
             self.assertIn("command not found", self.console(cmd).body.decode(), cmd)
 
+    def test_02b_kommandobaum(self):
+        # SOLL-SH-23: Kommandobaum fuer die Vervollstaendigung, in Teilen ausgeliefert
+        t = self.sim.get_json("/system/shell_commands", self.auth)
+        paths = {p: h for p, h in t}
+        self.assertEqual(paths["evse"], "Ladelogik")
+        for p in ("evse status", "evse param", "evse param get", "evse errors clear", "sim car"):
+            self.assertIn(p, paths)
+        self.assertFalse(any(p.startswith("kernel") for p in paths))
+        self.assertGreater(len(json.dumps(t)), 2048)  # mehr als ein Teil
+        self.assertEqual(self.sim.request("GET", "/system/shell_commands",
+                                          auth=Digest(*FACTORY)).status, 401)
+
     def test_03_steuern(self):
         self.assertEqual(self.console("evse current 6000").status, 200)
         self.assertEqual(self.sim.get_json("/evse/external_current", self.auth)["current"], 6000)

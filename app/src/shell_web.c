@@ -12,7 +12,13 @@
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
 #include <zephyr/shell/shell.h>
+#include <wallfree/api/json.h>
 #include "shell_web.h"
+
+/* Zephyr-intern (subsys/shell/shell_utils.h, Zephyr 4.4.2): n-tes Unterkommando von parent
+ * (NULL = Wurzel), loest dynamische und Sektionslisten auf; bei Zephyr-Updates pruefen */
+const struct shell_static_entry *z_shell_cmd_get(const struct shell_static_entry *parent,
+						 size_t idx, struct shell_static_entry *dloc);
 
 static struct {
 	k_tid_t tid;   /* Thread, dessen Ausgabe gerade gesammelt wird */
@@ -103,6 +109,85 @@ int shell_web_exec(const char *line, char *buf, size_t size, bool *cut)
 		return err;
 	}
 	return (int)cap.len;
+}
+
+/* ------------------------------------------------ Kommandobaum (SOLL-SH-23) */
+
+#define PATH_MAX_LEN 64
+#define DEPTH_MAX    4
+
+struct walk {
+	size_t cursor; /* erster auszugebender Eintrag */
+	size_t i;      /* laufende Nummer */
+	struct wf_jbuf *b;
+	bool full;
+	char path[PATH_MAX_LEN];
+};
+
+static void walk(struct walk *w, const struct shell_static_entry *parent, size_t plen, int depth)
+{
+	struct shell_static_entry dloc;
+	const struct shell_static_entry *e;
+
+	for (size_t k = 0; !w->full && (e = z_shell_cmd_get(parent, k, &dloc)) != NULL; k++) {
+		size_t n = strlen(e->syntax);
+
+		if (plen + 1 + n >= sizeof(w->path)) {
+			continue;
+		}
+		size_t len = plen;
+
+		if (plen > 0) {
+			w->path[len++] = ' ';
+		}
+		memcpy(w->path + len, e->syntax, n + 1);
+		len += n;
+		if (w->i >= w->cursor) {
+			size_t mark = w->b->len;
+			const char *help = e->help && !shell_help_is_structured(e->help) ? e->help : "";
+
+			wf_jb_raw(w->b, w->i == 0 ? "[" : ",[");
+			wf_jb_str(w->b, w->path);
+			wf_jb_raw(w->b, ",");
+			wf_jb_str(w->b, help);
+			wf_jb_raw(w->b, "]");
+			if (w->b->overflow) {
+				w->b->len = mark;
+				w->b->p[mark] = '\0';
+				w->b->overflow = false;
+				w->full = true;
+				return;
+			}
+		}
+		w->i++;
+		/* dloc wird beim Abstieg ueberschrieben: Unterbaum nur bei statischen Eintraegen */
+		if (e != &dloc && depth + 1 < DEPTH_MAX) {
+			walk(w, e, len, depth + 1);
+		}
+	}
+}
+
+size_t shell_web_commands_json(size_t cursor, struct wf_jbuf *b)
+{
+	struct walk w = {.cursor = cursor, .b = b};
+
+	if (cursor == 0) {
+		wf_jb_raw(b, "[");
+	}
+	walk(&w, NULL, 0, 0);
+	if (w.full) {
+		return w.i;
+	}
+	size_t mark = b->len;
+
+	wf_jb_raw(b, "]");
+	if (b->overflow) {
+		b->len = mark;
+		b->p[mark] = '\0';
+		b->overflow = false;
+		return w.i; /* nur noch die Klammer */
+	}
+	return SHELL_WEB_DONE;
 }
 
 static int shell_web_init(void)

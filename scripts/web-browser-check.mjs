@@ -134,6 +134,21 @@ await sleep(100);
 out.consoleClick = await click('Ausführen');
 await sleep(1500);
 out.console = await evalJs("(document.querySelector('pre.console') || {}).innerText || ''");
+// Vervollstaendigung (SOLL-SH-23): Tab ergaenzt eindeutig, Vorschlaege zum Antippen
+const typeCmd = (v) => evalJs(`(() => { const e = document.querySelector('input[aria-label=Kommando]'); e.focus();
+	e.value = ${JSON.stringify(v)}; e.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+const pressTab = () => evalJs(`document.querySelector('input[aria-label=Kommando]').dispatchEvent(
+	new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }))`);
+await typeCmd('evse sta');
+await sleep(200);
+await pressTab();
+await sleep(200);
+out.tab1 = await evalJs("document.querySelector('input[aria-label=Kommando]').value");
+await typeCmd('evse param get lock_');
+await sleep(1500); // Parameternamen nachladen
+out.sugg = await evalJs("[...document.querySelectorAll('.sugg button')].map((b) => b.textContent).join(',')");
+await shot('5-konsole');
+await typeCmd('');
 await evalJs('history.back()');
 await sleep(1500);
 out.back = await evalJs('location.hash');
@@ -260,6 +275,9 @@ const checks = [
 	['System', out.system.includes('Firmware') && out.system.includes('Neu starten')],
 	['System: Konsole (Expertenansicht)', out.consoleClick && out.console.includes('› evse status')
 		&& out.console.includes('Zustand  S')],
+	['Konsole: Tab ergaenzt', out.tab1 === 'evse status '],
+	['Konsole: Vorschlaege Parameternamen', out.sugg.includes('lock_pulse') && out.sugg.includes('lock_cycle_gap')
+		&& !out.sugg.includes('unlock_pulse')],
 	['System: Lizenzhinweis', out.system.includes('Apache License 2.0') && out.system.includes('Lizenzhinweise')],
 	['Zurueck-Taste', out.back === '#/einstellungen/netzwerk'],
 	['Ereignisprotokoll mit Loeschen', out.expert2.includes('Protokoll löschen')],

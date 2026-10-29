@@ -523,7 +523,8 @@ Thermometer 21,5 °C, ist der Abgleich -125.
 Fehlersuche, z. B. `evse status` (Zustand in Kurzform), `evse param list lock` (alle Parameter,
 deren Name mit `lock` beginnt), `evse log` (die jüngsten Meldungen der Steuerung seit dem Start)
 oder `evse threads` (Auslastung der Programmteile); `evse -h`
-listet alle. Je Eingabe läuft ein Kommando, die Antwort erscheint darunter (höchstens etwa
+listet alle. Die Tabulatortaste ergänzt Kommandos und Parameternamen; passende Vorschläge erscheinen
+unter der Eingabezeile und lassen sich antippen (auch am Handy). Je Eingabe läuft ein Kommando, die Antwort erscheint darunter (höchstens etwa
 2000 Zeichen, längere werden gekürzt). Mit Pfeil hoch und runter lassen sich frühere Eingaben
 wiederholen. Kommandos wirken sofort und ohne Rückfrage, wie Änderungen in den Einstellungen.
 

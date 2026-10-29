@@ -974,7 +974,44 @@ function SystemPage({ onBusy, expert, setExpert }) {
 	<//>`;
 }
 
-// Ein Kommando je Anfrage; Verlauf mit Pfeil hoch/runter nur in dieser Seite
+// Vervollstaendigung (SOLL-SH-23): Kommandobaum einmal von der Steuerung, Namen der Parameter
+// bei Bedarf aus den Parameterbeschreibungen. Liefert die Vorschlaege fuer das letzte Wort.
+const ARG_NAMES = { 'evse param get': 'p', 'evse param set': 'p', 'evse param list': 'p', 'evse sys set': 's' };
+function useCompletion() {
+	const tree = useRef(null);
+	const names = useRef({});
+	const [, setReady] = useState(0);
+	useEffect(() => {
+		api('/system/shell_commands').then((t) => { tree.current = t; setReady((n) => n + 1); }).catch(() => {});
+	}, []);
+	const loadNames = (k) => {
+		if (names.current[k]) return;
+		names.current[k] = [];
+		api(k === 'p' ? '/evse/param_info' : '/system/config_info')
+			.then((l) => { names.current[k] = l.map((x) => [x.name, x.help]); setReady((n) => n + 1); })
+			.catch(() => { delete names.current[k]; });
+	};
+	// Vorschlaege [Wort, Hilfe] fuer die Zeile; ctx = alles vor dem letzten Wort
+	return (line) => {
+		const words = line.replace(/^\s+/, '').split(/\s+/);
+		const last = words.pop(), ctx = words.join(' ');
+		let opts = [];
+		if (ARG_NAMES[ctx]) {
+			loadNames(ARG_NAMES[ctx]);
+			opts = names.current[ARG_NAMES[ctx]];
+		} else if (tree.current) {
+			const pre = ctx ? ctx + ' ' : '';
+			opts = tree.current.filter(([p]) => p.startsWith(pre) && p.length > pre.length
+				&& !p.slice(pre.length).includes(' ')).map(([p, h]) => [p.slice(pre.length), h]);
+		}
+		return { ctx, last, opts: opts.filter(([w]) => w.startsWith(last)) };
+	};
+}
+
+const commonPrefix = (l) => l.reduce((a, w) => { let i = 0; while (i < a.length && a[i] === w[i]) i++; return a.slice(0, i); });
+
+// Ein Kommando je Anfrage; Verlauf mit Pfeil hoch/runter nur in dieser Seite; Tab ergaenzt,
+// Vorschlaege darunter zum Antippen (Handy ohne Tab-Taste)
 function Console() {
 	const [lines, setLines] = useState([]);
 	const [cmd, setCmd] = useState('');
@@ -982,6 +1019,7 @@ function Console() {
 	const hist = useRef({ list: [], pos: 0 });
 	const out = useRef(null);
 	const input = useRef(null);
+	const complete = useCompletion();
 	useEffect(() => {
 		if (out.current) out.current.scrollTop = out.current.scrollHeight;
 		if (input.current && lines.length) input.current.focus();
@@ -1000,27 +1038,44 @@ function Console() {
 		setLines((l) => [...l.slice(-19), { cmd: c, text: text.replace(/\s+$/, ''), bad }]);
 		setBusy(false);
 	};
+	const sugg = cmd.trim() ? complete(cmd) : { opts: [] };
+	const take = (w, done) => {
+		setCmd((sugg.ctx ? sugg.ctx + ' ' : '') + w + (done ? ' ' : ''));
+		if (input.current) input.current.focus();
+	};
 	const key = (ev) => {
 		const h = hist.current;
+		if (ev.key === 'Tab') {
+			if (!cmd.trim()) return;
+			ev.preventDefault();
+			const o = sugg.opts.map(([w]) => w);
+			if (o.length === 1) take(o[0], true);
+			else if (o.length > 1) take(commonPrefix(o), false);
+			return;
+		}
 		if (ev.key === 'ArrowUp' && h.pos > 0) h.pos--;
 		else if (ev.key === 'ArrowDown' && h.pos < h.list.length) h.pos++;
 		else return;
 		ev.preventDefault();
 		setCmd(h.list[h.pos] || '');
 	};
+	// Vorschlaege nur, solange es etwas zu waehlen gibt (nicht beim fertig getippten Wort)
+	const show = sugg.opts.length > 0 && !(sugg.opts.length === 1 && sugg.opts[0][0] === sugg.last);
 	return html`<${Card} title="Konsole">
-		<p class="muted msg">Shell-Kommandos für die Diagnose, z. B. <code>evse status</code>,
-			<code>evse param list lock</code>, <code>evse log</code> (jüngste Meldungen) oder
-			<code>evse threads</code>; <code>evse -h</code> zeigt alle.
-			Kommandos wirken sofort und ohne Rückfrage.</p>
+		<p class="muted msg">Shell-Kommandos für die Diagnose, z. B. <code>evse status</code>, <code>evse log</code> (jüngste
+			Meldungen), <code>evse param list lock</code> oder <code>evse threads</code>; <code>evse -h</code> zeigt
+			alle. Tab ergänzt Kommandos und Parameternamen. Kommandos wirken sofort und ohne Rückfrage.</p>
 		${lines.length > 0 && html`<pre class="console" ref=${out}>${lines.map((l) =>
 			html`<b>› ${l.cmd}</b>${'\n'}<span class=${l.bad ? 'bad' : ''}>${l.text}</span>${'\n'}`)}</pre>`}
-		<form class="row" onSubmit=${run}>
+		<form class="row cmdline" onSubmit=${run}>
 			<input class="mono" ref=${input} value=${cmd} onInput=${(e) => setCmd(e.target.value)} onKeyDown=${key}
 				maxlength="255" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="evse status"
 				aria-label="Kommando" />
 			<button type="submit" disabled=${busy}>${busy ? 'Läuft …' : 'Ausführen'}</button>
 		</form>
+		${show && html`<div class="sugg">${sugg.opts.slice(0, 60).map(([w, help]) =>
+			html`<button type="button" class="mono" title=${help} onMouseDown=${(e) => e.preventDefault()}
+				onClick=${() => take(w, true)}>${w}</button>`)}</div>`}
 	<//>`;
 }
 
