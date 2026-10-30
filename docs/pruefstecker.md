@@ -1,11 +1,9 @@
 # Prüfstecker und Stufe C
 
-Stand: 2026-10-28. Plan für einen selbstgebauten Prüfstecker (Fahrzeugnachbildung an der
+Stand: 2026-10-30. Plan für einen selbstgebauten Prüfstecker (Fahrzeugnachbildung an der
 Typ-2-Steckdose) und den Prüfablauf der Stufe C auf dem Testgerät (CP-PWM, Verriegelung mit Stecker,
-Fehlerstrom, Schütz, evcc). Teile bestellt (Nutzer 2026-10-28). **Stufe C ist noch nicht
-freigegeben:** Die Sicherheitsgrenzen in
-[wallbe2/AGENTS.md](../../wallbe2/AGENTS.md#sicherheitsgrenzen) erlauben derzeit nichts an der
-Steckdose; vor C0 braucht es eine ausdrückliche Freigabe des Nutzers (erteilt, Abschnitt 7).
+Fehlerstrom, Schütz, evcc). Teile bestellt (Nutzer 2026-10-28). Stufe C ist freigegeben
+([Abschnitt 7](#7-freigabe-stufe-c)), die Prüfung steht noch aus.
 
 ## 1. Grundsatz: keine Netzspannung im Prüfstecker
 
