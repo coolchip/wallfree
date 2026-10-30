@@ -363,7 +363,7 @@ auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/do
 | Eingaenge (Stufe A) | EN (Schluesselschalter, 0/12 V), ML, XR, IN je 12 V -> `inputs` Bit 1..4; XR mit D8: ab -> S10, an -> S1; IN Code 8 -> 6 A, Code 11 -> 16 A |
 | Ausgaenge, LEDs (Stufe A) | ER/LR/VR/CR je 12 V an der Klemme (Register-Ausgaenge 30..33); Front-LED ER rot, VR blau, CR gruen; Power- und Error-LED; mit `dip_override` D8 -> S10, CP -12 V, Error-LED an (`dip_override` in S10 nicht schreibbar, SOLL-PAR-40) |
 | Verriegelung (Stufe B) | LD ist ein Impuls von grob 60..100 ms waehrend der Fahrt: Code 22 noetig, mit Code 3 schlaegt Verriegeln fehl; mit D9 aus entriegelt der Automat in S1 bei CP A sofort wieder (SOLL-LOCK-23). Das Testgerät: `in_function_ld` 22, `out_function_cr` 40 (gruen im Leerlauf wie das zweite Gerät, Nutzer 2026-10-24) |
-| Reset-Taster | wirkt auf NRST und PD2; der Prozessor bleibt nach dem Druecken etwa 5 s im Reset, auch wenn der Taster gehalten wird (vermutlich RC-Glied an NRST), und startet dann. Kurz oder unter etwa 5 s -> nur Neustart (`reset_pin`); gehalten -> nach etwa 5 s blinkt die Power-LED 1 Hz, nach weiteren 5 s Werksreset, also insgesamt etwa 10 s (Testgerät 2026-10-27: nach dem Druecken etwa 5 s dunkel (Prozessor im Reset), dann blinkt die Power-LED 1 Hz (Wallfree wartet); Loslassen vor Ablauf -> nur Neustart, Startereignis um die Wartezeit spaeter) |
+| Reset-Taster | wirkt auf NRST und PD2; der Prozessor bleibt nach dem Druecken etwa 5 s im Reset, auch wenn der Taster gehalten wird (vermutlich RC-Glied an NRST), und startet dann. Kurz oder unter etwa 5 s -> nur Neustart (`reset_pin`); gehalten -> nach etwa 5 s blinkt die Power-LED 1 Hz, nach weiteren 5 s Werksreset, also insgesamt etwa 10 s (Testgerät 2026-10-27: nach dem Druecken etwa 5 s dunkel (Prozessor im Reset), dann blinkt die Power-LED 1 Hz (Wallfree wartet); Loslassen vor Ablauf -> nur Neustart, Startereignis um die Wartezeit spaeter); Notweg zum Bootloader (SOLL-BOOT-22, `1f0b419`, 2026-10-30): im 5-Hz-Blinken losgelassen -> Power-LED aus, kurz darauf blinken alle vier LEDs schnell (Bootloader), 192.168.0.8 antwortet auf Ping und HTTP; Upload mit `scripts/update.sh --upload-only`, danach Wallfree mit `reset_reason` `update`, Update-Ereignis `ok`, Pruefsumme passt, Einstellungen und Parameter unveraendert, gleiche DHCP-Adresse. Wer nach Zeit statt nach der LED loslaesst, laesst leicht im 1-Hz-Blinken los (normaler Start, Startereignis spaeter) |
 | Parameterspeicher | `FLASH_SR` beim Start `0xc0` (aus dem Bootloader, Fallstricke); erste Speicherung danach fehlerfrei |
 | Import aus Sektor 3 (`c5fce83`, 2026-10-28) | `import-original` las die Werte der Originalfirmware 0.81: 16 Werte der Ladelogik uebernommen (u. a. LR 17, CR 9, LD 3; `overcurrent_enable` fehlte im Original und gilt als 0) und 4 Netzwerkwerte (feste Adresse). Danach ueber die API zurueckgestellt (0,3 s, ohne Neustart): LR 29, CR 40, LD 22, DHCP; `restart_required` blieb falsch, kein Fehler. Sicherungen und Ausgabe: `wallbe2/analysis/box-t/import-2026-10-28/` |
 | Update | ueber die Weboberflaeche in etwa 20 s, Erfolg nur bei passender Pruefsumme; Rueckweg zur Originalfirmware 0.81 und zurueck geprueft (Sektor 3 und 7 erhalten). Fruehere Abbrueche: jede Abfrage waehrend des Uploads bricht ihn im Bootloader ab (Seite fragt deshalb nichts ab); wechselnde MAC von Bootloader und Wallfree verzoegerte per ARP-Cache (behoben mit Geraete-MAC) |
@@ -375,6 +375,7 @@ auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/do
 | MQTT per Name, Home-Assistant-Erkennung (`v0.1`, 2026-10-27) | Broker `broker.lan` (Mosquitto, ohne Anmeldung) aufgeloest und sofort verbunden; nach `online` 6 Konfigurationen retained, Ladestrom/Leistung/Energie als leere Nachricht entfernt (ohne `mqtt_commands`, ohne Zaehler); Geraet mit `sw` `0.1+d45de9d`. Gefunden: Wertvorlage "Zustand" auf 95 Byte gekuerzt (ohne `}}`), behoben in 0.2-dev. Mit `590465a`: `mqtt_commands` an -> Ladestrom-Feld 0..16 A (Drehschalter), aus -> wieder entfernt; kein Home Assistant vorhanden, Pruefung nur mit `mosquitto_sub` |
 | Toter Broker (`b5ce020`, 2026-10-27) | Test-Broker auf dem PC (Mosquitto, Port 18830), per SIGSTOP eingefroren (TCP bleibt offen, keine Antworten): letzte Nachricht 21:11:07, PINGREQ nach 60 s ohne Antwort, Trennung mit -116 (ETIMEDOUT) nach 121 s (106 s nach dem Einfrieren); nach dem Auftauen sofort wieder verbunden, `online` retained. Ohne Zaehler (kein Dauerversand); der Fall mit Zaehler ist offen |
 | Protokoll, Uhrzeit, CP-Aufnahme (`6eb0e08`, 2026-10-27) | Ereignisprotokoll uebersteht den Neustart; Uhrzeit von `pool.ntp.org` (Router meldet per DHCP keinen Zeitserver, DNS ueber DHCP funktioniert); CP-Aufnahme im Leerlauf +11,9 V |
+| Prozessortemperatur | plausibel (31,8 Grad knapp 3 min nach dem Start, 33 Grad im Betrieb), Referenz bestaetigt (`adc_vref_mv` 2493..2494, siehe Fallstricke); Abgleich `mcu_temp_offset` -3,5 Grad eingestellt (Nutzer 2026-10-29) |
 | Stacks | siehe [Ressourcen](#ressourcen); keiner ueber 82 % |
 
 Bekannte Grenzen: Keep-Alive-Verbindungen belegen je einen der 4 HTTP-Plaetze bis 5 s;
@@ -398,16 +399,11 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurueck).
   die HAL auf GPIO zu und schaltet C3/C4 nirgends ([wallbe2 hardware.md](../../wallbe2/docs/hardware.md#4-offene-fragen)).
   Vermutlich fehlt der Treiber in dieser Bestueckung; klaeren nur ueber den Leiterbahnverlauf (Fotos,
   wenn der Nutzer die Steuerung zerlegt). Ziel von PE1 weiter offen.
-- Prozessortemperatur (SOLL-API-35): auf dem Testgerät plausibel (`8d466ea`: 31,8 Grad knapp 3 min nach dem
-  Start; `3899732`: 33 Grad), Referenz bestaetigt (`adc_vref_mv` 2493..2494, siehe Fallstricke).
-  Abgleich `mcu_temp_offset` umgesetzt, auf dem Testgerät noch nicht eingestellt: an der kalten Box (Stunden
-  ohne Strom, dann kurz nach dem Start) gegen ein Thermometer.
 - Toter MQTT-Broker bei Dauerversand (Zaehlerwerte jede Sekunde): Erkennung erst ueber TCP, Zeit
   offen; mit dem Zaehler messen.
 - Konsole statt Telnet (SOLL-SH-19/21/22): laeuft auf dem Testgerät (`6a6d3d5`, Stacks unter Ressourcen).
-  Taster-Notweg zum Bootloader (SOLL-BOOT-22) auf dem Testgerät erst nach Freigabe in wallbe2/AGENTS.md;
-  Konsole bleibt (Nutzer 2026-10-29), Kommandos ohne Vorsatz `evse`; Merge nach `main` nach der
-  Pruefung des Taster-Notwegs.
+  Konsole bleibt (Nutzer 2026-10-29), Kommandos ohne Vorsatz `evse`; Taster-Notweg auf dem Testgerät
+  geprueft (2026-10-30); Merge nach `main` steht aus.
 
 ## Ideen fuer spaeter
 
