@@ -377,7 +377,7 @@ auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/do
 | Protokoll, Uhrzeit, CP-Aufnahme (`6eb0e08`, 2026-10-27) | Ereignisprotokoll übersteht den Neustart; Uhrzeit von `pool.ntp.org` (Router meldet per DHCP keinen Zeitserver, DNS über DHCP funktioniert); CP-Aufnahme im Leerlauf +11,9 V |
 | Prozessortemperatur | plausibel (31,8 Grad knapp 3 min nach dem Start, 33 Grad im Betrieb), Referenz bestätigt (`adc_vref_mv` 2493..2494, siehe Fallstricke); Abgleich `mcu_temp_offset` -3,5 Grad eingestellt (Nutzer 2026-10-29) |
 | Konsole statt Telnet (SOLL-SH-19/21/22) | läuft auf dem Testgerät (`6a6d3d5`), Kommandos ohne Vorsatz `evse` (`1f0b419`); Stacks unter [Ressourcen](#ressourcen) |
-| Ausgang C1/C2 (Testbau `309f9f3`, Branch `c12-test`, 2026-10-30) | PE2 schaltet das Relais: Klicken auf der Steuerung, Durchgang an C1-C2 gemessen (Adern abgeklemmt, keine Spannung an C1/C2, Schütz nicht angeschlossen). Etwa 1 s nach Testbeginn ERR-CONTACTOR (`contactor_error` 6): PE0 sah Flanken bei Schütz-Soll aus, Ursache offen, siehe Offen. Das Testkommando bleibt außerhalb von `main` |
+| Ausgang C1/C2 (Testbau `309f9f3`, Branch `c12-test`, 2026-10-30) | PE2 schaltet das Relais an C1/C2, dieses die Schützspule: Relais und Schütz hörbar, Durchgang an C1-C2. Aufbau abweichend von der Freigabe: Schütz und CT-Leitung waren angeschlossen (vom Nutzer erst nachher bemerkt), die Steckdose führte also kurz Netzspannung, nichts war eingesteckt. Damit auch Via Sense bestätigt: Schütz gegen das Soll eingeschaltet -> etwa 1 s nach Testbeginn ERR-CONTACTOR (`contactor_error` 6). Das Testkommando bleibt außerhalb von `main` |
 | Stacks | siehe [Ressourcen](#ressourcen); keiner über 82 % |
 
 Bekannte Grenzen: Keep-Alive-Verbindungen belegen je einen der 4 HTTP-Plätze bis 5 s;
@@ -394,7 +394,6 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurück).
   [Prüfstecker](pruefstecker.md#5-prüfablauf-stufe-c) (Prüfdraht mit 9 mA DC durch den Summenstromwandler).
 - Energiezähler an RS-485: Eastron SDM72D-M-2 des Nutzers anschließen (später, Nutzer 2026-10-27);
   Sendepegel an A/B, Abfrage, Fehlerzähler bei offener und vertauschter Leitung.
-- Flanken an PE0 (CT) beim Schalten von C1/C2 ohne Schütz (Testgerät 2026-10-30, `c12-test`): Via Sense meldete ERR-CONTACTOR, obwohl hinter dem Relais nichts angeschlossen war. Zu klären: Einkopplung des Relais auf PE0 oder Beschaltung von CT; in Stufe C auf Fehlalarme beim Abschalten achten.
 - Statuswert `ct_sense` (Spannung an CT) auf dem Testgerät: ohne Schütz 0 (bestätigt 2026-10-28, `3899732`);
   1 bei eingeschaltetem Schütz erst in Stufe C.
 - Ansteuerung des Relais C3/C4 (F15): keine MCU-Leitung schaltet es. PE1 (2026-10-27) und PB3
