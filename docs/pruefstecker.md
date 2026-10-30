@@ -118,7 +118,7 @@ Steckdose hat eine **Notentriegelung**; ein **Oszilloskop** ist vorhanden (CP-PW
 Reaktionszeiten direkt messen, Tastkopf an den Messbuchsen CP/PE des Prüfsteckers).
 `unlock_check` bleibt aus.
 
-**C0 Vorbereitung.** Prüfstecker nach Abschnitt 4 geprüft. Schützspule weiter abgeklemmt.
+**C0 Vorbereitung.** Prüfstecker nach Abschnitt 4 geprüft. Schützspule abklemmen (sie ist derzeit angeschlossen); der Nutzer bestätigt vor dem ersten Schritt, was an C1/C2 und an der Spule hängt.
 
 **C1 Stecker ohne Fahrzeug (S1 aus), PP-Klassen.** Stecker stecken, S6 nacheinander durch alle
 Stellungen, je > 1 s warten (SOLL-PP-03).

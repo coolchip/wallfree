@@ -353,7 +353,7 @@ Gefunden beim Testen; gelten für Zephyr 4.4.2 und sind bei Updates erneut zu pr
 ## Prüfungen auf dem Testgerät
 
 Das Testgerät (Firmware 0.81 ab Werk, Bootloader und Sektor 3 unverändert), Freigaben in
-[wallbe2/AGENTS.md](../../wallbe2/AGENTS.md); Schütz abgeklemmt, kein Fahrzeug. Steuerung über
+[wallbe2/AGENTS.md](../../wallbe2/AGENTS.md); Schützspule nur zeitweise abgeklemmt (je Prüfung nicht festgehalten, seit 2026-10-30 angeschlossen; ohne Fahrzeug schaltet Wallfree das Schütz nicht), kein Fahrzeug. Steuerung über
 Shell/API von Wallfree, der Nutzer beobachtet und misst (unter Spannung nur an den Klemmen, nie
 auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/docs/hardware.md).
 
