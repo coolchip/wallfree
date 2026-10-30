@@ -376,6 +376,7 @@ auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/do
 | Toter Broker (`b5ce020`, 2026-10-27) | Test-Broker auf dem PC (Mosquitto, Port 18830), per SIGSTOP eingefroren (TCP bleibt offen, keine Antworten): letzte Nachricht 21:11:07, PINGREQ nach 60 s ohne Antwort, Trennung mit -116 (ETIMEDOUT) nach 121 s (106 s nach dem Einfrieren); nach dem Auftauen sofort wieder verbunden, `online` retained. Ohne Zaehler (kein Dauerversand); der Fall mit Zaehler ist offen |
 | Protokoll, Uhrzeit, CP-Aufnahme (`6eb0e08`, 2026-10-27) | Ereignisprotokoll uebersteht den Neustart; Uhrzeit von `pool.ntp.org` (Router meldet per DHCP keinen Zeitserver, DNS ueber DHCP funktioniert); CP-Aufnahme im Leerlauf +11,9 V |
 | Prozessortemperatur | plausibel (31,8 Grad knapp 3 min nach dem Start, 33 Grad im Betrieb), Referenz bestaetigt (`adc_vref_mv` 2493..2494, siehe Fallstricke); Abgleich `mcu_temp_offset` -3,5 Grad eingestellt (Nutzer 2026-10-29) |
+| Konsole statt Telnet (SOLL-SH-19/21/22) | laeuft auf dem Testgerät (`6a6d3d5`), Kommandos ohne Vorsatz `evse` (`1f0b419`); Stacks unter [Ressourcen](#ressourcen) |
 | Stacks | siehe [Ressourcen](#ressourcen); keiner ueber 82 % |
 
 Bekannte Grenzen: Keep-Alive-Verbindungen belegen je einen der 4 HTTP-Plaetze bis 5 s;
@@ -401,9 +402,6 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurueck).
   wenn der Nutzer die Steuerung zerlegt). Ziel von PE1 weiter offen.
 - Toter MQTT-Broker bei Dauerversand (Zaehlerwerte jede Sekunde): Erkennung erst ueber TCP, Zeit
   offen; mit dem Zaehler messen.
-- Konsole statt Telnet (SOLL-SH-19/21/22): laeuft auf dem Testgerät (`6a6d3d5`, Stacks unter Ressourcen).
-  Konsole bleibt (Nutzer 2026-10-29), Kommandos ohne Vorsatz `evse`; Taster-Notweg auf dem Testgerät
-  geprueft (2026-10-30); Merge nach `main` steht aus.
 
 ## Ideen fuer spaeter
 
