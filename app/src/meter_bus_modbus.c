@@ -2,7 +2,6 @@
 /*
  * Zaehlerbus ueber den Modbus-Client von Zephyr (F29), siehe meter_bus.h.
  * UART4 mit Treiberfreigabe PC12 laut Board-Devicetree (Knoten modbus0).
- * Nur gebaut, auf Hardware nicht ausgefuehrt.
  *
  * Grenzen des Zephyr-Clients (docs/architektur.md, Speicherbudget): Ende
  * eines Telegramms nur ueber die Pause von 3,5 Zeichen; eine verspaetete
@@ -10,12 +9,15 @@
  * nach einem Timeout macht meter_cycle() (SOLL-MTR-11).
  */
 #include <errno.h>
+#include <zephyr/device.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/modbus/modbus.h>
 #include <wallfree/meter/meter.h>
 #include "meter_bus.h"
 
 LOG_MODULE_REGISTER(meter_bus, LOG_LEVEL_INF);
+
+#define MODBUS_NODE DT_COMPAT_GET_ANY_STATUS_OKAY(zephyr_modbus_serial)
 
 static int iface = -1;
 
@@ -37,7 +39,7 @@ int meter_bus_init(const struct wf_sysconf *c)
 		},
 	};
 
-	iface = modbus_iface_get_by_name("MODBUS0");
+	iface = modbus_iface_get_by_name(DEVICE_DT_NAME(MODBUS_NODE));
 	if (iface < 0) {
 		LOG_ERR("Modbus-Schnittstelle fehlt");
 		return iface;
