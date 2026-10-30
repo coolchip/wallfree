@@ -5,7 +5,7 @@ Typ-2-Steckdose) und den Prüfablauf der Stufe C auf dem Testgerät (CP-PWM, Ver
 Fehlerstrom, Schütz, evcc). Teile bestellt (Nutzer 2026-10-28). **Stufe C ist noch nicht
 freigegeben:** Die Sicherheitsgrenzen in
 [wallbe2/AGENTS.md](../../wallbe2/AGENTS.md#sicherheitsgrenzen) erlauben derzeit nichts an der
-Steckdose; vor C0 braucht es eine ausdrückliche Freigabe des Nutzers (Entwurf in Abschnitt 7).
+Steckdose; vor C0 braucht es eine ausdrückliche Freigabe des Nutzers (erteilt, Abschnitt 7).
 
 ## 1. Grundsatz: keine Netzspannung im Prüfstecker
 
@@ -120,8 +120,7 @@ Steckdose hat eine **Notentriegelung**; ein **Oszilloskop** ist vorhanden (CP-PW
 Reaktionszeiten direkt messen, Tastkopf an den Messbuchsen CP/PE des Prüfsteckers).
 `unlock_check` bleibt aus.
 
-**C0 Freigabe und Vorbereitung.** Freigabe Stufe C in wallbe2/AGENTS.md (Entwurf Abschnitt 7, Wortlaut stimmt der
-Nutzer ab). Prüfstecker nach Abschnitt 4 geprüft. Schützspule weiter abgeklemmt.
+**C0 Vorbereitung.** Prüfstecker nach Abschnitt 4 geprüft. Schützspule weiter abgeklemmt.
 
 **C1 Stecker ohne Fahrzeug (S1 aus), PP-Klassen.** Stecker stecken, S6 nacheinander durch alle
 Stellungen, je > 1 s warten (SOLL-PP-03).
@@ -199,6 +198,9 @@ Wallbox: Batterie + -> R5 -> S7 -> Prüfdraht -> Batterie -. Der Draht berührt 
 **C5 Laden mit Schütz.** F1 aus, Prüfdraht entfernen, Adern an C1/C2 wieder anklemmen und
 Schützspule anschließen (Nutzer, spannungsfrei), F1 ein. Wiederholen von C3:
 
+Ab hier wird der Prüfstecker nur bei F1 aus gezogen oder gesteckt: Ohne Stecker wären die
+Buchsenkontakte offen, und bei eingeschaltetem Schütz läge dort Netzspannung.
+
 - Schütz klickt bei C, fällt bei B, E, Diodenfehler, Schlüssel aus.
 - `ct_sense` 1 bei eingeschaltetem Schütz, 0 nach dem Abschalten (Via Sense).
 - Optional misst der Nutzer an den großen Klemmen am Schützausgang L-N (230 V bei ein, 0 V bei
@@ -223,23 +225,8 @@ SOLL-PROT-10..12, SOLL-CP-09. C6: evcc-Anbindung (WARP-Schnittstelle). Ergebniss
 [Implementierung](implementierung.md#offen) und [wallbe2 Hardware](../../wallbe2/docs/hardware.md)
 eingetragen.
 
-## 7. Entwurf der Freigabe Stufe C
+## 7. Freigabe Stufe C
 
-Noch nicht freigegeben. Wortlaut stimmt der Nutzer ab; erst dann wird er in die
-Sicherheitsgrenzen von wallbe2/AGENTS.md übernommen.
-
-> **Freigabe Stufe C das Testgerät (Nutzer JJJJ-MM-TT):** Prüfablauf C1..C6 nach
-> wallfree/docs/pruefstecker.md am Testgerät mit Wallfree, dem Prüfstecker (nur PE, CP, PP bestückt,
-> nach Abschnitt 4 geprüft) und dem Prüfdraht für den Fehlerstrom. Erlaubt für Claude:
-> Steuern und Lesen von Wallfree über API, Weboberfläche und Shell (Telnet schaltet nur der
-> Nutzer ein), auch Befehle, die CP-PWM, Ladestrom, Verriegelung und Schütz-Soll beeinflussen
-> (`current`, `enable`, `avail`, `pause`, `lock`, `unlock`, `selftest`, `ack`), Setzen und
-> Zurücksetzen von Parametern, die ein Schritt nennt; evcc auf dem PC gegen das Testgerät. Der Nutzer
-> stellt den Aufbau her (Stecker, Schalter, F1, Schützspule und Adern an C1/C2 sowie
-> Prüfdraht nur spannungsfrei), misst nur an Klemmen und Messbuchsen und entscheidet über jeden
-> Schritt. Schützspule in C1..C4 abgeklemmt; angeschlossen erst ab C5 nach Ansage. Nicht
-> erlaubt: Schutzfunktionen abschalten oder umgehen (`contactor_monitor`, RCM-Auswertung,
-> `reject_state_d`, `unlock_check` bleiben unverändert), Fahrzeug oder Last an der Steckdose,
-> Netzspannung im Prüfstecker oder am Prüfdraht, SWD über die Freigabe "Wallfree-Test" hinaus.
-> Vor jedem Schritt nennt Claude Befehl, erwartete Reaktion und Abbruchgrund; Abbruch (F1 aus)
-> bei unerwartetem Schützklicken, Geruch oder dauerhaft laufendem Motor.
+Erteilt (Nutzer 2026-10-30); der verbindliche Wortlaut steht in den Sicherheitsgrenzen von
+[wallbe2/AGENTS.md](../../wallbe2/AGENTS.md). Sie gilt für C1..C6 am Testgerät ohne Fahrzeug und Last.
+Nicht enthalten: C7, die Befehle `bootloader`, `factory-reset` und `import-original`.

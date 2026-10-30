@@ -386,8 +386,8 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurück).
 
 ## Offen
 
-- **Stufe C** mit Prüfstecker ([Prüfstecker](pruefstecker.md), Freigabe in wallbe2/AGENTS.md
-  noch offen, Entwurf in Abschnitt 7 dort): CP-PWM, Schütz, Modul-LEDs Connect/Ready, Laden mit evcc.
+- **Stufe C** mit Prüfstecker ([Prüfstecker](pruefstecker.md), Freigabe erteilt, wallbe2/AGENTS.md;
+  der Prüfstecker fehlt noch): CP-PWM, Schütz, Modul-LEDs Connect/Ready, Laden mit evcc.
   Ablauf in der Simulation mit den Einstellungen des Testgeräts geprobt (E2E `T8StufeC`, 2026-10-28).
 - Fehlerstrom und Reaktionszeit RCM -> Schütz am Oszilloskop (SOLL-PROT-04..12): Ablauf C4 in
   [Prüfstecker](pruefstecker.md#5-prüfablauf-stufe-c) (Prüfdraht mit 9 mA DC durch den Summenstromwandler).
