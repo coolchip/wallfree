@@ -157,6 +157,17 @@ Prüfen des Skripts: unter Volllast läuft ihre Uhr langsamer als die Wanduhr.
 je Tab Anfragen und benutzte Verbindungen; die Erreichbarkeit misst man daneben. Die Chrome-Prozesse
 werden am Ende beendet.
 
+## Zähler-Nachbildung am RS-485-Bus
+
+`scripts/meter-emu.py` spielt am USB-RS-485-Adapter einen Eastron SDM72D-M V2 als Modbus-Slave
+(`meter_type` = 3, Adresse 1, 9600 Bd, 8N1), um die Zähleranbindung der Steuerung ohne echten
+Zähler zu prüfen. Es liefert feste Spannungen, 3450 W und einen mitlaufenden Zählerstand.
+`--ctl <datei>` schaltet zur Laufzeit die Betriebsart um (`ok`, `silent`, `badcrc`, `exception`,
+`nan`), damit die Fehlerzähler (SOLL-MTR-11/15) jede Fehlerart zeigen. Ohne `--port` greift es
+über libftdi auf einen FT232R zu und braucht kein Kernel-Modul; `--check` prüft nur den
+Protokollteil. Ein echter Zähler ersetzt das nicht: Pegel, Antwortzeiten und Registerinhalte
+stammen vom Skript.
+
 ## Bilder und PDF der Anleitung
 
 `scripts/doc-screenshots.sh` erzeugt die Bilder in `docs/anleitung/bilder/` (etwa 8 min): eigener
