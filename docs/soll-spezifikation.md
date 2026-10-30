@@ -973,8 +973,8 @@ gegen Beispielantworten aus den Herstellerunterlagen, Plausibilitätsgrenzen, Sa
 Zustandsfolge mit simulierter Registerschnittstelle (Timeout, gestörter Rahmen, Ausnahme,
 verspätete Antwort, Teilerfolg im Zyklus), Ausnahme `meter_type` = 0 (keine Abfrage, keine
 Topics, `features` leer). native_sim – Zählermodell hinter derselben Schnittstelle, API und
-evcc gegen die Simulation. H1 – Sendepegel an A/B bei aktivem PC12 (Zuordnung UART4), Abfrage
-eines echten Zählers je Modell, Fehlerzähler bei offener und vertauschter Leitung.
+evcc gegen die Simulation. H1 – Abfrage eines echten
+Zählers, Fehlerzähler bei offener und vertauschter Leitung.
 
 ### 12.6 MQTT
 

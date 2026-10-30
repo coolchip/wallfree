@@ -159,14 +159,15 @@ werden am Ende beendet.
 
 ## Zähler-Nachbildung am RS-485-Bus
 
-`scripts/meter-emu.py` spielt am USB-RS-485-Adapter einen Eastron SDM72D-M V2 als Modbus-Slave
-(`meter_type` = 3, Adresse 1, 9600 Bd, 8N1), um die Zähleranbindung der Steuerung ohne echten
+`scripts/meter-emu.py` spielt am USB-RS-485-Adapter einen Eastron SDM72D-M V2 (`meter_type` = 3)
+oder mit `--model abb` einen ABB B23 (`meter_type` = 1) als Modbus-Slave (Adresse 1, 9600 Bd, 8N1,
+mit `--parity E` 8E1), um die Zähleranbindung der Steuerung ohne echten
 Zähler zu prüfen. Es liefert feste Spannungen, 3450 W und einen mitlaufenden Zählerstand.
 `--ctl <datei>` schaltet zur Laufzeit die Betriebsart um (`ok`, `silent`, `badcrc`, `exception`,
 `nan`), damit die Fehlerzähler (SOLL-MTR-11/15) jede Fehlerart zeigen. Ohne `--port` greift es
 über libftdi auf einen FT232R zu und braucht kein Kernel-Modul; `--check` prüft nur den
-Protokollteil. Ein echter Zähler ersetzt das nicht: Pegel, Antwortzeiten und Registerinhalte
-stammen vom Skript.
+Protokollteil. Ein echter Zähler ersetzt das nicht: Antwortzeiten stammen vom Skript, und die
+Register folgen derselben Tabelle wie die Firmware; ein Fehler darin fiele nicht auf.
 
 ## Bilder und PDF der Anleitung
 

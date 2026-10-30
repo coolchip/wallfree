@@ -314,7 +314,7 @@ Noch offen:
   der Originalfirmware; der RCM-Selbsttest besteht, das Schütz ist ungeprüft (Stufe C).
 - Reaktionszeit RCM-Flanke -> PE2 Low über den Zephyr-GPIO-Callback: Ziel <= 1 ms
   (SOLL-PROT-05), am Oszilloskop messen.
-- Zählerbus: je Modell einen echten Zähler abfragen; Sendepegel an A/B messen.
+- Zählerbus: einen echten Zähler abfragen. Die Sendepegel an A/B werden nicht gemessen (Nutzer 2026-10-30): Der Adapter las jede Anfrage fehlerfrei, und der Zähler sitzt in der Box an kurzer Leitung.
 
 ## Fallstricke
 
@@ -391,7 +391,7 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurück).
 - Fehlerstrom und Reaktionszeit RCM -> Schütz am Oszilloskop (SOLL-PROT-04..12): Ablauf C4 in
   [Prüfstecker](pruefstecker.md#5-prüfablauf-stufe-c) (Prüfdraht mit 9 mA DC durch den Summenstromwandler).
 - Energiezähler an RS-485: Eastron SDM72D-M-2 des Nutzers anschließen (später, Nutzer 2026-10-27);
-  Sendepegel an A/B, Abfrage. Die Anbindung ist mit der Nachbildung geprüft ([Prüfungen](#prüfungen-auf-box-t)).
+  Abfrage. Die Anbindung ist mit der Nachbildung geprüft ([Prüfungen](#prüfungen-auf-box-t)).
 - Statuswert `ct_sense` (Spannung an CT) auf dem Testgerät: ohne Schütz 0 (bestätigt 2026-10-28, `3899732`);
   1 bei eingeschaltetem Schütz erst in Stufe C.
 - Ansteuerung des Relais C3/C4 (F15): keine MCU-Leitung schaltet es. PE1 (2026-10-27) und PB3
