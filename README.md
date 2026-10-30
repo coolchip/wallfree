@@ -59,7 +59,7 @@ können Menschen gefährden. Software-Tests belegen keine elektrische Sicherheit
 
 - Rückweg zur Originalfirmware über denselben Bootloader; die Originaleinstellungen bleiben
   dabei erhalten (auf einer Steuerung geprüft). Ein Import dieser Einstellungen in Wallfree ist
-  eingebaut, auf einer Steuerung aber noch nicht ausgeführt.
+  eingebaut (auf einer Steuerung geprüft).
 - Konsole in der Weboberfläche für Diagnose (Expertenansicht, mit Anmeldung).
 - Notweg zum Bootloader über den Reset-Taster, falls die Weboberfläche nicht mehr erreichbar ist.
 - Kompletter Simulator auf dem PC: die ganze Firmware mit nachgebildeter Hardware, Fahrzeug,
@@ -138,7 +138,7 @@ Bedienung der Simulation: [docs/simulation-bedienung.md](docs/simulation-bedienu
 
 Details und Ergebnisse: [docs/test-und-simulation.md](docs/test-und-simulation.md). Nicht
 abgedeckt: die echte Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) und das Ethernet; diese sind
-nur auf der Steuerung geprüft (Stand in [docs/implementierung.md](docs/implementierung.md#pruefungen-auf-box-t)).
+nur auf der Steuerung geprüft (Stand in [docs/implementierung.md](docs/implementierung.md#prüfungen-auf-box-t)).
 Bestandene Tests belegen keine elektrische Sicherheit.
 
 ## Herkunft der Befunde

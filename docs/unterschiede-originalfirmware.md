@@ -89,7 +89,7 @@ genaue Festlegung jedes Punkts steht in der [Soll-Spezifikation](soll-spezifikat
 - **Einstellungen der Originalfirmware** bleiben dabei erhalten: Wallfree speichert seine
   eigenen Einstellungen in einem anderen Bereich des Flash und schreibt den Bereich der
   Originalfirmware nie. Ein Import dieser Einstellungen in Wallfree (Befehl
-  `import-original` in der Konsole der Weboberfläche) ist eingebaut, auf einer Steuerung aber noch nicht ausgeführt.
+  `import-original` in der Konsole der Weboberfläche) ist eingebaut und auf einer Steuerung geprüft.
 - **Voraussetzung:** eine Firmwaredatei des Herstellers. Wallfree enthält die Originalfirmware
   nicht und kann die installierte nicht auslesen. Schritt für Schritt:
   [Umrüsten auf Wallfree und zurück](umruesten.md).
