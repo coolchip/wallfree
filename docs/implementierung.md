@@ -12,7 +12,7 @@ Tests: [Test und Simulation](test-und-simulation.md).
 | Ladelogik (`lib/evse`) | vollständig nach Soll-Spezifikation, PC-getestet |
 | Parameterspeicher (`lib/nvm`) | fertig, PC-getestet inkl. Stromausfall nach jedem Byte |
 | API-Bausteine (`lib/api`) | fertig, PC-getestet |
-| Energiezähler (`lib/meter`, Zählerthread, nur Anzeige) | fertig, PC-getestet, in der Simulation Ende-zu-Ende und gegen evcc geprüft; Modbus-Anbindung auf UART4 gebaut, auf der Steuerung ungeprüft (kein Zähler vorhanden) |
+| Energiezähler (`lib/meter`, Zählerthread, nur Anzeige) | fertig, PC-getestet, in der Simulation Ende-zu-Ende und gegen evcc geprüft; Modbus-Anbindung auf UART4 auf dem Testgerät gegen eine Zähler-Nachbildung geprüft, echter Zähler steht aus |
 | MQTT-Client (`lib/api/mqtt.c`, `mqtt_task.c`) | fertig, PC-getestet, in der Simulation Ende-zu-Ende und auf dem Testgerät gegen Mosquitto geprüft |
 | Anwendung (`app/`) | baut für `ev_cc_ac1` ohne Warnung; als PC-Simulation Ende-zu-Ende getestet; auf dem Testgerät unter Netzlast geprüft |
 | Weboberfläche (`web/`) | fertig (Bereiche, Verlauf, Auswahllisten, Begriffe), Browser-Durchlauf in der Simulation, auf dem Testgerät im Einsatz |
@@ -234,7 +234,7 @@ Punkte, die die Spezifikation offen ließ. Alle vom Nutzer bestätigt, außer wo
 | Punkt | Umsetzung | Grund |
 | --- | --- | --- |
 | Zeiten | Takt 100 ms; Keepalive 60 s; CONNACK-Frist 10 s; Neuverbindung nach 1 s, verdoppelt bis 60 s | wie der WebSocket-Takt; Keepalive ist der Zephyr-Default; 60 s Höchstwartezeit begrenzt die Last bei dauerhaft fehlendem Broker |
-| toter Broker | Zephyr wertet unbeantwortete PINGREQ nicht aus: Die Anwendung trennt, wenn ein PINGREQ eine Keepalive-Spanne lang offen ist; Erkennung also 60..120 s nach der letzten Nachricht (Testgerät: 121 s). Zephyr pingt nur in Sendepausen; bei Dauerversand (Zählerwerte jede Sekunde) erkennt erst TCP den Ausfall (Wiederholungen bis zum Abbruch) | Testgerät ohne Zähler bestätigt; Dauerversand mit Zähler noch zu messen |
+| toter Broker | Zephyr wertet unbeantwortete PINGREQ nicht aus: Die Anwendung trennt, wenn ein PINGREQ eine Keepalive-Spanne lang offen ist; Erkennung also 60..120 s nach der letzten Nachricht (Testgerät: 121 s). Zephyr pingt nur in Sendepausen; bei Dauerversand (Zählerwerte jede Sekunde) meldet erst das Senden den Ausfall (Testgerät: 230 s bei eingefrorenem Broker) | Testgerät mit und ohne Zähler gemessen |
 | Änderungserkennung | FNV-1a-Prüfsumme der Nutzdaten statt einer Kopie je Topic | spart RAM; eine Kollision (2^-32 je Änderung) verschiebt eine Meldung bis zur nächsten Änderung |
 | Neukonfiguration | nur wenn sich ein `mqtt_*`-Wert ändert: `online` = `false`, DISCONNECT, sofort neu verbinden | ein geordnetes DISCONNECT löst den Last Will nicht aus |
 | Neustart der Steuerung | kein `online` = `false` vorab; der Broker meldet den Last Will nach 1,5 x Keepalive (bis 90 s) | der Neustart beendet die Verbindung ohne TCP-Abbau |
@@ -314,11 +314,7 @@ Noch offen:
   der Originalfirmware; der RCM-Selbsttest besteht, das Schütz ist ungeprüft (Stufe C).
 - Reaktionszeit RCM-Flanke -> PE2 Low über den Zephyr-GPIO-Callback: Ziel <= 1 ms
   (SOLL-PROT-05), am Oszilloskop messen.
-- Zählerbus: RS-485 an Klemme A/B auf UART4 mit Freigabe PC12 (Firmwarebefund, wallbe2
-  Belege §9): Sendepegel an A/B messen; danach je Modell einen echten Zähler abfragen und die
-  Fehlerzähler bei offener und vertauschter Leitung ansehen. Zephyr-Modbus im nicht
-  normkonformen Modus (8N1) ist nur gebaut.
-- MQTT: Erkennungszeit eines ausgeschalteten Brokers bei laufendem Zählerversand.
+- Zählerbus: je Modell einen echten Zähler abfragen; Sendepegel an A/B messen.
 
 ## Fallstricke
 
@@ -345,6 +341,7 @@ Gefunden beim Testen; gelten für Zephyr 4.4.2 und sind bei Updates erneut zu pr
 | Simulation: Socket-Ersatz NSOS stürzt selten ab (SIGSEGV in `nsos_isr`, `sys_dlist_is_empty`), vor allem beim Broker-Neustart in T5Mqtt; etwa 1..2 von 12 Läufen, schon vor SNTP und Discovery | ein Ende-zu-Ende-Lauf scheitert gelegentlich mit "Connection refused" | nicht in Wallfree; Lauf wiederholen. DNS-Resolver in der Simulation aus (ohne DNS-Server nutzlos) |
 | Simulation: Telnet-Backend (nur dort vorhanden) setzt kein `SO_REUSEADDR` | nach Neustart blockiert TIME_WAIT den Port | `bind` setzt es in der Simulation |
 | `twister --coverage` | bricht in dieser Version ab | `scripts/run-tests.sh --coverage` ruft gcovr direkt |
+| Zephyr-Modbus, Name der Schnittstelle | `modbus_iface_get_by_name` vergleicht mit dem Devicetree-Knotennamen in Kleinschreibung; mit `MODBUS0` scheiterte die Einrichtung, es wurde nichts gesendet, jede Anfrage zählte als `frame_errors`. Die Simulation baut diese Datei nicht mit | Name mit `DEVICE_DT_NAME` aus dem Devicetree holen |
 | Umrechnung `float` -> `int64_t` auf dem Cortex-M3 (`__aeabi_f2lz`) | zieht die Double-Softfloat-Routinen nach (+3,5 KB Flash), ohne dass der Quelltext `double` enthält | Float32 der Zähler ganzzahlig dekodieren (`f32_scaled` in meter.c) |
 | Zephyr-MQTT, Keepalive | `mqtt_live` sendet PINGREQ, wertet fehlende Antworten aber nicht aus; ein stumm verschwundener Broker bliebe "verbunden" | Anwendung prüft `unacked_ping` gegen `mqtt_keepalive_time_left` |
 | Retain-Kennung beim Empfang | bei bestehendem Abo setzt der Broker sie nie (MQTT-3.3.1-9); ein Test mit `mosquitto_pub -r` zeigt das Ignorieren nicht | Test über eine Neuverbindung, die die gespeicherte Nachricht ausliefert |
@@ -378,6 +375,7 @@ auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/do
 | Prozessortemperatur | plausibel (31,8 Grad knapp 3 min nach dem Start, 33 Grad im Betrieb), Referenz bestätigt (`adc_vref_mv` 2493..2494, siehe Fallstricke); Abgleich `mcu_temp_offset` -3,5 Grad eingestellt (Nutzer 2026-10-29) |
 | Konsole statt Telnet (SOLL-SH-19/21/22) | läuft auf dem Testgerät (`6a6d3d5`), Kommandos ohne Vorsatz `evse` (`1f0b419`); Stacks unter [Ressourcen](#ressourcen) |
 | Ausgang C1/C2 (Testbau `309f9f3`, Branch `c12-test`, 2026-10-30) | PE2 schaltet das Relais an C1/C2, dieses die Schützspule: Relais und Schütz hörbar, Durchgang an C1-C2. Aufbau abweichend von der Freigabe: Schütz und CT-Leitung waren angeschlossen (vom Nutzer erst nachher bemerkt), die Steckdose führte also kurz Netzspannung, nichts war eingesteckt. Damit auch Via Sense bestätigt: Schütz gegen das Soll eingeschaltet -> etwa 1 s nach Testbeginn ERR-CONTACTOR (`contactor_error` 6). Das Testkommando bleibt außerhalb von `main` |
+| Zählerbus mit Nachbildung (`3e05884`, 2026-10-30, `scripts/meter-emu.py`, FT232R-Adapter, 9600 Bd 8N1, SDM72D-M V2) | UART4 mit Sendefreigabe PC12 geht an Klemme A/B. Adapter D+ an A, D- an B: `status` `ok`, 2 Anfragen/s, alle 13 Werte richtig, in 60 s kein Fehler. Andersherum vertauscht: Box sendet, Adapter liest verfälschte Bytes, die Antwort bleibt aus, Fehlerzähler `timeouts`, Zustand `error`. Der Nachbildung nach je 25 s: keine Antwort -> `timeouts` +12, gestörte CRC -> `frame_errors` +15, Ausnahme -> `exceptions` +15 mit Code 2, NaN -> `implausible` +5; jeweils `error`, Werte `null`, nach Rückkehr von selbst `ok`; `evse/state` unverändert. Mit Zähler und `mqtt_interval` 1: Broker eingefroren, Ausfall nach 230 s erkannt (Sendefehler -104), danach sofort neu verbunden; Zählerbetrieb ungestört |
 | Stacks | siehe [Ressourcen](#ressourcen); keiner über 82 % |
 
 Bekannte Grenzen: Keep-Alive-Verbindungen belegen je einen der 4 HTTP-Plätze bis 5 s;
@@ -393,7 +391,7 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurück).
 - Fehlerstrom und Reaktionszeit RCM -> Schütz am Oszilloskop (SOLL-PROT-04..12): Ablauf C4 in
   [Prüfstecker](pruefstecker.md#5-prüfablauf-stufe-c) (Prüfdraht mit 9 mA DC durch den Summenstromwandler).
 - Energiezähler an RS-485: Eastron SDM72D-M-2 des Nutzers anschließen (später, Nutzer 2026-10-27);
-  Sendepegel an A/B, Abfrage, Fehlerzähler bei offener und vertauschter Leitung.
+  Sendepegel an A/B, Abfrage. Die Anbindung ist mit der Nachbildung geprüft ([Prüfungen](#prüfungen-auf-box-t)).
 - Statuswert `ct_sense` (Spannung an CT) auf dem Testgerät: ohne Schütz 0 (bestätigt 2026-10-28, `3899732`);
   1 bei eingeschaltetem Schütz erst in Stufe C.
 - Ansteuerung des Relais C3/C4 (F15): keine MCU-Leitung schaltet es. PE1 (2026-10-27) und PB3
@@ -401,8 +399,6 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurück).
   die HAL auf GPIO zu und schaltet C3/C4 nirgends ([wallbe2 hardware.md](../../wallbe2/docs/hardware.md#4-offene-fragen)).
   Vermutlich fehlt der Treiber in dieser Bestückung; klären nur über den Leiterbahnverlauf (Fotos,
   wenn der Nutzer die Steuerung zerlegt). Ziel von PE1 weiter offen.
-- Toter MQTT-Broker bei Dauerversand (Zählerwerte jede Sekunde): Erkennung erst über TCP, Zeit
-  offen; mit dem Zähler messen.
 
 ## Ideen für später
 

@@ -125,8 +125,8 @@
 /* CP-PWM (TIM1 CH1, PE9) und ADC1/DMA2: direkt in der Anwendung, siehe app/src/hw_stm32.c */
 
 /*
- * RS-485 an Klemme A/B: UART4 PC10/PC11, Treiberfreigabe PC12 [HYP, Firmwarebefund,
- * wallbe2 Belege §9]. Energiezaehler, nur Anzeige (Soll-Spezifikation 12.5).
+ * RS-485 an Klemme A/B: UART4 PC10/PC11, Treiberfreigabe PC12 (Testgeraet geprueft,
+ * wallbe2 Belege 9). Energiezaehler, nur Anzeige (Soll-Spezifikation 12.5).
  * Baudrate und Rahmenformat setzt die Anwendung (meter_*).
  */
 &uart4 {
