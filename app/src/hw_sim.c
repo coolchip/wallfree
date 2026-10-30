@@ -403,11 +403,44 @@ static void retained_save(void)
 	(void)nsi_host_setenv(RETAINED_ENV, v, 1);
 }
 
+/* RTC: laeuft ueber den Neustart (execv) weiter, Prozessstart = Einschalten ohne Batterie */
+#define RTC_ENV "WALLFREE_SIM_RTC"
+static uint64_t rtc_s;
+static int64_t rtc_at_ms;
+
+uint64_t hw_rtc_read_s(void)
+{
+	const char *v = nsi_host_getenv(RTC_ENV);
+
+	rtc_s = v != NULL ? strtoull(v, NULL, 10) : 0;
+	rtc_at_ms = k_uptime_get();
+	(void)nsi_host_setenv(RTC_ENV, "", 1);
+	return rtc_s;
+}
+
+void hw_rtc_write_s(uint64_t s)
+{
+	rtc_s = s;
+	rtc_at_ms = k_uptime_get();
+}
+
+static void rtc_save(void)
+{
+	char v[24];
+
+	if (rtc_s != 0) {
+		snprintf(v, sizeof(v), "%llu",
+			 (unsigned long long)(rtc_s + (k_uptime_get() - rtc_at_ms) / 1000));
+		(void)nsi_host_setenv(RTC_ENV, v, 1);
+	}
+}
+
 static FUNC_NORETURN void restart(const char *reset_env)
 {
 	(void)nsi_host_setenv(RESET_ENV, reset_env, 1);
 	model_save();
 	retained_save();
+	rtc_save();
 	wf_sim_host_reset_now();
 	CODE_UNREACHABLE;
 }

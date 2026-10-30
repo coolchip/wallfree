@@ -1034,10 +1034,10 @@ Nutzer 2026-10-26 (ersetzt F32 "keine Uhrzeit"). Die Uhrzeit dient nur der Anzei
 
 | Kennung | Anforderung | Quelle |
 | --- | --- | --- |
-| SOLL-TIME-01 | Mit `ntp_enable` (Werkszustand an) holt die Steuerung die Uhrzeit per SNTP. Ohne Zeitserver, bei abgeschaltetem `ntp_enable` oder vor dem ersten Abgleich ist die Uhrzeit unbekannt; alle Funktionen arbeiten dann wie ohne Uhrzeit (Zeiten relativ zum Start, Umrechnung im Browser). Fehler des Zeitservers sind kein Fehler der Ladelogik. | Nutzer 2026-10-26 |
+| SOLL-TIME-01 | Mit `ntp_enable` (Werkszustand an) holt die Steuerung die Uhrzeit per SNTP. Ohne Zeitserver und ohne gültige RTC (SOLL-TIME-04), bei abgeschaltetem `ntp_enable` oder vor dem ersten Abgleich ohne gültige RTC ist die Uhrzeit unbekannt; alle Funktionen arbeiten dann wie ohne Uhrzeit (Zeiten relativ zum Start, Umrechnung im Browser). Fehler des Zeitservers sind kein Fehler der Ladelogik. | Nutzer 2026-10-26 |
 | SOLL-TIME-02 | Server: `ntp_server` (Name oder IPv4, optional `:Port`); leer = Zeitserver aus DHCP (Option 42), sonst `pool.ntp.org`. Namen werden per DNS aufgelöst (DHCP-DNS, bei fester Adresse das Gateway). Änderungen wirken sofort. | [ANN] |
-| SOLL-TIME-03 | Abgleich: nach dem Start und bei Änderung; nach Erfolg alle 6 h, nach Fehlschlag nach 60 s, verdoppelt bis 1 h. Antworten außerhalb 2025..2099 werden verworfen. `GET /system/info` meldet `time` = `{"time_ms", "synced_ms", "server"}` oder `null`. | [ANN] |
-| SOLL-TIME-04 | Keine Pufferbatterie: Nach jedem Start ist die Uhrzeit bis zum ersten Abgleich unbekannt; die RTC des STM32 wird nicht gestellt. | Hardware (keine Batterie an VBAT bekannt) |
+| SOLL-TIME-03 | Abgleich: nach dem Start und bei Änderung; nach Erfolg alle 6 h, nach Fehlschlag nach 60 s, verdoppelt bis 1 h. Antworten außerhalb 2025..2099 werden verworfen. `GET /system/info` meldet `time` = `{"time_ms", "synced_ms", "server"}` oder `null`; `synced_ms` ist `null`, solange die Zeit aus der RTC stammt (SOLL-TIME-04). | [ANN] |
+| SOLL-TIME-04 | Keine Pufferbatterie: Die Uhrzeit übersteht Neustarts, solange die Versorgung anliegt, aber keinen Spannungsausfall. Jeder erfolgreiche Abgleich stellt die RTC des STM32 (UTC, Auflösung 1 s). Beim Start mit `ntp_enable` gilt eine gültige RTC bis zum ersten Abgleich als Uhrzeit; gültig heißt: Kalender seit dem letzten Spannungsausfall gestellt, Takt läuft, Zeit in 2025..2099. `/system/info` meldet dann `server` leer und `synced_ms` null. | Nutzer 2026-10-30; Hardware (externer 32-kHz-Takt an PC14, keine Batterie an VBAT bekannt) |
 
 ## 13. Parameterspeicher, Startablauf, Werksreset
 

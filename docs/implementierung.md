@@ -227,6 +227,7 @@ Punkte, die die Spezifikation offen ließ. Alle vom Nutzer bestätigt, außer wo
 | Fehlschlag | Logzeile (Warnung) je Versuch, kein Ereignis, keine Fehlerklasse; Uhrzeit bleibt beim letzten Erfolg (nach 6 h neu), bestätigt (Nutzer 2026-10-27) | SOLL-TIME-01 |
 | Auflösung | `dns_get_addr_info` statt `getaddrinfo` (das braucht Heap, `k_calloc`); IPv4-Literal ohne DNS; feste Adresse: Gateway als DNS-Server | System-Heap nur 512 B |
 | Kosten | +11,3 KB Flash, +6,4 KB RAM (Stack 2 KB, DNS-Kontext, Sockets; `ZVFS_OPEN_MAX` 18) | |
+| RTC (SOLL-TIME-04) | Registerzugriff in `hw_stm32.c`, kein Zephyr-RTC-Treiber: Takt, Vorteiler und Kalenderstart gehören dem Bootloader (LSE-Bypass), Backup-Register bleiben unberührt. Gültig: `INITS` gesetzt, LSE bereit, RTCSEL = LSE, Zeit in 2025..2099. Jeder Abgleich stellt die RTC; UTC, ohne Sekundenbruchteile (der F2 hat kein SSR), die übernommene Zeit also bis 1 s zu früh. `/system/info`: `server` leer, `synced_ms` null. Web: "aus der internen Uhr, noch nicht abgeglichen". Auf der Steuerung noch nicht geprüft | Nutzer 2026-10-30; Protokolleinträge nach Absturz oder Update sofort mit Uhrzeit, auch ohne Netz |
 | Simulation | `pool.ntp.org` nicht auflösbar (kein DNS-Server); Test gegen eigenen SNTP-Server auf 127.0.0.1 (T7Zeit) | |
 
 ### MQTT
@@ -388,6 +389,7 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurück).
 - **Stufe C** mit Prüfstecker ([Prüfstecker](pruefstecker.md), Freigabe erteilt, wallbe2/AGENTS.md;
   der Prüfstecker fehlt noch): CP-PWM, Schütz, Modul-LEDs Connect/Ready, Laden mit evcc.
   Ablauf in der Simulation mit den Einstellungen des Testgeräts geprobt (E2E `T8StufeC`, 2026-10-28).
+- RTC auf dem Testgerät prüfen (SOLL-TIME-04): nach Abgleich Neustart, Uhrzeit sofort da und richtig; Update und Spannungsausfall.
 - Fehlerstrom und Reaktionszeit RCM -> Schütz am Oszilloskop (SOLL-PROT-04..12): Ablauf C4 in
   [Prüfstecker](pruefstecker.md#5-prüfablauf-stufe-c) (Prüfdraht mit 9 mA DC durch den Summenstromwandler).
 - Energiezähler an RS-485: Eastron SDM72D-M-2 des Nutzers anschließen (später, Nutzer 2026-10-27);

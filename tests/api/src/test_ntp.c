@@ -50,6 +50,46 @@ ZTEST(api_ntp, test_epoch)
 	zassert_equal(wf_ntp_epoch_ms(4102444800ull, 0), 0, "ab 2100");
 }
 
+ZTEST(api_ntp, test_rtc_kalender)
+{
+	struct wf_rtc_time t;
+
+	wf_rtc_from_unix(1800000000ull, &t); /* Fr 2027-01-15 08:00:00 UTC */
+	zassert_equal(t.year, 27);
+	zassert_equal(t.month, 1);
+	zassert_equal(t.day, 15);
+	zassert_equal(t.weekday, 5, "Freitag");
+	zassert_equal(t.hour, 8);
+	zassert_equal(t.minute, 0);
+	zassert_equal(t.second, 0);
+	wf_rtc_from_unix(1835481599ull, &t); /* 2028-02-29 23:59:59 UTC, Schalttag */
+	zassert_equal(t.month, 2);
+	zassert_equal(t.day, 29);
+	zassert_equal(t.hour, 23);
+	zassert_equal(t.second, 59);
+	for (uint64_t s = WF_NTP_MIN_EPOCH; s < WF_NTP_MAX_EPOCH; s += 86400ull * 13 + 4567) {
+		wf_rtc_from_unix(s, &t);
+		zassert_equal(wf_rtc_to_unix(&t), s, "Rundlauf %llu", s);
+	}
+}
+
+ZTEST(api_ntp, test_rtc_unplausibel)
+{
+	struct wf_rtc_time t = {.year = 0, .month = 1, .day = 1, .weekday = 6};
+
+	zassert_equal(wf_rtc_to_unix(&t), 0, "Kalender nie gestellt: 2000");
+	t.year = 24;
+	t.month = 12;
+	t.day = 31;
+	zassert_equal(wf_rtc_to_unix(&t), 0, "vor 2025");
+	t.year = 27;
+	t.month = 13;
+	zassert_equal(wf_rtc_to_unix(&t), 0, "Monat");
+	t.month = 1;
+	t.hour = 24;
+	zassert_equal(wf_rtc_to_unix(&t), 0, "Stunde");
+}
+
 /* Parameter: Werkszustand an, Server automatisch; Pruefung beim Setzen */
 ZTEST(api_ntp, test_sysconf)
 {

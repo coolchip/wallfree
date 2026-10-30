@@ -117,8 +117,8 @@ der Ladelogik (Einstellungen → Laden) und die Rohwerte unter Status (Ladestrom
 CP-Oszilloskop). Die Wahl gilt nur für den jeweiligen Browser; an der Steuerung
 ändert sie nichts.
 
-**Uhrzeiten:** Die Steuerung hat keine eigene Uhr. Alle Uhrzeiten berechnet der Browser aus
-der Laufzeit der Steuerung und seiner eigenen Uhr. Sie sind auf wenige Sekunden genau.
+**Uhrzeiten:** Hat die Steuerung noch keine Uhrzeit, berechnet der Browser alle Uhrzeiten aus
+der Laufzeit der Steuerung und seiner eigenen Uhr. Sie sind dann auf wenige Sekunden genau.
 
 ## 5 Übersicht
 
@@ -200,7 +200,7 @@ Zustand der Verbindungen der Steuerung; eingestellt werden sie unter Einstellung
 | Zeile | Inhalt |
 | --- | --- |
 | Netzwerk | Adresse per DHCP oder die feste Adresse, darunter der Hostname |
-| Uhrzeit | Uhrzeit der Steuerung, darunter der Zeitserver und wann zuletzt abgeglichen; „unbekannt“, solange kein Zeitserver antwortet. Nach jedem Neustart ist sie unbekannt, bis der Zeitserver antwortet (keine Pufferbatterie). |
+| Uhrzeit | Uhrzeit der Steuerung, darunter der Zeitserver und wann zuletzt abgeglichen; „unbekannt“, solange kein Zeitserver antwortet. Ein Neustart behält die Uhrzeit („aus der internen Uhr, noch nicht abgeglichen“), bis der Zeitserver antwortet; nach einem Stromausfall ist sie unbekannt (keine Pufferbatterie). |
 | MQTT | aus, nicht verbunden, verbunden oder vom Broker abgelehnt; verbunden mit Broker, Präfix und der Zahl gesendeter Nachrichten und empfangener Befehle |
 | Zähler | kein Zähler, verbinde …, verbunden oder gestört |
 | Prozessortemperatur | Temperatur im Prozessor der Ladesteuerung in °C. Ohne Abgleich kann sie um einige Grad abweichen; abgleichen lässt sie sich in der Expertenansicht unter System. |

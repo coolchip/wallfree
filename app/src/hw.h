@@ -84,6 +84,15 @@ void hw_reset_detail(enum wf_reset_detail d);
  */
 void hw_reset_take(uint32_t *flags, uint32_t *bkp, uint32_t *detail, uint32_t *pc);
 
+/**
+ * RTC lesen (SOLL-TIME-04): Takt und Kalender hat der Bootloader eingerichtet, kein
+ * Zephyr-Treiber. @return Unix-Sekunden oder 0 (nicht gueltig, nie gestellt, Takt fehlt)
+ */
+uint64_t hw_rtc_read_s(void);
+
+/** RTC stellen (UTC); @p s in WF_NTP_*_EPOCH. Haelt die Zaehler kurz an, nur aus Threads. */
+void hw_rtc_write_s(uint64_t s);
+
 /*
  * CP-Aufnahme (SOLL-API-34): aequivalente Abtastung des CP-Signals mit ADC2, ohne die
  * Messung der Ladelogik (ADC1) zu beruehren. Je PWM-Periode ein Abtastpunkt beim

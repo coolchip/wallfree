@@ -19,6 +19,7 @@
 #include <zephyr/irq.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <wallfree/api/ntp.h>
 #include <wallfree/nvm/nvm.h>
 #include <stm32_ll_adc.h>
 #include <stm32_ll_bus.h>
@@ -605,6 +606,85 @@ void hw_reset_detail(enum wf_reset_detail d)
 {
 	bkp_access();
 	LL_RTC_BAK_SetRegister(RTC, LL_RTC_BKP_DR18, wf_reset_detail_bkp(d, 0));
+}
+
+/* ------------------------------------------------ RTC (SOLL-TIME-04) */
+
+/* Der Takt kommt von aussen an PC14 (LSE-Bypass). Bootloader und Backup-Register bleiben
+ * unberuehrt: kein Zephyr-RTC-Treiber, der den Backup-Bereich zuruecksetzen koennte, keine
+ * Aenderung an Takt und Vorteilern. Der F2 hat kein Sekundenbruchteil-Register. */
+#define RTC_WAIT_US 10000
+
+static bool rtc_running(void)
+{
+	return LL_RCC_LSE_IsReady() && LL_RCC_IsEnabledRTC() &&
+	       LL_RCC_GetRTCClockSource() == LL_RCC_RTC_CLKSOURCE_LSE;
+}
+
+static bool rtc_wait(uint32_t (*flag)(RTC_TypeDef *))
+{
+	for (int us = 0; us < RTC_WAIT_US; us += 10) {
+		if (flag(RTC) != 0) {
+			return true;
+		}
+		k_busy_wait(10);
+	}
+	return false;
+}
+
+uint64_t hw_rtc_read_s(void)
+{
+	if (!rtc_running() || !LL_RTC_IsActiveFlag_INITS(RTC)) {
+		return 0;
+	}
+	/* Schattenregister nach dem Reset neu laden: liefern sonst den Stand vor dem Reset */
+	bkp_access();
+	LL_RTC_DisableWriteProtection(RTC);
+	LL_RTC_ClearFlag_RS(RTC);
+	bool synced = rtc_wait(LL_RTC_IsActiveFlag_RS);
+
+	LL_RTC_EnableWriteProtection(RTC);
+	if (!synced) {
+		return 0;
+	}
+	/* TR zuerst: das sperrt DR bis zum Lesen, beide gehoeren zusammen */
+	uint32_t tr = RTC->TR;
+	uint32_t dr = RTC->DR;
+	struct wf_rtc_time t = {
+		.year = __LL_RTC_CONVERT_BCD2BIN(dr & 0xFFu),
+		.month = __LL_RTC_CONVERT_BCD2BIN((dr >> 8) & 0x1Fu),
+		.day = __LL_RTC_CONVERT_BCD2BIN((dr >> 16) & 0x3Fu),
+		.hour = __LL_RTC_CONVERT_BCD2BIN((tr >> 16) & 0x3Fu),
+		.minute = __LL_RTC_CONVERT_BCD2BIN((tr >> 8) & 0x7Fu),
+		.second = __LL_RTC_CONVERT_BCD2BIN(tr & 0x7Fu),
+	};
+
+	return wf_rtc_to_unix(&t);
+}
+
+void hw_rtc_write_s(uint64_t s)
+{
+	struct wf_rtc_time t;
+
+	if (!rtc_running()) {
+		return;
+	}
+	wf_rtc_from_unix(s, &t);
+	bkp_access();
+	LL_RTC_DisableWriteProtection(RTC);
+	LL_RTC_EnableInitMode(RTC);
+	if (rtc_wait(LL_RTC_IsActiveFlag_INIT)) {
+		LL_RTC_TIME_Config(RTC, LL_RTC_TIME_FORMAT_AM_OR_24,
+				   __LL_RTC_CONVERT_BIN2BCD(t.hour),
+				   __LL_RTC_CONVERT_BIN2BCD(t.minute),
+				   __LL_RTC_CONVERT_BIN2BCD(t.second));
+		LL_RTC_DATE_Config(RTC, __LL_RTC_CONVERT_BIN2BCD(t.weekday),
+				   __LL_RTC_CONVERT_BIN2BCD(t.day),
+				   __LL_RTC_CONVERT_BIN2BCD(t.month),
+				   __LL_RTC_CONVERT_BIN2BCD(t.year));
+	}
+	LL_RTC_DisableInitMode(RTC);
+	LL_RTC_EnableWriteProtection(RTC);
 }
 
 void hw_retained_attach(void *p, size_t len)

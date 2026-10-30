@@ -69,3 +69,44 @@ int64_t wf_ntp_epoch_ms(uint64_t seconds, uint32_t fraction)
 	}
 	return (int64_t)(seconds * 1000u + (((uint64_t)fraction * 1000u) >> 32));
 }
+
+/* Kalender nach Howard Hinnant, "chrono-Compatible Low-Level Date Algorithms" */
+void wf_rtc_from_unix(uint64_t s, struct wf_rtc_time *t)
+{
+	uint32_t days = (uint32_t)(s / 86400u);
+	uint32_t rem = (uint32_t)(s % 86400u);
+	uint32_t z = days + 719468u;
+	uint32_t era = z / 146097u;
+	uint32_t doe = z - era * 146097u;
+	uint32_t yoe = (doe - doe / 1460u + doe / 36524u - doe / 146096u) / 365u;
+	uint32_t doy = doe - (365u * yoe + yoe / 4u - yoe / 100u);
+	uint32_t mp = (5u * doy + 2u) / 153u;
+	uint32_t m = mp < 10u ? mp + 3u : mp - 9u;
+	uint32_t y = yoe + era * 400u + (m <= 2u ? 1u : 0u);
+
+	t->year = (uint8_t)(y - 2000u);
+	t->month = (uint8_t)m;
+	t->day = (uint8_t)(doy - (153u * mp + 2u) / 5u + 1u);
+	t->weekday = (uint8_t)((days + 3u) % 7u + 1u); /* 1970-01-01 war ein Donnerstag */
+	t->hour = (uint8_t)(rem / 3600u);
+	t->minute = (uint8_t)(rem / 60u % 60u);
+	t->second = (uint8_t)(rem % 60u);
+}
+
+uint64_t wf_rtc_to_unix(const struct wf_rtc_time *t)
+{
+	if (t->year > 99u || t->month < 1u || t->month > 12u || t->day < 1u || t->day > 31u ||
+	    t->hour > 23u || t->minute > 59u || t->second > 59u) {
+		return 0;
+	}
+	uint32_t m = t->month;
+	uint32_t y = 2000u + t->year - (m <= 2u ? 1u : 0u);
+	uint32_t era = y / 400u;
+	uint32_t yoe = y - era * 400u;
+	uint32_t doy = (153u * (m > 2u ? m - 3u : m + 9u) + 2u) / 5u + t->day - 1u;
+	uint32_t doe = yoe * 365u + yoe / 4u - yoe / 100u + doy;
+	uint64_t s = (uint64_t)(era * 146097u + doe - 719468u) * 86400u + t->hour * 3600u +
+		     t->minute * 60u + t->second;
+
+	return s >= WF_NTP_MIN_EPOCH && s < WF_NTP_MAX_EPOCH ? s : 0;
+}

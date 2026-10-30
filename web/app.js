@@ -1320,7 +1320,7 @@ function Connections({ meter }) {
 		<tr><td>Netzwerk</td><td class="num wrap">${a.net_dhcp ? 'Adresse per DHCP' : 'feste Adresse ' + a.net_ip}<br />
 			<small class="muted">Hostname ${a.net_hostname || 'automatisch'}</small></td></tr>
 		<tr><td>Uhrzeit</td><td class="num wrap">${si.time ? html`${new Date(si.time.time_ms).toLocaleString('de-DE')}<br />
-			<small class="muted">${si.time.server}, abgeglichen vor ${dur(si.time.synced_ms)}</small>`
+			<small class="muted">${si.time.server ? `${si.time.server}, abgeglichen vor ${dur(si.time.synced_ms)}` : 'aus der internen Uhr, noch nicht abgeglichen'}</small>`
 			: a.ntp_enable ? 'unbekannt (Zeitserver antwortet nicht)' : 'unbekannt (Zeitserver aus)'}</td></tr>
 		<tr><td>MQTT</td><td class="num wrap">${MQTT_STATES[mq.connection_state]}${mq.connection_state ? html`<br />
 			<small class="muted">${a.mqtt_broker}:${a.mqtt_port}, Präfix ${mq.prefix}, gesendet ${mq.published},

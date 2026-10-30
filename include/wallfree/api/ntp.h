@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Uhrzeit per SNTP (SOLL-TIME-01..04): Hilfen ohne Netz, damit Ablauf und Grenzen auf dem PC
+ * Uhrzeit per SNTP und RTC (SOLL-TIME-01..04): Hilfen ohne Netz, damit Ablauf und Grenzen auf dem PC
  * testbar sind. Die Ladelogik benutzt die Uhrzeit nie; ohne Zeitserver bleibt alles wie
  * vorher (Zeiten relativ zum Start). Reines C.
  */
@@ -40,6 +40,17 @@ uint32_t wf_ntp_next_s(unsigned int fails);
  * (Unix-Sekunden, Bruchteil in 2^-32 s). @return ms oder 0 (ausserhalb WF_NTP_*_EPOCH)
  */
 int64_t wf_ntp_epoch_ms(uint64_t seconds, uint32_t fraction);
+
+/** Kalender der RTC (UTC): Jahr ab 2000, Wochentag 1 = Montag */
+struct wf_rtc_time {
+	uint8_t year, month, day, weekday, hour, minute, second;
+};
+
+/** Unix-Sekunden in Kalenderfelder (SOLL-TIME-04), @p s in WF_NTP_*_EPOCH */
+void wf_rtc_from_unix(uint64_t s, struct wf_rtc_time *t);
+
+/** Kalenderfelder in Unix-Sekunden. @return Sekunden oder 0 (Felder oder Zeit unplausibel) */
+uint64_t wf_rtc_to_unix(const struct wf_rtc_time *t);
 
 #ifdef __cplusplus
 }

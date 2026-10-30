@@ -15,7 +15,8 @@ void timesync_notify(void);
 /** Uhrzeit in ms seit 1970, 0 = unbekannt */
 int64_t timesync_now_ms(void);
 
-/** JSON-Objekt fuer /system/info: {"time_ms", "synced_ms", "server"} bzw. null */
+/** JSON-Objekt fuer /system/info: {"time_ms", "synced_ms", "server"} bzw. null;
+ *  Zeit aus der RTC: synced_ms null, server leer */
 void timesync_json(struct wf_jbuf *b);
 
 #endif /* WALLFREE_TIMESYNC_H_ */

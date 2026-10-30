@@ -1263,6 +1263,47 @@ class T7Zeit(SimCase):
         r = self.sim.request("POST", "/system/config", {"ntp_server": "a b"}, auth=self.auth)
         self.assertEqual(r.status, 400, r)
 
+    def restart(self):
+        boots = self.sim.boots()
+        r = self.sim.request("POST", "/system/restart", b"", auth=self.auth)
+        self.assertEqual(r.status, 202, r)
+        self.sim.wait_restart(boots)
+
+    def test_05_rtc_uebersteht_neustart(self):
+        r = self.sim.request("POST", "/system/config", {"ntp_enable": True}, auth=self.auth)
+        self.assertEqual(r.status, 200, r)
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < 10 and not self.sim.get_json("/system/info",
+                                                                   self.auth)["time"]:
+            time.sleep(0.2)
+        self.restart()
+        # erster Abgleich erst nach 10 s (DHCP): die Zeit stammt aus der RTC (SOLL-TIME-04)
+        info = self.sim.get_json("/system/info", self.auth)
+        self.assertIsNotNone(info["time"], "RTC nicht uebernommen")
+        self.assertAlmostEqual(info["time"]["time_ms"] / 1000, self.UNIX, delta=30)
+        self.assertEqual(info["time"]["server"], "")
+        self.assertIsNone(info["time"]["synced_ms"])
+        boot = self.sim.get_json("/system/log", self.auth)
+        entry = [e for e in boot["entries"] if e["boot"] == boot["boot"]][0]
+        self.assertAlmostEqual(entry["wall_ms"] / 1000, self.UNIX, delta=30,
+                               msg="Startereignis mit Uhrzeit")
+        # der Abgleich loest die RTC-Zeit ab
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < 15:
+            info = self.sim.get_json("/system/info", self.auth)
+            if info["time"]["server"]:
+                break
+            time.sleep(0.2)
+        self.assertEqual(info["time"]["server"], "127.0.0.1")
+        self.assertIsNotNone(info["time"]["synced_ms"])
+
+    def test_06_rtc_abgeschaltet(self):
+        r = self.sim.request("POST", "/system/config", {"ntp_enable": False}, auth=self.auth)
+        self.assertEqual(r.status, 200, r)
+        self.restart()
+        self.assertIsNone(self.sim.get_json("/system/info", self.auth)["time"],
+                          "ntp_enable aus: RTC gilt nicht (SOLL-TIME-01)")
+
 
 class T8StufeC(SimCase):
     """Probe des Pruefablaufs Stufe C (docs/pruefstecker.md, Abschnitt 5) mit den Einstellungen

@@ -7,7 +7,8 @@
  * Ablauf: Server bestimmen (ntp_server, sonst Zeitserver aus DHCP Option 42, sonst
  * pool.ntp.org), Name per DNS aufloesen (resolve.c), eine SNTP-Abfrage; Erfolg -> Uhrzeit = Antwort minus
  * Laufzeit (Basis), naechster Abgleich nach 6 h; Fehlschlag -> nach 60 s, verdoppelt bis 1 h.
- * Die Steuerung hat keine Pufferbatterie: nach jedem Start ist die Uhrzeit wieder unbekannt.
+ * Jeder Erfolg stellt die RTC; sie uebersteht Neustarts, ohne Pufferbatterie aber keinen
+ * Spannungsausfall (SOLL-TIME-04). Bis zum ersten Abgleich gilt beim Start ihre Zeit.
  */
 #include <stdio.h>
 #include <string.h>
@@ -18,6 +19,7 @@
 #include <wallfree/api/ntp.h>
 #include <wallfree/api/sysconf.h>
 #include "http_api.h"
+#include "hw.h"
 #include "netcfg.h"
 #include "resolve.h"
 #include "timesync.h"
@@ -34,7 +36,7 @@ static K_SEM_DEFINE(ts_wake, 0, 1);
 
 static struct k_spinlock lock;
 static int64_t base_ms;   /* Uhrzeit bei Laufzeit 0, 0 = unbekannt */
-static int64_t synced_at; /* Laufzeit des letzten Erfolgs */
+static int64_t synced_at; /* Laufzeit des letzten Erfolgs, -1 = Zeit aus der RTC */
 static char last_server[WF_NTP_SERVER_MAX + 1];
 
 
@@ -43,7 +45,7 @@ static void set_base(int64_t b, const char *server)
 	k_spinlock_key_t k = k_spin_lock(&lock);
 
 	base_ms = b;
-	synced_at = b != 0 ? k_uptime_get() : 0;
+	synced_at = b != 0 && server[0] != '\0' ? k_uptime_get() : -1;
 	snprintf(last_server, sizeof(last_server), "%s", server);
 	k_spin_unlock(&lock, k);
 	http_api_set_wall_base(b); /* Protokoll: neue Eintraege mit Uhrzeit (SOLL-ERR-12) */
@@ -76,7 +78,11 @@ void timesync_json(struct wf_jbuf *b)
 	wf_jb_key(b, "time_ms", true);
 	wf_jb_int(b, bm + now);
 	wf_jb_key(b, "synced_ms", false); /* wie lange der letzte Abgleich her ist */
-	wf_jb_int(b, now - at);
+	if (at >= 0) {
+		wf_jb_int(b, now - at);
+	} else {
+		wf_jb_raw(b, "null");
+	}
 	wf_jb_key(b, "server", false);
 	wf_jb_str(b, srv);
 	wf_jb_raw(b, "}");
@@ -134,6 +140,7 @@ static int sync_once(const struct wf_sysconf *c)
 	bool first = timesync_now_ms() == 0;
 
 	set_base(ms - k_uptime_get(), host);
+	hw_rtc_write_s((uint64_t)(ms / 1000));
 	if (first) {
 		LOG_INF("Uhrzeit von %s", host);
 	}
@@ -171,6 +178,17 @@ static void ts_entry(void *p1, void *p2, void *p3)
 
 void timesync_start(void)
 {
+	struct wf_sysconf c;
+
+	netcfg_get(&c, NULL);
+	if (c.ntp_enable) {
+		uint64_t s = hw_rtc_read_s();
+
+		if (s != 0) {
+			set_base((int64_t)s * 1000 - k_uptime_get(), "");
+			LOG_INF("Uhrzeit aus der RTC");
+		}
+	}
 	k_thread_create(&ts_thread, ts_stack, K_THREAD_STACK_SIZEOF(ts_stack), ts_entry, NULL,
 			NULL, NULL, TS_PRIO, 0, K_NO_WAIT);
 	k_thread_name_set(&ts_thread, "timesync");
