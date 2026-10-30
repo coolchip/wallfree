@@ -126,7 +126,7 @@ Nutzer ab). Pruefstecker nach Abschnitt 4 geprueft. Schuetzspule weiter abgeklem
 **C1 Stecker ohne Fahrzeug (S1 aus), PP-Klassen.** Stecker stecken, S6 nacheinander durch alle
 Stellungen, je > 1 s warten (SOLL-PP-03).
 
-| S6 | Erwartet (`evse param get cable`, `evse errors`) |
+| S6 | Erwartet (`param get cable`, `errors`) |
 | --- | --- |
 | offen | `cable` 0, keine Fehler |
 | 1,5k | 13 A, ERR-CABLE-REJECT |
@@ -134,7 +134,7 @@ Stellungen, je > 1 s warten (SOLL-PP-03).
 | 47 | ERR-PP-INVALID |
 
 Dabei bleibt CP +12 V DC, Zustand S1, nicht verriegelt; D9 aus verriegelt erst bei Fahrzeug (B).
-Bei den Fehlern zeigt `evse status` "CP E": Das ist der gemeldete Status (mit Fehler E,
+Bei den Fehlern zeigt `status` "CP E": Das ist der gemeldete Status (mit Fehler E,
 SOLL-CP-08), nicht der Pegel.
 
 **C2 Fahrzeug erkannt (B), PWM.** S6 auf 220 Ohm (32 A), Schluessel ein, S1 ein.
@@ -144,8 +144,8 @@ SOLL-CP-08), nicht der Pegel.
   1 kHz mit 26,6 % (16 A, Drehschalter 4), `cp_pos` etwa 9 V, `cp_neg` etwa 12 V, Ready-LED
   2 Hz, Front-LED gruen (CR 40: B ohne Fehler).
 - Multimeter (DC) an CP-PE zeigt den Mittelwert, etwa 0,266 * 9 V - 0,734 * 12 V = **-6,4 V**.
-- Strom ueber die Schnittstelle: `evse current 10000` -> Tastgrad 16,6 % (abgeschnitten), Mittelwert etwa
-  -8,5 V; zurueck mit `evse current 80000`.
+- Strom ueber die Schnittstelle: `current 10000` -> Tastgrad 16,6 % (abgeschnitten), Mittelwert etwa
+  -8,5 V; zurueck mit `current 80000`.
 - Schluessel aus -> Ladeerlaubnis weg, PWM aus (CP +9 V DC); Schluessel ein -> PWM wieder an.
 - Nach `wakeup_delay` (30 s) in B: Weckfolge einmal je Steckvorgang, 3 s -12 V DC, 0,75 s
   +12 V DC, dann wieder PWM; kein Protokolleintrag, nur am Oszilloskop zu sehen (Zustand bleibt S5).
@@ -233,7 +233,7 @@ Sicherheitsgrenzen von wallbe2/AGENTS.md uebernommen.
 > nach Abschnitt 4 geprueft) und dem Pruefdraht fuer den Fehlerstrom. Erlaubt fuer Claude:
 > Steuern und Lesen von Wallfree ueber API, Weboberflaeche und Shell (Telnet schaltet nur der
 > Nutzer ein), auch Befehle, die CP-PWM, Ladestrom, Verriegelung und Schuetz-Soll beeinflussen
-> (`evse current`, `enable`, `avail`, `pause`, `lock`, `unlock`, `selftest`, `ack`), Setzen und
+> (`current`, `enable`, `avail`, `pause`, `lock`, `unlock`, `selftest`, `ack`), Setzen und
 > Zuruecksetzen von Parametern, die ein Schritt nennt; evcc auf dem PC gegen das Testgerät. Der Nutzer
 > stellt den Aufbau her (Stecker, Schalter, F1, Schuetzspule und Adern an C1/C2 sowie
 > Pruefdraht nur spannungsfrei), misst nur an Klemmen und Messbuchsen und entscheidet ueber jeden

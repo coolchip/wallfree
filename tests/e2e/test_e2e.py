@@ -30,6 +30,8 @@ from wfsim import FACTORY, Digest, Sim
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 EXE = os.environ.get("WALLFREE_SIM_EXE", os.path.join(REPO, "build/sim/zephyr/zephyr.exe"))
+# Bau mit Log- und Shell-Konfiguration der Steuerung (ohne Konsolen-Log, ohne Telnet)
+EXE_HW = os.environ.get("WALLFREE_SIM_EXE_HW", os.path.join(REPO, "build/sim-hw/zephyr/zephyr.exe"))
 USER, PASSWORD = "evcc", "geheim-123"
 
 
@@ -464,13 +466,29 @@ class T2Faults(SimCase):
         self.assertEqual((boot[-1]["reason"], boot[-1]["detail"]),
                          ("supervision_limit", "measurement_blocks"))
 
-    def test_03_werksreset_taster(self):
+    def test_03_bootloader_taster(self):
+        # SOLL-BOOT-22: zwischen 5 und 10 s losgelassen -> Bootloader mit dessen fester Adresse,
+        # Einstellungen bleiben; die Simulation startet danach ohne Taster neu
         self.sim.stop()
-        self.sim.start(["--reset-button=6000"], timeout=20)
+        n = len(self.sim.log_text())
+        self.sim.start(["--reset-button=7000"], timeout=25)
+        log = self.sim.log_text()[n:]
+        self.assertIn("Uebergabe an den Bootloader (IP 0x00000000", log)
+        self.assertNotIn("Werksreset", log)
+        self.assertEqual(log.count("Uebergabe an den Bootloader"), 1)
+        self.assertEqual(self.sim.get_json("/system/info", self.auth)["reset_reason"], "update")
+
+    def test_04_werksreset_taster(self):
+        # SOLL-BOOT-20: 10 s gehalten
+        self.sim.stop()
+        n = len(self.sim.log_text())
+        self.sim.start(["--reset-button=11000"], timeout=25)
         r = self.sim.request("GET", "/credentials", auth=Digest(*FACTORY))
         self.assertEqual(r.status, 200, r)
         self.assertTrue(r.json()["must_change"])
-        self.assertIn("Werksreset", self.sim.log_text())
+        log = self.sim.log_text()[n:]
+        self.assertIn("Werksreset", log)
+        self.assertNotIn("Uebergabe an den Bootloader", log)
 
 
 class T4Meter(SimCase):
@@ -495,7 +513,7 @@ class T4Meter(SimCase):
         T4Meter.auth = self.set_credentials()
         self.assertEqual(self.sim.get_json("/info/features", self.auth), [])
         self.assertEqual(self.sim.request("GET", "/meters/0/values", auth=self.auth).status, 404)
-        self.assertIn("kein Zaehler", self.shell("evse meter"))
+        self.assertIn("kein Zaehler", self.shell("meter"))
         self.assertEqual(self.sim.get_json("/system/config", self.auth)["active"]["meter_type"], 0)
 
     def test_02_konfigurieren(self):
@@ -507,7 +525,7 @@ class T4Meter(SimCase):
                              auth=self.auth)
         self.assertEqual(r.status, 200, r)
         self.assertTrue(r.json()["restart_required"])
-        self.assertIn("gespeichert", self.shell("evse sys set meter_framing 0"))
+        self.assertIn("gespeichert", self.shell("sys set meter_framing 0"))
         boots = self.sim.boots()
         self.assertEqual(self.sim.request("POST", "/system/restart", b"", auth=self.auth).status,
                          202)
@@ -537,7 +555,7 @@ class T4Meter(SimCase):
         self.assertGreater(m[74], 3 * 230 * allowed * 0.95)
         time.sleep(3)
         self.assertGreater(self.meter()[209], e0, "Zaehlerstand steigt beim Laden")
-        out = self.shell("evse meter")
+        out = self.shell("meter")
         self.assertIn("Eastron SDM630", out)
         self.assertIn("Zustand ok", out)
         # SOLL-API-33: Mittel enthaelt die Zeit vor dem Laden, daher nur > 0
@@ -615,70 +633,75 @@ class T4Meter(SimCase):
         self.assertEqual(self.sim.request("GET", "/meters/0/state", auth=self.auth).status, 404)
 
 
-class T3ZephyrTelnet(SimCase):
-    """Telnet-Client bricht hart ab (RST), waehrend Shell-Ausgabe ansteht.
+class T3Konsole(SimCase):
+    """Konsole der Weboberflaeche (SOLL-SH-19/21) und Ueberwachung des HTTP-Servers (SOLL-RT-11)."""
 
-    Betrieb und Logausgabe muessen weiterlaufen.
-    """
+    auth = None
 
-    def abort_telnet(self):
-        tn = socket.create_connection(("127.0.0.1", wfsim.TELNET_PORT))
-        tn.sendall(b"kernel thread list\r\n")  # viel Ausgabe ...
-        time.sleep(0.05)
-        tn.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, b"\x01\0\0\0\0\0\0\0")
-        tn.close()                            # ... und harter Abbruch (RST)
-        time.sleep(0.5)
+    def console(self, cmd, auth=None, **kw):
+        return self.sim.request("POST", "/system/shell", cmd, auth=auth or T3Konsole.auth, **kw)
 
-    def test_01_betrieb_nach_telnet_abbruch(self):
-        T3ZephyrTelnet.auth = auth = self.set_credentials()
-        self.abort_telnet()
-        self.assertEqual(self.sim.state(auth)["charger_state"], 0)
-        ws = self.sim.ws_connect(auth)
-        try:
-            ws.recv_topic("evse/state")
-        finally:
-            ws.close()
-        self.assertIn("car=A", self.sim.shell("sim status"))  # neue Telnet-Sitzung
-        self.sim.close_shell()
-        boots = self.sim.boots()
-        self.assertEqual(self.sim.request("POST", "/system/restart", b"", auth=auth).status,
-                         202)
-        self.sim.wait_restart(boots, timeout=10)
-        self.assertEqual(self.sim.get_json("/system/info", auth)["reset_reason"],
-                         "user_restart")
-
-    def test_02_log_nach_telnet_abbruch(self):
-        self.abort_telnet()
-        for _ in range(3):
-            ws = self.sim.ws_connect(None)  # erzeugt je eine Warnung im Log
-            ws.close()
-        time.sleep(1)
-        tail = self.sim.log_text().rsplit("Telnet socket", 1)[-1]
-        self.assertEqual(tail.count("WebSocket ohne gueltige Anmeldung"), 3)
-
-    def test_03_telnet_aus_port_zu(self):
-        # SOLL-SH-19: telnet_enable 0 schliesst Port 23 nach dem Neustart, 1 oeffnet ihn wieder
-        auth = T3ZephyrTelnet.auth
-        r = self.sim.request("POST", "/system/config", {"telnet_enable": False}, auth=auth)
+    def test_01_anmeldung(self):
+        self.assertEqual(self.console("status", auth=Digest(*FACTORY)).status, 403)
+        T3Konsole.auth = self.set_credentials()
+        self.assertEqual(self.sim.request("POST", "/system/shell", "status").status, 401)
+        r = self.console("status")
         self.assertEqual(r.status, 200, r)
+        self.assertTrue(r.headers["content-type"].startswith("text/plain"), r.headers)
+        self.assertIn("Zustand  S", r.body.decode())
+
+    def test_02_ausgabe(self):
+        out = self.console("param list lock\r\n").body.decode()
+        self.assertIn("lock_pulse", out)
+        self.assertNotIn("max_current", out)
+        r = self.console("param list")  # laenger als 2 KB
+        self.assertEqual(r.status, 200)
+        self.assertLessEqual(len(r.body), 2048)
+        self.assertTrue(r.body.decode().endswith("[Ausgabe gekürzt]\n"), r.body[-60:])
+        self.assertIn("command not found", self.console("gibtsnicht").body.decode())
+        self.assertEqual(self.console("x" * 300).status, 413)
+        self.assertIn("evse_prot", self.console("threads").body.decode())
+        # SOLL-SH-21: keine Zephyr-Zusatzkommandos
+        for cmd in ("kernel thread list", "devmem 0x40020000", "device list", "date get"):
+            self.assertIn("command not found", self.console(cmd).body.decode(), cmd)
+
+    def test_02b_kommandobaum(self):
+        # SOLL-SH-23: Kommandobaum fuer die Vervollstaendigung, in Teilen ausgeliefert
+        t = self.sim.get_json("/system/shell_commands", self.auth)
+        paths = {p: h for p, h in t}
+        self.assertEqual(paths["status"], "Zustand der Ladelogik")
+        self.assertNotIn("evse", paths)  # Kommandos ohne Vorsatz (SOLL-SH-19)
+        for p in ("status", "param", "param get", "errors clear", "sim car"):
+            self.assertIn(p, paths)
+        self.assertFalse(any(p.startswith("kernel") for p in paths))
+        self.assertGreater(len(json.dumps(t)), 2048)  # mehr als ein Teil
+        self.assertEqual(self.sim.request("GET", "/system/shell_commands",
+                                          auth=Digest(*FACTORY)).status, 401)
+
+    def test_03_steuern(self):
+        self.assertEqual(self.console("current 6000").status, 200)
+        self.assertEqual(self.sim.get_json("/evse/external_current", self.auth)["current"], 6000)
+        self.console("current 80000")
+
+    def test_04_ohne_telnet_parameter(self):
+        cfg = self.sim.get_json("/system/config", self.auth)
+        self.assertNotIn("telnet_enable", cfg["active"])
+        r = self.sim.request("POST", "/system/config", {"telnet_enable": True}, auth=self.auth)
+        self.assertEqual(r.status, 400, r)
+
+    def test_05_http_haengt(self):
+        # SOLL-RT-11: ein Aufruf haengt > 10 s -> Neustart (S1, Schuetz aus)
         boots = self.sim.boots()
-        self.sim.close_shell()
-        self.assertEqual(self.sim.request("POST", "/system/restart", b"", auth=auth).status, 202)
-        t0 = time.monotonic()
-        while self.sim.boots() <= boots or not self.sim.port_open(self.sim.http_port):
-            self.assertLess(time.monotonic() - t0, 15, "kein Neustart")
-            time.sleep(0.1)
-        t0 = time.monotonic()
-        while self.sim.port_open(wfsim.TELNET_PORT):
-            self.assertLess(time.monotonic() - t0, 5, "Telnet-Port bleibt offen")
-            time.sleep(0.1)
-        self.assertIn("geschlossen (telnet_enable = 0)", self.sim.log_text().rsplit("*** Booting Zephyr", 1)[-1])
-        self.assertEqual(self.sim.state(auth)["charger_state"], 0)  # HTTP laeuft weiter
-        r = self.sim.request("POST", "/system/config", {"telnet_enable": True}, auth=auth)
-        self.assertEqual(r.status, 200, r)
-        boots = self.sim.boots()
-        self.assertEqual(self.sim.request("POST", "/system/restart", b"", auth=auth).status, 202)
-        self.sim.wait_restart(boots, timeout=15)  # wartet auch auf den Telnet-Port
+        with self.assertRaises(OSError):
+            self.console("sim sleep 30000", timeout=3)
+        self.sim.wait_restart(boots, timeout=20)
+        info = self.sim.get_json("/system/info", self.auth)
+        self.assertEqual((info["reset_reason"], info["reset_detail"]),
+                         ("interface_hang", "http_server"))
+        # die Logzeile der Ueberwachung kann mit dem Reset verloren gehen, das Startereignis nicht
+        log = self.sim.get_json("/system/log", self.auth)["entries"]
+        boot = [e["event"] for e in log if e["kind"] == "event" and e["event"]["type"] == "boot"]
+        self.assertEqual(boot[-1].get("detail"), "http_server")
 
 
 class Broker:
@@ -788,7 +811,7 @@ class T5Mqtt(SimCase):
         st = self.sim.get_json("/mqtt/state", self.auth)
         self.assertEqual(st["connection_state"], 0)  # SOLL-MQTT-01
         self.assertTrue(re.fullmatch(r"wallfree/[0-9a-f]{6}", st["prefix"]), st)
-        self.assertIn("aus", self.shell("evse mqtt"))
+        self.assertIn("aus", self.shell("mqtt"))
 
     def test_02_nur_mit_broker(self):
         self.assertIn("Broker", self.config({"mqtt_enable": True}, 400)["error"])
@@ -829,7 +852,7 @@ class T5Mqtt(SimCase):
         self.assertEqual(self.sim.get_json("/mqtt/state", self.auth)["commands"], 0)
 
     def test_06_befehle(self):
-        self.assertIn("wirkt sofort", self.shell("evse sys set mqtt_commands 1"))
+        self.assertIn("wirkt sofort", self.shell("sys set mqtt_commands 1"))
         self.mqtt_state(lambda s: s["connection_state"] == 2 and s["connection_start"] > 0)
         time.sleep(0.5)  # Abo bestaetigt
         topic = self.PREFIX + "/evse/external_current_update"
@@ -962,7 +985,7 @@ class T6Update(SimCase):
 
     def test_02_shell_und_ungueltiges_abbild(self):
         boots = self.sim.boots()
-        out = self.shell("evse bootloader")
+        out = self.shell("bootloader")
         self.assertIn("binnen 2 min", out)
         r = self.update(self.image(sp=0xFFFFFFFF), "--upload-only")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
@@ -1107,6 +1130,41 @@ class T6Update(SimCase):
         self.assertEqual(info["update_result"], {"mode": 2, "ok": False})
 
 
+class T9WieSteuerung(unittest.TestCase):
+    """Bau mit der Log- und Shell-Konfiguration der Steuerung: kein Log auf der Konsole, kein
+    Telnet. Die uebrigen Klassen haben beides; ein fehlendes Log-Backend fiel dort nicht auf
+    (Startschleife auf dem Testgeraet, 2026-10-28). Nur Start, Konsole und Log-Ring (SOLL-SH-22)."""
+
+    def test_start_und_log(self):
+        if not os.path.exists(EXE_HW):
+            self.skipTest(f"{EXE_HW} fehlt (scripts/run-e2e.sh baut es)")
+        tmp = tempfile.mkdtemp(prefix="wallfree-e2e-hw-")
+        sim = Sim(EXE_HW, tmp, free_port(), telnet=False)
+        try:
+            sim.start()
+            time.sleep(3)
+            r = sim.request("POST", "/credentials", {"user": USER, "password": PASSWORD},
+                            auth=Digest(*FACTORY))
+            self.assertEqual(r.status, 200, r)
+            auth = Digest(USER, PASSWORD)
+            st = sim.request("POST", "/system/shell", "status", auth=auth).body.decode()
+            self.assertIn("Resetgrund power_on", st)  # keine Startschleife
+            t0 = time.monotonic()
+            while True:  # der Log-Thread verarbeitet bis zu 1 s spaeter
+                log = sim.request("POST", "/system/shell", "log", auth=auth).body.decode()
+                if "Zugangsdaten geaendert" in log or time.monotonic() - t0 > 3:
+                    break
+                time.sleep(0.2)
+            self.assertIn("HTTP-Server auf Port", log)
+            self.assertIn("Zugangsdaten geaendert", log)
+            sim.request("POST", "/system/shell", "log clear", auth=auth)
+            log = sim.request("POST", "/system/shell", "log", auth=auth).body.decode()
+            self.assertNotIn("HTTP-Server auf Port", log)
+        finally:
+            sim.stop()
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
@@ -1220,7 +1278,7 @@ class T8StufeC(SimCase):
         return dict(re.findall(r"(\w+)=(\w+)", self.shell("sim status")))
 
     def zustand(self):
-        return re.search(r"Zustand\s+(S\d+)", self.shell("evse status")).group(1)
+        return re.search(r"Zustand\s+(S\d+)", self.shell("status")).group(1)
 
     def wait_zustand(self, want, timeout=10):
         t0 = time.monotonic()
@@ -1241,8 +1299,8 @@ class T8StufeC(SimCase):
         self.fail(f"{key}={value} nicht erreicht, zuletzt {s}")
 
     def aktiv(self):
-        """aktive Fehler aus evse errors"""
-        return re.findall(r"aktiv: (ERR-[\w-]+)", self.shell("evse errors"))
+        """aktive Fehler aus errors"""
+        return re.findall(r"aktiv: (ERR-[\w-]+)", self.shell("errors"))
 
     def laden(self):
         """Pruefstecker S1 und S2 ein bis CHARGING"""
@@ -1257,8 +1315,8 @@ class T8StufeC(SimCase):
 
     def test_00_aufbau(self):
         T8StufeC.auth = self.set_credentials()
-        self.assertIn("gespeichert", self.shell("evse param set in_function_ld 22"))
-        self.assertIn("gespeichert", self.shell("evse param set out_function_cr 40"))
+        self.assertIn("gespeichert", self.shell("param set in_function_ld 22"))
+        self.assertIn("gespeichert", self.shell("param set out_function_cr 40"))
         self.wait_zustand("S1", 25)  # Anlauf 20 s
 
     def test_c1_pp_klassen(self):
@@ -1268,10 +1326,10 @@ class T8StufeC(SimCase):
             self.shell(f"sim cable {cable}")
             time.sleep(1.5)  # PP-Uebernahme nach > 1 s
             if want:
-                self.assertIn(f"cable = {want}", self.shell("evse param get cable"), cable)
+                self.assertIn(f"cable = {want}", self.shell("param get cable"), cable)
             self.assertEqual(self.aktiv(), [err] if err else [], cable)
             s = self.stat()
-            # CP bleibt +12 V DC; "CP E" in evse status ist der Status mit Fehler, nicht der Pegel
+            # CP bleibt +12 V DC; "CP E" in status ist der Status mit Fehler, nicht der Pegel
             self.assertEqual((s["car"], s["duty"], s["locked"]), ("A", "1000", "0"), cable)
             self.assertEqual(self.zustand(), "S1", cable)
         self.shell("sim cable 32")
@@ -1289,9 +1347,9 @@ class T8StufeC(SimCase):
         log = self.sim.get_json("/system/log", self.auth)["entries"]
         to = [e["event"]["to"] for e in log if e["kind"] == "event" and e["event"]["type"] == "state"]
         self.assertEqual(to[-3:], [3, 4, 5])
-        self.shell("evse current 10000")
+        self.shell("current 10000")
         self.assertEqual(self.wait_stat("duty", "166", 3)["duty"], "166", "16,6 %, abgeschnitten")
-        self.shell("evse current 80000")
+        self.shell("current 80000")
         self.wait_stat("duty", "266", 3)
         self.shell("sim din en 0")
         self.wait_zustand("S3", 3)

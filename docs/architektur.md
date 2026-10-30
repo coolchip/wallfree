@@ -17,7 +17,8 @@ der [Soll-Spezifikation](soll-spezifikation.md), der Umsetzungsstand in
 - **Alles ueber HTTP:** alle Messwerte, Statuswerte und Parameter lesbar, schreibbare Werte
   schreibbar. Zielgruppe sind versierte Anwender; die Weboberflaeche hat zusaetzlich eine
   einfache Ansicht.
-- Shell auch ueber das Netz (Telnet, ohne Anmeldung; ab Werk aus, in der Weboberflaeche einschaltbar, Nutzer 2026-10-26).
+- Shell nur ueber die Konsole der angemeldeten Weboberflaeche, kein Telnet auf der Steuerung (Nutzer 2026-10-28):
+  kein offener Port ohne Anmeldung; als Notweg zum Aufspielen dient der Reset-Taster (SOLL-BOOT-22).
 - **OCPP perspektivisch** als allgemeine Implementierung, nicht aus der wallbe-Firmware
   abgeleitet. **TLS vorerst nicht. Modbus TCP entfaellt**; die evcc-Vorlage fuer die
   Phoenix-Steuerung (Modbus TCP) wird wegen frueherer Probleme bewusst nicht genutzt.
@@ -114,7 +115,8 @@ Gemessene Einsparmoeglichkeiten (jeweils einzeln gebaut, Basis 295 KB):
 **Entscheidung (Nutzer 2026-10-21):** Assert-Ausdruck und -Meldung sind entfernt, Datei und
 Zeile bleiben (siehe Tabelle). Die Netz-Shell (`net iface`, `ping`, `arp`, `conn`, `mem` ...)
 ist entfernt (Nutzer 2026-10-26), nachdem sie bei der Inbetriebnahme und im Netz-Lasttest auf
-Das Testgerät gebraucht wurde. Die Telnet-Shell selbst mit den `evse`- und `kernel`-Kommandos bleibt.
+Das Testgerät gebraucht wurde. Seit 2026-10-28 laeuft die Shell nur noch ueber die Konsole der
+Weboberflaeche (ohne Telnet, interaktive Funktionen und Zephyrs Zusatzkommandos, 24 KB weniger).
 Weitere Reihenfolge, wenn es wieder knapp wird: LTO, Shell-Hilfe. TLS (mbedTLS) passt neben P1
 voraussichtlich nicht (nicht gemessen); dann Speicherort und Budget neu bewerten.
 

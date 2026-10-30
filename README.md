@@ -60,7 +60,8 @@ können Menschen gefährden. Software-Tests belegen keine elektrische Sicherheit
 - Rückweg zur Originalfirmware über denselben Bootloader; die Originaleinstellungen bleiben
   dabei erhalten (auf einer Steuerung geprüft). Ein Import dieser Einstellungen in Wallfree ist
   eingebaut, auf einer Steuerung aber noch nicht ausgeführt.
-- Telnet-Shell für Diagnose (ab Werk aus).
+- Konsole in der Weboberfläche für Diagnose (Expertenansicht, mit Anmeldung).
+- Notweg zum Bootloader über den Reset-Taster, falls die Weboberfläche nicht mehr erreichbar ist.
 - Kompletter Simulator auf dem PC: die ganze Firmware mit nachgebildeter Hardware, Fahrzeug,
   Zähler und Bootloader, Weboberfläche und evcc wie an der echten Steuerung.
 
@@ -158,7 +159,7 @@ es urheberrechtlich geschützte Originaldateien enthält. Verweise der Form
 - **Keine Verschlüsselung (kein TLS):** Wer im LAN mitliest, sieht alle Daten und kann
   mitgeschnittene Anfragen bis zum nächsten Neustart wiederholen. Das Passwort selbst wird
   nicht übertragen. Die Wallbox nur in einem vertrauenswürdigen Netz betreiben.
-- Telnet-Shell ohne Anmeldung, ab Werk aus (F20); in der Weboberfläche einschaltbar, nur für Diagnose.
+- Kein Zugang ohne Anmeldung: kein Telnet; die Konsole nutzt dieselbe Anmeldung wie Oberfläche und API.
 
 ## Lizenz
 

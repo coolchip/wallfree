@@ -8,7 +8,7 @@ Steuerung laeuft). Sie belegen nichts ueber die reale Hardware (Pegel, Zeiten, I
 | Ebene | Umfang | Stand |
 | --- | --- | --- |
 | PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezaehler, MQTT ohne Netz | 219 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zaehler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
-| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zaehler, lokalen MQTT-Broker | 55 Tests, alle bestanden, ca. 195 s (T5Mqtt gelegentlich wegen eines Simulationsfehlers, Fallstricke) |
+| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zaehler, lokalen MQTT-Broker | 69 Tests, alle bestanden, ca. 420 s (T5Mqtt gelegentlich wegen eines Simulationsfehlers, Fallstricke) |
 | Browser-Durchlauf | Weboberflaeche in headless Chrome gegen die Simulation | ohne Zaehler 20 Pruefungen bestanden (2026-10-26); mit Zaehler zuletzt 2026-10-21 bestanden |
 | Netz-Lasttest | `scripts/net-load.py` gegen Simulation (nur Skriptpruefung) und das Testgerät | auf dem Testgerät bestanden ([Implementierung](implementierung.md#pruefungen-auf-box-t)) |
 | MQTT im LAN | Simulation gegen Mosquitto 2.1.2 im Heimnetz (von Hand, 2026-10-21) | Zustaende, Zaehlerwerte (etwa 1/s), Ereignisse, Befehl Ladestrom, `online` true/false |
@@ -40,9 +40,9 @@ Hardwareschicht ist ersetzt; Threads, Ladelogik, Parameterspeicher, HTTP/Digest/
 Weboberflaeche und Telnet-Shell sind der Code der Steuerung.
 
 ```sh
-scripts/run-e2e.sh                # bauen (build/sim) und alle Tests (Python, nur Standardbibliothek)
+scripts/run-e2e.sh                # bauen (build/sim und build/sim-hw wie die Steuerung) und alle Tests
 scripts/run-e2e.sh -k Faults      # Auswahl (unittest -k)
-scripts/sim-run.sh [--build] [--dip=0x109] [--rotary=5] [--http-port=8081] [--reset-button=6000]
+scripts/sim-run.sh [--build] [--dip=0x109] [--rotary=5] [--http-port=8081] [--reset-button=11000]
 ```
 
 `sim-run.sh` startet die Simulation zum Ausprobieren ([Bedienung](simulation-bedienung.md)): Web/API `http://127.0.0.1:8081/`
@@ -71,12 +71,13 @@ Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](.
 | --- | --- | --- |
 | T1Api | 401 mit Challenge; Werkszugang nur `/credentials` und Oberflaeche (403 sonst); Passwortregeln und Aenderung; `/info/*`, `/system/*` (Abgleich `mcu_temp_offset` sofort wirksam), alle Webdateien gzip; Parameter lesen/Beschreibung/Grenzen/Syntaxfehler/Schreiben; Laden B -> PWM -> C -> Schuetz; Sollstrom 10 A (Tastgrad 166, 9960 mA), Ablehnung 3 A, 0 = aus, wieder ein; WebSocket Erstsynchronisation und Push < 1 s; 3 WebSockets gleichzeitig, Wiederverwendung der Plaetze, Abbruch ohne Close-Rahmen; WebSocket ohne bzw. mit falscher Anmeldung geschlossen; Abstecken; Neustart mit Persistenz (Zugangsdaten, Parameter, Hostname), Resetgrund `user_restart`, Sollstrom wieder Startwert; Neustart waehrend des Ladens geordnet; Bremse 5 x 401, dann 429 mit `Retry-After` | SOLL-API-01..07/30/31/35, SOLL-CUR-21, SOLL-NVM-03, SOLL-PAR-03, SOLL-RT-14/22 |
 | T1Api (Ereignisse, LED, Protokoll) | Ereignisse beim Sollstrom 0 und wieder ein (`seq`/`t_ms` steigend, Logzeile); Netzwerk-LED an, bei `sim link 0` 1 Hz; `/system/log`: ohne Anmeldung 401, Fehlversuch mit Absender, `count` und Zeit, Ereignisse enthalten, Antwort > 1,5 KB in Teilen; `POST /system/log/clear` ohne Anmeldung 401, danach nur der Loescheintrag mit Absender | SOLL-ERR-10..13, SOLL-LED-06 |
-| T2Faults | Fehlerstrom beim Laden: Schuetz aus, `error_state` 3, Ereignisse (RCM, Schuetz aus, S9); Messbloecke stehen -> Reset `supervision_limit`; Reset-Taster 6 s beim Start -> Werkszugang wieder aktiv | SOLL-PROT-01/05, SOLL-RT-10/14, SOLL-BOOT-20, SOLL-ERR-10 |
+| T2Faults | Fehlerstrom beim Laden: Schuetz aus, `error_state` 3, Ereignisse (RCM, Schuetz aus, S9); Messbloecke stehen -> Reset `supervision_limit`; Reset-Taster beim Start 7 s -> Uebergabe an den Bootloader ohne Adresse, Einstellungen bleiben, 11 s -> Werkszugang wieder aktiv | SOLL-PROT-01/05, SOLL-RT-10/14, SOLL-BOOT-20/22, SOLL-ERR-10 |
 | T5Mqtt | gegen einen lokalen Mosquitto (Test wird ohne `mosquitto` uebersprungen): Werkszustand aus, Einschalten nur mit Broker, Verbinden ohne Neustart, Passwort `null`; neuer Abonnent erhaelt `online` und die Zustaende retained; Aenderung und Ereignis (nicht retained); Befehl ohne `mqtt_commands` wirkungslos; mit Befehlen Zahl und JSON angenommen, 3 A abgelehnt mit Text; gespeicherter Befehl nach Neuverbindung ignoriert; Broker-Neustart -> Neuverbindung, Laden unberuehrt; Abschalten sendet `online` = `false`; harter Abbruch -> Last Will; Home-Assistant-Erkennung: Konfigurationen retained unter `homeassistant/`, Ladestrom-Feld nur mit Befehlen, ohne Zaehler keine Leistung, ausgeschaltet entfernt | SOLL-MQTT-01..04/10/11/20..22/30/31/40/41 |
-| T6Update | mit Ersatz-Bootloader: `scripts/update.sh` ueber die API -> Bootloader erhaelt genau die Datei, Resetgrund `update`, `update_result` ok, `image` mit CRC der Datei, Ereignis `update`; `evse bootloader` und Upload von Hand mit ungueltigem Start-SP -> fehlgeschlagen; ohne Upload Zeitablauf -> fehlgeschlagen, zweite Anforderung 409; Update waehrend des Ladens geordnet; Upload wie ein Browser mit zu kurzem letzten Paket -> Bootloader meldet Erfolg, Abbild abgeschnitten, `image.ok` false, ERR-INTERNAL, kein Laden; GET waehrend des Uploads -> Abbruch, Bootloader bleibt, zweiter Upload stellt her; ohne Bootloader -> fehlgeschlagen | SOLL-BOOT-30..35, SOLL-SH-10 |
+| T6Update | mit Ersatz-Bootloader: `scripts/update.sh` ueber die API -> Bootloader erhaelt genau die Datei, Resetgrund `update`, `update_result` ok, `image` mit CRC der Datei, Ereignis `update`; `bootloader` und Upload von Hand mit ungueltigem Start-SP -> fehlgeschlagen; ohne Upload Zeitablauf -> fehlgeschlagen, zweite Anforderung 409; Update waehrend des Ladens geordnet; Upload wie ein Browser mit zu kurzem letzten Paket -> Bootloader meldet Erfolg, Abbild abgeschnitten, `image.ok` false, ERR-INTERNAL, kein Laden; GET waehrend des Uploads -> Abbruch, Bootloader bleibt, zweiter Upload stellt her; ohne Bootloader -> fehlgeschlagen | SOLL-BOOT-30..35, SOLL-SH-10 |
 | T7Zeit | eigener SNTP-Server auf 127.0.0.1: ohne Zeitserver `time` = null; `ntp_server` setzen wirkt sofort, Uhrzeit des Servers in `/system/info`, neue Protokolleintraege mit `wall_ms`, aeltere ohne; `ntp_enable` aus -> `time` null; ungueltiger Server -> 400 | SOLL-TIME-01..03, SOLL-ERR-12 |
 | T8StufeC | Probe des Pruefablaufs Stufe C ([Pruefstecker](pruefstecker.md#5-pruefablauf-stufe-c)) mit den Einstellungen des Testgeräts (DIP 111, Drehschalter 4, LD 22, CR 40): C1 PP-Klassen, C2 Verriegeln, Selbsttest, PWM 26,6 %/16,6 %, Schluessel, Weckfolge, C3 Laden, B/C/D/E, Diode, Schluessel aus mit `stop_timeout`, C4 Fehlerstrom in Ruhe (Selbsttest scheitert unter Fehlerstrom, besteht danach) und beim Laden (kein Laden bis Selbsttest in A), C6 WARP-Zustaende und Strom 0 als Stromsperre | SOLL-PP, SOLL-CP, SOLL-SM, SOLL-PROT, SOLL-CUR-11 |
-| T3ZephyrTelnet | harter Telnet-Abbruch: HTTP, WebSocket, neue Telnet-Sitzung, geordneter Neustart und Logausgabe laufen weiter | SOLL-RT-11 |
+| T9WieSteuerung | zweiter Bau mit der Log- und Shell-Konfiguration der Steuerung (kein Konsolen-Log, kein Telnet): startet ohne Startschleife, Konsole antwortet, `log` enthaelt die Startmeldungen und `clear` leert ihn | SOLL-SH-22 |
+| T3Konsole | Konsole `POST /system/shell`: im Werkszugang 403, ohne Anmeldung 401; Text, Filter `param list lock`, Kuerzung bei mehr als 2 KB, unbekanntes Kommando, zu lange Zeile 413, `threads`; Kommandobaum `/system/shell_commands` in mehreren Teilen, ohne `kernel`; keine Zephyr-Zusatzkommandos (`kernel`, `devmem`, `device`, `date`); Kommando wirkt (`current`); `telnet_enable` gibt es nicht mehr (400); `sim sleep 30000` ueber die Konsole haelt den HTTP-Server an -> Neustart `interface_hang`/`http_server` | SOLL-SH-19/21/23, SOLL-RT-11 |
 
 ### Abweichungen der Simulation von der Steuerung
 
@@ -85,8 +86,10 @@ Tests ([tests/e2e/test_e2e.py](../tests/e2e/test_e2e.py), Hilfen in [wfsim.py](.
   Endlosschleife ohne Warten haelt die simulierte Zeit an (Schutzthread und IWDG eingeschlossen).
 - Netzparameter werden nicht angewandt; `/info/name` liefert `uid` 000000 (keine MAC).
 - Sektor 3 ist leer (Import aus dem Original nicht pruefbar ohne Abbild).
-- Telnet-Shell ab Werk an (`CONFIG_WALLFREE_TELNET_DEFAULT`), auf der Steuerung aus (F20): In der
-  Simulation ist sie die Bedienung des Hardwaremodells (`sim ...`).
+- Telnet-Shell (Port 2323, ohne Anmeldung) nur in der Simulation, auf der Steuerung gibt es nur die
+  Konsole (SOLL-SH-19): Telnet ist hier die Bedienung des Hardwaremodells (`sim ...`) fuer Tests
+  und Nutzer, auch im Werkszustand.
+- Reset-Taster (`--reset-button`) wirkt nur beim Programmstart, nicht nach einem Neustart der Firmware.
 - Ruhende HTTP-Verbindungen werden nie getrennt (kein `shutdown` im Socket-Treiber); daher 8
   statt 4 HTTP-Client-Plaetze und 24 statt 16 Deskriptoren
   ([native_sim_native_64.conf](../app/boards/native_sim_native_64.conf)).
@@ -108,12 +111,14 @@ System einschalten (im `localStorage` gespeichert), `sim car C` (Laden; Ring
 zeigt "begrenzt durch Maximum Drehschalter (32 A)", ohne Zaehler "32 A erlaubt"), Knopf
 "Laden aus" (S6 -> S7 -> S3, "Vorgabe: Laden aus"), Status (Ladestrom-Tabelle, Verlauf
 mit laufendem Intervall, Ereignisprotokoll mit Fehlversuch und Taste "Protokoll loeschen"), Einstellungen/Netzwerk und /Zaehler,
-System, Zurueck-Taste (Adresse im Hash), `sim car A`, Status neu geladen: alle Abfragen ueber eine TCP-Verbindung; Tab verborgen
+System mit Konsole (`status` ausfuehren, Tab ergaenzt `sta`, Vorschlaege nach
+`param get lock_`), Zurueck-Taste (Adresse im Hash), `sim car A`, Status neu geladen: alle Abfragen ueber eine TCP-Verbindung; Tab verborgen
 (`document.hidden`): WebSocket zu, 12 s keine Anfrage, wieder sichtbar sofort live; Netz im Browser 7 s trennen ("getrennt", grau)
 und wieder verbinden ("verbunden"). Danach Bedienung wie ein Nutzer (Rueckfragen werden bestaetigt
 und mitgeschrieben): Einstellungen/Laden je ein Wert ueber Auswahlliste (`wakeup_mode`) und
 Kaestchen (`reject_state_d`) mit "OK", Meldung "gespeichert", Wert per API; "Protokoll loeschen"
-(danach nur "Ereignisprotokoll geloescht von 127.0.0.1"); Netzwerk: Hostname speichern, Hinweis
+(danach nur "Ereignisprotokoll geloescht von 127.0.0.1"); Prozessortemperatur: "-" und "-3," bleiben beim
+Tippen stehen, "-3,5" und "-3.5" ergeben -35, "abc" -> "keine Zahl"; Netzwerk: Hostname speichern, Hinweis
 "wirkt nach Neustart", "Jetzt neu starten" -> Resetgrund `user_restart`, Hostname aktiv, neue
 Startnummer; Anmeldedaten: Benutzer vorbelegt, Passwort aendern, Neuanmeldung, zurueck. Geaenderte
 Werte setzt der Lauf zurueck. Screenshots und Texte im Ausgabeverzeichnis.

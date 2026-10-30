@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: Apache-2.0 */
-/* Tests Netz- und Systemparameter (10.1 net_*, telnet_enable, meter_*, mqtt_*, ntp_*,
- * mcu_temp_offset; F20, F25, F28, F30; SOLL-NVM-10, SOLL-API-35) */
+/* Tests Netz- und Systemparameter (10.1 net_*, meter_*, mqtt_*, ntp_*, mcu_temp_offset;
+ * F25, F28, F30; SOLL-NVM-10, SOLL-API-35, SOLL-SH-19) */
 #include <string.h>
 #include <zephyr/ztest.h>
 #include <wallfree/api/sysconf.h>
@@ -42,7 +42,7 @@ ZTEST(api_sysconf, test_defaults_and_json)
 	wf_sys_json(&c, &b);
 	zassert_str_equal(buf, "{\"net_dhcp\":true,\"net_ip\":\"192.168.0.8\","
 			       "\"net_netmask\":\"255.255.255.0\",\"net_gateway\":\"192.168.0.1\","
-			       "\"net_hostname\":\"\",\"telnet_enable\":false,\"meter_type\":0,"
+			       "\"net_hostname\":\"\",\"meter_type\":0,"
 			       "\"meter_address\":1,\"meter_baud\":9600,\"meter_framing\":0,"
 			       "\"mqtt_enable\":false,\"mqtt_broker\":\"\",\"mqtt_port\":1883,"
 			       "\"mqtt_user\":\"\",\"mqtt_password\":null,\"mqtt_prefix\":\"\","
@@ -268,9 +268,9 @@ ZTEST(api_sysconf, test_set_rules)
 	zassert_false(c.dhcp);
 	zassert_not_null(set("net_dhcp", N(2)));
 	zassert_not_null(set("net_dhcp", S("ja")));
-	zassert_false(c.telnet, "F20: ab Werk aus");
-	zassert_is_null(set("telnet_enable", (struct wf_jval){.type = WF_J_BOOL, .num = 1}));
-	zassert_true(c.telnet);
+	/* SOLL-SH-19: kein Telnet mehr; ein gespeicherter Wert unter 3015 wird nicht gelesen */
+	zassert_is_null(wf_sys_find("telnet_enable"));
+	zassert_is_null(wf_sys_by_id(3015));
 
 	zassert_is_null(set("net_ip", S("10.1.2.3")));
 	zassert_equal(c.ip, 0x0A010203);

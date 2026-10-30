@@ -55,7 +55,7 @@ const char *wf_reset_detail_name(enum wf_reset_detail d)
 {
 	static const char *const n[] = {
 		"", "charger_thread", "measurement_blocks", "storage_thread", "websocket_thread",
-		"system_workqueue", "fault",
+		"system_workqueue", "fault", "http_server",
 	};
 
 	return (unsigned int)d < sizeof(n) / sizeof(n[0]) ? n[d] : "";

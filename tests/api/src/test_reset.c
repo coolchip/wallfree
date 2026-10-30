@@ -58,6 +58,7 @@ ZTEST(api_reset, test_detail)
 		      WF_RSTD_FAULT);
 	zassert_equal(extra, 0x34, "Zusatz 8 Bit");
 	zassert_str_equal(wf_reset_detail_name(WF_RSTD_BLOCKS), "measurement_blocks");
+	zassert_str_equal(wf_reset_detail_name(WF_RSTD_IFACE_HTTP), "http_server");
 	zassert_str_equal(wf_reset_detail_name(WF_RSTD_NONE), "");
 	zassert_str_equal(wf_reset_detail_name(WF_RSTD_COUNT), "");
 }

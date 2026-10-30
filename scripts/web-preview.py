@@ -38,7 +38,6 @@ SYSINFO = [
     {"name": "net_dhcp", "type": "bool", "help": "Adresse per DHCP beziehen"},
     {"name": "net_ip", "type": "ipv4", "help": "feste IPv4-Adresse (ohne DHCP)"},
     {"name": "net_hostname", "type": "hostname", "help": "Hostname, leer = wallfree-<MAC-Ende>"},
-    {"name": "telnet_enable", "type": "bool", "help": "Telnet-Shell ohne Anmeldung"},
 ]
 
 
@@ -49,8 +48,7 @@ class Sim:
         self.ext = 16000
         self.params = {"lock_pulse": 500, "wakeup_delay": 30000, "external_current": 16000,
                        "state": 1, "errors": 0}
-        self.sys = {"net_dhcp": True, "net_ip": "192.168.0.8", "net_hostname": "",
-                    "telnet_enable": True}
+        self.sys = {"net_dhcp": True, "net_ip": "192.168.0.8", "net_hostname": ""}
         self.active = dict(self.sys)
         self.t0 = time.time()
 

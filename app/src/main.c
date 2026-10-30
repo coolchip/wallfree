@@ -19,7 +19,8 @@
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
-#define FACTORY_RESET_MS 5000 /* E22 */
+#define BOOTLOADER_MS    5000  /* SOLL-BOOT-22: Loslassen ab hier -> Bootloader */
+#define FACTORY_RESET_MS 10000 /* SOLL-BOOT-20 */
 /* Schalter: PA11/PA12 haben nur den internen Pull-up; nach dem Einschalten braucht der
  * Pegel einige ms (Testgeraet las D8 sonst als an). Erst warten, dann stabil lesen. */
 #define SWITCH_SETTLE_MS 20
@@ -29,31 +30,37 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 #define BLINK_5HZ_MS     100  /* halbe Periode */
 #define BLINK_1HZ_MS     500  /* halbe Periode */
 
-/* SOLL-BOOT-20: Reset-Taster beim Start 5 s gedrueckt -> Werkseinstellungen.
- * Waehrend des Wartens wird der IWDG bedient (Schuetz ist aus); die Power-LED
- * blinkt mit 1 Hz (SOLL-LED-01), sonst wirkt die Steuerung waehrenddessen aus. */
-static bool check_factory_reset(void)
+enum button_action {
+	BUTTON_NONE,
+	BUTTON_BOOTLOADER,
+	BUTTON_FACTORY_RESET,
+};
+
+/* SOLL-BOOT-20/22: Reset-Taster beim Start gehalten. Losgelassen vor 5 s -> normaler
+ * Start, zwischen 5 und 10 s -> Bootloader, 10 s gehalten -> Werkseinstellungen.
+ * Waehrend des Wartens wird der IWDG bedient (Schuetz ist aus); die Power-LED blinkt
+ * erst mit 1 Hz, ab 5 s mit 5 Hz (SOLL-LED-01), sonst wirkt die Steuerung aus. */
+static enum button_action check_reset_button(void)
 {
 	if (!hw_gpio_reset_button()) {
-		return false;
+		return BUTTON_NONE;
 	}
-	int64_t t0 = k_uptime_get();
+	int64_t t0 = k_uptime_get(), dt = 0;
 
 	while (hw_gpio_reset_button()) {
-		int64_t dt = k_uptime_get() - t0;
-
+		dt = k_uptime_get() - t0;
 		evse_task_wdt_feed();
-		hw_gpio_led(EVSE_LED_POWER, (dt / BLINK_1HZ_MS) % 2 == 0);
+		hw_gpio_led(EVSE_LED_POWER, dt < BOOTLOADER_MS ? (dt / BLINK_1HZ_MS) % 2 == 0
+							     : (dt / BLINK_5HZ_MS) % 2 == 0);
 		if (dt >= FACTORY_RESET_MS) {
-			return true;
+			return BUTTON_FACTORY_RESET;
 		}
 		k_msleep(10);
 	}
 	hw_gpio_led(EVSE_LED_POWER, false);
-	return false;
+	return dt >= BOOTLOADER_MS ? BUTTON_BOOTLOADER : BUTTON_NONE;
 }
 
-/* SOLL-BOOT-20, SOLL-LED-01: Power-LED 5 Hz bis zum Loslassen */
 /* SOLL-BOOT-06/SOLL-IO-30: einmal beim Start, aber erst wenn der Wert stabil ist */
 static void read_switches_stable(evse_dip_t *dip, uint8_t *rotary)
 {
@@ -77,17 +84,13 @@ static void read_switches_stable(evse_dip_t *dip, uint8_t *rotary)
 	*rotary = last_r;
 }
 
-static void blink_until_released(void)
+/* SOLL-BOOT-20, SOLL-LED-01: nach dem Werksreset Power-LED an bis zum Loslassen */
+static void light_until_released(void)
 {
-	bool on = true;
-
+	hw_gpio_led(EVSE_LED_POWER, true);
 	while (hw_gpio_reset_button()) {
-		hw_gpio_led(EVSE_LED_POWER, on);
-		on = !on;
-		for (int i = 0; i < BLINK_5HZ_MS / 10; i++) {
-			evse_task_wdt_feed();
-			k_msleep(10);
-		}
+		evse_task_wdt_feed();
+		k_msleep(10);
 	}
 	hw_gpio_led(EVSE_LED_POWER, false);
 }
@@ -116,10 +119,23 @@ int main(void)
 	 * noch nicht gestartet, Ausgaenge im sicheren Startpegel) */
 	(void)storage_init();
 	evse_task_wdt_feed();
-	if (check_factory_reset()) {
+	switch (check_reset_button()) {
+	case BUTTON_FACTORY_RESET:
 		LOG_WRN("Werksreset: Parameterbereich wird geloescht");
 		(void)storage_factory_reset_boot(); /* IWDG dabei verlaengert */
-		blink_until_released();
+		light_until_released();
+		break;
+	case BUTTON_BOOTLOADER:
+		/* SOLL-BOOT-22: Ladelogik nicht gestartet; ohne Adresse nimmt der Bootloader
+		 * seine feste 192.168.0.8 */
+		LOG_WRN("Reset-Taster: Uebergabe an den Bootloader (192.168.0.8)");
+		for (int i = 0; i < 20; i++) { /* 200 ms fuer das Log, IWDG weiter bedienen */
+			evse_task_wdt_feed();
+			k_msleep(10);
+		}
+		hw_bootloader_handover(0, 0);
+	default:
+		break;
 	}
 	evse_config_defaults(&cfg);
 	(void)storage_load(&cfg, &lock);
@@ -158,7 +174,7 @@ int main(void)
 	}
 
 	storage_start();
-	netcfg_init();          /* Hostname, DHCP bzw. feste Adresse, Telnet */
+	netcfg_init();          /* Hostname, DHCP bzw. feste Adresse */
 	(void)http_api_start(); /* SOLL-BOOT-09: Netz verzoegert den Ladeablauf nicht */
 
 	struct wf_sysconf sys;

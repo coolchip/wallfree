@@ -2,7 +2,8 @@
 
 Die ganze Firmware laeuft als Linux-Programm (`native_sim`) mit einem Modell der Hardware:
 Fahrzeug, Kabel, Eingaenge, Fehlerstromsensor, Verriegelungsaktor und Schuetz. Weboberflaeche,
-HTTP-API, WebSocket und Telnet-Shell sind dieselben wie auf der Steuerung. Was die Simulation
+HTTP-API, WebSocket und Konsole sind dieselben wie auf der Steuerung; zusaetzlich gibt es hier eine
+Telnet-Shell fuer das Modell (auf der Steuerung nicht). Was die Simulation
 nicht abbildet: [Test und Simulation](test-und-simulation.md#abweichungen-der-simulation-von-der-steuerung).
 
 ## Starten
@@ -17,7 +18,7 @@ scripts/sim-run.sh [--build] [--dip=<maske>] [--rotary=<pos>] [--http-port=<port
 | `--dip=<maske>` | DIP-Schalter D1..D10 als Bitmaske, Bit 0 = D1 (Beispiele unten) | 0 (alle aus) |
 | `--rotary=<pos>` | Drehschalter 0..15 (0 = 5 %, 1..9 = 6/10/13/16/20/32/63/70/80 A, 10..15 = Fehler) | 6 (32 A) |
 | `--http-port=<port>` | Port fuer Weboberflaeche und API | 8081 |
-| `--reset-button=<ms>` | Reset-Taster beim Start so lange halten (>= 5000 = Werksreset) | 0 |
+| `--reset-button=<ms>` | Reset-Taster beim Programmstart so lange halten: 5000..9999 = Uebergabe an den Bootloader, ab 10000 = Werksreset; gilt nicht fuer Neustarts der Firmware | 0 |
 
 DIP und Drehschalter gelten wie auf der Steuerung nur beim Start. Haeufige DIP-Masken:
 
@@ -33,16 +34,16 @@ Danach erreichbar:
 
 - Weboberflaeche und API: `http://127.0.0.1:8081/` (Werkszugang `admin` / `wallfree`; beim
   ersten Aufruf muss das Passwort geaendert werden)
-- Telnet-Shell: `telnet 127.0.0.1 2323` (ohne Anmeldung)
+- Telnet-Shell: `telnet 127.0.0.1 2323` (ohne Anmeldung, nur in der Simulation); dieselben Kommandos
+  auch in der Weboberflaeche unter System -> Konsole (Expertenansicht)
 
 Die Einstellungen liegen in `build/sim-flash.bin` und bleiben ueber Neustarts erhalten; Datei
 loeschen = fabrikneu. **Achtung:** `scripts/evcc-sim.sh` setzt bei einer fabrikneuen Datei die
 Zugangsdaten `evcc` / `evcc-sim-test` (wie in `tools/evcc/evcc.yaml`); sie gelten danach auch
 fuer die Weboberflaeche. Passt keiner der beiden Zugaenge, Datei loeschen oder mit
-`--reset-button=6000` starten (beides setzt alle Einstellungen zurueck; die Option wirkt bei jedem
-Start, also danach ohne sie starten). Fragt der Browser danach nicht nach dem Werkszugang, schickt
+`--reset-button=11000` starten (beides setzt alle Einstellungen zurueck). Fragt der Browser danach nicht nach dem Werkszugang, schickt
 er noch die alten Zugangsdaten: neuen Tab oder privates Fenster oeffnen. Beenden mit Strg+C im Terminal der Simulation. Ein Neustart ueber die
-Oberflaeche oder `evse reboot` startet den Prozess selbst neu; das Modell (z. B. angestecktes
+Oberflaeche oder `reboot` startet den Prozess selbst neu; das Modell (z. B. angestecktes
 Fahrzeug) bleibt dabei erhalten.
 
 Firmware-Update ausprobieren: unter System eine `.bin`-Datei waehlen (z. B.
@@ -63,7 +64,7 @@ schaltet den Modus bei inetutils-telnet nicht um.) Das gilt genauso fuer die Ste
 ## Das Kommando `sim`
 
 `sim` ohne Argument entspricht `sim status`. `sim help` bzw. Tab zeigt die Unterkommandos.
-Die Ladelogik selbst bedient man mit `evse ...` (`evse help`).
+Die Kommandos der Ladelogik stehen ohne Vorsatz daneben (`status`, `param ...`; `help` listet alle).
 
 | Kommando | Wirkung |
 | --- | --- |
@@ -82,6 +83,7 @@ Die Ladelogik selbst bedient man mit `evse ...` (`evse help`).
 | `sim link <0\|1>` | Netzverbindung fuer die Netzwerk-LED |
 | `sim supply <mV>` | Versorgungsmessung (unter 9000 -> Warnung) |
 | `sim hang` | Messbloecke anhalten; die Ueberwachung muss nach 50 ms zuruecksetzen |
+| `sim sleep <ms>` | aufrufenden Thread blockieren; ueber die Konsole der Weboberflaeche haelt das den HTTP-Server an (Ueberwachung nach 10 s, Neustart nur ohne Ladevorgang) |
 | `sim meter <ok\|off\|frame\|flaky\|bad>` | simulierter Energiezaehler (nur mit `meter_type` != 0): normal, keine Antwort, gestoerte Telegramme, jede zweite Anfrage ohne Antwort, Spannung ausserhalb der Grenze |
 | `sim meter energy <Wh>` | Zaehlerstand setzen (kleiner als bisher -> Ereignis "Zaehlerstand gesunken") |
 
@@ -94,10 +96,10 @@ bleibt in C, wenn die PWM endet (ein echtes Fahrzeug ginge nach B).
 **Laden mit festem Kabel** (Start ohne Optionen):
 
 ```text
-sim car B          # Fahrzeug verbunden -> Selbsttest, dann PWM (evse status: S5)
+sim car B          # Fahrzeug verbunden -> Selbsttest, dann PWM (status: S5)
 sim car C          # Ladewunsch -> Schuetz ein (S6)
-evse current 10000 # Sollstrom 10 A (oder in der Oberflaeche)
-evse current 0     # Laden aus: PWM aus, Schuetz nach Fahrzeugreaktion bzw. 5 s aus
+current 10000      # Sollstrom 10 A (oder in der Oberflaeche)
+current 0          # Laden aus: PWM aus, Schuetz nach Fahrzeugreaktion bzw. 5 s aus
 sim car A          # abstecken
 ```
 
@@ -117,16 +119,16 @@ sim actuator stuck # naechstes Mal klemmt der Aktor -> Fehlversuche, ERR-LOCK
 sim rcm fault      # Fehlerstrom: Schuetz sofort aus, ERR-RCM, Zustand S9
 sim car A          # abstecken
 sim rcm clear      # Fehlerstrom weg; nach 30 s Wiederholtest wird der Fehler geloescht
-sim weld 1         # nach dem naechsten Ladeende: Schuetzfehler (CP F), quittieren mit evse errors clear
+sim weld 1         # nach dem naechsten Ladeende: Schuetzfehler (CP F), quittieren mit errors clear
 sim diode 0        # Diode fehlt beim naechsten PWM-Start: Fehler, 3 s -12 V
 ```
 
 **Energiezaehler** (nur Anzeige): Zaehlertyp einstellen, neu starten, dann laden.
 
 ```text
-evse sys set meter_type 2   # 1 ABB B23, 2 SDM630, 3 SDM72D-M V2, 4 SDM72D-M V1; 0 = keiner
-evse reboot                 # Zaehlerparameter wirken nach dem Neustart
-evse meter                  # Zustand, Messwerte, Fehlerzaehler
+sys set meter_type 2   # 1 ABB B23, 2 SDM630, 3 SDM72D-M V2, 4 SDM72D-M V1; 0 = keiner
+reboot                 # Zaehlerparameter wirken nach dem Neustart
+meter                  # Zustand, Messwerte, Fehlerzaehler
 sim car C                   # laden: Strom und Leistung erscheinen im Zaehler
 sim meter off               # Zaehler antwortet nicht: nach ~10 s Zustand "error", Laden laeuft weiter
 sim meter ok
@@ -138,13 +140,13 @@ Verlauf (Status), Einstellung unter Einstellungen/Zaehler. evcc liest die Werte 
 **MQTT** (Broker auf dem PC: `mosquitto -p 1883`, oder ein Broker im LAN): wirkt sofort.
 
 ```text
-evse sys set mqtt_broker 127.0.0.1
-evse sys set mqtt_enable 1          # verbindet ohne Neustart
-evse sys set mqtt_commands 1        # Ladestrom ueber MQTT setzbar (Werkszustand aus)
-evse mqtt                           # Zustand, Praefix, Zaehler
+sys set mqtt_broker 127.0.0.1
+sys set mqtt_enable 1          # verbindet ohne Neustart
+sys set mqtt_commands 1        # Ladestrom ueber MQTT setzbar (Werkszustand aus)
+mqtt                           # Zustand, Praefix, Zaehler
 ```
 
-Mitlesen und Ladestrom setzen (Praefix laut `evse mqtt`, in der Simulation `wallfree/000000`):
+Mitlesen und Ladestrom setzen (Praefix laut `mqtt`, in der Simulation `wallfree/000000`):
 
 ```sh
 mosquitto_sub -t 'wallfree/000000/#' -v
@@ -153,4 +155,4 @@ mosquitto_pub -t wallfree/000000/evse/external_current_update -m 10000
 
 In der Oberflaeche unter Einstellungen/MQTT, dort auch der Verbindungszustand.
 
-**Werksreset:** `scripts/sim-run.sh --reset-button=6000` (Werkszugang danach wieder aktiv).
+**Werksreset:** `scripts/sim-run.sh --reset-button=11000` (Werkszugang danach wieder aktiv).

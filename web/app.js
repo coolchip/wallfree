@@ -35,6 +35,19 @@ async function request(path, opts) {
 const post = (path, body) => api(path, {
 	method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
 });
+// Konsole (SOLL-SH-19): Kommandozeile hin, Ausgabe als Text zurueck
+const shell = (line) => {
+	const run = queue.then(async () => {
+		if (quiet) throw new Error('Update läuft');
+		const r = await fetch('/system/shell', { method: 'POST', body: line, cache: 'no-store',
+			signal: AbortSignal.timeout(20000) });
+		const t = await r.text();
+		if (!r.ok) throw new Error(r.status === 413 ? 'Kommandozeile zu lang' : t || r.status + ' ' + r.statusText);
+		return t;
+	});
+	queue = run.catch(() => {});
+	return run;
+};
 // Periodisch laden, nur solange die Seite sichtbar ist, beim Zurueckkehren sofort. Gedrosselte
 // Hintergrund-Tabs wachen im Handy-Browser alle zugleich im Minutentakt auf; ihre Abfragen
 // belegten dann die wenigen Verbindungsplaetze der Steuerung (implementierung.md).
@@ -282,7 +295,7 @@ const RESET = { power_on: 'Einschalten', user_restart: 'Neustart auf Anforderung
 	unknown: 'unbekannt' };
 const RESET_DETAIL = { charger_thread: 'Ladelogik reagierte nicht', measurement_blocks: 'Messung blieb aus',
 	storage_thread: 'Speicher-Thread', websocket_thread: 'WebSocket-Thread', system_workqueue: 'System-Workqueue',
-	fault: 'Prozessorausnahme' };
+	http_server: 'HTTP-Server', fault: 'Prozessorausnahme' };
 const resetText = (r, d) => (RESET[r] || r) + (d ? ' (' + (RESET_DETAIL[d] || d) + ')' : '');
 
 function evText(e) {
@@ -638,7 +651,7 @@ function Errors() {
 				<td>${STATES[h.state] || h.state}</td><td class="bad">${h.set.join(', ')}</td>
 				<td class="ok">${h.cleared.join(', ')}</td></tr>`)}
 		</table>`}
-		${d.truncated && html`<p class="muted msg">Ältere Einträge: Shell "evse errors".</p>`}
+		${d.truncated && html`<p class="muted msg">Ältere Einträge: Shell "errors".</p>`}
 	<//>`;
 }
 
@@ -654,7 +667,7 @@ async function restart(setMsg) {
 
 // Einstellungen Netzwerk, MQTT, Zaehler: Teil von /system/config nach Namensanfang
 const SYS_PARTS = {
-	netzwerk: ['Netzwerk', ['net_', 'ntp_', 'telnet_']],
+	netzwerk: ['Netzwerk', ['net_', 'ntp_']],
 	mqtt: ['MQTT', ['mqtt_']],
 	zaehler: ['Zähler (nur Anzeige)', ['meter_']],
 	temperatur: ['Prozessortemperatur', ['mcu_']],
@@ -672,11 +685,30 @@ function SysConfig({ part }) {
 		load();
 	}, []);
 	if (!cfg) return null;
-	const val = (n) => (n in edit ? edit[n] : cfg.saved[n]);
+	const codes = new Set(info.filter((p) => p.type === 'code').map((p) => p.name));
+	// Zahlen bleiben beim Tippen Text ("-", "-3,"), umgerechnet wird erst beim Speichern;
+	// den Abgleich der Prozessortemperatur traegt man in Grad ein (API: 0,1 Grad)
+	const TEMP = 'mcu_temp_offset';
+	const shown = (n) => (n === TEMP ? (cfg.saved[n] / 10).toLocaleString('de-DE') : cfg.saved[n]);
+	const val = (n) => (n in edit ? edit[n] : shown(n));
 	const save = async (ev) => {
 		ev.preventDefault();
+		const body = { ...edit };
+		for (const n of Object.keys(body)) {
+			if (!codes.has(n)) continue;
+			const x = Number(String(body[n]).trim().replace(',', '.'));
+			if (String(body[n]).trim() === '' || !Number.isFinite(x)) {
+				setMsg({ ok: false, text: (info.find((p) => p.name === n) || {}).help + ': keine Zahl' });
+				return;
+			}
+			if (n === TEMP && Math.abs(x) > 45) {
+				setMsg({ ok: false, text: 'Abgleich -45..45 °C' });
+				return;
+			}
+			body[n] = n === TEMP ? Math.round(x * 10) : x;
+		}
 		try {
-			const r = await post('/system/config', edit);
+			const r = await post('/system/config', body);
 			setMsg({ ok: true, text: r.restart_required ? 'Gespeichert – wirkt nach Neustart' : 'Gespeichert' });
 			setEdit({});
 			load();
@@ -704,9 +736,10 @@ function SysConfig({ part }) {
 					${opts.map((t, i) => html`<option value=${i}>${t}</option>`)}</select></label>`;
 			}
 			// mcu_temp_offset hat ein Vorzeichen, die Zifferntastatur am Handy oft keins
-			const num = p.type === 'code' && p.name !== 'mcu_temp_offset';
-			return html`<label title=${p.name}>${p.help}<input value=${val(p.name)} inputmode=${num ? 'numeric' : null}
-				onInput=${(e) => set(p.type === 'code' ? +e.target.value : e.target.value)} /></label>`;
+			const num = p.type === 'code' && p.name !== TEMP;
+			const help = p.name === TEMP ? 'Abgleich der Prozessortemperatur in °C (-45..45), wird zur Messung addiert' : p.help;
+			return html`<label title=${p.name}>${help}<input value=${val(p.name)} inputmode=${num ? 'numeric' : null}
+				onInput=${(e) => set(e.target.value)} /></label>`;
 		})}
 		<div class="row"><button class="primary" type="submit">Speichern</button></div>
 		</form>
@@ -952,11 +985,117 @@ function SystemPage({ onBusy, expert, setExpert }) {
 	<//>
 	<${ViewCard} expert=${expert} setExpert=${setExpert} />
 	${expert && html`<${SysConfig} part="temperatur" />`}
+	${expert && html`<${Console} />`}
 	<${Update} onBusy=${onBusy} />
 	<${Card} title="Lizenz">
 		<p class="msg">Wallfree ist freie Software unter der Apache License 2.0 und wird ohne jede
 			Gewährleistung bereitgestellt. Sie enthält Zephyr, Preact, htm und weitere Software anderer
 			Autoren: <a href="/lizenzen.txt" target="_blank">Lizenzhinweise</a>.</p>
+	<//>`;
+}
+
+// Vervollstaendigung (SOLL-SH-23): Kommandobaum einmal von der Steuerung, Namen der Parameter
+// bei Bedarf aus den Parameterbeschreibungen. Liefert die Vorschlaege fuer das letzte Wort.
+const ARG_NAMES = { 'param get': 'p', 'param set': 'p', 'param list': 'p', 'sys set': 's' };
+function useCompletion() {
+	const tree = useRef(null);
+	const names = useRef({});
+	const [, setReady] = useState(0);
+	useEffect(() => {
+		api('/system/shell_commands').then((t) => { tree.current = t; setReady((n) => n + 1); }).catch(() => {});
+	}, []);
+	const loadNames = (k) => {
+		if (names.current[k]) return;
+		names.current[k] = [];
+		api(k === 'p' ? '/evse/param_info' : '/system/config_info')
+			.then((l) => { names.current[k] = l.map((x) => [x.name, x.help]); setReady((n) => n + 1); })
+			.catch(() => { delete names.current[k]; });
+	};
+	// Vorschlaege [Wort, Hilfe] fuer die Zeile; ctx = alles vor dem letzten Wort
+	return (line) => {
+		const words = line.replace(/^\s+/, '').split(/\s+/);
+		const last = words.pop(), ctx = words.join(' ');
+		let opts = [];
+		if (ARG_NAMES[ctx]) {
+			loadNames(ARG_NAMES[ctx]);
+			opts = names.current[ARG_NAMES[ctx]];
+		} else if (tree.current) {
+			const pre = ctx ? ctx + ' ' : '';
+			opts = tree.current.filter(([p]) => p.startsWith(pre) && p.length > pre.length
+				&& !p.slice(pre.length).includes(' ')).map(([p, h]) => [p.slice(pre.length), h]);
+		}
+		return { ctx, last, opts: opts.filter(([w]) => w.startsWith(last)) };
+	};
+}
+
+const commonPrefix = (l) => l.reduce((a, w) => { let i = 0; while (i < a.length && a[i] === w[i]) i++; return a.slice(0, i); });
+
+// Ein Kommando je Anfrage; Verlauf mit Pfeil hoch/runter nur in dieser Seite; Tab ergaenzt,
+// Vorschlaege darunter zum Antippen (Handy ohne Tab-Taste)
+function Console() {
+	const [lines, setLines] = useState([]);
+	const [cmd, setCmd] = useState('');
+	const [busy, setBusy] = useState(false);
+	const hist = useRef({ list: [], pos: 0 });
+	const out = useRef(null);
+	const input = useRef(null);
+	const complete = useCompletion();
+	useEffect(() => {
+		if (out.current) out.current.scrollTop = out.current.scrollHeight;
+		if (input.current && lines.length) input.current.focus();
+	}, [lines]);
+	const run = async (ev) => {
+		ev.preventDefault();
+		const c = cmd.trim();
+		if (!c || busy) return;
+		const h = hist.current;
+		if (h.list[h.list.length - 1] !== c) h.list = [...h.list, c].slice(-50);
+		h.pos = h.list.length;
+		setCmd('');
+		setBusy(true);
+		let text, bad = false;
+		try { text = await shell(c); } catch (e) { text = e.message; bad = true; }
+		setLines((l) => [...l.slice(-19), { cmd: c, text: text.replace(/\s+$/, ''), bad }]);
+		setBusy(false);
+	};
+	const sugg = cmd.trim() ? complete(cmd) : { opts: [] };
+	const take = (w, done) => {
+		setCmd((sugg.ctx ? sugg.ctx + ' ' : '') + w + (done ? ' ' : ''));
+		if (input.current) input.current.focus();
+	};
+	const key = (ev) => {
+		const h = hist.current;
+		if (ev.key === 'Tab') {
+			if (!cmd.trim()) return;
+			ev.preventDefault();
+			const o = sugg.opts.map(([w]) => w);
+			if (o.length === 1) take(o[0], true);
+			else if (o.length > 1) take(commonPrefix(o), false);
+			return;
+		}
+		if (ev.key === 'ArrowUp' && h.pos > 0) h.pos--;
+		else if (ev.key === 'ArrowDown' && h.pos < h.list.length) h.pos++;
+		else return;
+		ev.preventDefault();
+		setCmd(h.list[h.pos] || '');
+	};
+	// Vorschlaege nur, solange es etwas zu waehlen gibt (nicht beim fertig getippten Wort)
+	const show = sugg.opts.length > 0 && !(sugg.opts.length === 1 && sugg.opts[0][0] === sugg.last);
+	return html`<${Card} title="Konsole">
+		<p class="muted msg">Shell-Kommandos für die Diagnose, z. B. <code>status</code>, <code>log</code> (jüngste
+			Meldungen), <code>param list lock</code> oder <code>threads</code>; <code>help</code> zeigt
+			alle. Tab ergänzt Kommandos und Parameternamen. Kommandos wirken sofort und ohne Rückfrage.</p>
+		${lines.length > 0 && html`<pre class="console" ref=${out}>${lines.map((l) =>
+			html`<b>› ${l.cmd}</b>${'\n'}<span class=${l.bad ? 'bad' : ''}>${l.text}</span>${'\n'}`)}</pre>`}
+		<form class="row cmdline" onSubmit=${run}>
+			<input class="mono" ref=${input} value=${cmd} onInput=${(e) => setCmd(e.target.value)} onKeyDown=${key}
+				maxlength="255" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="status"
+				aria-label="Kommando" />
+			<button type="submit" disabled=${busy}>${busy ? 'Läuft …' : 'Ausführen'}</button>
+		</form>
+		${show && html`<div class="sugg">${sugg.opts.slice(0, 60).map(([w, help]) =>
+			html`<button type="button" class="mono" title=${help} onMouseDown=${(e) => e.preventDefault()}
+				onClick=${() => take(w, true)}>${w}</button>`)}</div>`}
 	<//>`;
 }
 

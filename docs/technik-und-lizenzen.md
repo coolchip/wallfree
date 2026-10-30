@@ -6,7 +6,7 @@ Womit Wallfree gebaut ist und unter welchen Lizenzen die verwendete Software ste
 
 | Baustein | Version | Wofür |
 | --- | --- | --- |
-| [Zephyr RTOS](https://zephyrproject.org) | 4.4.2 | Betriebssystem: Threads, Watchdog, Netzwerk (IPv4, TCP/UDP, DHCP, DNS), HTTP-Server mit WebSocket, MQTT-Client, SNTP, Modbus RTU, Shell mit Telnet, Protokollausgabe |
+| [Zephyr RTOS](https://zephyrproject.org) | 4.4.2 | Betriebssystem: Threads, Watchdog, Netzwerk (IPv4, TCP/UDP, DHCP, DNS), HTTP-Server mit WebSocket, MQTT-Client, SNTP, Modbus RTU, Shell (Konsole der Weboberfläche), Protokollausgabe |
 | Zephyr SDK | 1.0.1 | Compiler GCC 14.3 für ARM Cortex-M3, C-Bibliothek picolibc 1.8.10 |
 | STM32Cube HAL/LL für STM32F2 | aus Zephyr (`hal_stm32`) | Ethernet-Treiber und Hilfsfunktionen für den STM32F207 |
 | CMSIS | aus Zephyr | Zugriff auf den Prozessorkern |

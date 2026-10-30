@@ -34,7 +34,7 @@ genaue Festlegung jedes Punkts steht in der [Soll-Spezifikation](soll-spezifikat
 | Unterspannung | Die Fehlerstromüberwachung pausiert, danach Neubeginn im Grundzustand. | Nur eine Warnung; die Fehlerstromüberwachung bleibt aktiv. | Der Schutz bleibt durchgehend wirksam. |
 | Watchdog | Überwachung der Abläufe mit etwa 60 s, Hardware-Watchdog etwa 3 s; die Ausgänge bleiben bis zum Neustart, wie sie sind. | 250 ms; vor jedem Neustart Schütz aus und Ladesignal in den sicheren Zustand. | Hängende Software darf nicht weiterladen. |
 | Prozessorausnahme | Bleibt stehen, bis der Watchdog neu startet (etwa 3 s). | Sofort sicherer Zustand, Ursache wird gesichert, Neustart. | wie oben |
-| Selbsttest des Fehlerstromsensors | Zeitmessung mit zwei Antwortprofilen. | Feste Zeitfolge wie in Phoenix 1.27; jede Abweichung sperrt das Laden. | nachvollziehbar und passend zu den Prüfpunkten des Sensors |
+| Selbsttest des Fehlerstromsensors | Zeitmessung mit zwei Antwortprofilen. | Feste Zeitfolge; jede Abweichung sperrt das Laden. | nachvollziehbar und passend zu den Prüfpunkten des Sensors |
 | Schützüberwachung, Modus 4 | Meldet nur, wenn auf allen drei Phasen Spannung anliegt. | Jede Phase einzeln; der Modus braucht eine Messquelle der Ladelogik und ist ohne sie nicht wählbar. | Ein auf einer Phase hängender Kontakt soll erkannt werden. |
 | Schützfehler | Verschwindet, sobald er nicht mehr erkannt wird. | Bleibt bis zum Neustart oder bis zur Quittierung in der Weboberfläche. | Ein Schützfehler soll bemerkt werden. |
 | Diodenprüfung | Bei fehlender Fahrzeugdiode bleibt das Ladesignal auf -12 V. | 3 s -12 V, danach +12 V, damit das Abstecken erkannt wird; der Fehler bleibt bis dahin. | eindeutiger Fehler für das Fahrzeug, danach normaler Ablauf |
@@ -48,8 +48,8 @@ genaue Festlegung jedes Punkts steht in der [Soll-Spezifikation](soll-spezifikat
 | Takt der Ladelogik | 25 ms | 10 ms | schnellere, gleichmäßige Reaktion |
 | Ladeende | über verteilte Wartezeiten | eigener Zustand „Beenden“: Ladesignal aus, Schütz nach der Reaktion des Fahrzeugs, spätestens nach 5 s | eindeutige Reihenfolge |
 | Vorrang mehrerer Ereignisse | die zuletzt ausgewertete Bedingung gewinnt | feste Reihenfolge: Schutzfehler, dann Freigabe und Verfügbarkeit, dann Entriegeln, dann Stromänderungen | eindeutiges Verhalten |
-| Fahrzeug pausiert (B ohne Ladesignal) | Rückfall in einen früheren Zustand mit neuem Selbsttest | bleibt im Zustand, kein neuer Selbsttest | unnötige Tests vermeiden (wie 1.27) |
-| Weckfolge | nach 5 s und nach jeder Stromsperre erneut | ab Werk nach 30 s, einmal je Steckvorgang (wie 1.27); Wartezeit und Wiederholung einstellbar (`wakeup_delay`, `wakeup_mode`) | Fahrzeugkompatibilität ohne festes Verhalten |
+| Fahrzeug pausiert (B ohne Ladesignal) | Rückfall in einen früheren Zustand mit neuem Selbsttest | bleibt im Zustand, kein neuer Selbsttest | unnötige Tests vermeiden |
+| Weckfolge | nach 5 s und nach jeder Stromsperre erneut | ab Werk nach 30 s, einmal je Steckvorgang; Wartezeit und Wiederholung einstellbar (`wakeup_delay`, `wakeup_mode`) | Fahrzeugkompatibilität ohne festes Verhalten |
 | 5-%-Modus | nicht erreichbar | gibt 5 % aus, Schütz bleibt aus, Status „digitale Kommunikation nicht verfügbar“ | wie im Handbuch beschrieben; digitale Kommunikation unterstützt die Steuerung nicht |
 | Ströme über 80 A | ergeben einen Tastgrad von 0 | werden abgelehnt | keine undefinierte Ausgabe |
 | Tastgrad bei 51,1..52,4 A | etwas kleiner gerundet | Regel nach Norm (51,0 A) | beide bleiben unter dem Sollstrom |
@@ -60,7 +60,7 @@ genaue Festlegung jedes Punkts steht in der [Soll-Spezifikation](soll-spezifikat
 
 | Thema | Originalfirmware | Wallfree | Grund |
 | --- | --- | --- | --- |
-| Rückmeldung des Motors | wallbe-Firmware: gepulst; Phoenix 1.27: Auswertung der Flanken | beide Arten wählbar: Dauersignal (Code 3) und gepulst (Code 22, wie wallbe) | Beschaltungen unterscheiden sich; die Auswertung von 1.27 passt nicht zu gepulsten Rückmeldungen |
+| Rückmeldung des Motors | wallbe-Firmware: gepulst; Phoenix 1.27: Auswertung der Flanken | beide Arten wählbar: Dauersignal (Code 3) und gepulst (Code 22, wie wallbe) | Beschaltungen unterscheiden sich; eine Auswertung der Flanken passt nicht zu gepulsten Rückmeldungen |
 | Ablauf | wartet blockierend bis zur Rückmeldung (bis etwa 3 s, im Extremfall länger) | zeitgesteuert ohne Warten | Schutzreaktionen warten nicht auf den Motor |
 | Rückmeldung verloren beim Laden | Wiederverriegeln, während das Schütz noch an sein kann | Schütz sofort aus, dann ein Wiederverriegelungsversuch | Laden nur mit gesicherter Verriegelung |
 | Entriegeln klemmt | Versuche ohne Ende | nach 4 Fehlversuchen Fehlermeldung, keine weiteren Versuche bis zum nächsten Fahrzeug | schont den Motor |
@@ -78,6 +78,7 @@ genaue Festlegung jedes Punkts steht in der [Soll-Spezifikation](soll-spezifikat
 | Freigabe über Schnittstelle | jeder Wert ungleich 0 gilt als 1 | nur 0 und 1 | eindeutig |
 | Werkseinstellungen | wallbe: LR 17, CR 40, LD 22; Phoenix 1.27: LR 29, CR 17, LD 3, Schützüberwachung aus | nach Handbuch der Steuerung: ER 15, LR 29, VR 16, CR 17, LD 3, EN 1, XR 2, IN 11, ML 4; Schützüberwachung an (Spannung am Ladepunkt) | das Handbuch ist die Referenz; Schützüberwachung aus Sicherheitsgründen an |
 | Einheit der Ströme an der Schnittstelle | 0,1 A bzw. A | mA wie WARP | kompatibel zu evcc |
+| Reset-Taster beim Start gehalten | nach 5 s Werkseinstellungen | Loslassen zwischen 5 und 10 s startet den Bootloader (Notweg zum Aufspielen, Adresse 192.168.0.8); nach 10 s Werkseinstellungen. Mit der Verzögerung der Steuerung nach dem Drücken (etwa 5 s) insgesamt etwa 10 bzw. 15 s | Firmware aufspielen auch ohne erreichbare Weboberfläche; Werksreset wie im Handbuch nach über 10 s |
 
 ## Rückweg und Übernahme
 
@@ -87,8 +88,8 @@ genaue Festlegung jedes Punkts steht in der [Soll-Spezifikation](soll-spezifikat
   Abbildern ausdrücklich nach. Auf einer Steuerung geprüft.
 - **Einstellungen der Originalfirmware** bleiben dabei erhalten: Wallfree speichert seine
   eigenen Einstellungen in einem anderen Bereich des Flash und schreibt den Bereich der
-  Originalfirmware nie. Ein Import dieser Einstellungen in Wallfree (Shell-Befehl
-  `evse import-original`) ist eingebaut, auf einer Steuerung aber noch nicht ausgeführt.
+  Originalfirmware nie. Ein Import dieser Einstellungen in Wallfree (Befehl
+  `import-original` in der Konsole der Weboberfläche) ist eingebaut, auf einer Steuerung aber noch nicht ausgeführt.
 - **Voraussetzung:** eine Firmwaredatei des Herstellers. Wallfree enthält die Originalfirmware
   nicht und kann die installierte nicht auslesen. Schritt für Schritt:
   [Umrüsten auf Wallfree und zurück](umruesten.md).

@@ -74,8 +74,9 @@ class Response:
 class Sim:
     """Ein laufender native_sim-Prozess mit eigener Flash-Datei."""
 
-    def __init__(self, exe, workdir, http_port, extra_args=(), env=None):
+    def __init__(self, exe, workdir, http_port, extra_args=(), env=None, telnet=True):
         self.exe = os.path.abspath(exe)
+        self.telnet = telnet  # ohne: Bau wie die Steuerung (test_e2e.T9WieSteuerung)
         self.env = dict(env or {})
         self.workdir = workdir
         self.http_port = http_port
@@ -132,7 +133,7 @@ class Sim:
         while time.monotonic() - t0 < timeout:
             if not self.alive():
                 raise AssertionError(f"Simulation beendet, siehe {self.log_path}")
-            if self.port_open(self.http_port) and self.port_open(TELNET_PORT):
+            if self.port_open(self.http_port) and (not self.telnet or self.port_open(TELNET_PORT)):
                 return
             time.sleep(0.1)
         raise AssertionError(f"HTTP/Telnet nicht erreichbar, siehe {self.log_path}")
@@ -254,13 +255,14 @@ class Sim:
         self._read(lambda t: False, 0.2)  # Reste (Logzeilen, alte Prompts) abholen
         # Endmarke: Logzeilen zeichnen das Prompt jederzeit neu, ein Prompt allein
         # zeigt das Ende der Ausgabe nicht sicher an
-        self.tn.sendall(cmd.encode() + b"\r\nkernel uptime\r\n")
-        out = self._read(lambda t: re.search(r"Uptime: \d+ ms", t) is not None, timeout)
-        out = re.split(r"Uptime: \d+ ms", out)[0]
-        # Echo des Kommandos kommt nicht immer zurueck
-        i = out.find(cmd)
-        rest = out[i + len(cmd):] if i >= 0 else out
-        rest = rest.replace("kernel uptime", "")
+        self.tn.sendall(cmd.encode() + b"\r\nuptime\r\n")
+        out = self._read(lambda t: re.search(r"Laufzeit \d+ ms", t) is not None, timeout)
+        out = re.split(r"Laufzeit \d+ ms", out)[0]
+        # Echo des Kommandos kommt nicht immer zurueck; nur als ganze Zeile, sonst trifft ein
+        # kurzes Kommando ("meter") auch die Ausgabe
+        m = re.search(r"(?m)^(?:~\$ )?" + re.escape(cmd) + r"[ \t]*$", out)
+        rest = out[m.end():] if m else out
+        rest = re.sub(r"(?m)^(~\$ )?uptime\s*$", "", rest)  # Echo der Endmarke
         # Logmeldungen laufen ebenfalls ueber die Telnet-Shell
         lines = [ln for ln in rest.splitlines()
                  if ln.strip() not in ("", "~$") and not LOG_LINE.match(ln.lstrip("~$ "))]

@@ -127,6 +127,28 @@ out.settings = await go('#/einstellungen/zaehler');
 await shot('3b-einstellungen-zaehler');
 out.settingsNet = await go('#/einstellungen/netzwerk');
 out.system = await go('#/system');
+// Konsole (SOLL-SH-19): Kommando eingeben und ausfuehren
+await evalJs(`(() => { const e = document.querySelector('input[aria-label=Kommando]');
+	e.value = 'status'; e.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+await sleep(100);
+out.consoleClick = await click('Ausführen');
+await sleep(1500);
+out.console = await evalJs("(document.querySelector('pre.console') || {}).innerText || ''");
+// Vervollstaendigung (SOLL-SH-23): Tab ergaenzt eindeutig, Vorschlaege zum Antippen
+const typeCmd = (v) => evalJs(`(() => { const e = document.querySelector('input[aria-label=Kommando]'); e.focus();
+	e.value = ${JSON.stringify(v)}; e.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+const pressTab = () => evalJs(`document.querySelector('input[aria-label=Kommando]').dispatchEvent(
+	new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }))`);
+await typeCmd('sta');
+await sleep(200);
+await pressTab();
+await sleep(200);
+out.tab1 = await evalJs("document.querySelector('input[aria-label=Kommando]').value");
+await typeCmd('param get lock_');
+await sleep(1500); // Parameternamen nachladen
+out.sugg = await evalJs("[...document.querySelectorAll('.sugg button')].map((b) => b.textContent).join(',')");
+await shot('5-konsole');
+await typeCmd('');
 await evalJs('history.back()');
 await sleep(1500);
 out.back = await evalJs('location.hash');
@@ -192,6 +214,27 @@ out.afterClear = await text();
 const log = await api('/system/log');
 out.clearLog = log.entries.map((e) => e.kind + (e.addr ? ' ' + e.addr : '')).join(',');
 
+// Prozessortemperatur: Abgleich in Grad, Zwischenstaende beim Tippen ("-", "-3,") bleiben stehen
+const tempIn = `document.querySelector('label[title=mcu_temp_offset] input')`;
+const typeTemp = async (v) => { await setField(tempIn, v, 'input'); await sleep(100); return evalJs(`${tempIn}.value`); };
+await go('#/system');
+out.temp = [await typeTemp('-'), await typeTemp('-3,')];
+await typeTemp('-3,5');
+await click('Speichern');
+await sleep(1500);
+out.temp.push((await api('/system/config')).saved.mcu_temp_offset, await evalJs(`${tempIn}.value`));
+await typeTemp('-3.5');
+await click('Speichern');
+await sleep(1500);
+out.temp.push((await api('/system/config')).saved.mcu_temp_offset);
+await typeTemp('abc');
+await click('Speichern');
+await sleep(500);
+out.tempBad = await text();
+await typeTemp('0');
+await click('Speichern');
+await sleep(1500);
+
 // Netzwerk: Wert speichern, der erst nach Neustart wirkt; "Jetzt neu starten"
 const cfg0 = await api('/system/config');
 await go('#/einstellungen/netzwerk');
@@ -248,9 +291,14 @@ const checks = [
 	['Status: Ladestrom als Werte', out.expert.includes('Maximum Drehschalter') && out.expert.includes('Erlaubt')],
 	['Status: Verlauf ohne Ablesezeile, Hinweis nur beim Zeigen', !out.tipBefore && out.history.includes('jetzt')],
 	['Status: Verlauf (laufendes Intervall)', /jetzt .* · (lädt|angesteckt)/.test(out.history)],
-	['Einstellungen Netzwerk ohne Zustandszeile', out.settingsNet.includes('DHCP') && out.settingsNet.includes('Telnet')
+	['Einstellungen Netzwerk ohne Zustandszeile', out.settingsNet.includes('DHCP') && !out.settingsNet.includes('Telnet')
 		&& !out.settingsNet.includes('Broker') && !out.settingsNet.includes('Aktiv:')],
 	['System', out.system.includes('Firmware') && out.system.includes('Neu starten')],
+	['System: Konsole (Expertenansicht)', out.consoleClick && out.console.includes('› status')
+		&& out.console.includes('Zustand  S')],
+	['Konsole: Tab ergaenzt', out.tab1 === 'status '],
+	['Konsole: Vorschlaege Parameternamen', out.sugg.includes('lock_pulse') && out.sugg.includes('lock_cycle_gap')
+		&& !out.sugg.includes('unlock_pulse')],
 	['System: Lizenzhinweis', out.system.includes('Apache License 2.0') && out.system.includes('Lizenzhinweise')],
 	['Zurueck-Taste', out.back === '#/einstellungen/netzwerk'],
 	['Ereignisprotokoll mit Loeschen', out.expert2.includes('Protokoll löschen')],
@@ -260,6 +308,8 @@ const checks = [
 	['Laden: Meldung "gespeichert"', out.paramMsg.includes('gespeichert')],
 	['Protokoll loeschen: Rueckfrage, nur Loescheintrag', out.clearClick && dialogs.some((d) => d.includes('Ereignisprotokolls löschen'))
 		&& out.clearLog.startsWith('cleared 127.0.0.1') && out.afterClear.includes('Ereignisprotokoll gelöscht von 127.0.0.1')],
+	['Temperatur: Eingabe in Grad mit Komma und Punkt', JSON.stringify(out.temp) === '["-","-3,",-35,"-3,5",-35]'
+		&& out.tempBad.includes('keine Zahl')],
 	['Netzwerk: Hinweis Neustart', out.netSaved.includes('wirkt nach Neustart') && out.netSaved.includes('Jetzt neu starten')
 		&& out.netSaved.includes('Status → Verbindungen')],
 	['Neustart ueber die Seite: Rueckfrage, Neustart, Wert aktiv', out.restartClick && dialogs.some((d) => d.includes('neu starten'))

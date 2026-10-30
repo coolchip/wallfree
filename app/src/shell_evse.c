@@ -12,6 +12,7 @@
 #include <wallfree/api/meter_json.h>
 #include <wallfree/evse/param.h>
 #include "evse_task.h"
+#include "log_ring.h"
 #include "meter_task.h"
 #include "mqtt_task.h"
 #include "netcfg.h"
@@ -52,12 +53,17 @@ static const char *kind_name(uint8_t k)
 	return k == EVSE_PK_CONFIG ? "cfg" : k == EVSE_PK_RUNTIME ? "rt" : "ro";
 }
 
+/* optional nur Namen mit diesem Anfang: die ganze Liste passt nicht in die Konsole */
 static int cmd_param_list(const struct shell *sh, size_t argc, char **argv)
 {
-	ARG_UNUSED(argc);
-	ARG_UNUSED(argv);
+	const char *pre = argc > 1 ? argv[1] : "";
+
 	for (size_t i = 0; i < evse_param_count(); i++) {
 		const struct evse_param *p = evse_param_at(i);
+
+		if (strncmp(p->name, pre, strlen(pre)) != 0) {
+			continue;
+		}
 		struct evse *e = evse_acquire();
 		int32_t v = evse_param_get(e, p);
 
@@ -173,7 +179,7 @@ static int cmd_nvm(const struct shell *sh, size_t argc, char **argv)
 static int cmd_factory_reset(const struct shell *sh, size_t argc, char **argv)
 {
 	if (argc < 2 || strcmp(argv[1], "confirm") != 0) {
-		shell_print(sh, "Werkseinstellungen: 'evse factory-reset confirm' (danach Neustart)");
+		shell_print(sh, "Werkseinstellungen: 'factory-reset confirm' (danach Neustart)");
 		return -EINVAL;
 	}
 	int r = storage_factory_reset();
@@ -378,7 +384,7 @@ static int cmd_errors_clear(const struct shell *sh, size_t argc, char **argv)
 				   : "Schuetzfehler nicht quittiert (Ursache besteht oder falscher Zustand)");
 	}
 	if (left & ~(ok ? EVSE_ERR_CONTACTOR : 0)) {
-		print_mask(sh, "weiter aktiv (siehe evse errors):", left & ~(ok ? EVSE_ERR_CONTACTOR : 0));
+		print_mask(sh, "weiter aktiv (siehe errors):", left & ~(ok ? EVSE_ERR_CONTACTOR : 0));
 	} else {
 		shell_print(sh, "keine aktiven Fehler");
 	}
@@ -397,7 +403,7 @@ static int cmd_selftest(const struct shell *sh, size_t argc, char **argv)
 		shell_error(sh, "nur in S1 ohne Fahrzeug (CP A) und wenn kein Test laeuft");
 		return -EBUSY;
 	}
-	shell_print(sh, "RCM-Selbsttest gestartet; Ergebnis: evse param get rcm_selftest "
+	shell_print(sh, "RCM-Selbsttest gestartet; Ergebnis: param get rcm_selftest "
 			"(2 bestanden, 3 fehlgeschlagen)");
 	return 0;
 }
@@ -470,7 +476,7 @@ static int cmd_meter(const struct shell *sh, size_t argc, char **argv)
 	struct wf_jbuf b;
 
 	if (meter_task_type() == METER_NONE) {
-		shell_print(sh, "kein Zaehler konfiguriert (evse sys set meter_type ...)");
+		shell_print(sh, "kein Zaehler konfiguriert (sys set meter_type ...)");
 		return 0;
 	}
 	(void)meter_task_get(&mv);
@@ -551,6 +557,70 @@ static int cmd_sys_set(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+/*
+ * SOLL-SH-21: Ersatz fuer Zephyrs kernel thread stacks, nur lesend (kernel enthaelt auch
+ * suspend/kill). Ohne Sperre durchlaufen wie dort: die Ausgabe darf nicht unter
+ * gesperrten Interrupts laufen.
+ */
+static void thread_line(const struct k_thread *t, void *user_data)
+{
+	const struct shell *sh = user_data;
+	size_t size = t->stack_info.size, unused;
+	const char *name = k_thread_name_get((struct k_thread *)t);
+
+	if (k_thread_stack_space_get(t, &unused) != 0) {
+		unused = size;
+	}
+	shell_print(sh, "%-20s %4d %5u/%-5u %3u %%", name != NULL && name[0] ? name : "?",
+		    k_thread_priority_get((struct k_thread *)t), (unsigned int)(size - unused),
+		    (unsigned int)size, size ? (unsigned int)((size - unused) * 100 / size) : 0);
+}
+
+K_KERNEL_STACK_ARRAY_DECLARE(z_interrupt_stacks, CONFIG_MP_MAX_NUM_CPUS, CONFIG_ISR_STACK_SIZE);
+
+static int cmd_threads(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	shell_print(sh, "%-20s %4s %11s", "Thread", "Prio", "Stack");
+	k_thread_foreach_unlocked(thread_line, (void *)sh);
+#ifndef CONFIG_ARCH_POSIX
+	/* Interrupt-Stack: ungenutzte Bytes ab dem unteren Ende (CONFIG_INIT_STACKS) */
+	const uint8_t *buf = K_KERNEL_STACK_BUFFER(z_interrupt_stacks[0]);
+	size_t size = K_KERNEL_STACK_SIZEOF(z_interrupt_stacks[0]), unused = 0;
+
+	while (unused < size && buf[unused] == 0xaa) {
+		unused++;
+	}
+	shell_print(sh, "%-20s %4s %5u/%-5u %3u %%", "IRQ", "", (unsigned int)(size - unused),
+		    (unsigned int)size, (unsigned int)((size - unused) * 100 / size));
+#endif
+	return 0;
+}
+
+/* SOLL-SH-22: juengste Logmeldungen, "clear" leert den Ring */
+static int cmd_log(const struct shell *sh, size_t argc, char **argv)
+{
+	if (argc > 1) {
+		if (strcmp(argv[1], "clear") != 0) {
+			shell_error(sh, "nur: log [clear]");
+			return -EINVAL;
+		}
+		log_ring_clear();
+		return 0;
+	}
+	log_ring_print(sh);
+	return 0;
+}
+
+static int cmd_uptime(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	ARG_UNUSED(argv);
+	shell_print(sh, "Laufzeit %lld ms", (long long)k_uptime_get());
+	return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_errors,
 	SHELL_CMD_ARG(clear, NULL, "quittieren (nur Schuetzfehler; andere loeschen sich selbst)",
 		      cmd_errors_clear, 1, 0),
@@ -563,38 +633,52 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_sys,
 	SHELL_SUBCMD_SET_END);
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_param,
-	SHELL_CMD_ARG(list, NULL, "alle Parameter", cmd_param_list, 1, 0),
+	SHELL_CMD_ARG(list, NULL, "[Anfang] Parameter, optional nur Namen mit diesem Anfang",
+		      cmd_param_list, 1, 1),
 	SHELL_CMD_ARG(get, NULL, "<name>", cmd_param_get, 2, 0),
 	SHELL_CMD_ARG(set, NULL, "<name> <wert>", cmd_param_set, 3, 0),
 	SHELL_SUBCMD_SET_END);
 
-SHELL_STATIC_SUBCMD_SET_CREATE(sub_evse,
-	SHELL_CMD_ARG(status, NULL, "Zustand der Ladelogik", cmd_status, 1, 0),
-	SHELL_CMD(param, &sub_param, "Parameter", NULL),
-	SHELL_CMD_ARG(ack, NULL, "Schuetzfehler quittieren", cmd_ack, 1, 0),
-	SHELL_CMD(sys, &sub_sys, "Netz- und Systemparameter", NULL),
-	SHELL_CMD_ARG(current, NULL, "<mA> Sollstrom Slot external (0, 6000..80000)", cmd_current,
-		      2, 0),
-	SHELL_CMD_ARG(enable, NULL, "0|1 Freigabe-Register (mit D10)", cmd_enable, 2, 0),
-	SHELL_CMD_ARG(avail, NULL, "0|1 Verfuegbarkeit (mit D10)", cmd_avail, 2, 0),
-	SHELL_CMD_ARG(pause, NULL, "0|1 Laden unterbrechen", cmd_pause, 2, 0),
-	SHELL_CMD_ARG(pwm5, NULL, "0|1 5-%-Modus", cmd_pwm5, 2, 0),
-	SHELL_CMD_ARG(lock, NULL, "0|1 Verriegelungswunsch (mit D9)", cmd_lock, 2, 0),
-	SHELL_CMD_ARG(unlock, NULL, "Entriegeln anfordern", cmd_unlock, 1, 0),
-	SHELL_CMD_ARG(errors, &sub_errors, "aktive Fehler, Historie", cmd_errors, 1, 0),
-	SHELL_CMD_ARG(selftest, NULL, "RCM-Selbsttest (nur S1, CP A)", cmd_selftest, 1, 0),
-	SHELL_CMD_ARG(reboot, NULL, "geordneter Neustart (SOLL-RT-22)", cmd_reboot, 1, 0),
-	SHELL_CMD_ARG(bootloader, NULL, "Update: Uebergabe an den Bootloader (SOLL-SH-10)",
-		      cmd_bootloader, 1, 0),
-	SHELL_CMD_ARG(boot, NULL, "Diagnose: Reset-Flags und Bootloader-Register beim Start",
-		      cmd_boot, 1, 0),
-	SHELL_CMD_ARG(nvm, NULL, "Zustand des Parameterspeichers", cmd_nvm, 1, 0),
-	SHELL_CMD_ARG(meter, NULL, "Energiezaehler: Messwerte und Fehlerzaehler", cmd_meter, 1, 0),
-	SHELL_CMD_ARG(mqtt, NULL, "MQTT: Verbindung und Zaehler", cmd_mqtt, 1, 0),
-	SHELL_CMD_ARG(factory-reset, NULL, "confirm: Werkseinstellungen und Neustart",
-		      cmd_factory_reset, 1, 1),
-	SHELL_CMD_ARG(import-original, NULL, "Einstellungen aus der Originalfirmware uebernehmen",
-		      cmd_import, 1, 0),
-	SHELL_SUBCMD_SET_END);
+/* Kommandos direkt an der Wurzel, ohne gemeinsamen Vorsatz (SOLL-SH-19); "help" (Zephyr)
+ * listet sie. Namen mit Bindestrich brauchen einen eigenen Bezeichner, sonst wie
+ * SHELL_CMD_ARG_REGISTER (Zephyr 4.4.2, bei Updates pruefen).
+ */
+#define ROOT_CMD_ARG(id, syntax, subcmd, help, handler, mand, opt)                          \
+	static const struct shell_static_entry UTIL_CAT(_shell_, id) =                      \
+		SHELL_CMD_ARG(syntax, subcmd, help, handler, mand, opt);                    \
+	static const TYPE_SECTION_ITERABLE(union shell_cmd_entry, UTIL_CAT(shell_cmd_, id), \
+					   shell_root_cmds, UTIL_CAT(shell_cmd_, id)) = {   \
+		.entry = &UTIL_CAT(_shell_, id)}
 
-SHELL_CMD_REGISTER(evse, &sub_evse, "Ladelogik", NULL);
+SHELL_CMD_ARG_REGISTER(status, NULL, "Zustand der Ladelogik", cmd_status, 1, 0);
+SHELL_CMD_REGISTER(param, &sub_param, "Parameter", NULL);
+SHELL_CMD_ARG_REGISTER(ack, NULL, "Schuetzfehler quittieren", cmd_ack, 1, 0);
+SHELL_CMD_REGISTER(sys, &sub_sys, "Netz- und Systemparameter", NULL);
+SHELL_CMD_ARG_REGISTER(current, NULL, "<mA> Sollstrom Slot external (0, 6000..80000)",
+		       cmd_current, 2, 0);
+SHELL_CMD_ARG_REGISTER(enable, NULL, "0|1 Freigabe-Register (mit D10)", cmd_enable, 2, 0);
+SHELL_CMD_ARG_REGISTER(avail, NULL, "0|1 Verfuegbarkeit (mit D10)", cmd_avail, 2, 0);
+SHELL_CMD_ARG_REGISTER(pause, NULL, "0|1 Laden unterbrechen", cmd_pause, 2, 0);
+SHELL_CMD_ARG_REGISTER(pwm5, NULL, "0|1 5-%-Modus", cmd_pwm5, 2, 0);
+SHELL_CMD_ARG_REGISTER(lock, NULL, "0|1 Verriegelungswunsch (mit D9)", cmd_lock, 2, 0);
+SHELL_CMD_ARG_REGISTER(unlock, NULL, "Entriegeln anfordern", cmd_unlock, 1, 0);
+SHELL_CMD_ARG_REGISTER(errors, &sub_errors, "aktive Fehler, Historie", cmd_errors, 1, 0);
+SHELL_CMD_ARG_REGISTER(selftest, NULL, "RCM-Selbsttest (nur S1, CP A)", cmd_selftest, 1, 0);
+SHELL_CMD_ARG_REGISTER(reboot, NULL, "geordneter Neustart (SOLL-RT-22)", cmd_reboot, 1, 0);
+SHELL_CMD_ARG_REGISTER(bootloader, NULL, "Update: Uebergabe an den Bootloader (SOLL-SH-10)",
+		       cmd_bootloader, 1, 0);
+SHELL_CMD_ARG_REGISTER(boot, NULL, "Diagnose: Reset-Flags und Bootloader-Register beim Start",
+		       cmd_boot, 1, 0);
+SHELL_CMD_ARG_REGISTER(nvm, NULL, "Zustand des Parameterspeichers", cmd_nvm, 1, 0);
+SHELL_CMD_ARG_REGISTER(meter, NULL, "Energiezaehler: Messwerte und Fehlerzaehler", cmd_meter,
+		       1, 0);
+SHELL_CMD_ARG_REGISTER(mqtt, NULL, "MQTT: Verbindung und Zaehler", cmd_mqtt, 1, 0);
+SHELL_CMD_ARG_REGISTER(threads, NULL, "Threads mit Prioritaet und Stack-Auslastung",
+		       cmd_threads, 1, 0);
+SHELL_CMD_ARG_REGISTER(uptime, NULL, "Laufzeit seit dem Start", cmd_uptime, 1, 0);
+SHELL_CMD_ARG_REGISTER(log, NULL, "[clear] juengste Logmeldungen (seit dem Start, etwa 1,9 KB)",
+		       cmd_log, 1, 1);
+ROOT_CMD_ARG(factory_reset, factory-reset, NULL, "confirm: Werkseinstellungen und Neustart",
+	     cmd_factory_reset, 1, 1);
+ROOT_CMD_ARG(import_original, import-original, NULL,
+	     "Einstellungen aus der Originalfirmware uebernehmen", cmd_import, 1, 0);

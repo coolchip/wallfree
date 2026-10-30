@@ -432,7 +432,6 @@ aktive Einstellung und die Uhrzeit zeigt [Status › Verbindungen](#62-verbindun
 | Hostname (`net_hostname`) | leer | Name der Steuerung im Netz (1..32 Zeichen: Buchstaben, Ziffern, Bindestrich). Leer = `wallfree-` und das Ende der Hardwareadresse. Der Name dient auch als Kennung am MQTT-Broker. |
 | Uhrzeit von einem Zeitserver holen (`ntp_enable`) | an | Die Steuerung holt die Uhrzeit per SNTP; damit zeigen Protokoll und Verlauf echte Uhrzeiten, auch für Einträge vor einem Neustart. Wirkt sofort. Für das Laden wird die Uhrzeit nie gebraucht. |
 | Zeitserver (`ntp_server`) | leer | Name oder Adresse eines Zeitservers, z. B. `fritz.box` oder `ptbtime1.ptb.de`, optional mit `:Port`. Leer: der Zeitserver, den der Router mitteilt, sonst `pool.ntp.org`. Wirkt sofort. |
-| Telnet-Shell einschalten (`telnet_enable`) | aus | Wartungszugang über Telnet (Port 23) **ohne Passwort**. Für den normalen Betrieb ausschalten. |
 
 > **Achtung:** Eine falsche feste Adresse macht die Steuerung unerreichbar. Prüfen Sie die
 > Werte vor dem Neustart. Ist die gespeicherte Adresse in sich widersprüchlich, startet die
@@ -499,7 +498,7 @@ Sie es deshalb nur in einem vertrauenswürdigen Netz.
 | --- | --- |
 | Firmware | Version der Firmware (z. B. „Wallfree 0.1“), darunter klein der Build (Stand des Quelltexts, für Fehlermeldungen) |
 | Laufzeit | Zeit seit dem letzten Start |
-| Letzter Reset | Grund des letzten Starts: Einschalten, Neustart auf Anforderung (Oberfläche oder Wartungszugang), Firmware-Update, Werksreset, Reset-Taster, Spannungseinbruch, Watchdog, Überwachung bzw. Schnittstelle hing (die Überwachung hat neu gestartet; in Klammern, welche: z. B. „Ladelogik reagierte nicht“), Programmfehler (mit Programmstelle im Protokoll) |
+| Letzter Reset | Grund des letzten Starts: Einschalten, Neustart auf Anforderung (Oberfläche oder Konsole), Firmware-Update, Werksreset, Reset-Taster, Spannungseinbruch, Watchdog, Überwachung bzw. Schnittstelle hing (die Überwachung hat neu gestartet; in Klammern, welche: z. B. „Ladelogik reagierte nicht“), Programmfehler (mit Programmstelle im Protokoll) |
 | MAC-Adresse | Hardware-Adresse der Netzwerkschnittstelle (vom Hersteller vergeben, wie in der Originalfirmware); unter ihr kennt der Router die Wallbox, z. B. für eine feste IP-Adresse |
 | Prüfsumme | Prüfsumme der laufenden Firmware; „beschädigt, Laden gesperrt“, wenn sie nicht stimmt (z. B. nach einem unvollständigen Update) |
 | Letztes Update | nur nach einem Firmware-Update: erfolgreich oder fehlgeschlagen |
@@ -517,8 +516,17 @@ anderes Gerät zeigt also wieder die einfache Ansicht, bis man sie dort umschalt
 einige Grad abweichen. Zum Abgleich die Wallbox einige Stunden stromlos lassen, damit sie die
 Umgebungstemperatur annimmt, dann einschalten und kurz danach die angezeigte Temperatur
 (Status → Verbindungen) mit einem Thermometer neben der Steuerung vergleichen. Den Unterschied in
-Zehntelgrad eintragen und speichern, er wirkt sofort: Zeigt die Steuerung 34 °C und das
-Thermometer 21,5 °C, ist der Abgleich -125.
+°C eintragen (Komma oder Punkt, eine Nachkommastelle) und speichern, er wirkt sofort: Zeigt die
+Steuerung 34 °C und das Thermometer 21,5 °C, ist der Abgleich -12,5.
+
+**Konsole** (nur Expertenansicht): Eingabezeile für die Kommandos der Steuerung, gedacht für die
+Fehlersuche, z. B. `status` (Zustand in Kurzform), `param list lock` (alle Parameter,
+deren Name mit `lock` beginnt), `log` (die jüngsten Meldungen der Steuerung seit dem Start)
+oder `threads` (Auslastung der Programmteile); `help`
+listet alle. Die Tabulatortaste ergänzt Kommandos und Parameternamen; passende Vorschläge erscheinen
+unter der Eingabezeile und lassen sich antippen (auch am Handy). Je Eingabe läuft ein Kommando, die Antwort erscheint darunter (höchstens etwa
+2000 Zeichen, längere werden gekürzt). Mit Pfeil hoch und runter lassen sich frühere Eingaben
+wiederholen. Kommandos wirken sofort und ohne Rückfrage, wie Änderungen in den Einstellungen.
 
 **Lizenz:** Wallfree ist freie Software unter der Apache License 2.0. Der Link
 **Lizenzhinweise** zeigt die enthaltene Software anderer Autoren mit ihren Lizenzen.
@@ -556,6 +564,9 @@ einfachen Seite von Hand hochladen (PC dazu im Netz 192.168.0.x). Kommt die Firm
 an, startet sie, sperrt aber das Laden („Prüfsumme … beschädigt“); dann das Update wiederholen.
 Ein Fahrzeug sollte während des Updates nicht angesteckt sein.
 
+Ist die Weboberfläche nicht erreichbar, führt der Reset-Taster zum Bootloader
+([Abschnitt 9](#9-störungen-und-abhilfe), „Weboberfläche nicht erreichbar, Update nötig“).
+
 ## 9 Störungen und Abhilfe
 
 | Störung | Ursache und Abhilfe |
@@ -567,7 +578,8 @@ Ein Fahrzeug sollte während des Updates nicht angesteckt sein.
 | Fahrzeug lädt nicht | Übersicht: Zeile unter dem Ring („Vorgabe: Laden aus“, „Laden gesperrt“) und Kachel Fehler prüfen; Status › Fehler. Bei „Wartet auf Freigabe“ fehlt die Freigabe ([10.4](#104-freigabe-und-verfügbarkeit)). |
 | Zähler „gestört“ | [7.4](#74-zähler) |
 | Firmware-Update fehlgeschlagen | Unter System steht „Letztes Update: fehlgeschlagen“; es läuft die bisherige Firmware. Update wiederholen, vorher evcc und andere Abfragen anhalten. Steht die Steuerung danach im Update-Betrieb (alle LEDs der Steuerung an oder blinkend, Weboberfläche nicht erreichbar), die Seite des Bootloaders unter der bisherigen Adresse oder unter 192.168.0.8 öffnen und die Datei dort hochladen ([8.1](#81-firmware-update)). |
-| Passwort vergessen / Steuerung unerreichbar | **Werksreset:** Reset-Taster der Steuerung gedrückt halten (insgesamt etwa 10 Sekunden). Die Power-LED bleibt zunächst etwa 5 Sekunden dunkel, dann blinkt sie langsam; nach weiteren 5 Sekunden blinkt sie schnell, dann loslassen (geht auch beim Einschalten). Alle Einstellungen und die Zugangsdaten sind danach im Werkszustand (`admin` / `wallfree`, Netzwerk per DHCP). Kurzes Drücken startet die Steuerung nur neu. |
+| Passwort vergessen / Steuerung unerreichbar | **Werksreset:** Reset-Taster der Steuerung gedrückt halten. Die Power-LED bleibt zunächst etwa 5 Sekunden dunkel, blinkt dann 5 Sekunden langsam und danach 5 Sekunden schnell; erst wenn sie **dauerhaft leuchtet** (insgesamt etwa 15 Sekunden), loslassen (geht auch beim Einschalten). Alle Einstellungen und die Zugangsdaten sind danach im Werkszustand (`admin` / `wallfree`, Netzwerk per DHCP). Kurzes Drücken startet die Steuerung nur neu. |
+| Weboberfläche nicht erreichbar, Update nötig | **Notweg zum Bootloader:** Reset-Taster gedrückt halten, bis die Power-LED nach dem langsamen Blinken **schnell blinkt** (nach etwa 10 Sekunden), dann loslassen. Der Bootloader wartet danach unter **192.168.0.8** auf eine Firmware-Datei (PC dazu im Netz 192.168.0.x); dort die Datei hochladen ([8.1](#81-firmware-update)). Kommt keine Datei, startet nach einigen Minuten wieder die bisherige Firmware. Die Einstellungen bleiben erhalten. |
 
 ## 10 Anhang
 

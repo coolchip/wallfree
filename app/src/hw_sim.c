@@ -65,7 +65,7 @@ static void sim_options(void)
 		{.option = "rotary", .name = "pos", .type = 'u', .dest = &opt_rotary,
 		 .descript = "Drehschalter 0..15, Default 6 (32 A)"},
 		{.option = "reset-button", .name = "ms", .type = 'u', .dest = &opt_reset_ms,
-		 .descript = "Reset-Taster beim Start so lange gedrueckt halten (5000 = Werksreset)"},
+		 .descript = "Reset-Taster beim Programmstart so lange halten (5000..9999 Bootloader, 10000 Werksreset)"},
 		{.option = "http-port", .name = "port", .type = 'u', .dest = &opt_http_port,
 		 .descript = "TCP-Port des HTTP-Servers, Default CONFIG_WALLFREE_HTTP_PORT"},
 		{.is_switch = true, .option = "image-bad", .type = 'b', .dest = &opt_image_bad,
@@ -471,6 +471,7 @@ uint32_t hw_flash_errors_early(void)
 
 /* Backup-Register 17/18 (Detail, PC) */
 static uint32_t sim_detail, sim_pc;
+static bool cold_start; /* Programmstart; der Reset-Taster gilt nur dann */
 
 void hw_reset_take(uint32_t *flags, uint32_t *bkp, uint32_t *detail, uint32_t *pc)
 {
@@ -478,6 +479,7 @@ void hw_reset_take(uint32_t *flags, uint32_t *bkp, uint32_t *detail, uint32_t *p
 
 	*flags = WF_RSTF_POR | WF_RSTF_PIN; /* Prozessstart = Einschalten */
 	*bkp = 0;
+	cold_start = v == NULL || v[0] == '\0';
 	*detail = 0;
 	*pc = 0;
 	if (v != NULL && v[0] != '\0') {
@@ -605,7 +607,9 @@ void hw_gpio_read_switches(evse_dip_t *dip, uint8_t *rotary)
 
 bool hw_gpio_reset_button(void)
 {
-	return k_uptime_get() < (int64_t)opt_reset_ms;
+	/* nicht nach einem Neustart der Firmware: sonst landet --reset-button im Bereich des
+	 * Bootloaders (SOLL-BOOT-22) bei jedem Start wieder dort */
+	return cold_start && k_uptime_get() < (int64_t)opt_reset_ms;
 }
 
 void hw_gpio_net_led(bool on)
@@ -921,6 +925,15 @@ static int cmd_hang(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+static int cmd_sleep(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(sh);
+	ARG_UNUSED(argc);
+	/* blockiert den aufrufenden Thread; ueber die Konsole den HTTP-Server (SOLL-RT-11) */
+	k_msleep((int32_t)strtol(argv[1], NULL, 0));
+	return 0;
+}
+
 static int cmd_meter(const struct shell *sh, size_t argc, char **argv)
 {
 	if (argc == 3 && strcmp(argv[1], "energy") == 0) {
@@ -951,6 +964,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_sim,
 	SHELL_CMD_ARG(link, NULL, "<0|1> Netzverbindung (Netzwerk-LED)", cmd_link, 2, 0),
 	SHELL_CMD_ARG(supply, NULL, "<mV> Versorgungsmessung", cmd_supply, 2, 0),
 	SHELL_CMD_ARG(hang, NULL, "Messbloecke anhalten (Ueberwachung pruefen)", cmd_hang, 1, 0),
+	SHELL_CMD_ARG(sleep, NULL, "<ms> aufrufenden Thread blockieren (Konsole: HTTP-Server)",
+		      cmd_sleep, 2, 0),
 	SHELL_CMD_ARG(meter, NULL, "<ok|off|frame|flaky|bad> | energy <Wh>  Energiezaehler",
 		      cmd_meter, 2, 1),
 	SHELL_SUBCMD_SET_END);

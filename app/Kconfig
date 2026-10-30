@@ -9,11 +9,4 @@ config WALLFREE_HTTP_PORT
 	  Auf der Steuerung 80. In der PC-Simulation (native_sim, Host-Sockets)
 	  8081 (mit --http-port aenderbar), weil Ports unter 1024 dort Root-Rechte braeuchten.
 
-config WALLFREE_TELNET_DEFAULT
-	bool "Telnet-Shell ab Werk an"
-	default y if ARCH_POSIX
-	help
-	  Werkswert von telnet_enable. Auf der Steuerung aus (F20). In der PC-Simulation an:
-	  Dort ist die Shell die Bedienung des Hardwaremodells (Kommando sim).
-
 source "Kconfig.zephyr"
