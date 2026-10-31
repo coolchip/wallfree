@@ -1153,7 +1153,7 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 | CP-Treiber (Polarität, Pegel), ADC-Skalierung CP/PP/Versorgung | Original-Skalierung übernommen [ANN] | H1/H2 |
 | RCM: Inversionsstufe, direkter Pfad SWITCH_1/2 -> Schütztreiber, Konfigurationspins | [HYP] | H1/H3 |
 | Quelle an PE0 (Klemme CT) | [HYP] | H1 |
-| "Automatische Entriegelung bei Stromausfall" (HB S. 9): Hardwarefunktion? | in der Firmware nicht gefunden | H1 |
+| "Automatische Entriegelung bei Stromausfall" (HB S. 9): Hardwarefunktion? | in der Firmware nicht gefunden; auf dem Testgerät nicht vorhanden, andere Steuerungen haben Pufferelkos ([wallbe2 hardware.md](../../wallbe2/docs/hardware.md)); vermutlich reine Hardware, Wallfree ist davon nicht betroffen, solange das zutrifft | H1 |
 | Bootloader: Prüfungen, Nutzung von BKP-Registern, löscht er Sektor 7, Start-SP | aus dem Testgerät ausgelesen (H0, RDP 0), eigener Webserver für den Upload; Analyse offen | [Bootloader](../../wallbe2/docs/bootloader.md#stand-und-offene-fragen) |
 | IWDG-Umprogrammierung im Betrieb; Löschzeit Sektor 7 | Löschzeit höchstens 4000 ms laut Zephyr-Devicetree (`stm32f2.dtsi`, `max-erase-time`), nicht am Datenblatt geprüft (DS6329 fehlt); IWDG-Umprogrammierung über Register umgesetzt, auf Hardware ungeprüft | Datenblatt, H1 |
 | Normzeiten IEC 61851-1 (Abschaltung nach C->B, Reaktionszeit des Fahrzeugs) | Norm nicht im Projekt; 5-s-Frist durch HB S. 38 gestützt | Normtext |
