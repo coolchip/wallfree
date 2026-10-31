@@ -31,7 +31,9 @@ Prüfsumme in `README.txt` und den Lizenztexten.
 Die Steuerung hat einen eigenen Bootloader, ein kleines Programm, das jede Firmwaredatei über eine
 einfache Webseite annimmt. Er bleibt beim Umrüsten unverändert und ist auch der Rückweg.
 
-1. Weboberfläche der Originalfirmware öffnen, Seite **Config**, Knopf **Firmware-Update**.
+1. Weboberfläche der Originalfirmware öffnen (Kennwort ab Werk `wallbe7213`, falls nicht geändert;
+   nach dem Sicherheitsupdate des Herstellers gilt das dabei mitgeteilte individuelle Kennwort),
+   Seite **Config**, Knopf **Firmware-Update**.
 2. Die Steuerung startet nach etwa 10 s neu in den Bootloader. Er antwortet unter der bisherigen
    Adresse; hat die Originalfirmware keine gültige Adresse übergeben, unter **192.168.0.8**
    (dann den PC vorübergehend auf eine Adresse im Netz 192.168.0.x stellen). Die Modul-LEDs
