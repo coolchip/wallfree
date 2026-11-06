@@ -2,11 +2,13 @@
 #
 # Abstandshalter fuer die Typ-2-Ladedose Phoenix Contact EV-T2M3SO12-4P-B-SET (1164417).
 #
-# Erzeugt zwei Teile fuer den 3D-Druck:
-#   Rohr      - wird mit dem originalen Lochbild (4x M5 auf 60 mm) aussen auf das Gehaeuse
-#               geschraubt, hinten Kragen mit Durchbruch fuer die Leitungen.
-#   Platte    - neue "Gehaeusewand" vorn, traegt Ladedose (hinten) und Schutzdeckel (vorn),
-#               wird mit 4x M5 auf das Rohr geschraubt (Gewindeeinsaetze im Rohr).
+# Erzeugt vier Teile fuer den 3D-Druck:
+#   Rohr            - wird mit dem originalen Lochbild (4x M5 auf 60 mm) aussen auf das
+#                     Gehaeuse geschraubt, hinten Kragen mit Durchbruch fuer die Leitungen.
+#   Platte          - neue "Gehaeusewand" vorn, traegt Ladedose (hinten) und Schutzdeckel
+#                     (vorn), wird mit 4x M5 auf das Rohr geschraubt (Gewindeeinsaetze).
+#   Dichtung-hinten - TPU, zwischen Kragen und Gehaeusewand der Wallbox.
+#   Dichtung-vorn   - TPU, zwischen Rohr und Platte.
 #
 # Aufruf:  freecadcmd abstandshalter.py
 # Ergebnis im Verzeichnis dieser Datei: abstandshalter.FCStd, *.step, *.stl
@@ -23,13 +25,15 @@ import MeshPart
 import Part
 
 # ---------------------------------------------------------------- Parameter
-VERSATZ = 100.0          # Buchse wandert um dieses Mass nach aussen (Rohr + Platte)
+VERSATZ = 80.0           # Buchse wandert um dieses Mass nach aussen
+                         # (Dichtung hinten + Rohr + Dichtung vorn + Platte)
 AUSSEN = 116.0           # Aussenmass quadratisch
 ECK_R_AUSSEN = 8.0       # Eckradius aussen
 INNEN = 88.0             # Innenraum quadratisch (Dosenflansch 75 mm + Luft)
 ECK_R_INNEN = 4.0
 PLATTE_T = 5.0           # Dicke der vorderen Platte (zulaessig laut Hersteller bis 31 mm)
 KRAGEN_T = 6.0           # Dicke des hinteren Kragens
+DICHTUNG_T = 2.0         # Dicke der beiden TPU-Dichtungen
 
 # Wanddurchbruch der Ladedose (Packungsbeilage, Bild 4)
 DURCHBRUCH_D = 65.0      # Kreis
@@ -49,7 +53,8 @@ EINSATZ_TIEFE = 12.0
 ABLAUF_D = 5.0
 ABLAUF_ABSTAND = 8.0     # von der Vorderkante des Rohrs
 
-ROHR_L = VERSATZ - PLATTE_T
+ROHR_L = VERSATZ - PLATTE_T - 2 * DICHTUNG_T
+PLATTE_Z = ROHR_L + DICHTUNG_T   # Rueckseite der Platte
 
 
 # ---------------------------------------------------------------- Hilfen
@@ -119,7 +124,7 @@ def mache_rohr():
 # ---------------------------------------------------------------- Platte
 def mache_platte():
     eps = 0.5
-    z0 = ROHR_L
+    z0 = PLATTE_Z
     platte = rundes_quadrat(AUSSEN, ECK_R_AUSSEN, PLATTE_T, z0)
     platte = platte.cut(durchbruch(PLATTE_T + 2 * eps, z0 - eps))
     platte = platte.cut(lochbild(LOCH_TEILUNG, LOCH_D_PLATTE, PLATTE_T + 2 * eps, z0 - eps))
@@ -127,16 +132,39 @@ def mache_platte():
     return platte
 
 
+# ---------------------------------------------------------------- Dichtungen
+def mache_dichtung_hinten():
+    """Flachdichtung zwischen Kragen und Gehaeusewand, Z = -DICHTUNG_T .. 0."""
+    eps = 0.5
+    z0 = -DICHTUNG_T
+    d = rundes_quadrat(AUSSEN, ECK_R_AUSSEN, DICHTUNG_T, z0)
+    d = d.cut(durchbruch(DICHTUNG_T + 2 * eps, z0 - eps))
+    d = d.cut(lochbild(LOCH_TEILUNG, LOCH_D_KRAGEN, DICHTUNG_T + 2 * eps, z0 - eps))
+    return d
+
+
+def mache_dichtung_vorn():
+    """Rahmendichtung zwischen Rohr und Platte."""
+    eps = 0.5
+    z0 = ROHR_L
+    d = rundes_quadrat(AUSSEN, ECK_R_AUSSEN, DICHTUNG_T, z0)
+    d = d.cut(rundes_quadrat(INNEN, ECK_R_INNEN, DICHTUNG_T + 2 * eps, z0 - eps))
+    d = d.cut(lochbild(VERB_TEILUNG, VERB_D_PLATTE, DICHTUNG_T + 2 * eps, z0 - eps))
+    return d
+
+
 # ---------------------------------------------------------------- Ausgabe
 def main():
     hier = os.path.dirname(os.path.abspath(__file__))
     doc = App.newDocument("Abstandshalter")
-    teile = {"Rohr": mache_rohr(), "Platte": mache_platte()}
+    teile = {"Rohr": mache_rohr(), "Platte": mache_platte(),
+             "Dichtung-hinten": mache_dichtung_hinten(),
+             "Dichtung-vorn": mache_dichtung_vorn()}
     objekte = []
     for name, form in teile.items():
         if not form.isValid():
             raise RuntimeError(name + ": ungueltige Geometrie")
-        obj = doc.addObject("Part::Feature", name)
+        obj = doc.addObject("Part::Feature", name.replace("-", "_"))
         obj.Shape = form
         objekte.append(obj)
         form.exportStep(os.path.join(hier, "abstandshalter-%s.step" % name.lower()))
@@ -147,7 +175,7 @@ def main():
                                       AngularDeflection=0.2)
         netz.write(os.path.join(hier, "abstandshalter-%s.stl" % name.lower()))
         bb = form.BoundBox
-        print("%-6s %.1f x %.1f x %.1f mm, Volumen %.0f cm3" %
+        print("%-15s %.1f x %.1f x %.1f mm, Volumen %.0f cm3" %
               (name, bb.XLength, bb.YLength, bb.ZLength, form.Volume / 1000))
     doc.recompute()
     doc.saveAs(os.path.join(hier, "abstandshalter.FCStd"))
