@@ -1415,7 +1415,7 @@ class T8StufeC(SimCase):
         self.wait_stat("contactor", "0", 2)
         self.assertEqual(self.stat()["duty"], "266", "PWM bleibt")
         self.shell("sim car C")
-        self.wait_stat("contactor", "1", 3)  # contactor_min_off 500 ms
+        self.wait_stat("contactor", "1", 7)  # contactor_min_off 5 s
         # D wird abgewiesen
         self.shell("sim car D")
         self.wait_stat("contactor", "0", 2)

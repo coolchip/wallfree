@@ -376,7 +376,7 @@ Nur bei Ladestationen mit Steckdose und Verriegelung (DIP D4).
 
 | Parameter | Bereich | Werk | Beschreibung |
 | --- | --- | --- | --- |
-| Mindestpause vor erneutem Schütz-Ein (`contactor_min_off`) | 0..2000 ms | 500 | Kürzeste Zeit, die das Schütz nach dem Ausschalten aus bleibt, bevor es wieder einschalten darf. Schont das Schütz bei schnell wechselnden Anforderungen des Fahrzeugs. |
+| Mindestpause vor erneutem Schütz-Ein (`contactor_min_off`) | 0..10000 ms | 5000 | Kürzeste Zeit, die das Schütz nach dem Ausschalten aus bleibt, bevor es wieder einschalten darf. Schont das Schütz bei schnell wechselnden Anforderungen des Fahrzeugs; manche Schütze ziehen nach einer kürzeren Pause nicht wieder an. |
 | Schützüberwachung (`contactor_monitor`) | 0..4 | 1 | Wie geprüft wird, ob das Schütz nach dem Ausschalten wirklich offen ist (z. B. verschweißte Kontakte): 0 aus, 1 über die Spannungsmessung am Ladepunkt (Klemme CT), 2 über einen Rückmeldekontakt als Schließer (Eingangscode 5), 3 als Öffner (Eingangscode 6), 4 über den Energiezähler (Spannung je Phase über 50 V). 4 nur mit eingerichtetem Zähler. Erkennt die Überwachung einen Fehler, wird nicht mehr geladen, bis der Schützfehler quittiert ist ([6.3](#63-fehler)). |
 | Zustand D abweisen (`reject_state_d`) | 0..1 | 1 | Fahrzeuge, die beim Laden eine Lüftung anfordern (Zustand D, z. B. ältere Fahrzeuge mit Bleiakku), werden mit 1 abgewiesen. Nur auf 0 setzen, wenn der Ladeplatz ausreichend belüftet ist. |
 | Überstromabschaltung (`overcurrent_enable`) | 0..1 | 0 | 1 = Laden abbrechen, wenn das Fahrzeug deutlich mehr Strom zieht als erlaubt (mehr als das 1,25-Fache für 5 s oder das 1,1-Fache für 95 s). Nur mit eingerichtetem Energiezähler einschaltbar. Fällt der Zähler dann aus, endet das Laden. |

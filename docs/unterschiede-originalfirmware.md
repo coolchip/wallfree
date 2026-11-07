@@ -48,6 +48,7 @@ genaue Festlegung jedes Punkts steht in der [Soll-Spezifikation](soll-spezifikat
 | Takt der Ladelogik | 25 ms | 10 ms | schnellere, gleichmäßige Reaktion |
 | Ladeende | über verteilte Wartezeiten | eigener Zustand „Beenden“: Ladesignal aus, Schütz nach der Reaktion des Fahrzeugs, spätestens nach 5 s | eindeutige Reihenfolge |
 | Vorrang mehrerer Ereignisse | die zuletzt ausgewertete Bedingung gewinnt | feste Reihenfolge: Schutzfehler, dann Freigabe und Verfügbarkeit, dann Entriegeln, dann Stromänderungen | eindeutiges Verhalten |
+| Pause vor erneutem Einschalten des Schützes | 0,5 s, dazu bei jedem Wiedereinschalten ein Selbsttest von etwa 2 s | 5 s (einstellbar bis 10 s); beim Übernehmen der Originaleinstellungen bleibt dieser Wert | manche Schütze ziehen nach einer kurzen Pause nicht wieder an |
 | Fahrzeug pausiert (B ohne Ladesignal) | Rückfall in einen früheren Zustand mit neuem Selbsttest | bleibt im Zustand, kein neuer Selbsttest | unnötige Tests vermeiden |
 | Weckfolge | nach 5 s und nach jeder Stromsperre erneut | ab Werk nach 30 s, einmal je Steckvorgang; Wartezeit und Wiederholung einstellbar (`wakeup_delay`, `wakeup_mode`) | Fahrzeugkompatibilität ohne festes Verhalten |
 | 5-%-Modus | nicht erreichbar | gibt 5 % aus, Schütz bleibt aus, Status „digitale Kommunikation nicht verfügbar“ | wie im Handbuch beschrieben; digitale Kommunikation unterstützt die Steuerung nicht |

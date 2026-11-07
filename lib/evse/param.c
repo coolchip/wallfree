@@ -191,7 +191,7 @@ static const struct evse_param params[] = {
 	{.name = "unlock_check", .id = 1001, .unit = "", .kind = EVSE_PK_CONFIG, .min = 0, .max = 1,
 	 .def = 0, CF(unlock_check), .help = "LD gepulst auch beim Entriegeln prüfen"},
 	{.name = "contactor_min_off", .id = 519, .orig_field = 519, .unit = "ms",
-	 .kind = EVSE_PK_CONFIG, .min = 0, .max = 2000, .def = 500, CF(contactor_min_off_ms),
+	 .kind = EVSE_PK_CONFIG, .min = 0, .max = 10000, .def = 5000, CF(contactor_min_off_ms),
 	 .help = "Mindestpause vor erneutem Schütz-Ein"},
 	{.name = "contactor_monitor", .id = 390, .orig_field = 390, .unit = "",
 	 .kind = EVSE_PK_CONFIG, .min = 0, .max = 4, .def = 1, CF(contactor_monitor),

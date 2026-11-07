@@ -103,7 +103,7 @@ bool evse_flash_erase_allowed(const struct evse *e)
 
 /* SOLL-NVM-10: Feldauswahl */
 static const uint16_t import_fields[] = {
-	327, 328, 329, 330, 390, 409, 412, 519, 520, 521, 522, 523, 524, 525, 526, 527,
+	327, 328, 329, 330, 390, 409, 412, 520, 521, 522, 523, 524, 525, 526, 527,
 };
 
 static const struct evse_param *param_by_field(uint16_t field)

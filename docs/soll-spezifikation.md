@@ -674,7 +674,7 @@ abgelehnt (E14). Namen sind Vorschläge (WARP-angelehnt, englisch).
 | `lock_pulse` | ms | 100..3000 | 500 | ja | 525 | ja | Ist §9, HB S. 9 |
 | `unlock_pulse` | ms | 100..3000 | 500 | ja | 526 | ja | Ist §9 |
 | `lock_cycle_gap` | ms | 500..10000 | 2000 | ja | 527 | ja | Ist §9 |
-| `contactor_min_off` | ms | 0..2000 | 500 | ja | 519 | ja | Ist §8, Deutung [ANN] |
+| `contactor_min_off` | ms | 0..10000 | 5000 | ja | 519 (nicht übernommen) | ja | Ist §8, F33 **[ABW]** |
 | `contactor_monitor` | Code | 0..4 (4 nur mit Messquelle) | 1 | ja | 390 | ja | E20, SOLL-PROT-22 |
 | `reject_state_d` | 0/1 | 0..1 | 1 | ja | 412 | nein | Ist §13 |
 | `overcurrent_enable` | 0/1 | 0..1 (1 nur mit Messquelle) | 0 | ja | 409 | nein | SOLL-PROT-30 |
@@ -1050,7 +1050,7 @@ Nutzer 2026-10-26 (ersetzt F32 "keine Uhrzeit"). Die Uhrzeit dient nur der Anzei
 | SOLL-NVM-03 | Persistente Schreibzugriffe im Betrieb erzeugen nur Anhängevorgänge (kein Löschen). Laufzeitwerte (10.2), insbesondere `external_current`, werden nie gespeichert. | Arch §8 |
 | SOLL-NVM-04 | Verdichten (RAM-Kopie, Sektor löschen, neu schreiben) nur im sicheren Zustand: S1 bzw. S0, CP A, Schütz aus, IWDG verlängert (SOLL-RT-13). Ist der Bereich im Betrieb voll, bleiben neue Werte bis zum nächsten sicheren Zustand nur im RAM (Status "Speichern ausstehend"). | Arch §3, SOLL-RT-13 |
 | SOLL-NVM-05 | Stromausfall während des Verdichtens: Beim nächsten Start ist der Bereich ungültig -> Werkseinstellungen und Meldung (wie Original); einmalige Übernahme nach SOLL-NVM-10 erneut möglich. | Parameterspeicher (Ausfallverhalten) |
-| SOLL-NVM-10 | Sektor 3 (Originalformat: Kopf `0x0000`, Einträge Wert/Kennung, jüngster gilt) wird nur gelesen. Auf Kommando werden die Felder 327..330, 390, 409, 412, 519..527 und die Netzwerkwerte übernommen, jeweils mit Grenzprüfung; nicht übernehmbare Werte werden gemeldet. Ein fehlender Eintrag gilt als 0 (das Original speichert nur Abweichungen vom RAM-Startwert 0). Keine automatische Übernahme. | Arch §3, [Parameterspeicher](../../wallbe2/docs/parameterspeicher.md), [ANN] Feldauswahl |
+| SOLL-NVM-10 | Sektor 3 (Originalformat: Kopf `0x0000`, Einträge Wert/Kennung, jüngster gilt) wird nur gelesen. Auf Kommando werden die Felder 327..330, 390, 409, 412, 520..527 und die Netzwerkwerte übernommen (519 nicht, F33), jeweils mit Grenzprüfung; nicht übernehmbare Werte werden gemeldet. Ein fehlender Eintrag gilt als 0 (das Original speichert nur Abweichungen vom RAM-Startwert 0). Keine automatische Übernahme. | Arch §3, [Parameterspeicher](../../wallbe2/docs/parameterspeicher.md), [ANN] Feldauswahl |
 
 ### 13.2 Startablauf
 
@@ -1141,6 +1141,7 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 | F29 | Modbus-Implementierung | Modbus-Client von Zephyr, gekapselt und austauschbar; Fehlerzähler zur Beurteilung | ein eigener Master wäre kaum kleiner; Austausch, falls die Fehlerzähler im Betrieb Probleme zeigen | SOLL-MTR-04/15, [Architektur](architektur.md#5-speicherbudget) |
 | F30 | MQTT-Client (2026-10-21) | MQTT 3.1.1 ohne TLS, Zustände als WARP-JSON (kein Einzelwert je Topic); Home-Assistant-Erkennung seit 2026-10-27 (Nutzer: viele Nutzer haben Home Assistant, SOLL-MQTT-40..42); Befehle minimal (Ladestrom), erweiterbar, Default aus; zusätzlich Erreichbarkeit per Last Will | Anbindung an vorhandene MQTT-Umgebungen mit demselben Datenformat wie HTTP und WebSocket; der Ladestrom muss über MQTT setzbar sein; weitere Befehle sollen später ohne Umbau möglich sein | 12.6, 10.1 |
 | F31 | Gliederung der Weboberfläche, Verlauf (2026-10-21) | Bereiche Übersicht, Status (bis 2026-10-27 "Insights", Nutzer: deutscher Begriff), Einstellungen, System statt "Einfach"/"Experte"; Leiste oben; Verlauf als Ringpuffer nur im RAM; keine Ladesitzungen | bei vier Bereichen versteckt ein Seitenmenü nur; Einstellungen und Status getrennt statt in einer Karte gemischt; Flash nicht für Verläufe (Verschleiß, Aufwand), Sitzungen vorerst nicht benötigt; einige KB RAM sind frei | SOLL-API-31/33 |
+| F33 | Mindestpause vor erneutem Schütz-Ein (2026-11-07) | `contactor_min_off` ab Werk 5 s, einstellbar bis 10 s; Feld 519 wird beim Import nicht übernommen | Das Schütz des Testgeräts (Schneider iCT 25 A) zieht nach 0,5 s und einmal nach 3,3 s Pause nicht an und bleibt dann trotz Spannung an der Spule aus. Im Original kommt zu den 500 ms von Feld 519 bei jedem Wiedereinschalten der blockierende RCM-Selbsttest (bis etwa 2,1 s); Wallfree testet nur einmal je Steckvorgang und bräuchte die Pause daher selbst. Eine Prüfung im Ein-Zustand über CT wurde erwogen und zurückgestellt: einfacher, und so kurze Schaltfolgen kommen im Betrieb kaum vor (Nutzer 2026-11-07) | SOLL-SM-60 |
 | F32 | Uhrzeit (2026-10-21, geändert 2026-10-26) | SNTP mit Zeitserver aus DHCP bzw. `pool.ntp.org`, abschaltbar; ohne Zeitserver wie vorher (ms seit Start, Umrechnung im Browser); RTC nicht gestellt | Nutzer 2026-10-26: Protokoll übersteht Neustarts (SOLL-ERR-12) und braucht dafür echte Zeiten; Flash reicht seit dem Entfernen der Netz-Shell; die Ladelogik hängt nie an der Uhrzeit | SOLL-TIME-01..04 |
 
 ### 15.2 Annahmen und offene Punkte

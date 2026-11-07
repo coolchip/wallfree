@@ -27,7 +27,7 @@ void evse_config_defaults(struct evse_config *cfg)
 	cfg->lock_pulse_ms = 500;
 	cfg->unlock_pulse_ms = 500;
 	cfg->lock_cycle_gap_ms = 2000;
-	cfg->contactor_min_off_ms = 500;
+	cfg->contactor_min_off_ms = 5000;
 	cfg->contactor_monitor = EVSE_CTM_SENSE;
 	cfg->reject_state_d = true;
 	cfg->wakeup_delay_ms = 30000;

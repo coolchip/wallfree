@@ -69,7 +69,7 @@ typedef void (*evse_import_report_t)(void *ctx, uint16_t field, const char *name
 
 /**
  * Einmalige Uebernahme aus dem Originalbereich (SOLL-NVM-10, SOLL-SH-09):
- * Felder 327..330, 390, 409, 412, 519..527 ueber evse_param_set (Grenz- und
+ * Felder 327..330, 390, 409, 412, 520..527 ueber evse_param_set (Grenz- und
  * Zustandspruefung) und speichern. Ein fehlender Eintrag gilt als 0: Das Original
  * speichert nur Abweichungen vom RAM-Startwert, und der ist 0 (wallbe2
  * parameterspeicher.md, Firmware 0.81). Netzwerkfelder uebernimmt die Anwendung

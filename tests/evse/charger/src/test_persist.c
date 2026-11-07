@@ -172,10 +172,11 @@ ZTEST(evse_persist, test_import)
 	sim_boot(&s);
 	int r = evse_import_orig(&s.e, &fo.fl, &n, s.now, report, NULL);
 
-	/* nicht gespeichert = 0: 328..330, 519, 521..524 uebernommen, 526 (min 100) abgelehnt */
-	zassert_equal(r, 12, "525, 390, 412, 520 und acht Nullen");
+	/* nicht gespeichert = 0: 328..330, 521..524 uebernommen, 526 (min 100) abgelehnt */
+	zassert_equal(r, 11, "525, 390, 412, 520 und sieben Nullen");
 	zassert_equal(counts[EVSE_IMP_DONE], 4);
-	zassert_equal(counts[EVSE_IMP_ZERO], 8);
+	zassert_equal(counts[EVSE_IMP_ZERO], 7);
+	zassert_equal(s.e.cfg.contactor_min_off_ms, 5000, "519 nicht uebernommen");
 	zassert_equal(counts[EVSE_IMP_REJECTED], 4);
 	zassert_equal(last_err[409], EVSE_PARAM_E_UNAVAILABLE);
 	zassert_equal(last_err[527], EVSE_PARAM_E_RANGE);
