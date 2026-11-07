@@ -172,4 +172,32 @@ ZTEST(evse_cp, test_diode_not_checked_when_blocked)
 	zassert_false(cp.diode_fault);
 }
 
+ZTEST(evse_cp, test_short_during_pwm_is_invalid)
+{
+	/* SOLL-CP-06/07: Kurzschluss bei PWM senkt beide Plateaus -> ungueltig, keine Diode */
+	struct evse_cp_sample s = {
+		.pos_mv = 6000, .neg_mv = 12000, .pos_valid = true, .neg_valid = true,
+		.pwm_active = true, .pwm_since = 0, .current_blocked = false,
+	};
+
+	feed(s, 200);
+	zassert_equal(evse_cp_raw(&cp), EVSE_CP_C);
+	s.pos_mv = 300;
+	s.neg_mv = 300;
+	feed(s, 200);
+	zassert_true(cp.invalid);
+	zassert_false(cp.diode_fault, "Kurzschluss ist keine fehlende Diode");
+	/* nach dem Loslassen wieder C, kein Fehler */
+	s.pos_mv = 6000;
+	s.neg_mv = 12000;
+	feed(s, 100);
+	zassert_false(cp.invalid);
+	zassert_false(cp.diode_fault);
+	/* fehlende Diode bei Zustand D wird weiter erkannt */
+	s.pos_mv = 3000;
+	s.neg_mv = 3000;
+	feed(s, 100);
+	zassert_true(cp.diode_fault);
+}
+
 ZTEST_SUITE(evse_cp, NULL, NULL, before, NULL, NULL);

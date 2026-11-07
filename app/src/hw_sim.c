@@ -161,6 +161,15 @@ static int32_t cp_level(enum evse_cp_state st)
 	return st <= EVSE_CP_D ? mv[st] : 0; /* E: Kurzschluss */
 }
 
+/* Betrag des negativen Plateaus: Diode sperrt -12 V; ohne Diode wie CP+, Kurzschluss 0 */
+static int32_t cp_neg_level(enum evse_cp_state st, bool diode)
+{
+	if (st == EVSE_CP_E) {
+		return 0;
+	}
+	return (st == EVSE_CP_A || diode) ? 12000 : cp_level(st);
+}
+
 /* ------------------------------------------------ Modelltakt (1 ms, Zeitgeber-ISR) */
 
 static void tick(struct k_timer *t)
@@ -224,7 +233,7 @@ static void tick(struct k_timer *t)
 
 	if (++m.ms % BLOCK_MS == 0) {
 		m.block.cp_pos = cp_level(m.car);
-		m.block.cp_neg = (m.car == EVSE_CP_A || m.diode) ? 12000 : m.block.cp_pos;
+		m.block.cp_neg = cp_neg_level(m.car, m.diode);
 		m.block.pp = m.pp_mv;
 		for (int i = 0; i < EVSE_DIN_COUNT; i++) {
 			m.block.din[i] = m.din_mv[i];
@@ -267,7 +276,7 @@ int hw_cp_scope(struct hw_scope *out)
 {
 	unsigned int key = irq_lock();
 	int32_t hi = cp_level(m.car);
-	int32_t lo = (m.car == EVSE_CP_A || m.diode) ? 12000 : hi;
+	int32_t lo = cp_neg_level(m.car, m.diode);
 	uint16_t duty = m.duty;
 
 	irq_unlock(key);

@@ -34,6 +34,7 @@ enum evse_cp_state {
 #define EVSE_CP_DIODE_MV        10000 /* Betrag CP- muss >= sein */
 #define EVSE_CP_DIODE_MS        20
 #define EVSE_CP_DIODE_PWM_MS    100   /* PWM muss so lange laufen */
+#define EVSE_CP_DIODE_POS_MV    2000  /* CP+ mindestens (B..D), sonst Kurzschluss */
 #define EVSE_CP_DISCARD_BLOCKS  2     /* SOLL-CP-05 */
 
 /** Ein Messblock. */

@@ -85,7 +85,13 @@ static void update_level(struct evse_cp *cp, int32_t v, evse_ms_t now)
 
 static void update_diode(struct evse_cp *cp, const struct evse_cp_sample *s, evse_ms_t now)
 {
+	/*
+	 * Fehlende Diode nur bei gueltigem positivem Plateau: Ein Kurzschluss
+	 * CP-PE senkt beide Plateaus und ist CP ungueltig (SOLL-CP-06), sonst
+	 * gewinnt je nach Abtastung die Diodenpruefung (Testgeraet, Stufe C).
+	 */
 	bool check = s->neg_valid && s->pwm_active && !s->current_blocked &&
+		     s->pos_valid && s->pos_mv >= EVSE_CP_DIODE_POS_MV &&
 		     evse_elapsed_gt(now, s->pwm_since, EVSE_CP_DIODE_PWM_MS);
 
 	if (!check || s->neg_mv >= EVSE_CP_DIODE_MV) {
