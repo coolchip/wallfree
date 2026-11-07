@@ -183,7 +183,10 @@ Wallbox: Batterie + -> R5 -> S7 -> Prüfdraht -> Batterie -. Der Draht berührt 
   dann S7. Erwartet: Schütz-Soll sofort 0, CP +12 V DC, ERR-RCM-DC6 verriegelt (nur DC6; die
   Simulation setzt immer DC6 und AC30 zusammen). S2/S1 aus und
   wieder ein lädt nicht, bis in A (S1 aus) ein Selbsttest bestanden hat (SOLL-PROT-08/11).
-- **C4c Reaktionszeit.** Messpunkt für das Abschalten ist der Relaiskontakt C1/C2; PE2 auf der
+- **C4c Reaktionszeit.** Durchgeführt an **C3/C4** (schaltet mit C1/C2 über PE2, nichts angeschlossen, keine
+  Änderung an C1/C2 nötig): Batterie + -> R6 -> C3, C4 -> Batterie -; Kanal 1 zwischen R5 und S7 (fällt mit dem
+  Fehlerstrom), Kanal 2 an C3 (steigt beim Öffnen). Ergebnis das Testgerät: 2,5..3 ms. Ursprünglicher Plan an C1/C2:
+  Messpunkt für das Abschalten ist der Relaiskontakt C1/C2; PE2 auf der
   Platine erst, wenn ein Messpunkt bekannt ist (Fotos). Bedingung für die Kontaktschleife: Der
   Nutzer hat beide Adern an C1 und C2 spannungsfrei abgeklemmt und mit F1 ein gemessen, dass an
   C1 und C2 gegen PE, L und N **keine Spannung** liegt, bei offenem und (in C3) geschlossenem
