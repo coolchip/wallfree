@@ -93,6 +93,22 @@ void wf_rtc_from_unix(uint64_t s, struct wf_rtc_time *t)
 	t->second = (uint8_t)(rem % 60u);
 }
 
+static uint8_t bcd(uint32_t v)
+{
+	return (uint8_t)((v >> 4) * 10u + (v & 0xFu));
+}
+
+void wf_rtc_from_regs(uint32_t tr, uint32_t dr, struct wf_rtc_time *t)
+{
+	t->year = bcd((dr >> 16) & 0xFFu);
+	t->weekday = (uint8_t)((dr >> 13) & 0x7u);
+	t->month = bcd((dr >> 8) & 0x1Fu);
+	t->day = bcd(dr & 0x3Fu);
+	t->hour = bcd((tr >> 16) & 0x3Fu);
+	t->minute = bcd((tr >> 8) & 0x7Fu);
+	t->second = bcd(tr & 0x7Fu);
+}
+
 uint64_t wf_rtc_to_unix(const struct wf_rtc_time *t)
 {
 	if (t->year > 99u || t->month < 1u || t->month > 12u || t->day < 1u || t->day > 31u ||

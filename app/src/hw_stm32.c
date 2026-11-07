@@ -650,15 +650,9 @@ uint64_t hw_rtc_read_s(void)
 	/* TR zuerst: das sperrt DR bis zum Lesen, beide gehoeren zusammen */
 	uint32_t tr = RTC->TR;
 	uint32_t dr = RTC->DR;
-	struct wf_rtc_time t = {
-		.year = __LL_RTC_CONVERT_BCD2BIN(dr & 0xFFu),
-		.month = __LL_RTC_CONVERT_BCD2BIN((dr >> 8) & 0x1Fu),
-		.day = __LL_RTC_CONVERT_BCD2BIN((dr >> 16) & 0x3Fu),
-		.hour = __LL_RTC_CONVERT_BCD2BIN((tr >> 16) & 0x3Fu),
-		.minute = __LL_RTC_CONVERT_BCD2BIN((tr >> 8) & 0x7Fu),
-		.second = __LL_RTC_CONVERT_BCD2BIN(tr & 0x7Fu),
-	};
+	struct wf_rtc_time t;
 
+	wf_rtc_from_regs(tr, dr, &t);
 	return wf_rtc_to_unix(&t);
 }
 

@@ -49,6 +49,12 @@ struct wf_rtc_time {
 /** Unix-Sekunden in Kalenderfelder (SOLL-TIME-04), @p s in WF_NTP_*_EPOCH */
 void wf_rtc_from_unix(uint64_t s, struct wf_rtc_time *t);
 
+/**
+ * Kalender aus den RTC-Registern des STM32F2 (BCD): TR Stunde 21..16, Minute 14..8,
+ * Sekunde 6..0; DR Jahr 23..16, Wochentag 15..13, Monat 12..8, Tag 5..0.
+ */
+void wf_rtc_from_regs(uint32_t tr, uint32_t dr, struct wf_rtc_time *t);
+
 /** Kalenderfelder in Unix-Sekunden. @return Sekunden oder 0 (Felder oder Zeit unplausibel) */
 uint64_t wf_rtc_to_unix(const struct wf_rtc_time *t);
 

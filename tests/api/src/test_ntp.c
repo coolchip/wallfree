@@ -90,6 +90,35 @@ ZTEST(api_ntp, test_rtc_unplausibel)
 	zassert_equal(wf_rtc_to_unix(&t), 0, "Stunde");
 }
 
+ZTEST(api_ntp, test_rtc_register)
+{
+	/* Register des Testgeraets 2026-11-07 (SWD): Jahr in DR 23..16, Tag in 5..0 */
+	struct wf_rtc_time t;
+
+	wf_rtc_from_regs(0x00181459u, 0x0026D107u, &t);
+	zassert_equal(t.year, 26);
+	zassert_equal(t.month, 11);
+	zassert_equal(t.day, 7);
+	zassert_equal(t.weekday, 6);
+	zassert_equal(t.hour, 18);
+	zassert_equal(t.minute, 14);
+	zassert_equal(t.second, 59);
+	zassert_equal(wf_rtc_to_unix(&t), 1794075299ull);
+	/* Rundlauf ueber die Registerform wie beim Stellen mit LL_RTC_DATE_Config */
+	wf_rtc_from_unix(1800000000ull, &t);
+	uint32_t dr = ((uint32_t)(t.year / 10u) << 20) | ((uint32_t)(t.year % 10u) << 16) |
+		      ((uint32_t)t.weekday << 13) | ((uint32_t)(t.month / 10u) << 12) |
+		      ((uint32_t)(t.month % 10u) << 8) | ((uint32_t)(t.day / 10u) << 4) |
+		      (t.day % 10u);
+	uint32_t tr = ((uint32_t)(t.hour / 10u) << 20) | ((uint32_t)(t.hour % 10u) << 16) |
+		      ((uint32_t)(t.minute / 10u) << 12) | ((uint32_t)(t.minute % 10u) << 8) |
+		      ((uint32_t)(t.second / 10u) << 4) | (t.second % 10u);
+	struct wf_rtc_time r;
+
+	wf_rtc_from_regs(tr, dr, &r);
+	zassert_equal(wf_rtc_to_unix(&r), 1800000000ull);
+}
+
 /* Parameter: Werkszustand an, Server automatisch; Pruefung beim Setzen */
 ZTEST(api_ntp, test_sysconf)
 {
