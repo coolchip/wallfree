@@ -31,7 +31,7 @@ gegengeprüft).
 | S1 + S2 | D1 + 882 Ohm (2,74k ‖ 1,3k) | etwa +6 V (C) |
 | S1 + S3 | D1 + 246 Ohm (2,74k ‖ 270) | etwa +3 V (D, wird abgewiesen: `reject_state_d` = 1) |
 | S4 gedrückt | Kurzschluss CP-PE | 0 V (E, ERR-CP-INVALID) |
-| S5 ein (mit S1) | ohne Diode | negatives Plateau etwa -8,8 V statt -12 V (ERR-DIODE) |
+| S5 gedrückt (mit S1) | ohne Diode | negatives Plateau etwa -8,8 V statt -12 V (ERR-DIODE) |
 
 Die Pegel gelten für einen Quellwiderstand von 1 kOhm in der Wallbox (Norm; beim Testgerät nicht
 gemessen). Die Diode sitzt **zwischen** S1 und den Widerständen (Anode zur CP-Seite, nur die positive
@@ -49,7 +49,10 @@ PP-Klassen der Steckdose mit D1 an ([SOLL-PP-02](soll-spezifikation.md#43-pp-pro
 | 4 | 100 Ohm | 63 A | wird als 63 A gemeldet |
 | 5 | 47 Ohm | ungültig | **ERR-PP-INVALID** |
 
-Schalter als Kippschalter (S1, S2, S3, S5) statt eines Drehschalters für A..D: Ein
+S5 ist ein Taster: Wallfree erkennt die fehlende Diode nach 20 ms und hält den Fehler bis zum
+Abstecken (SOLL-CP-07), ein kurzer Druck (etwa 0,5 s) reicht. Ein Kippschalter geht ebenso.
+
+Schalter als Kippschalter (S1, S2, S3) statt eines Drehschalters für A..D: Ein
 Drehschalter unterbricht beim Umschalten kurz (wirkt wie A). Die CP-Entprellung (20 ms)
 überbrückt das zwar meist, Kippschalter bilden das Fahrzeug aber näher nach (R2 bleibt
 immer verbunden, S2/S3 schalten zu).
@@ -66,8 +69,8 @@ immer verbunden, S2/S3 schalten zu).
 | R3 | 1,3 kOhm 1 % | 0,25 W |
 | R4 | 270 Ohm 1 % | 0,25 W |
 | PP-Widerstände | 1,5 kOhm, 680 Ohm, 220 Ohm, 100 Ohm, 47 Ohm, je 1 % | 0,25 W |
-| S1, S2, S3, S5 | Kippschalter 1 x Ein/Aus | Kleinspannung, beliebig |
-| S4 | Taster (Schließer) | Kurzschluss CP-PE |
+| S1, S2, S3 | Kippschalter 1 x Ein/Aus | Kleinspannung, beliebig |
+| S4, S5 | Taster (Schließer) | S4 Kurzschluss CP-PE, S5 überbrückt D1 |
 | S6 | Drehschalter 1 x 6 | PP-Klassen |
 | Messbuchsen | 3 x 4-mm-Sicherheitsbuchse (CP, PP, PE) | für Multimeter/Oszilloskop |
 
@@ -98,7 +101,7 @@ Steckerkontakten (nicht nur an den Messbuchsen):
 | CP-PE, S1 ein, Widerstand mit Rot an CP | etwa 2,7 kOhm + Diode (Anzeige je nach Messgerät höher) |
 | wie vor, S2 zu / S3 zu | kleiner (882 Ohm / 246 Ohm + Diode) |
 | CP-PE, S4 gedrückt | 0 Ohm |
-| CP-PE, S1 + S5 ein | 2,74 kOhm, in beiden Richtungen gleich |
+| CP-PE, S1 ein, S5 gedrückt | 2,74 kOhm, in beiden Richtungen gleich |
 | PP-PE je Stellung S6 | offen, 1,5k, 680, 220, 100, 47 Ohm |
 
 ## 5. Prüfablauf Stufe C
@@ -158,8 +161,8 @@ SOLL-CP-08), nicht der Pegel.
 - S3 statt S2 (D) -> ERR-STATE-D, Schütz-Soll aus.
 - S4 kurz drücken während C -> ERR-CP-INVALID, Schütz-Soll sofort aus; nach dem Loslassen
   (>= 1,2 V) erlischt der Fehler und es lädt ohne Abstecken wieder (SOLL-SM-91, wie Original).
-- S5 ein während PWM -> ERR-DIODE, CP 3 s -12 V, dann +12 V (SOLL-CP-07), Schütz-Soll aus;
-  der Fehler bleibt nach S5 aus bis zum Abstecken (S1 aus).
+- S5 kurz drücken während PWM -> ERR-DIODE, CP 3 s -12 V, dann +12 V (SOLL-CP-07), Schütz-Soll aus;
+  der Fehler bleibt nach dem Loslassen bis zum Abstecken (S1 aus).
 - Schlüssel aus während C -> S7 STOPPING, PWM aus; Schütz-Soll bleibt, bis S2 aus (das
   Fahrzeug reagiert) oder nach `stop_timeout` 5 s, dann S3.
 - Die Schützüberwachung (Via Sense, CT) prüft nur im Aus-Zustand; ohne Spule bleibt sie

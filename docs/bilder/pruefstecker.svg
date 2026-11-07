@@ -124,7 +124,7 @@
     <text x="345" y="150" font-size="12">aus = A</text>
     <text x="294" y="230" text-anchor="end">D1 1N4007</text>
     <text x="294" y="248" font-size="12" text-anchor="end">Anode oben</text>
-    <text x="465" y="232">S5 "Diode</text>
+    <text x="465" y="232">S5 Taster "Diode</text>
     <text x="465" y="250">ueberbruecken"</text>
     <text x="302" y="400" text-anchor="end">R2</text>
     <text x="302" y="418" text-anchor="end">2,74 kOhm</text>
@@ -150,6 +150,6 @@
     <text x="600" y="666">(keine Netzspannung</text>
     <text x="600" y="686">im Pruefstecker)</text>
     <text x="600" y="730" font-size="12">Widerstaende 1 %, 0,25 W</text>
-    <text x="600" y="748" font-size="12">S1, S2, S3, S5 Kippschalter</text>
+    <text x="600" y="748" font-size="12">S1, S2, S3 Kippschalter; S4, S5 Taster</text>
   </g>
 </svg>
