@@ -155,8 +155,7 @@ SOLL-CP-08), nicht der Pegel.
 
 - Erwartet: S6 CHARGING, `contactor` (Soll) 1, Ready-LED an, Front-LED blau (VR 16: C oder D);
   kein Klicken, weil die Spule abgeklemmt ist; an der Steckdose keine Netzspannung.
-- Relais C3/C4 nebenbei: klickt es mit C1/C2 mit? Der Nutzer misst spannungsfrei vorbereitet
-  Durchgang C3-C4 (an C3/C4 nichts angeschlossen; keine MCU-Leitung schaltet C3/C4, siehe Implementierung).
+- Relais C3/C4: schließt mit C1/C2 (Testgerät 2026-11-07, Durchgang C3-C4, an C3/C4 nichts angeschlossen).
 - S2 aus (B) -> Schütz-Soll aus, PWM bleibt; S2 ein -> wieder ein (`contactor_min_off` 500 ms).
 - S3 statt S2 (D) -> ERR-STATE-D, Schütz-Soll aus.
 - S4 kurz drücken während C -> ERR-CP-INVALID, Schütz-Soll sofort aus; nach dem Loslassen
