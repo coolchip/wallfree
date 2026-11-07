@@ -391,7 +391,9 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurück).
   C1..C5 durchgeführt (2026-11-07, [Prüfungen](#prüfungen-auf-box-t)), zwei Befunde (unten); offen C6 (evcc).
 - **Schütz zieht nach kurzer Pause nicht an** (Testgerät, C5): Schneider iCT braucht nach dem Abfallen
   offenbar etwa 3..4 s, bevor es wieder anzieht; `contactor_min_off` ist 500 ms (wie Original, Feld 519,
-  Bereich bis 2 s). Zu entscheiden: längere Mindestpause und/oder Prüfung im Ein-Zustand über CT
+  Bereich bis 2 s). Im Original kommt bei jedem Wiedereinschalten der blockierende RCM-Selbsttest dazu
+  (Z7 -> Z3 -> Z4, bis etwa 2,1 s; wallbe2 ladeautomat-spezifikation.md Abschnitt 4 und 8), zusammen also
+  mindestens etwa 2,7 s; Wallfree testet nur einmal je Steckvorgang und schaltet daher früher wieder ein. Zu entscheiden: längere Mindestpause und/oder Prüfung im Ein-Zustand über CT
   (keine Spannung nach dem Einschalten -> erneut versuchen bzw. Fehler).
 - **Kurzschluss CP-PE während PWM** ergibt ERR-DIODE statt ERR-CP-INVALID (Testgerät, C3): Diodenprüfung
   nur bei positivem Plateau >= 2,0 V (SOLL-CP-07, zu bestätigen); umsetzen mit Test, der beide Plateaus
