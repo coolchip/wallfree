@@ -169,7 +169,7 @@ eigenen Prüf-Firmware wurde Wallfree selbst verwendet (Shell/API, Register-Ausg
 | H1 | Ohne Last: Ausgänge ER/LR/VR/CR, LEDs, Eingänge und ADC-Werte, IWDG, Verriegelung, Netz; Reaktionszeit RCM -> PE2 | Oszilloskop | mit Wallfree als Stufen A/B erledigt; RCM-Zeit in Stufe C4 ([Implementierung](implementierung.md#prüfungen-auf-box-t)) |
 | H2 | CP/PP mit EV-Simulator: Zustände A..E, Diode, PP-Widerstände; CP-PWM, Schütz-Ansteuerung | Prüfstecker | als Stufe C erledigt 2026-11-07 ([Prüfstecker](pruefstecker.md)) |
 | H3 | RCM-Selbsttest und Fehlerstrompfad mit Prüfstrom | sicherer Prüfaufbau | Selbsttest und DC-Prüfstrom (9 mA) in Stufe C4 erledigt, Reaktionszeit 2,5..3 ms; AC-Zweig (30 mA) offen |
-| H4 | Ladelogik komplett mit Netzspannung, Fahrzeug oder Lastsimulator | Elektrofachkraft, FI in der Hausverteilung | offen |
+| H4 | Ladelogik komplett mit Netzspannung, Fahrzeug oder Lastsimulator | Elektrofachkraft, FI in der Hausverteilung | geplant als Stufe D am zweiten Gerät mit Nissan Leaf ([Prüfstecker](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)) |
 
 EV-Simulator: Für H2 genügt ein selbstgebauter Prüfstecker (Diode, CP-Widerstände
 2,74 kOhm / 1,3 kOhm / 270 Ohm, PP-Widerstände 1,5 kOhm / 680 / 220 / 100 Ohm, Schalter;

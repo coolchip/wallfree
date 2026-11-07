@@ -1,10 +1,11 @@
-# Prüfstecker und Stufe C
+# Prüfstecker, Stufe C und D
 
 Stand: 2026-11-07. Plan für einen selbstgebauten Prüfstecker (Fahrzeugnachbildung an der
 Typ-2-Steckdose) und den Prüfablauf der Stufe C auf dem Testgerät (CP-PWM, Verriegelung mit Stecker,
 Fehlerstrom, Schütz, evcc). Prüfstecker gebaut (Nutzer 2026-11-07). Stufe C ist freigegeben
 ([Abschnitt 7](#7-freigabe-stufe-c)) und auf dem Testgerät durchgeführt (C1..C6, 2026-11-07; Ergebnisse in
-[Implementierung](implementierung.md#prüfungen-auf-box-t)).
+[Implementierung](implementierung.md#prüfungen-auf-box-t)). Stufe D mit Fahrzeug am zweiten Gerät ist geplant
+([Abschnitt 8](#8-stufe-d-laden-mit-fahrzeug-box-g)).
 
 ## 1. Grundsatz: keine Netzspannung im Prüfstecker
 
@@ -234,3 +235,58 @@ eingetragen.
 Erteilt (Nutzer 2026-10-30); der verbindliche Wortlaut steht in den Sicherheitsgrenzen von
 [wallbe2/AGENTS.md](../../wallbe2/AGENTS.md). Sie gilt für C1..C6 am Testgerät ohne Fahrzeug und Last.
 Nicht enthalten: C7, die Befehle `bootloader`, `factory-reset` und `import-original`.
+
+## 8. Stufe D: Laden mit Fahrzeug (zweites Gerät)
+
+Geplant (Nutzer 2026-11-07), noch nicht freigegeben. Ziel: was der Prüfstecker nicht nachbilden
+kann, also Laststrom, ein Fahrzeug, das auf Ladesignal und Schütz reagiert, und lange Laufzeit
+(Inbetriebnahmestufe H4, [Architektur](architektur.md#7-hardware-inbetriebnahme)).
+
+**Aufbau.** das zweite Gerät (baugleiche Steuerung, in der Garage fachgerecht installiert, FI in der
+Hausverteilung) statt das Testgerät. Ladekabel **fest angeschlossen**, **keine Verriegelung**
+(deaktiviert, kein Motor eingebaut). Testfahrzeug **Nissan Leaf ZE0**, lädt nur **einphasig**.
+Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Hardware Abschnitt 3](../../wallbe2/docs/hardware.md#3-ist-einstellungen-laut-weboberflaeche-box-g)
+(u. a. D1 an trotz festem Kabel, D4/D6 aus, IN 20 A, Schützüberwachung aus).
+
+**D0 Vorbereitung**
+
+- Freigabe für das zweite Gerät in [wallbe2/AGENTS.md](../../wallbe2/AGENTS.md) (Nutzer), einschließlich
+  Rückweg zur Originalfirmware.
+- Einstellungen der Originalfirmware festhalten (Weboberfläche, Bildschirmfotos), möglichst auch
+  Sektor 3 und die Firmware sichern (Bootloader und Firmwarestand des zweiten Geräts sind nicht geprüft).
+- Wallfree über die Weboberfläche aufspielen wie beim Umrüsten ([Umrüsten](umruesten.md)),
+  danach `import-original`; prüfen: DIP und Drehschalter, `cable` (D1 an mit festem Kabel: Wert
+  aus dem PP-Widerstand im Kabel), Schützüberwachung (CT in das zweite Gerät vorhanden? dann Via Sense),
+  `contactor_min_off` 5 s, keine Verriegelung.
+- evcc mit eigener Konfiguration gegen das zweite Gerät (wie C6), Ladepunkt einphasig.
+- Strom messen: Anzeige im Fahrzeug bzw. App, oder Stromzange an der Zuleitung (Nutzer, nur an
+  isolierten Leitungen).
+
+**D1 Grundablauf**
+
+1. Normales Laden: Fahrzeug anstecken, B -> C, Schütz ein, Fahrzeug lädt mit dem eingestellten
+   Strom auf L1.
+2. CP-Pegel des echten Fahrzeugs in B und C (`cp_pos`, `cp_neg`): Abstand zu den Bandgrenzen.
+3. Ladeende durch das Fahrzeug (Ladeziel erreicht): C -> B, Schütz ohne Last aus, kein Fehler.
+4. Abstecken nach dem Ende, Zustand A, kein Fehler.
+
+**D2 Steuerung beim Laden**
+
+5. Strom über evcc ändern (16 -> 10 -> 6 A): Fahrzeug folgt; unter 6 A Stromsperre.
+6. Pausieren und Fortsetzen (evcc Aus/Sofort): Fahrzeug geht auf B, Schütz fällt ohne Last, nach
+   der Pause von 5 s wieder ein.
+7. Schlüssel aus beim Laden: geordnetes Ende, das Fahrzeug senkt den Strom vor dem Schütz-Aus.
+
+**D3 Sonderfälle**
+
+8. Weckfolge: Fahrzeug lange in B (evcc gibt noch nicht frei) und schläft ein; wacht es mit der
+   Weckfolge wieder auf, wenn evcc später freigibt?
+9. Netzausfall beim Laden (Sicherung aus/ein): Wiederanlauf mit gestecktem Fahrzeug.
+10. Neustart und Update bei gestecktem Fahrzeug.
+
+**D4 Dauer**
+
+11. Mehrstündige Ladung: kein Neustart, evcc und MQTT stabil, Prozessortemperatur, Thread-Stacks.
+
+Bewusst nicht mit dem Fahrzeug: Fehlerstrom unter Last und der AC-Zweig (30 mA), dafür ein
+Prüfaufbau mit Lastwiderstand. Dreiphasiges Laden und Verriegelung prüft dieser Aufbau nicht.
