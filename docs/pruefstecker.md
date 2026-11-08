@@ -328,6 +328,12 @@ hat keinen Zähler.
   charging". Fortsetzen nach 31 s: S6 und Schütz ein binnen 0,1 s; der Leaf zieht erst etwa 35 s
   später Strom.
 - Auslastung beim Laden: Stacks höchstens 73 % (`timesync`), Prozessor 18 °C.
+- D3.9 Netzausfall beim Laden (Sicherung etwa 10 s aus): zweites Gerät startet (`power_on`), Leaf in C,
+  S3 ohne Fehler; kein Weiterladen, weil `enable_register` wieder 0 ist (Befund 3).
+  `external_current` steht nach dem Start auf 80 000 (Festlegung `external_current_default`).
+  evcc gerät in die Schleife aus Befund 1, die Box fällt danach aus dem Netz (Befund 2).
+- D1.4 Abstecken (nach Aus/Ein, evcc frisch, Modus Aus): S3 -> S1, Entriegeln-Merker 1, keine
+  Fehler; evcc "car disconnected" 9 s später.
 
 Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
 
@@ -336,9 +342,14 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    vorigen Start stammt und beim WebSocket kein 401 möglich ist
    ([Festlegung Nonces](implementierung.md#api-und-anmeldung)). Erst ein Neustart von evcc half.
    Beim Neustart in der Simulation (C6) trat das nicht auf.
-2. Das zweite Gerät im Netz nicht mehr erreichbar** (09:49:52, während der Schleife aus Befund 1): keine
-   Antwort auf ARP, Ping und HTTP, über 2 min; kein Watchdog-Reset. Nach Aus/Ein lief sie normal
-   (`power_on`); das Ereignisprotokoll ging dabei verloren (Backup-SRAM ohne VBAT). Ursache offen.
+2. Das zweite Gerät fällt aus dem Netz** (zweimal, beim zweiten Mal gezielt nach D3.9): Schleife ab
+   10:07:19 mit etwa 125 WebSocket-Verbindungen je Sekunde; letzte angenommene Verbindung
+   10:08:08 (rund 6000 nach Beginn), HTTP ab etwa 10:08:13 ohne Antwort, Ping und ARP ab etwa
+   10:08:45 tot. Keine Erholung in 10 min, auch nicht nach Ziehen und Stecken des Ethernet-Kabels
+   bei gestopptem evcc. Die Ladelogik lief weiter (Power-LED 1 Hz, Error aus, Ready/Connect wie
+   S3 mit Fahrzeug), kein Watchdog-Reset; nur Aus/Ein half. Das Ereignisprotokoll geht dabei
+   verloren (Backup-SRAM ohne VBAT). Vermutung: Netzpuffer oder Verbindungen gehen beim Schließen
+   abgewiesener WebSockets verloren, bis keine mehr frei sind; in der Simulation nachstellen.
 3. **Freigabe ohne Schlüssel:** Mit D10 gibt EN oder `enable_register` frei; ab Werk ist das
    Register 0 und nicht persistent, evcc setzt es nicht (WARP: nur der Strom). Ohne Schlüssel lädt
    die Box mit evcc daher nicht. Wunsch (Nutzer 2026-11-08): EN = **Zwangsladen ohne evcc**, evcc
