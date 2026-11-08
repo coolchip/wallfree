@@ -256,11 +256,17 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
 - Wallfree über die Weboberfläche aufspielen wie beim Umrüsten ([Umrüsten](umruesten.md)).
   Das zweite Gerät (2026-11-08): `SL-01.04.24` übergibt dem Bootloader keine Adresse, er wartet daher unter
   192.168.0.8 (Bootloader-Version 1.03, MAC `xx:xx:xx:d4:e5:f6`); Upload über die USB-Karte am PC
-  mit `scripts/update.sh --upload-only 192.168.0.8`. Wallfree holt sich danach per DHCP eine Adresse,
-  die bisherige feste Adresse 192.168.1.60 gilt nicht mehr,
-  danach `import-original`; prüfen: DIP und Drehschalter, `cable` (D1 an mit festem Kabel: Wert
-  aus dem PP-Widerstand im Kabel), Schützüberwachung (CT in das zweite Gerät vorhanden? dann Via Sense),
-  `contactor_min_off` 5 s, keine Verriegelung.
+  mit `scripts/update.sh --upload-only 192.168.0.8`. Wallfree (`23f3260`) bezieht wie das Original
+  die Adresse per DHCP und bekommt im Heimnetz mit derselben MAC wieder 192.168.1.60, Name
+  `wallfree-d4e5f6`.
+- `import-original` (2026-11-08, Sicherungen `wallbe2/analysis/box-g/import-2026-11-08/`): 15 Werte
+  der Ladelogik und das Netz (DHCP) übernommen, alle gleich der Original-Weboberfläche: ER/LR/VR/CR
+  15/17/16/40, LD/EN/ML/XR/IN 22/1/4/2/12 (IN 20 A), Schützüberwachung aus, D abweisen an,
+  Verriegelungszeiten 0,5/0,5/2 s. DIP gelesen D1, D2, D3, D7, D10 (583), Drehschalter 4 (16 A),
+  `contactor_min_off` 5 s, Zustand A ohne Fehler. **Offen:** `cable` ist in A 0 (kein
+  PP-Widerstand erkannt), obwohl D1 an ist; das Original zeigte beim Laden 32 A (Bildschirmfoto
+  2026-10-19). Kommt in B mit dem Leaf kein gültiger Wert, meldet Wallfree ERR-PP-INVALID
+  (SOLL-PP-04) und lädt nicht; dann PP-Pegel in A/B/C vergleichen, bevor D1 umgestellt wird.
 - evcc gegen das zweite Gerät: `scripts/evcc-boxg.sh` (evcc 0.317.2 lokal auf dem PC, Oberfläche :7070).
   Vorlage [tools/evcc/box-g.example.yaml](../tools/evcc/box-g.example.yaml), die Datei mit
   Zugangsdaten liegt in `build/evcc-boxg/evcc.yaml` (nicht im Repo). Inhalt (Nutzer 2026-11-08):
@@ -269,8 +275,9 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
   für D4), Intervall 10 s, feste Tarife. Nicht übernommen aus der alten Konfiguration: Modbus-Lader
   `phoenix-ev-eth` (Wallfree hat kein Modbus), `plant` (Kennung der alten Instanz),
   Fahrzeug-`identifiers` (Wallfree erkennt kein Fahrzeug), Stromgrenzen am Ladepunkt (in der
-  evcc-Oberfläche). Fronius und OVMS mit `evcc meter`/`evcc vehicle` geprüft; Host und
-  Zugangsdaten des zweiten Geräts folgen nach dem Aufspielen. Der alte evcc-Container ist dabei aus.
+  evcc-Oberfläche). Der alte evcc-Container ist dabei aus. Erster Start (2026-11-08): Zähler
+  grid/pv/battery und Fahrzeug verbunden, zweites Gerät "car disconnected", keine Fehler; evcc warnt bei
+  Intervallen unter 30 s ("unexpected behavior"), für die Prüfungen bewusst 10 s.
 - Strom messen: Anzeige im Fahrzeug bzw. App, oder Stromzange an der Zuleitung (Nutzer, nur an
   isolierten Leitungen).
 
