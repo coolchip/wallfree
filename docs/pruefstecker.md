@@ -349,6 +349,25 @@ hat keinen Zähler.
 - D1.4 Abstecken (nach Aus/Ein, evcc frisch, Modus Aus): S3 -> S1, Entriegeln-Merker 1, keine
   Fehler; evcc "car disconnected" 9 s später.
 
+**Ergebnisse 2026-11-08 abends** (Wallfree `7eb08f9`, Leaf mit 67 % Ladestand, Ladeziel im Leaf
+80 %, 24 kWh, evcc 0.317.2 im Modus Sofort mit 16 A, Schlüssel ein). Abfrage alle 2 s.
+
+- D1.1: angesteckt 18:08:44 -> B mit +8,95 V, evcc gibt frei; 18:08:47 C mit +6,04 / -11,50 V,
+  Tastgrad 26,6 %, Schütz ein, `ct_sense` 1 im nächsten Abfragetakt.
+- D3.9 Netzausfall beim Laden (Sicherung etwa 20 s aus, 18:32:33): `ct_sense` fiel im letzten
+  Abfragetakt vor dem Ausfall auf 0, während die Steuerung das Schütz noch als ein führte (Schütz
+  fällt beim Spannungseinbruch vor der Steuerung ab). Das zweite Gerät 18:33:01 wieder erreichbar
+  (`power_on`), Leaf in C, keine Fehler; mit dem Schlüssel S3 -> S6 und Schütz ein 8,3 s nach dem
+  Start, Leaf lädt weiter. evcc bemerkte den Abbruch der alten Verbindung 18:33:03
+  (`connection reset by peer`), baute neu auf und blieb ohne weitere Fehler verbunden, keine
+  Schleife; Ping und HTTP durchgehend erreichbar. Die Abweisung mit 401 selbst ist am zweiten Gerät nicht
+  sichtbar (Log nur auf der seriellen Konsole); am Testgerät geprüft (Befund 1).
+- D1.3 Ladeende durch das Fahrzeug: 18:47:15 C -> B (+8,97 V), Schütz im selben Takt aus, Box in
+  S5 mit weiter angebotener PWM (26,6 %), keine Fehler; evcc "stop charging" 18:47:24, Ladestand
+  laut evcc 78 %, geladen laut evcc etwa 2,4 kWh (geschätzt, zweites Gerät hat keinen Zähler). Ob der
+  Leaf den Strom vor dem Wechsel auf B zurücknahm, ist nicht gemessen (kein Zähler, Fronius nicht
+  mitgeschrieben).
+
 Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
 
 1. **evcc nach Neustart der Box in Dauerschleife:** Nach dem Aus/Ein des zweiten Geräts baute evcc den
@@ -363,7 +382,8 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    evcc hielt die alte Verbindung bis zum RST um 15:09:54 (bis dahin `unknown evse status: 4`
    aus dem letzten Stand), baute dann neu auf: genau eine Abweisung (401 im Log der Box), danach
    verbunden ohne weitere Fehler, keine Schleife. Mit `23f3260` im selben Aufbau: Schleife mit
-   etwa 132 Aufbauten/s, nach 5297 in 40 s kein Ping (Befund 2).
+   etwa 132 Aufbauten/s, nach 5297 in 40 s kein Ping (Befund 2). Am zweiten Gerät mit `7eb08f9` den
+   Netzausfall beim Laden wiederholt: keine Schleife, Box erreichbar (Ergebnisse abends).
 2. Das zweite Gerät fällt aus dem Netz** (zweimal, beim zweiten Mal gezielt nach D3.9): Schleife ab
    10:07:19 mit etwa 125 WebSocket-Verbindungen je Sekunde; letzte angenommene Verbindung
    10:08:08 (rund 6000 nach Beginn), HTTP ab etwa 10:08:13 ohne Antwort, Ping und ARP ab etwa
