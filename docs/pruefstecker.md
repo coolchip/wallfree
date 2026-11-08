@@ -368,8 +368,10 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    evcc kam mit dem Original nie gut damit zurecht, wenn das Fahrzeug nicht bald auf B zurückfiel
    (Nutzer 2026-11-08; offen, ob es an der Originalfirmware lag). Bedeutung für Wallfree und evcc
    klären.
-5. **Schützüberwachung:** das zweite Gerät hat den Hilfskontakt (`ct_sense` folgt dem Schütz), übernommen ist
-   aus dem Original aber `contactor_monitor` 0; einschalten (Via Sense)?
+5. **Schützüberwachung:** das zweite Gerät hat den Hilfskontakt (`ct_sense` folgt dem Schütz), übernommen war
+   aus dem Original `contactor_monitor` 0. Eingeschaltet (1, Via Sense, Nutzer 2026-11-08) und mit
+   Laden, evcc-Pause (17 s), Fortsetzen und Ende geprüft: Schütz jeweils 5,0 s nach S7 aus,
+   `ct_sense` folgt, kein ERR-CONTACTOR. Erledigt.
 6. **Uhr des zweiten Geräts 2,06 s nach** (11:28, 10 s nach dem letzten Abgleich mit `pool.ntp.org`;
    PC per NTP auf 11 ms genau, drei Messungen gleich). Auf dem Testgerät stimmte die Uhr auf 1 ms. Die
    Zeiten im Ereignisprotokoll des zweiten Geräts sind entsprechend verschoben. Ursache offen.
