@@ -310,3 +310,40 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
 
 Bewusst nicht mit dem Fahrzeug: Fehlerstrom unter Last und der AC-Zweig (30 mA), dafür ein
 Prüfaufbau mit Lastwiderstand. Dreiphasiges Laden und Verriegelung prüft dieser Aufbau nicht.
+
+**Ergebnisse 2026-11-08** (Wallfree `23f3260`, Leaf mit 72 % Ladestand, evcc 0.317.2). Die
+Ladeleistung ist aus dem Leistungsfluss des Fronius gerechnet (PV + Speicher + Netz - Haus), zweites Gerät
+hat keinen Zähler.
+
+- D1.1/2: Leaf angesteckt -> B mit +8,96 V, `cable` 32 A, keine Fehler; S3 wartet auf Freigabe.
+  Mit `enable_register` 1 (Schlüssel EN aus, siehe Befund 3): S3 -> S4 -> S5 nach 2,4 s, Schütz
+  0,9 s später ein, S6; C mit +6,03 / -11,49 V, Tastgrad 26,6 %, etwa 3,7 kW; `ct_sense` folgt dem
+  Schütz (zweites Gerät hat den Hilfskontakt angeschlossen).
+- D2.5: evcc 10 / 6 / 16 A -> Tastgrad 16,6 / 10,0 / 26,6 %, gerechnet etwa 2,3 / 1,4 / 3,7 kW;
+  4..6 s vom evcc-Befehl bis zum Wert in der Box. Unter 6 A nicht geprüft (evcc sendet nicht unter
+  `minCurrent`).
+- D2.6: evcc Aus -> S7, PWM aus; der Leaf nimmt den Strom binnen höchstens etwa 3 s zurück
+  (Fronius, 1-s-Auflösung), Schütz 5,0 s nach S7 aus, also ohne Last; S3. Der Leaf **bleibt in C**
+  (+6,03 V DC) statt auf B zu gehen; evcc meldet alle 10 s "charger logic error: disabled but
+  charging". Fortsetzen nach 31 s: S6 und Schütz ein binnen 0,1 s; der Leaf zieht erst etwa 35 s
+  später Strom.
+- Auslastung beim Laden: Stacks höchstens 73 % (`timesync`), Prozessor 18 °C.
+
+Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
+
+1. **evcc nach Neustart der Box in Dauerschleife:** Nach dem Aus/Ein des zweiten Geräts baute evcc den
+   WebSocket etwa 110-mal je Sekunde neu auf; Wallfree schloss jeden, weil die Nonce aus dem
+   vorigen Start stammt und beim WebSocket kein 401 möglich ist
+   ([Festlegung Nonces](implementierung.md#api-und-anmeldung)). Erst ein Neustart von evcc half.
+   Beim Neustart in der Simulation (C6) trat das nicht auf.
+2. Das zweite Gerät im Netz nicht mehr erreichbar** (09:49:52, während der Schleife aus Befund 1): keine
+   Antwort auf ARP, Ping und HTTP, über 2 min; kein Watchdog-Reset. Nach Aus/Ein lief sie normal
+   (`power_on`); das Ereignisprotokoll ging dabei verloren (Backup-SRAM ohne VBAT). Ursache offen.
+3. **Freigabe ohne Schlüssel:** Mit D10 gibt EN oder `enable_register` frei; ab Werk ist das
+   Register 0 und nicht persistent, evcc setzt es nicht (WARP: nur der Strom). Ohne Schlüssel lädt
+   die Box mit evcc daher nicht. Wunsch (Nutzer 2026-11-08): EN = **Zwangsladen ohne evcc**, evcc
+   soll ohne EN starten können. Im Original stand Register 400 beim zweiten Gerät auf an.
+4. **Leaf bleibt nach PWM-Aus in C** (D2.6, nach Nutzer auch beim Ladeende mit dem Original):
+   Bedeutung für Wallfree und evcc klären.
+5. **Schützüberwachung:** das zweite Gerät hat den Hilfskontakt (`ct_sense` folgt dem Schütz), übernommen ist
+   aus dem Original aber `contactor_monitor` 0; einschalten?
