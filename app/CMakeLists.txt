@@ -13,6 +13,11 @@ set_property(GLOBAL APPEND PROPERTY extra_post_build_commands
   ${CMAKE_BINARY_DIR}/zephyr/zephyr.bin)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(wallfree)
+# Wallfree-Patches am Zephyr-Baum (patches/zephyr, scripts/zephyr-patches.sh)
+file(STRINGS ${ZEPHYR_BASE}/include/zephyr/net/http/server.h wf_ws_upgrade_cb REGEX "upgrade_cb;")
+if(NOT wf_ws_upgrade_cb)
+  message(FATAL_ERROR "Zephyr-Patch fehlt (WebSocket-Vorpruefung): scripts/zephyr-patches.sh")
+endif()
 target_sources(app PRIVATE
   src/main.c
   src/evse_task.c

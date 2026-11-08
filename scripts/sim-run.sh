@@ -17,4 +17,5 @@ if [ "$1" = "--build" ] || [ ! -x "$OUT/zephyr/zephyr.exe" ]; then
 fi
 # Update-Uebergabe (SOLL-BOOT-30): Ersatz fuer den Update-Betrieb des Bootloaders
 export WALLFREE_SIM_BOOTLOADER="${WALLFREE_SIM_BOOTLOADER-$REPO/scripts/bootloader-sim.py}"
-exec "$OUT/zephyr/zephyr.exe" --flash="$REPO/build/sim-flash.bin" "$@"
+# --seed-random: sonst gleiches Nonce-Geheimnis bei jedem Start (feste Saat 0x5678)
+exec "$OUT/zephyr/zephyr.exe" --flash="$REPO/build/sim-flash.bin" --seed-random "$@"

@@ -1,0 +1,136 @@
+net: http_server: let the application refuse a Websocket upgrade
+
+Wallfree patch on Zephyr v4.4.2 (apply with scripts/zephyr-patches.sh).
+
+The HTTP server sends "101 Switching Protocols" before the Websocket resource
+callback runs, so an application can only close an unauthorized upgrade after
+the switch. Clients see a successful handshake followed by a dropped
+connection, never the 401 they would need to refresh a Digest challenge, and
+some retry immediately (evcc: about 110 handshakes per second).
+
+Add an optional upgrade_cb to struct http_resource_detail_websocket. It runs
+after the request headers are parsed and before the 101; leaving the response
+status at 0 accepts the upgrade, setting it answers the request with that
+response (headers, body) and closes the connection.
+
+diff --git a/include/zephyr/net/http/server.h b/include/zephyr/net/http/server.h
+index 2bae320b37a..f5648092495 100644
+--- a/include/zephyr/net/http/server.h
++++ b/include/zephyr/net/http/server.h
+@@ -280,6 +280,30 @@ BUILD_ASSERT(offsetof(struct http_resource_detail_dynamic, common) == 0);
+ typedef int (*http_resource_websocket_cb_t)(int ws_socket, struct http_request_ctx *request_ctx,
+ 					    void *user_data);
+ 
++/**
++ * @typedef http_resource_websocket_upgrade_cb_t
++ * @brief Optional callback used to decide on a Websocket upgrade request
++ *        before the server answers it. It is called after the request headers
++ *        have been parsed and before "101 Switching Protocols" is sent, so the
++ *        application can refuse the upgrade with a regular HTTP response
++ *        (for example 401 with a fresh authentication challenge, 429 or 503).
++ *
++ * @param client HTTP client context of the upgrade request.
++ * @param request_ctx Request context structure associated with the upgrade request.
++ * @param response_ctx Response to send instead of the upgrade. Leave
++ *                     @p response_ctx->status at 0 to accept the upgrade; set it
++ *                     (and optionally headers and body) to refuse it. A refused
++ *                     request is answered completely and the connection is closed.
++ * @param user_data User specified data.
++ *
++ * @return  0 on success (accepted or refused as described above).
++ *         <0 error, close the connection.
++ */
++typedef int (*http_resource_websocket_upgrade_cb_t)(struct http_client_ctx *client,
++						    const struct http_request_ctx *request_ctx,
++						    struct http_response_ctx *response_ctx,
++						    void *user_data);
++
+ /** @brief Representation of a websocket server resource */
+ struct http_resource_detail_websocket {
+ 	/** Common resource details. */
+@@ -303,6 +327,11 @@ struct http_resource_detail_websocket {
+ 
+ 	/** A pointer to the user data registered by the application.  */
+ 	void *user_data;
++
++	/** Optional callback deciding on the upgrade before "101 Switching
++	 *  Protocols" is sent (NULL: always accept).
++	 */
++	http_resource_websocket_upgrade_cb_t upgrade_cb;
+ };
+ 
+ /** @cond INTERNAL_HIDDEN */
+diff --git a/subsys/net/lib/http/http_server_http1.c b/subsys/net/lib/http/http_server_http1.c
+index c2a800c4fce..d93b5fcb171 100644
+--- a/subsys/net/lib/http/http_server_http1.c
++++ b/subsys/net/lib/http/http_server_http1.c
+@@ -668,6 +668,53 @@ close:
+ }
+ #endif
+ 
++/* Let the application refuse a Websocket upgrade before "101 Switching
++ * Protocols" is sent. Returns 0 to proceed with the upgrade, 1 if the request
++ * was refused and answered, <0 on error.
++ */
++static int http1_websocket_upgrade_check(struct http_client_ctx *client,
++					 struct http_resource_detail *detail)
++{
++	struct http_resource_detail_websocket *ws_detail =
++		(struct http_resource_detail_websocket *)detail;
++	struct http_request_ctx request_ctx;
++	struct http_response_ctx response_ctx;
++	const char *params;
++	int ret;
++
++	if (detail->type != HTTP_RESOURCE_TYPE_WEBSOCKET || ws_detail->upgrade_cb == NULL) {
++		return 0;
++	}
++
++	params = &client->url_buffer[detail->path_len];
++	memset(&request_ctx, 0, sizeof(request_ctx));
++	memset(&response_ctx, 0, sizeof(response_ctx));
++	populate_request_ctx(&request_ctx, (uint8_t *)params, strlen(params),
++			     &client->header_capture_ctx);
++
++	ret = ws_detail->upgrade_cb(client, &request_ctx, &response_ctx, ws_detail->user_data);
++	if (ret < 0) {
++		return ret;
++	}
++	if (response_ctx.status == 0) {
++		return 0;
++	}
++
++	ret = http1_dynamic_response(client, &response_ctx, NULL);
++	if (ret < 0) {
++		return ret;
++	}
++
++	if (!is_client_http10(client)) {
++		ret = http_server_sendall(client, final_chunk, sizeof(final_chunk) - 1);
++		if (ret < 0) {
++			return ret;
++		}
++	}
++
++	return 1;
++}
++
+ static int handle_http1_dynamic_resource(
+ 	struct http_resource_detail_dynamic *dynamic_detail,
+ 	struct http_client_ctx *client)
+@@ -1076,6 +1123,15 @@ int handle_http1_request(struct http_client_ctx *client)
+ 				detail->path_len = path_len;
+ 				client->current_detail = detail;
+ 
++				ret = http1_websocket_upgrade_check(client, detail);
++				if (ret < 0) {
++					goto error;
++				}
++				if (ret > 0) {
++					/* Refused and answered: do not switch protocols */
++					return enter_http_done_state(client);
++				}
++
+ 				ret = handle_http1_to_websocket_upgrade(client);
+ 				if (ret < 0) {
+ 					goto error;

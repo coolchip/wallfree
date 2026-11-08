@@ -8,7 +8,7 @@ Steuerung läuft). Sie belegen nichts über die reale Hardware (Pegel, Zeiten, I
 | Ebene | Umfang | Stand |
 | --- | --- | --- |
 | PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezähler, MQTT ohne Netz | 219 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zähler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
-| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zähler, lokalen MQTT-Broker | 69 Tests, alle bestanden, ca. 420 s (T5Mqtt gelegentlich wegen eines Simulationsfehlers, Fallstricke) |
+| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zähler, lokalen MQTT-Broker | 72 Tests, alle bestanden, ca. 450 s (T5Mqtt gelegentlich wegen eines Simulationsfehlers, Fallstricke) |
 | Browser-Durchlauf | Weboberfläche in headless Chrome gegen die Simulation | ohne Zähler 20 Prüfungen bestanden (2026-10-26); mit Zähler zuletzt 2026-10-21 bestanden |
 | Netz-Lasttest | `scripts/net-load.py` gegen Simulation (nur Skriptprüfung) und das Testgerät | auf dem Testgerät bestanden ([Implementierung](implementierung.md#prüfungen-auf-box-t)) |
 | MQTT im LAN | Simulation gegen Mosquitto 2.1.2 im Heimnetz (von Hand, 2026-10-21) | Zustände, Zählerwerte (etwa 1/s), Ereignisse, Befehl Ladestrom, `online` true/false |
@@ -204,7 +204,8 @@ Gegen das zweite Gerät statt der Simulation: `scripts/evcc-boxg.sh` (eigene Kon
 | Abstecken | "stop charging", "car disconnected" binnen eines evcc-Intervalls |
 | mit Zähler (`meter_type` 2, Simulation) | evcc meldet `charger: power ✓ energy ✓ currents ✓`; beim Laden 11 046 W, 15,96 A je Phase, Spannungen 230/230,7/231,4 V, Zählerstand und geladene Energie steigen |
 | Zähler fällt aus (`sim meter off`) | Laden läuft weiter; evcc zeigt 0 W und 0 A (Werte `null` werden in evcc zu 0), Zählerstand bleibt auf dem letzten Wert |
-| `POST /system/restart` beim Laden | geordnetes Ende; evcc meldet währenddessen `unknown evse status: 4` (S10 -> F -> 4, F23), danach WebSocket neu aufgebaut, keine abgewiesene Anmeldung; evcc kommt mit den neuen Nonces zurecht |
+| `POST /system/restart` beim Laden | geordnetes Ende; evcc meldet währenddessen `unknown evse status: 4` (S10 -> F -> 4, F23), danach WebSocket neu aufgebaut |
+| Neustart mit neuen Nonces (`--seed-random`, WebSocket-Vorprüfung) | genau eine Abweisung (401 `stale=true`), evcc meldet sich ohne Neustart neu an und sieht danach "car connected" über den WebSocket |
 
 Verhalten von evcc (Grundlage für F12 und SOLL-API-32):
 

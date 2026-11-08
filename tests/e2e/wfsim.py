@@ -94,7 +94,7 @@ class Sim:
             self.extra_args = list(extra_args)
         self.log = open(self.log_path, "ab")
         self.proc = subprocess.Popen(
-            [self.exe, f"--flash={self.flash}", f"--http-port={self.http_port}",
+            [self.exe, f"--flash={self.flash}", "--seed-random", f"--http-port={self.http_port}",
              *self.extra_args],
             stdout=self.log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
             cwd=self.workdir, env={**os.environ, **self.env})
@@ -306,6 +306,10 @@ class WebSocket:
         self.status_line, _, self.rest = head.partition(b"\r\n")
         _, _, self.buf = head.partition(b"\r\n\r\n")
         self.status = int(self.status_line.split()[1])
+        self.headers = {}
+        for line in head.partition(b"\r\n\r\n")[0].split(b"\r\n")[1:]:
+            k, _, v = line.decode(errors="replace").partition(":")
+            self.headers[k.strip().lower()] = v.strip()
 
     def _need(self, n, deadline):
         while len(self.buf) < n:

@@ -344,10 +344,14 @@ hat keinen Zähler.
 Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
 
 1. **evcc nach Neustart der Box in Dauerschleife:** Nach dem Aus/Ein des zweiten Geräts baute evcc den
-   WebSocket etwa 110-mal je Sekunde neu auf; Wallfree schloss jeden, weil die Nonce aus dem
-   vorigen Start stammt und beim WebSocket kein 401 möglich ist
-   ([Festlegung Nonces](implementierung.md#api-und-anmeldung)). Erst ein Neustart von evcc half.
-   Beim Neustart in der Simulation (C6) trat das nicht auf.
+   WebSocket etwa 110-mal je Sekunde neu auf; erst ein Neustart von evcc half. Ursache: Zephyr
+   sendete das 101 vor der Prüfung der Anmeldung, Wallfree schloss danach jede Verbindung mit
+   der Nonce aus dem vorigen Start. evcc sah einen gelungenen Aufbau, versuchte es ohne Pause
+   erneut und bekam nie das 401, nach dem es sich neu anmeldet. In der Simulation fehlte der
+   Fehler, weil sie bei jedem Start dasselbe Nonce-Geheimnis würfelte (Fallstricke).
+   **Behoben** (Zephyr-Patch, [Festlegung WebSocket-Anmeldung](implementierung.md#api-und-anmeldung)):
+   Abweisung vor dem Upgrade mit 401 `stale=true`, in der Simulation geprüft; am zweiten Gerät mit
+   evcc noch zu prüfen.
 2. Das zweite Gerät fällt aus dem Netz** (zweimal, beim zweiten Mal gezielt nach D3.9): Schleife ab
    10:07:19 mit etwa 125 WebSocket-Verbindungen je Sekunde; letzte angenommene Verbindung
    10:08:08 (rund 6000 nach Beginn), HTTP ab etwa 10:08:13 ohne Antwort, Ping und ARP ab etwa

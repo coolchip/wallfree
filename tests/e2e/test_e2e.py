@@ -248,6 +248,20 @@ class T1Api(SimCase):
                 for w in socks:
                     w.close()
             time.sleep(0.3)
+        socks = [self.sim.ws_connect(self.auth) for _ in range(3)]
+        try:
+            for w in socks:
+                w.recv_topic("evse/state")
+            extra = self.sim.ws_connect(self.auth)  # vierter: 503 vor dem Upgrade
+            try:
+                self.assertEqual(extra.status, 503)
+                self.assertIn("retry-after", extra.headers)
+            finally:
+                extra.close()
+        finally:
+            for w in socks:
+                w.close()
+        time.sleep(0.3)
         w = self.sim.ws_connect(self.auth)
         w.recv_topic("evse/state")
         w.s.close()  # Abbruch ohne Close-Rahmen
@@ -278,20 +292,24 @@ class T1Api(SimCase):
         self.assertIn('"type":"contactor","on":true', self.sim.log_text())  # Protokoll
 
     def test_11_websocket_ohne_anmeldung(self):
+        # Abweisung vor dem Upgrade mit vollstaendiger Antwort (Zephyr-Patch), kein 101
         ws = self.sim.ws_connect(None)
         try:
-            with self.assertRaises((ConnectionError, OSError)):
-                ws.recv(timeout=2)
+            self.assertEqual(ws.status, 401)
+            self.assertIn("Digest", ws.headers["www-authenticate"])
+            self.assertNotIn("stale", ws.headers["www-authenticate"])
+            self.assertEqual(ws.headers["connection"], "close")
         finally:
             ws.close()
         bad = Digest(USER, "falsch-falsch")
         bad.nonce = self.auth.nonce
         ws = self.sim.ws_connect(bad)
         try:
-            with self.assertRaises((ConnectionError, OSError)):
-                ws.recv(timeout=2)
+            self.assertEqual(ws.status, 401)
         finally:
             ws.close()
+        # erfolgreiche Anmeldung setzt den Fehlversuchszaehler zurueck (test_99)
+        self.assertEqual(self.sim.request("GET", "/evse/state", auth=self.auth).status, 200)
 
     def test_11a_ereignisprotokoll(self):
         # SOLL-ERR-11: falsche Anmeldung mit Absender und Ereignisse in GET /system/log
@@ -393,6 +411,29 @@ class T1Api(SimCase):
         seqs = [e["seq"] for e in log["entries"]]
         self.assertEqual(seqs, sorted(seqs), "Nummern laufen weiter")
         self.assertIsNone(info["reset_detail"])
+
+    def test_13a_websocket_nonce_nach_neustart(self):
+        # Befund 1 (evcc): Nonce vom vorigen Start -> 401 stale=true vor dem Upgrade,
+        # mit der neuen Challenge gelingt der Aufbau (so erneuert evcc die Anmeldung)
+        boots = self.sim.boots()
+        self.assertEqual(self.sim.request("POST", "/system/restart", b"",
+                                          auth=self.auth).status, 202)
+        self.sim.wait_restart(boots)
+        old = Digest(USER, self.auth.password)
+        old.nonce = self.auth.nonce
+        ws = self.sim.ws_connect(old)
+        try:
+            self.assertEqual(ws.status, 401)
+            self.assertIn("stale=true", ws.headers["www-authenticate"])
+            old.take_challenge(ws.headers["www-authenticate"])
+        finally:
+            ws.close()
+        ws = self.sim.ws_connect(old)
+        try:
+            self.assertEqual(ws.status, 101)
+            ws.recv_topic("evse/state")
+        finally:
+            ws.close()
 
     def test_14_neustart_waehrend_laden(self):
         self.shell("sim car C")

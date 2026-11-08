@@ -6,11 +6,9 @@
  *
  *  - Alle Ressourcen mit HTTP-Digest (MD5, qop=auth). Im Werkszugang
  *    beantwortet die API nur /credentials, sonst 403.
- *  - WebSocket /ws: Zephyr bestaetigt das Upgrade (101), bevor die Anwendung
- *    den Aufbau sieht. Die Anmeldung wird danach anhand der mitgesendeten
- *    Authorization-Kopfzeile geprueft (evcc sendet sie nach der ersten
- *    Challenge vorab); ohne gueltige Anmeldung wird die Verbindung ohne
- *    Daten geschlossen.
+ *  - WebSocket /ws: Anmeldung und freier Platz werden vor dem Upgrade (101)
+ *    geprueft (Zephyr-Patch, ws_upgrade_check); abgewiesen wird mit 401
+ *    (frische Challenge), 403, 429 oder 503 wie bei den uebrigen Ressourcen.
  *  - Schreibzugriffe laufen ueber die Parametertabelle mit Grenzpruefung (E14).
  *
  * Alle Ressourcen-Callbacks laufen im Thread des Zephyr-HTTP-Servers. Nur
@@ -955,34 +953,65 @@ static struct {
 static K_MUTEX_DEFINE(ws_mtx);
 static uint8_t ws_hs_buf[256];
 
-/*
- * Absender beim WebSocket-Aufbau: Zephyr uebergibt nur den WebSocket-Socket
- * (ohne getpeername). request_ctx->headers zeigt auf das Kopfzeilenfeld des
- * Client-Kontexts (http_server_ws.c, populate_request_ctx, Zephyr 4.4.2),
- * daraus der TCP-Socket. Abhaengigkeit von Zephyr-Interna, bei Updates pruefen.
- */
-static uint32_t ws_peer(const struct http_request_ctx *req)
+static bool ws_slot_free(void)
 {
-	if (req->header_count == 0) {
-		return 0;
-	}
-	const struct http_client_ctx *c = (const struct http_client_ctx *)(
-		(const char *)req->headers -
-		offsetof(struct http_client_ctx, header_capture_ctx.headers));
+	bool free_slot = false;
 
-	return peer_addr(c->fd);
+	k_mutex_lock(&ws_mtx, K_FOREVER);
+	for (int i = 0; i < WS_MAX; i++) {
+		free_slot |= ws[i].sock < 0;
+	}
+	k_mutex_unlock(&ws_mtx);
+	return free_slot;
 }
 
-static int ws_attach(int sock, struct http_request_ctx *req)
-{
-	int64_t wait_ms;
-	enum wf_auth a = checked_auth(ws_peer(req), find_header(req, "Authorization"), "GET", "/ws",
-				      &wait_ms);
+/*
+ * Vorpruefung des WebSocket-Aufbaus, bevor Zephyr "101 Switching Protocols"
+ * sendet (Zephyr-Patch patches/zephyr/0001-*). Abgewiesen wird mit einer
+ * vollstaendigen HTTP-Antwort wie bei den uebrigen Ressourcen: 401 mit frischer
+ * Challenge (evcc erneuert damit eine veraltete Nonce), 429 waehrend der Sperre,
+ * 403 im Werkszugang, 503 ohne freien Platz. Danach schliesst der Server.
+ */
+static struct res ws_res; /* nur fuer gate(): nicht im Werkszugang */
+static struct http_header ws_rsp_hdr[3];
+static const struct http_header ws_hdr_busy = {.name = "Retry-After", .value = "5"};
 
-	if (a != WF_AUTH_OK || auth_must_change()) {
-		LOG_WRN("WebSocket ohne gueltige Anmeldung geschlossen");
-		return -EACCES; /* der Server schliesst die Verbindung */
+static void ws_refuse_headers(struct http_response_ctx *rsp)
+{
+	size_t n = 0;
+
+	for (size_t i = 0; i < rsp->header_count && n < 1; i++) {
+		ws_rsp_hdr[n++] = rsp->headers[i];
 	}
+	ws_rsp_hdr[n++] = (struct http_header){.name = "Content-Type", .value = "application/json"};
+	ws_rsp_hdr[n++] = (struct http_header){.name = "Connection", .value = "close"};
+	rsp->headers = ws_rsp_hdr;
+	rsp->header_count = n;
+}
+
+static int ws_upgrade_check(struct http_client_ctx *client, const struct http_request_ctx *req,
+			    struct http_response_ctx *rsp, void *user_data)
+{
+	ARG_UNUSED(user_data);
+	evse_task_http_busy(true); /* SOLL-RT-11 */
+	if (!gate(client, &ws_res, req, rsp)) {
+		LOG_WRN("WebSocket abgewiesen (%d)", rsp->status);
+	} else if (!ws_slot_free()) {
+		LOG_WRN("WebSocket: alle %d Plaetze belegt", WS_MAX);
+		rsp->headers = &ws_hdr_busy;
+		rsp->header_count = 1;
+		respond_error(rsp, HTTP_503_SERVICE_UNAVAILABLE, "alle WebSocket-Plätze belegt");
+	}
+	if (rsp->status != 0) {
+		ws_refuse_headers(rsp);
+	}
+	evse_task_http_busy(false);
+	return 0;
+}
+
+/* Nach "101": angemeldet ist der Client bereits (ws_upgrade_check) */
+static int ws_attach(int sock)
+{
 	k_mutex_lock(&ws_mtx, K_FOREVER);
 	for (int i = 0; i < WS_MAX; i++) {
 		if (ws[i].sock < 0) {
@@ -1000,9 +1029,10 @@ static int ws_attach(int sock, struct http_request_ctx *req)
 
 static int ws_setup(int sock, struct http_request_ctx *req, void *user_data)
 {
+	ARG_UNUSED(req);
 	ARG_UNUSED(user_data);
 	evse_task_http_busy(true); /* SOLL-RT-11 */
-	int ret = ws_attach(sock, req);
+	int ret = ws_attach(sock);
 
 	evse_task_http_busy(false);
 	return ret;
@@ -1014,6 +1044,7 @@ static struct http_resource_detail_websocket ws_detail = {
 	.cb = ws_setup,
 	.data_buffer = ws_hs_buf,
 	.data_buffer_len = sizeof(ws_hs_buf),
+	.upgrade_cb = ws_upgrade_check,
 };
 HTTP_RESOURCE_DEFINE(ws_r, wallfree_http, "/ws", &ws_detail);
 
