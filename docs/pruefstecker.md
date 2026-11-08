@@ -287,6 +287,15 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
   evcc-Oberfläche). Der alte evcc-Container ist dabei aus. Erster Start (2026-11-08): Zähler
   grid/pv/battery und Fahrzeug verbunden, zweites Gerät "car disconnected", keine Fehler; evcc warnt bei
   Intervallen unter 30 s ("unexpected behavior"), für die Prüfungen bewusst 10 s.
+- evcc für den Langzeittest (D4) auf einem Server im Heimnetz (Portainer), getrennt vom alten Container
+  `evcc-fixed-0.204.3`, der gestoppt bleibt: Image `evcc/evcc:0.319.0-chargerSwitchDuration10m`,
+  Konfiguration `evcc.yaml auf dem Server` (wie oben, aber Intervall 30 s, Start im
+  Modus PV), eigenes Volume `evcc-wallfree-data`, Port 7070. Das Image ist evcc 0.319.0 mit einem
+  Patch (Branch `wallfree/charger-switch-duration` in `einem eigenen evcc-Klon`): `chargerSwitchDuration`
+  10 min statt 60 s, damit evcc den Leaf nach PWM-Aus nicht wieder einschaltet, solange er noch
+  in C steht (Befund 4). Gebaut ohne buildx: Oberfläche und Programm in den Build-Containern
+  aus dem evcc-Dockerfile (vite-plus, golang-alpine), das Programm dann in das offizielle Image
+  0.319.0 gelegt. Nicht gleichzeitig mit `scripts/evcc-boxg.sh` betreiben (zwei Regler).
 - Strom messen: Anzeige im Fahrzeug bzw. App, oder Stromzange an der Zuleitung (Nutzer, nur an
   isolierten Leitungen).
 
