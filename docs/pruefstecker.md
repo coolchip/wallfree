@@ -289,8 +289,14 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
   Intervallen unter 30 s ("unexpected behavior"), für die Prüfungen bewusst 10 s.
 - evcc für den Langzeittest (D4) auf einem Server im Heimnetz (Portainer), getrennt vom alten Container
   `evcc-fixed-0.204.3`, der gestoppt bleibt: Image `evcc/evcc:0.319.0-chargerSwitchDuration10m`,
-  Konfiguration `evcc.yaml auf dem Server` (wie oben, aber Intervall 30 s, Start im
-  Modus PV), eigenes Volume `evcc-wallfree-data`, Port 7070. Das Image ist evcc 0.319.0 mit einem
+  Konfiguration `evcc.yaml auf dem Server` (wie oben, aber Intervall 30 s, Modus PV
+  nach jedem Neustart von evcc, OVMS-`cache` 2 min statt 15 min, damit das Limit kaum überschritten
+  wird), eigenes Volume `evcc-wallfree-data`, Port 7070. Stack für Portainer: Dienst
+  `evcc-wallfree` mit Befehl `evcc`, `restart: unless-stopped`, `TZ=Europe/Berlin`, die
+  Konfiguration nur lesend nach `/etc/evcc.yaml`. Am Ladepunkt in der Oberfläche 1 Phase
+  eingestellt, Standard-Limit des Leaf 80 % (Plan, Ankunft). Das OVMS-Modul meldet an den v2-Server
+  alle 300 s ohne und alle 60 s mit verbundener App; der v3-Server (MQTT) passt nicht zur
+  evcc-Vorlage `ovms`. Das Image ist evcc 0.319.0 mit einem
   Patch (Branch `wallfree/charger-switch-duration` in `einem eigenen evcc-Klon`): `chargerSwitchDuration`
   10 min statt 60 s, damit evcc den Leaf nach PWM-Aus nicht wieder einschaltet, solange er noch
   in C steht (Befund 4). Gebaut ohne buildx: Oberfläche und Programm in den Build-Containern
@@ -376,6 +382,11 @@ hat keinen Zähler.
   laut evcc 78 %, geladen laut evcc etwa 2,4 kWh (geschätzt, zweites Gerät hat keinen Zähler). Ob der
   Leaf den Strom vor dem Wechsel auf B zurücknahm, ist nicht gemessen (kein Zähler, Fronius nicht
   mitgeschrieben).
+- Ladeende durch evcc mit dem gepatchten evcc auf einem Server im Heimnetz (Limit 80 % am Fahrzeug in evcc, im Leaf
+  keine Begrenzung, Modus Sofort, 1 Phase): 21:20:00 S6 mit 16 A; 21:24:46 S7, PWM aus; Schütz
+  21:24:50 aus, `ct_sense` folgt; Leaf bleibt in C bis 21:29:52, dann B mit +8,97 V, also wieder
+  **5 min 6 s** (wie bei Befund 4). evcc meldete in der Zeit 10-mal "disabled but charging" (alle
+  30 s), schaltete aber nicht wieder ein; "stop charging" 21:29:50. Keine Fehler in der Box.
 
 Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
 
