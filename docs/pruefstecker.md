@@ -238,7 +238,7 @@ Nicht enthalten: C7, die Befehle `bootloader`, `factory-reset` und `import-origi
 
 ## 8. Stufe D: Laden mit Fahrzeug (zweites Gerät)
 
-Geplant (Nutzer 2026-11-07), noch nicht freigegeben. Ziel: was der Prüfstecker nicht nachbilden
+Geplant und freigegeben (Nutzer 2026-11-07, [wallbe2/AGENTS.md](../../wallbe2/AGENTS.md)); durchgeführt wird später. Ziel: was der Prüfstecker nicht nachbilden
 kann, also Laststrom, ein Fahrzeug, das auf Ladesignal und Schütz reagiert, und lange Laufzeit
 (Inbetriebnahmestufe H4, [Architektur](architektur.md#7-hardware-inbetriebnahme)).
 
@@ -250,10 +250,9 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
 
 **D0 Vorbereitung**
 
-- Freigabe für das zweite Gerät in [wallbe2/AGENTS.md](../../wallbe2/AGENTS.md) (Nutzer), einschließlich
-  Rückweg zur Originalfirmware.
-- Einstellungen der Originalfirmware festhalten (Weboberfläche, Bildschirmfotos), möglichst auch
-  Sektor 3 und die Firmware sichern (Bootloader und Firmwarestand des zweiten Geräts sind nicht geprüft).
+- Einstellungen der Originalfirmware festhalten (Weboberfläche, Bildschirmfotos). Die Firmware
+  wird nicht gesichert: `SL-01.04.24` liegt vor (Rückweg über den Bootloader), Sektor 3 lässt
+  Wallfree unverändert. Kein ST-LINK am zweiten Gerät, nur im Notfall.
 - Wallfree über die Weboberfläche aufspielen wie beim Umrüsten ([Umrüsten](umruesten.md)),
   danach `import-original`; prüfen: DIP und Drehschalter, `cable` (D1 an mit festem Kabel: Wert
   aus dem PP-Widerstand im Kabel), Schützüberwachung (CT in das zweite Gerät vorhanden? dann Via Sense),
