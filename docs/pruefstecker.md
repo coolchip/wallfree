@@ -344,6 +344,8 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    die Box mit evcc daher nicht. Wunsch (Nutzer 2026-11-08): EN = **Zwangsladen ohne evcc**, evcc
    soll ohne EN starten können. Im Original stand Register 400 beim zweiten Gerät auf an.
 4. **Leaf bleibt nach PWM-Aus in C** (D2.6, nach Nutzer auch beim Ladeende mit dem Original):
-   Bedeutung für Wallfree und evcc klären.
+   evcc kam mit dem Original nie gut damit zurecht, wenn das Fahrzeug nicht bald auf B zurückfiel
+   (Nutzer 2026-11-08; offen, ob es an der Originalfirmware lag). Bedeutung für Wallfree und evcc
+   klären.
 5. **Schützüberwachung:** das zweite Gerät hat den Hilfskontakt (`ct_sense` folgt dem Schütz), übernommen ist
    aus dem Original aber `contactor_monitor` 0; einschalten?
