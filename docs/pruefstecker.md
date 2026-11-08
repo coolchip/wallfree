@@ -263,10 +263,11 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
   der Ladelogik und das Netz (DHCP) übernommen, alle gleich der Original-Weboberfläche: ER/LR/VR/CR
   15/17/16/40, LD/EN/ML/XR/IN 22/1/4/2/12 (IN 20 A), Schützüberwachung aus, D abweisen an,
   Verriegelungszeiten 0,5/0,5/2 s. DIP gelesen D1, D2, D3, D7, D10 (583), Drehschalter 4 (16 A),
-  `contactor_min_off` 5 s, Zustand A ohne Fehler. **Offen:** `cable` ist in A 0 (kein
-  PP-Widerstand erkannt), obwohl D1 an ist; das Original zeigte beim Laden 32 A (Bildschirmfoto
-  2026-10-19). Kommt in B mit dem Leaf kein gültiger Wert, meldet Wallfree ERR-PP-INVALID
-  (SOLL-PP-04) und lädt nicht; dann PP-Pegel in A/B/C vergleichen, bevor D1 umgestellt wird.
+  `contactor_min_off` 5 s, Zustand A ohne Fehler. `cable` war dabei 0, weil das Ladekabel
+  abgeklemmt war; nach dem Anklemmen muss der PP-Widerstand des Kabels einen Wert liefern
+  (Original beim Laden: 32 A, Bildschirmfoto 2026-10-19), sonst meldet Wallfree mit D1 im Zustand B
+  ERR-PP-INVALID (SOLL-PP-04).
+- evcc-Ladepunkt in der Oberfläche auf 1 Phase gestellt (Nutzer 2026-11-08).
 - evcc gegen das zweite Gerät: `scripts/evcc-boxg.sh` (evcc 0.317.2 lokal auf dem PC, Oberfläche :7070).
   Vorlage [tools/evcc/box-g.example.yaml](../tools/evcc/box-g.example.yaml), die Datei mit
   Zugangsdaten liegt in `build/evcc-boxg/evcc.yaml` (nicht im Repo). Inhalt (Nutzer 2026-11-08):
