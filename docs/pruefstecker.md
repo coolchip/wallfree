@@ -358,8 +358,12 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    erneut und bekam nie das 401, nach dem es sich neu anmeldet. In der Simulation fehlte der
    Fehler, weil sie bei jedem Start dasselbe Nonce-Geheimnis würfelte (Fallstricke).
    **Behoben** (Zephyr-Patch, [Festlegung WebSocket-Anmeldung](implementierung.md#api-und-anmeldung)):
-   Abweisung vor dem Upgrade mit 401 `stale=true`, in der Simulation geprüft; am zweiten Gerät mit
-   evcc noch zu prüfen.
+   Abweisung vor dem Upgrade mit 401 `stale=true`. Geprüft am Testgerät mit evcc 0.317.2 und
+   `7eb08f9` (2026-11-08): Neustart der Box um 15:09:24, Ping und HTTP nach 13 s wieder da;
+   evcc hielt die alte Verbindung bis zum RST um 15:09:54 (bis dahin `unknown evse status: 4`
+   aus dem letzten Stand), baute dann neu auf: genau eine Abweisung (401 im Log der Box), danach
+   verbunden ohne weitere Fehler, keine Schleife. Mit `23f3260` im selben Aufbau: Schleife mit
+   etwa 132 Aufbauten/s, nach 5297 in 40 s kein Ping (Befund 2).
 2. Das zweite Gerät fällt aus dem Netz** (zweimal, beim zweiten Mal gezielt nach D3.9): Schleife ab
    10:07:19 mit etwa 125 WebSocket-Verbindungen je Sekunde; letzte angenommene Verbindung
    10:08:08 (rund 6000 nach Beginn), HTTP ab etwa 10:08:13 ohne Antwort, Ping und ARP ab etwa
