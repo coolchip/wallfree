@@ -1,8 +1,9 @@
 # Implementierungsstand
 
-Stand: 2026-10-27. **Auf Hardware nur ohne Last gelaufen** (Testgerät, Schütz abgeklemmt, kein
-Fahrzeug; Ergebnisse: [Prüfungen auf dem Testgerät](#prüfungen-auf-box-t)); bestandene Tests belegen
-keine elektrische Sicherheit. Rahmen und Begründungen: [Architektur](architektur.md);
+Stand: 2026-11-08. Auf dem Testgerät mit Prüfstecker und Schütz ohne Last geprüft
+([Prüfungen auf dem Testgerät](#prüfungen-auf-box-t)), auf dem zweiten Gerät mit Fahrzeug (Nissan Leaf, einphasig 16 A)
+und evcc ([Stufe D](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)), dort seit `7eb08f9` im
+Langzeittest. Bestandene Tests belegen keine elektrische Sicherheit. Rahmen und Begründungen: [Architektur](architektur.md);
 Tests: [Test und Simulation](test-und-simulation.md).
 
 ## Überblick
@@ -16,7 +17,7 @@ Tests: [Test und Simulation](test-und-simulation.md).
 | MQTT-Client (`lib/api/mqtt.c`, `mqtt_task.c`) | fertig, PC-getestet, in der Simulation Ende-zu-Ende und auf dem Testgerät gegen Mosquitto geprüft |
 | Anwendung (`app/`) | baut für `ev_cc_ac1` ohne Warnung; als PC-Simulation Ende-zu-Ende getestet; auf dem Testgerät unter Netzlast geprüft |
 | Weboberfläche (`web/`) | fertig (Bereiche, Verlauf, Auswahllisten, Begriffe), Browser-Durchlauf in der Simulation, auf dem Testgerät im Einsatz |
-| evcc-Anbindung | gegen die Simulation geprüft (evcc 0.317.2), gegen das Testgerät mit Prüfstecker und Schütz (Stufe C6) |
+| evcc-Anbindung | gegen die Simulation geprüft (evcc 0.317.2), gegen das Testgerät mit Prüfstecker und Schütz (Stufe C6), gegen das zweite Gerät mit Fahrzeug (Stufe D, evcc 0.317.2 und 0.319.0 mit Patch für die Wartezeit nach dem Ausschalten) |
 | Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) | auf dem Testgerät gestartet: Takt, Bootloader-Start, Ethernet/PHY, DIP/Drehschalter, CP-Messung (Ruhe, A, F), RCM-Selbsttest, alle fünf Eingänge, Ausgänge ER/LR/VR/CR (je 12 V), Verriegelung mit LD, Power-/Error-LED, Parameterspeicher, Reset-Taster/Werksreset; Schütz, PWM, Ready-LED mit Prüfstecker (Stufe C) |
 | Update über den Bootloader (SOLL-SH-10, SOLL-BOOT-30..35) | umgesetzt und auf dem Testgerät geprüft (Weboberfläche, 20 s, Prüfsumme des Abbilds); Simulation mit nachgebildetem Bootloader Ende-zu-Ende und im Browser |
 
@@ -391,8 +392,17 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurück).
 
 - Energiezähler an RS-485: Eastron SDM72D-M-2 des Nutzers anschließen (später, Nutzer 2026-10-27);
   Abfrage. Die Anbindung ist mit der Nachbildung geprüft ([Prüfungen](#prüfungen-auf-box-t)).
-- Statuswert `ct_sense` (Spannung an CT) auf dem Testgerät: ohne Schütz 0 (bestätigt 2026-10-28, `3899732`);
-  1 bei eingeschaltetem Schütz erst in Stufe C.
+- Das zweite Gerät bleibt nach einem Update über Wallfree und einmal nach Aus/Ein im Bootloader 1.03 hängen
+  (Modus 4, ohne Zeitablauf); Updates am zweiten Gerät bis zur Klärung nur über die USB-Karte. Vermutung
+  und Prüfplan (Bootloader mit Wallfree auslesen, nach dem Upload ohne `GET` abwarten):
+  [wallbe2 Bootloader 1.03](../../wallbe2/docs/bootloader.md#bootloader-103-box-g).
+- Befunde aus Stufe D ([Prüfstecker](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)):
+  Schlüssel als Zwangsladen ohne evcc (Befund 3), Uhr des zweiten Geräts 2 s nach (Befund 6); der Leaf
+  bleibt nach PWM-Aus etwa 5 min in C (Befund 4, gelöst in evcc mit lokalem Patch, Issue bzw. PR
+  bei evcc offen).
+- Erreichbarkeit unter Verbindungsflut: mit 12 Netzkontexten und 1,5 s TIME_WAIT werden neue
+  HTTP-Verbindungen abgewiesen, solange die Flut anhält (etwa 1 s danach wieder erreichbar).
+- Zephyr-Patches 0001/0002 als Issue bzw. PR bei Zephyr einreichen.
 - Ziel von PE1 (F15) weiter offen. Das Relais C3/C4 schaltet PE2 zusammen mit C1/C2 (Testgerät, Stufe C
   2026-11-07; Schaltung am dritten Gerät, [wallbe2 hardware.md](../../wallbe2/docs/hardware.md#2a-box-e-zweite-steuerung-mobilfunkausfuehrung)).
 

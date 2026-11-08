@@ -266,7 +266,13 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
   192.168.0.8 ("Bootloader-Version: 1.03") ohne Zeitablauf, nach über 10 min noch. Abhilfe
   jeweils `scripts/update.sh --upload-only 192.168.0.8` über die USB-Karte, danach startet
   Wallfree (`update_result` Modus 4). Nach dem Update lud der Leaf wieder (Schlüssel, S6). An
-  Das Testgerät läuft derselbe Update-Weg zuverlässig (Modus 2).
+  Das Testgerät läuft derselbe Update-Weg zuverlässig (Modus 2). Modus 4 heißt beim untersuchten
+  Bootloader des Testgeräts "kein startbares Programm" (ungültiger Stack-Pointer bei `0x08010000`),
+  ohne Zeitablauf; das zweite Gerät hat aber Bootloader 1.03, der nicht ausgelesen ist. Andere Aus/Ein an
+  Das zweite Gerät liefen ohne Hänger (D3.9 vormittags mit `23f3260`, D3.9 abends mit `7eb08f9`). Vermutung
+  und Prüfplan: [wallbe2 Bootloader](../../wallbe2/docs/bootloader.md#bootloader-103-box-g).
+  Beim nächsten Hänger zuerst nur Aus/Ein versuchen und nach dem Start die Konsole `boot`
+  (RCC_CSR, BKP10..16) sichern.
 - `import-original` (2026-11-08, Sicherungen `wallbe2/analysis/box-g/import-2026-11-08/`): 15 Werte
   der Ladelogik und das Netz (DHCP) übernommen, alle gleich der Original-Weboberfläche: ER/LR/VR/CR
   15/17/16/40, LD/EN/ML/XR/IN 22/1/4/2/12 (IN 20 A), Schützüberwachung aus, D abweisen an,
@@ -375,8 +381,8 @@ hat keinen Zähler.
   (`power_on`), Leaf in C, keine Fehler; mit dem Schlüssel S3 -> S6 und Schütz ein 8,3 s nach dem
   Start, Leaf lädt weiter. evcc bemerkte den Abbruch der alten Verbindung 18:33:03
   (`connection reset by peer`), baute neu auf und blieb ohne weitere Fehler verbunden, keine
-  Schleife; Ping und HTTP durchgehend erreichbar. Die Abweisung mit 401 selbst ist am zweiten Gerät nicht
-  sichtbar (Log nur auf der seriellen Konsole); am Testgerät geprüft (Befund 1).
+  Schleife; Ping und HTTP durchgehend erreichbar. Log der Box (Konsole `log`): "WebSocket
+  abgewiesen (401)" 8,3 s und 22,1 s nach dem Start, danach keine weitere Abweisung.
 - D1.3 Ladeende durch das Fahrzeug: 18:47:15 C -> B (+8,97 V), Schütz im selben Takt aus, Box in
   S5 mit weiter angebotener PWM (26,6 %), keine Fehler; evcc "stop charging" 18:47:24, Ladestand
   laut evcc 78 %, geladen laut evcc etwa 2,4 kWh (geschätzt, zweites Gerät hat keinen Zähler). Ob der
@@ -431,8 +437,11 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    evcc kam mit dem Original nie gut damit zurecht, wenn das Fahrzeug nicht bald auf B zurückfiel
    (Nutzer 2026-11-08; offen, ob es an der Originalfirmware lag). Gemessen nach dem Ende über evcc
    (S7 11:34:26, PC-Zeit): C mit +6,05 V bis 11:39:31, dann B mit +8,97 V, also **etwa 5 min 6 s**
-   nach dem PWM-Aus (einmal gemessen, Abfrage alle 2 s). Bis dahin meldete evcc alle 10 s
-   "disabled but charging" (38-mal), danach nicht mehr. Bedeutung für Wallfree und evcc klären.
+   nach dem PWM-Aus (abends noch einmal genau so, siehe oben). Bis dahin meldete evcc alle 10 s
+   "disabled but charging" (38-mal), danach nicht mehr. evcc schaltet nach fest 60 s
+   (`chargerSwitchDuration`, nicht einstellbar) wieder ein. Umgang (Nutzer 2026-11-08): Wallfree
+   meldet den Zustand weiter so, wie er ist (C); gelöst in evcc. Lokal mit Patch auf 10 min
+   geprüft (kein Wiedereinschalten), Issue bzw. PR bei evcc steht aus (dort besser einstellbar).
 5. **Schützüberwachung:** das zweite Gerät hat den Hilfskontakt (`ct_sense` folgt dem Schütz), übernommen war
    aus dem Original `contactor_monitor` 0. Eingeschaltet (1, Via Sense, Nutzer 2026-11-08) und mit
    Laden, evcc-Pause (17 s), Fortsetzen und Ende geprüft: Schütz jeweils 5,0 s nach S7 aus,
