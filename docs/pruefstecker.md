@@ -253,7 +253,11 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
 - Einstellungen der Originalfirmware festhalten (Weboberfläche, Bildschirmfotos). Die Firmware
   wird nicht gesichert: `SL-01.04.24` liegt vor (Rückweg über den Bootloader), Sektor 3 lässt
   Wallfree unverändert. Kein ST-LINK am zweiten Gerät, nur im Notfall.
-- Wallfree über die Weboberfläche aufspielen wie beim Umrüsten ([Umrüsten](umruesten.md)),
+- Wallfree über die Weboberfläche aufspielen wie beim Umrüsten ([Umrüsten](umruesten.md)).
+  Das zweite Gerät (2026-11-08): `SL-01.04.24` übergibt dem Bootloader keine Adresse, er wartet daher unter
+  192.168.0.8 (Bootloader-Version 1.03, MAC `xx:xx:xx:d4:e5:f6`); Upload über die USB-Karte am PC
+  mit `scripts/update.sh --upload-only 192.168.0.8`. Wallfree holt sich danach per DHCP eine Adresse,
+  die bisherige feste Adresse 192.168.1.60 gilt nicht mehr,
   danach `import-original`; prüfen: DIP und Drehschalter, `cable` (D1 an mit festem Kabel: Wert
   aus dem PP-Widerstand im Kabel), Schützüberwachung (CT in das zweite Gerät vorhanden? dann Via Sense),
   `contactor_min_off` 5 s, keine Verriegelung.
