@@ -353,7 +353,11 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
 3. **Freigabe ohne Schlüssel:** Mit D10 gibt EN oder `enable_register` frei; ab Werk ist das
    Register 0 und nicht persistent, evcc setzt es nicht (WARP: nur der Strom). Ohne Schlüssel lädt
    die Box mit evcc daher nicht. Wunsch (Nutzer 2026-11-08): EN = **Zwangsladen ohne evcc**, evcc
-   soll ohne EN starten können. Im Original stand Register 400 beim zweiten Gerät auf an.
+   soll ohne EN starten können. Im Original stand Register 400 beim zweiten Gerät auf an; mit der
+   Originalfirmware konnte der Nutzer mit dem Schlüssel unabhängig von evcc laden (Nutzer
+   2026-11-08, Ablauf im Original nicht geprüft). `enable_register_default` 1 erfüllt nur den
+   zweiten Teil (mit D10 wirkt dann der Schlüssel nicht mehr); "Schlüssel hebt die evcc-Vorgabe
+   auf" wäre eine neue Regel. Später besprechen.
 4. **Leaf bleibt nach PWM-Aus in C** (D2.6, nach Nutzer auch beim Ladeende mit dem Original):
    evcc kam mit dem Original nie gut damit zurecht, wenn das Fahrzeug nicht bald auf B zurückfiel
    (Nutzer 2026-11-08; offen, ob es an der Originalfirmware lag). Bedeutung für Wallfree und evcc
