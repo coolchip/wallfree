@@ -192,6 +192,9 @@ scripts/sim-run.sh --http-port=8091   # Terminal 1
 scripts/evcc-sim.sh                   # Terminal 2, setzt Testzugangsdaten, evcc auf :7070
 ```
 
+Gegen das zweite Gerät statt der Simulation: `scripts/evcc-boxg.sh` (eigene Konfiguration und Datenbank in
+`build/evcc-boxg/`, siehe [Prüfstecker Abschnitt 8](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)).
+
 | Ablauf | Ergebnis |
 | --- | --- |
 | Start, kein Fahrzeug | evcc verbindet (Digest, `/info/*`, WebSocket), "car disconnected" |

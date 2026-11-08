@@ -257,7 +257,16 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
   danach `import-original`; prüfen: DIP und Drehschalter, `cable` (D1 an mit festem Kabel: Wert
   aus dem PP-Widerstand im Kabel), Schützüberwachung (CT in das zweite Gerät vorhanden? dann Via Sense),
   `contactor_min_off` 5 s, keine Verriegelung.
-- evcc mit eigener Konfiguration gegen das zweite Gerät (wie C6), Ladepunkt einphasig.
+- evcc gegen das zweite Gerät: `scripts/evcc-boxg.sh` (evcc 0.317.2 lokal auf dem PC, Oberfläche :7070).
+  Vorlage [tools/evcc/box-g.example.yaml](../tools/evcc/box-g.example.yaml), die Datei mit
+  Zugangsdaten liegt in `build/evcc-boxg/evcc.yaml` (nicht im Repo). Inhalt (Nutzer 2026-11-08):
+  Fronius Solar API v1 als Netz-, PV- und Speicherzähler (nur lesend, ohne Anmeldung), Leaf über
+  OVMS (Ladestand, `phases: 1`, 6..16 A), Ladepunkt startet in "aus" (D1/D2 mit "sofort", PV erst
+  für D4), Intervall 10 s, feste Tarife. Nicht übernommen aus der alten Konfiguration: Modbus-Lader
+  `phoenix-ev-eth` (Wallfree hat kein Modbus), `plant` (Kennung der alten Instanz),
+  Fahrzeug-`identifiers` (Wallfree erkennt kein Fahrzeug), Stromgrenzen am Ladepunkt (in der
+  evcc-Oberfläche). Fronius und OVMS mit `evcc meter`/`evcc vehicle` geprüft; Host und
+  Zugangsdaten des zweiten Geräts folgen nach dem Aufspielen. Der alte evcc-Container ist dabei aus.
 - Strom messen: Anzeige im Fahrzeug bzw. App, oder Stromzange an der Zuleitung (Nutzer, nur an
   isolierten Leitungen).
 
