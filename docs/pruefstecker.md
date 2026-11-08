@@ -259,6 +259,14 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
   mit `scripts/update.sh --upload-only 192.168.0.8`. Wallfree (`23f3260`) bezieht wie das Original
   die Adresse per DHCP und bekommt im Heimnetz mit derselben MAC wieder 192.168.1.60, Name
   `wallfree-d4e5f6`.
+- Das zweite Gerät bleibt im Bootloader hängen** (2026-11-08, Ursache offen): Nach Aus/Ein der Box
+  (lief `23f3260`) und beim Update über die API von `46edcb3` auf `7eb08f9` (Übergabe an den
+  Bootloader mit Adresse 192.168.1.60, Upload ohne Fehlermeldung, beim Laden mit Schlüssel)
+  meldete sich Wallfree nicht zurück; das zweite Gerät war im Heimnetz verschwunden und wartete unter
+  192.168.0.8 ("Bootloader-Version: 1.03") ohne Zeitablauf, nach über 10 min noch. Abhilfe
+  jeweils `scripts/update.sh --upload-only 192.168.0.8` über die USB-Karte, danach startet
+  Wallfree (`update_result` Modus 4). Nach dem Update lud der Leaf wieder (Schlüssel, S6). An
+  Das Testgerät läuft derselbe Update-Weg zuverlässig (Modus 2).
 - `import-original` (2026-11-08, Sicherungen `wallbe2/analysis/box-g/import-2026-11-08/`): 15 Werte
   der Ladelogik und das Netz (DHCP) übernommen, alle gleich der Original-Weboberfläche: ER/LR/VR/CR
   15/17/16/40, LD/EN/ML/XR/IN 22/1/4/2/12 (IN 20 A), Schützüberwachung aus, D abweisen an,
