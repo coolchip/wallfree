@@ -328,6 +328,12 @@ hat keinen Zähler.
   charging". Fortsetzen nach 31 s: S6 und Schütz ein binnen 0,1 s; der Leaf zieht erst etwa 35 s
   später Strom.
 - Auslastung beim Laden: Stacks höchstens 73 % (`timesync`), Prozessor 18 °C.
+- D2.7 Schlüssel (evcc Sofort 16 A, `enable_register` 0): Schlüssel ein -> `inputs` 2, S4, S5,
+  S6 nach 3,3 s, Schütz ein, `ct_sense` 1, Leaf lädt; ohne Schlüssel blieb die Box in S3.
+  Schlüssel aus beim Laden -> S7, Schütz 5,0 s später aus, S3, keine Fehler; Leaf bleibt in C.
+  Laut Fronius (Box-Zeit um 2,06 s korrigiert, siehe Befund 6) fällt die Last 2..5 s nach S7, das
+  Schütz öffnet 5,0 s nach S7: ohne nennenswerte Last, aber mit wenig Abstand (bei der evcc-Pause
+  D2.6 fiel die Last schon nach etwa 1 s). Auflösung des Fronius etwa 1 s, Verzögerung unbekannt.
 - D3.9 Netzausfall beim Laden (Sicherung etwa 10 s aus): zweites Gerät startet (`power_on`), Leaf in C,
   S3 ohne Fehler; kein Weiterladen, weil `enable_register` wieder 0 ist (Befund 3).
   `external_current` steht nach dem Start auf 80 000 (Festlegung `external_current_default`).
@@ -363,4 +369,7 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    (Nutzer 2026-11-08; offen, ob es an der Originalfirmware lag). Bedeutung für Wallfree und evcc
    klären.
 5. **Schützüberwachung:** das zweite Gerät hat den Hilfskontakt (`ct_sense` folgt dem Schütz), übernommen ist
-   aus dem Original aber `contactor_monitor` 0; einschalten?
+   aus dem Original aber `contactor_monitor` 0; einschalten (Via Sense)?
+6. **Uhr des zweiten Geräts 2,06 s nach** (11:28, 10 s nach dem letzten Abgleich mit `pool.ntp.org`;
+   PC per NTP auf 11 ms genau, drei Messungen gleich). Auf dem Testgerät stimmte die Uhr auf 1 ms. Die
+   Zeiten im Ereignisprotokoll des zweiten Geräts sind entsprechend verschoben. Ursache offen.
