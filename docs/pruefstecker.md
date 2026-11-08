@@ -366,8 +366,10 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    auf" wäre eine neue Regel. Später besprechen.
 4. **Leaf bleibt nach PWM-Aus in C** (D2.6, nach Nutzer auch beim Ladeende mit dem Original):
    evcc kam mit dem Original nie gut damit zurecht, wenn das Fahrzeug nicht bald auf B zurückfiel
-   (Nutzer 2026-11-08; offen, ob es an der Originalfirmware lag). Bedeutung für Wallfree und evcc
-   klären.
+   (Nutzer 2026-11-08; offen, ob es an der Originalfirmware lag). Gemessen nach dem Ende über evcc
+   (S7 11:34:26, PC-Zeit): C mit +6,05 V bis 11:39:31, dann B mit +8,97 V, also **etwa 5 min 6 s**
+   nach dem PWM-Aus (einmal gemessen, Abfrage alle 2 s). Bis dahin meldete evcc alle 10 s
+   "disabled but charging" (38-mal), danach nicht mehr. Bedeutung für Wallfree und evcc klären.
 5. **Schützüberwachung:** das zweite Gerät hat den Hilfskontakt (`ct_sense` folgt dem Schütz), übernommen war
    aus dem Original `contactor_monitor` 0. Eingeschaltet (1, Via Sense, Nutzer 2026-11-08) und mit
    Laden, evcc-Pause (17 s), Fortsetzen und Ende geprüft: Schütz jeweils 5,0 s nach S7 aus,
