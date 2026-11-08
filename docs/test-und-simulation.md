@@ -146,7 +146,7 @@ Steuerung oder die Simulation (`--http`, `--telnet` für andere Ports). Liest nu
 Telnet-Diagnose). Stufen: `http` (parallele Abfragen, je eine Verbindung), `keep` (Keep-Alive),
 `ws` (4 WebSockets, 3 erlaubt, Takt `evse/state`), `churn` (Aufbau ohne Anfrage, RST, halbe
 Anfrage), `idle` (stumme Verbindungen belegen die HTTP-Plätze), `mixed` (alles zugleich),
-`long` (Browser + evcc, Schnappschuss alle 5 min), `tabs` (Hintergrund-Tabs wachen zugleich
+`long` (Browser + evcc, Schnappschuss alle 5 min), `wsreject` (WebSocket-Aufbau ohne Pause mit veralteter Nonce wie evcc nach einem Neustart der Box, sofortige Antwort auf den Close-Rahmen; Abbruch nach 30 s ohne Ping), `tabs` (Hintergrund-Tabs wachen zugleich
 auf und halten ihre Verbindung, daneben Erreichbarkeit für neue Verbindungen; nur auf der
 Steuerung aussagekräftig, die Simulation trennt ruhende Verbindungen nie). Vor und nach jeder Stufe Laufzeit, Resetgrund,
 TCP-Zustände und Stack-Auslastung; ein Neustart gilt als Fehler. Die Simulation taugt nur zum

@@ -1,0 +1,41 @@
+net: sockets: drop packets that arrive while the socket is being closed
+
+Wallfree patch on Zephyr v4.4.2 (apply with scripts/zephyr-patches.sh).
+
+zsock_close_ctx() runs with the descriptor lock held: it disables receiving,
+flushes recv_q and releases the context. A receive thread that already passed
+the recv_cb check in net_context_packet_received() blocks on that lock in
+zsock_received_cb() and, once it gets it, puts the packet into the recv_q of
+the released context, where nothing frees it again. Every such collision
+loses one RX net_pkt for good; once the pool is empty the interface cannot
+receive anything (no ARP, no ping) until reset.
+
+Seen on hardware (STM32F207, 14 RX packets) with a client that answers the
+server's WebSocket close frame immediately (evcc): all RX packets were held
+by released contexts after about 5000 connections. Recheck the received
+callback under the lock and drop the packet if the socket is closing.
+
+diff --git a/subsys/net/lib/sockets/sockets_inet.c b/subsys/net/lib/sockets/sockets_inet.c
+index d5eaca48715..b082a267fe7 100644
+--- a/subsys/net/lib/sockets/sockets_inet.c
++++ b/subsys/net/lib/sockets/sockets_inet.c
+@@ -245,6 +245,19 @@ static void zsock_received_cb(struct net_context *ctx,
+ 		(void)k_mutex_lock(ctx->cond.lock, K_FOREVER);
+ 	}
+ 
++	/* The socket may have been closed while this thread was waiting for
++	 * the lock: zsock_close_ctx() runs with the lock held, disables
++	 * receiving, flushes recv_q and releases the context. Queuing the
++	 * packet now would leak it for good, and with it an RX packet.
++	 */
++	if (ctx->recv_cb == NULL || !net_context_is_used(ctx)) {
++		NET_DBG("%sctx=%p, pkt=%p (socket closed)", "DROP: ", ctx, pkt);
++		if (pkt) {
++			net_pkt_unref(pkt);
++		}
++		goto unlock;
++	}
++
+ 	NET_DBG("%sctx=%p, pkt=%p, st=%d, user_data=%p", "", ctx, pkt, status,
+ 		user_data);
+ 

@@ -358,8 +358,15 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    10:08:45 tot. Keine Erholung in 10 min, auch nicht nach Ziehen und Stecken des Ethernet-Kabels
    bei gestopptem evcc. Die Ladelogik lief weiter (Power-LED 1 Hz, Error aus, Ready/Connect wie
    S3 mit Fahrzeug), kein Watchdog-Reset; nur Aus/Ein half. Das Ereignisprotokoll geht dabei
-   verloren (Backup-SRAM ohne VBAT). Vermutung: Netzpuffer oder Verbindungen gehen beim Schließen
-   abgewiesener WebSockets verloren, bis keine mehr frei sind; in der Simulation nachstellen.
+   verloren (Backup-SRAM ohne VBAT). **Ursache** (am Testgerät nachgestellt, 2026-11-08: evcc gegen
+   `23f3260`, Neustart der Box, nach 5297 Versuchen in 40 s kein Ping, kein ARP): Alle 14
+   RX-Pakete hingen an bereits freigegebenen Netzkontexten (per SWD gelesen), jedes ein
+   Close-Rahmen von evcc. Trifft der Rahmen ein, während der Server-Thread den Socket schließt,
+   stellt Zephyr 4.4.2 ihn in die Warteschlange des schon freigegebenen Kontexts, wo ihn nichts
+   mehr freigibt ([Fallstricke](implementierung.md#fallstricke)). **Behoben** mit dem
+   Zephyr-Patch `0002`: am Testgerät mit `net-load.py wsreject` (antwortet wie evcc sofort auf den
+   Close-Rahmen) ohne Fix ein verlorenes Paket nach etwa 350 Versuchen, mit Fix 1880 Versuche
+   ohne Verlust.
 3. **Freigabe ohne Schlüssel:** Mit D10 gibt EN oder `enable_register` frei; ab Werk ist das
    Register 0 und nicht persistent, evcc setzt es nicht (WARP: nur der Strom). Ohne Schlüssel lädt
    die Box mit evcc daher nicht. Wunsch (Nutzer 2026-11-08): EN = **Zwangsladen ohne evcc**, evcc

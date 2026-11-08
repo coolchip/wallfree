@@ -94,14 +94,14 @@ Rückweg Schritt für Schritt: [Umrüsten auf Wallfree und zurück](docs/umruest
 | [include/wallfree/nvm/](include/wallfree/nvm/), [lib/nvm/](lib/nvm/) | Parameterspeicher (Log-Format in Sektor 7) und Leser für den Originalbereich, reines C |
 | [include/wallfree/api/](include/wallfree/api/), [lib/api/](lib/api/) | Digest-Anmeldung, JSON, Abbildung der Ladelogik auf die WARP-angelehnte API, reines C |
 | [include/wallfree/meter/](include/wallfree/meter/), [lib/meter/](lib/meter/) | Energiezähler über Modbus RTU, nur Anzeige: Modelltabellen, Dekodierung, Plausibilität, Fehlerzähler; reines C, Bus gekapselt |
-| [patches/zephyr/](patches/zephyr/) | Patch am Zephyr-Baum (WebSocket-Anmeldung vor dem Upgrade prüfen), Anwenden mit `scripts/zephyr-patches.sh` |
+| [patches/zephyr/](patches/zephyr/) | Patches am Zephyr-Baum (WebSocket-Anmeldung vor dem Upgrade prüfen, Paketleck beim Schließen von Sockets), Anwenden mit `scripts/zephyr-patches.sh` |
 | [web/](web/) | Weboberfläche (Preact + htm, gzip im Flash); Fremdcode unter [web/vendor/](web/vendor/) mit eigenen Lizenzen |
 | [tests/](tests/) | PC-Tests (ztest auf `native_sim/native/64`), Aufruf `scripts/run-tests.sh`; Ende-zu-Ende-Tests in [tests/e2e/](tests/e2e/), Aufruf `scripts/run-e2e.sh` |
 
 ## Bauen
 
-Zephyr v4.4.2, Zephyr-SDK 1.0.1, dazu ein eigener Patch am HTTP-Server von Zephyr
-([patches/zephyr/](patches/zephyr/), Prüfung der WebSocket-Anmeldung vor dem Upgrade). Einmal
+Zephyr v4.4.2, Zephyr-SDK 1.0.1, dazu eigene Patches an Zephyr
+([patches/zephyr/](patches/zephyr/): WebSocket-Anmeldung vor dem Upgrade, Paketleck beim Schließen von Sockets). Einmal
 anwenden, der Bau bricht sonst mit Hinweis ab:
 
 ```sh

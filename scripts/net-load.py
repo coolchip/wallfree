@@ -20,6 +20,10 @@ Stufen:
             nur auf der Steuerung aussagekraeftig (Simulation trennt ruhende Verbindungen nie)
     long    Dauerlast wie Browser + evcc (2 WebSockets, Abfrage alle 2 s, Seite alle 60 s),
             alle 5 min Laufzeit
+    wsreject  WebSocket-Aufbau ohne Pause mit veralteter Nonce wie evcc nach einem Neustart der
+            Box (Befund 2 im Pruefstecker): je Versuch eine Verbindung, nach 101 auf den
+            Close-Rahmen des Servers sofort antworten; alle 5 s HTTP und Ping pruefen, Abbruch
+            nach 30 s ohne Ping
 """
 import argparse
 import base64
@@ -32,6 +36,7 @@ import secrets
 import socket
 import statistics
 import struct
+import subprocess
 import sys
 import threading
 import time
@@ -313,6 +318,89 @@ def churn_worker(t, st):
     return run
 
 
+def wsreject_once(t, auth, st):
+    """Ein Aufbau mit veralteter Nonce; Status (101 oder Abweisung) in st."""
+    s = socket.create_connection((t.host, t.http), timeout=3)
+    try:
+        key = base64.b64encode(os.urandom(16)).decode()
+        req = (f"GET /ws HTTP/1.1\r\nHost: {t.host}\r\nUpgrade: websocket\r\n"
+               f"Connection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n"
+               f"Authorization: {auth.header('GET', '/ws')}\r\n\r\n")
+        t0 = time.monotonic()
+        s.sendall(req.encode())
+        head = b""
+        while b"\r\n\r\n" not in head:
+            d = s.recv(1024)
+            if not d:
+                raise ConnectionError("beim Aufbau geschlossen")
+            head += d
+        status = int(head.split(b"\r\n")[0].split()[1])
+        buf = head.partition(b"\r\n\r\n")[2]
+        replied = False
+        while True:
+            # wie evcc (coder/websocket): auf den Close-Rahmen des Servers sofort mit einem
+            # eigenen antworten; trifft er beim Server waehrend des Schliessens ein, lief
+            # Zephyr 4.4.2 in das Paketleck (Befund 2)
+            if status == 101 and not replied and len(buf) >= 2 and buf[0] & 0x0F == 0x8:
+                try:
+                    s.sendall(bytes([0x88, 0x80]) + os.urandom(4))
+                except OSError:
+                    pass
+                replied = True
+            d = s.recv(1024)
+            if not d:
+                break
+            buf += d
+        st.ok(status, time.monotonic() - t0)
+    finally:
+        s.close()
+
+
+def stage_wsreject(t, a):
+    auth = Digest(t.user, t.pw)
+    auth.nonce = secrets.token_hex(12)  # Format gueltig, Pruefteil falsch -> wie veraltet
+    st, stop, lost = Stats("wsreject"), threading.Event(), []
+
+    def worker(_stop):
+        while not _stop.is_set():
+            try:
+                wsreject_once(t, auth, st)
+            except Exception as e:  # noqa: BLE001
+                st.fail(e)
+                _stop.wait(0.05)
+
+    th = [threading.Thread(target=worker, args=(stop,), daemon=True) for _ in range(a.n)]
+    t0 = time.monotonic()
+    for x in th:
+        x.start()
+    while time.monotonic() - t0 < a.t:
+        time.sleep(5)
+        n = sum(st.status.values())
+        try:
+            code, _ = t.get_once(Digest(t.user, t.pw), "/evse/state", timeout=3)
+        except Exception as e:  # noqa: BLE001
+            code = type(e).__name__
+        # HTTP wird waehrend der Last oft abgewiesen (alle TCP-Plaetze in TIME_WAIT);
+        # der Haenger zeigt sich daran, dass auch Ping (und ARP) ausbleibt
+        ping = subprocess.run(["ping", "-c1", "-W1", t.host], capture_output=True).returncode == 0
+        print(f"wsreject: {time.monotonic() - t0:5.0f} s, {n} Versuche, {st.status}, "
+              f"Fehler {st.err}, /evse/state {code}, Ping {'ok' if ping else 'TOT'}", flush=True)
+        if not ping:
+            lost.append(time.monotonic() - t0)
+            if lost[-1] - lost[0] >= 30:  # 30 s ohne Ping: Haenger
+                break
+        else:
+            lost.clear()
+    stop.set()
+    for x in th:
+        x.join(5)
+    print(st.report(time.monotonic() - t0))
+    if lost:
+        print(f"wsreject: KEIN PING seit {lost[0]:.0f} s")
+        return reachable_after(t, "wsreject", 60)
+    return reachable_after(t, "wsreject")
+
+
 def stage_http(t, a, keep):
     st = Stats("keep" if keep else "http")
     run_threads([http_worker(t, st, keep) for _ in range(a.n)], a.t)
@@ -509,7 +597,8 @@ def main():
     stages = {"http": lambda: stage_http(t, a, False), "keep": lambda: stage_http(t, a, True),
               "ws": lambda: stage_ws(t, a), "churn": lambda: stage_churn(t, a),
               "idle": lambda: stage_idle(t, a), "mixed": lambda: stage_mixed(t, a),
-              "long": lambda: stage_long(t, a), "tabs": lambda: stage_tabs(t, a), "snap": lambda: True}
+              "long": lambda: stage_long(t, a), "tabs": lambda: stage_tabs(t, a), "snap": lambda: True,
+              "wsreject": lambda: stage_wsreject(t, a)}
     bad = [s for s in a.stages if s not in stages]
     if bad:
         sys.exit(f"unbekannte Stufe {bad}")
@@ -519,7 +608,11 @@ def main():
         print(f"--- {s} ({a.t:.0f} s, n={a.n})")
         if not stages[s]():
             fails.append(s)
-        after = snapshot(t, f"nach {s}")
+        try:
+            after = snapshot(t, f"nach {s}")
+        except Exception as e:  # noqa: BLE001
+            print(f"nach {s}: kein Schnappschuss ({e})")
+            sys.exit(2)
         if after["uptime_ms"] < before["uptime_ms"]:
             print(f"{s}: NEUSTART waehrend der Stufe")
             fails.append(s + " (Neustart)")
