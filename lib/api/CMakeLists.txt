@@ -14,5 +14,6 @@ zephyr_library_sources(
   reset.c
   ntp.c
   ha.c
+  flashread.c
 )
 zephyr_library_sources_ifdef(CONFIG_WALLFREE_METER meter_json.c)

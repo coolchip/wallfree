@@ -9,9 +9,11 @@
 #include <string.h>
 #include <zephyr/shell/shell.h>
 #include <wallfree/api/evse_api.h>
+#include <wallfree/api/flashread.h>
 #include <wallfree/api/meter_json.h>
 #include <wallfree/evse/param.h>
 #include "evse_task.h"
+#include "hw.h"
 #include "log_ring.h"
 #include "meter_task.h"
 #include "mqtt_task.h"
@@ -440,6 +442,49 @@ static int cmd_bootloader(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+/* SOLL-SH-24: Flash, OTP oder Optionsbytes nur lesend als Base64 (Puffer statisch, die
+ * Konsole laeuft im HTTP-Server-Thread und nur einmal gleichzeitig) */
+static int cmd_flashread(const struct shell *sh, size_t argc, char **argv)
+{
+	ARG_UNUSED(argc);
+	static uint8_t buf[WF_FLASHREAD_MAX];
+	static char b64[4 * ((WF_FLASHREAD_MAX + 2) / 3) + 1];
+	char *end;
+	unsigned long addr = strtoul(argv[1], &end, 0);
+
+	if (*end != '\0') {
+		shell_error(sh, "Adresse ungueltig: %s", argv[1]);
+		return -EINVAL;
+	}
+	unsigned long len = strtoul(argv[2], &end, 0);
+
+	if (*end != '\0') {
+		shell_error(sh, "Laenge ungueltig: %s", argv[2]);
+		return -EINVAL;
+	}
+	int r = wf_flashread_check((uint32_t)addr, (uint32_t)len);
+
+	if (r == -1) {
+		shell_error(sh, "Laenge 1..%u", WF_FLASHREAD_MAX);
+		return -EINVAL;
+	}
+	if (r != 0) {
+		shell_error(sh, "Bereich nicht erlaubt (Sektor 0..6 0x08000000..0x0805FFFF, "
+				"OTP 0x1FFF7800..0x1FFF7A0F, Optionsbytes 0x1FFFC000..0x1FFFC00F)");
+		return -EPERM;
+	}
+	if (hw_flash_read((uint32_t)addr, buf, (uint32_t)len) != 0) {
+		shell_error(sh, "nicht verfuegbar (Simulation)");
+		return -ENOTSUP;
+	}
+	size_t n = wf_base64(buf, len, b64, sizeof(b64));
+
+	for (size_t i = 0; i < n; i += 76) {
+		shell_print(sh, "%.*s", (int)MIN(76, n - i), b64 + i);
+	}
+	return 0;
+}
+
 /* Diagnose: Reset-Flags und Register des Bootloaders, wie beim Start vorgefunden */
 static int cmd_boot(const struct shell *sh, size_t argc, char **argv)
 {
@@ -669,6 +714,9 @@ SHELL_CMD_ARG_REGISTER(bootloader, NULL, "Update: Uebergabe an den Bootloader (S
 		       cmd_bootloader, 1, 0);
 SHELL_CMD_ARG_REGISTER(boot, NULL, "Diagnose: Reset-Flags und Bootloader-Register beim Start",
 		       cmd_boot, 1, 0);
+SHELL_CMD_ARG_REGISTER(flashread, NULL,
+		       "<adresse> <laenge> Flash/OTP/Optionsbytes lesen (Base64, bis 1024 Byte)",
+		       cmd_flashread, 3, 0);
 SHELL_CMD_ARG_REGISTER(nvm, NULL, "Zustand des Parameterspeichers", cmd_nvm, 1, 0);
 SHELL_CMD_ARG_REGISTER(meter, NULL, "Energiezaehler: Messwerte und Fehlerzaehler", cmd_meter,
 		       1, 0);

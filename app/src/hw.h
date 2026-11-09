@@ -153,6 +153,13 @@ uint32_t hw_update_result_take(void);
  */
 int hw_image_check(uint32_t *crc);
 
+/**
+ * SOLL-SH-24: len Byte ab addr aus Flash, OTP oder Optionsbytes kopieren (nur lesend). Der
+ * Bereich muss vorher mit wf_flashread_check() geprueft sein.
+ * @return 0 oder -ENOTSUP (Simulation)
+ */
+int hw_flash_read(uint32_t addr, uint8_t *buf, uint32_t len);
+
 #define HW_BOOT_REGS 8
 /**
  * Diagnose, vor hw_reset_take() und hw_update_result_take(): RCC_CSR roh, dann BKP10..16 des

@@ -752,6 +752,17 @@ int hw_image_check(uint32_t *crc)
 	return t[0] == IMAGE_MAGIC && t[1] == len && t[2] == *crc && t[3] == ~IMAGE_MAGIC;
 }
 
+int hw_flash_read(uint32_t addr, uint8_t *buf, uint32_t len)
+{
+	/* Flash, OTP und Optionsbytes liegen im Adressraum und sind direkt lesbar */
+	const volatile uint8_t *p = (const volatile uint8_t *)addr;
+
+	for (uint32_t i = 0; i < len; i++) {
+		buf[i] = p[i];
+	}
+	return 0;
+}
+
 void hw_boot_regs(uint32_t out[HW_BOOT_REGS])
 {
 	out[0] = RCC->CSR;

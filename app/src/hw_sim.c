@@ -22,6 +22,7 @@
  *
  * Rein fuer Tests auf dem PC; keine Aussage ueber reale Hardware.
  */
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -609,6 +610,14 @@ int hw_image_check(uint32_t *crc)
 void hw_boot_regs(uint32_t out[HW_BOOT_REGS])
 {
 	memset(out, 0, HW_BOOT_REGS * sizeof(out[0]));
+}
+
+int hw_flash_read(uint32_t addr, uint8_t *buf, uint32_t len)
+{
+	ARG_UNUSED(addr);
+	ARG_UNUSED(buf);
+	ARG_UNUSED(len);
+	return -ENOTSUP;
 }
 
 uint32_t hw_update_result_take(void)
