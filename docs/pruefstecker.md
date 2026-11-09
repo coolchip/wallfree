@@ -271,7 +271,10 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
   ohne Zeitablauf; das zweite Gerät hat Bootloader 1.03 (am 2026-11-09 mit `flashread` ausgelesen, Analyse
   offen, Optionsbytes: BOR aus). Update `7eb08f9` -> `9f39b42` am 2026-11-09 per DHCP
   (192.168.0.223 an der USB-Karte), nach dem Upload nur Ping statt `GET`: Wallfree nach etwa 10 s
-  zurück unter derselben Adresse, Modus 2 ok, 192.168.0.8 nie erreichbar. Andere Aus/Ein an
+  zurück unter derselben Adresse, Modus 2 ok, 192.168.0.8 nie erreichbar. Laut Analyse von 1.03
+  landet der Bootloader nach einer Übergabe nur dann unter 192.168.0.8, wenn alle Upload-Versuche
+  gescheitert sind; der erste Hänger folgte laut Gesprächsverlauf auf ein Update über die
+  Weboberfläche, nicht auf ein Aus/Ein (zu bestätigen). Andere Aus/Ein an
   Das zweite Gerät liefen ohne Hänger (D3.9 vormittags mit `23f3260`, D3.9 abends mit `7eb08f9`). Vermutung
   und Prüfplan: [wallbe2 Bootloader](../../wallbe2/docs/bootloader.md#bootloader-103-box-g).
   Beim nächsten Hänger zuerst nur Aus/Ein versuchen und nach dem Start die Konsole `boot`

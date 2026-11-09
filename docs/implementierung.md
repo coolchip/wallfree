@@ -395,11 +395,13 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurück).
 
 - Energiezähler an RS-485: Eastron SDM72D-M-2 des Nutzers anschließen (später, Nutzer 2026-10-27);
   Abfrage. Die Anbindung ist mit der Nachbildung geprüft ([Prüfungen](#prüfungen-auf-box-t)).
-- Das zweite Gerät bleibt nach einem Update über Wallfree und einmal nach Aus/Ein im Bootloader 1.03 hängen
-  (Modus 4, ohne Zeitablauf); Updates am zweiten Gerät bis zur Klärung nur über die USB-Karte. Ein Update
-  ohne `GET` nach dem Upload lief sauber (Modus 2, gleiche Adresse); Bootloader und Optionsbytes
-  sind ausgelesen, Analyse in Ghidra und Gegenversuch mit `GET` stehen aus. Danach `update.sh`
-  und Weboberfläche ohne sofortige HTTP-Abfrage nach dem Upload:
+- Das zweite Gerät blieb am 2026-11-08 zweimal unter 192.168.0.8 im Bootloader 1.03 hängen. Laut Analyse
+  von 1.03 heißt das: Alle Upload-Versuche sind gescheitert, Sektor 4..6 gelöscht; nach einem
+  Update oder Aus/Ein mit gültigem Programm geht 1.03 nicht dorthin (Update per DHCP am
+  2026-11-09 sauber). Ursache der gescheiterten Uploads offen (Kandidat: andere HTTP-Anfrage
+  während des Uploads). Offen: Gegenversuch am zweiten Gerät; `update.sh` und Weboberfläche prüfen die
+  Antwort des Uploads und laden bei Fehlschlag sofort neu, solange der Bootloader unter derselben
+  Adresse wartet. Updates am zweiten Gerät bis dahin nur über die USB-Karte:
   [wallbe2 Bootloader 1.03](../../wallbe2/docs/bootloader.md#bootloader-103-box-g).
 - Befunde aus Stufe D ([Prüfstecker](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)):
   Schlüssel als Zwangsladen ohne evcc (Befund 3), Uhr des zweiten Geräts 2 s nach (Befund 6); der Leaf
