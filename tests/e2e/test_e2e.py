@@ -719,6 +719,16 @@ class T3Konsole(SimCase):
         self.assertEqual(self.sim.request("GET", "/system/shell_commands",
                                           auth=Digest(*FACTORY)).status, 401)
 
+    def test_02c_flashread(self):
+        # SOLL-SH-24: Bereichspruefung; lesen kann nur die Steuerung (Simulation: nicht verfuegbar)
+        self.assertIn("nicht verfuegbar", self.console("flashread 0x08000000 1024").body.decode())
+        self.assertIn("nicht verfuegbar", self.console("flashread 0x1FFFC000 16").body.decode())
+        for cmd in ("flashread 0x08060000 16", "flashread 0x0805FFFF 2", "flashread 0x20000000 4"):
+            self.assertIn("nicht erlaubt", self.console(cmd).body.decode(), cmd)
+        self.assertIn("Laenge 1..1024", self.console("flashread 0x08000000 1025").body.decode())
+        self.assertIn("Adresse ungueltig", self.console("flashread 0x0800zz 4").body.decode())
+        self.assertIn("flashread", dict(self.sim.get_json("/system/shell_commands", self.auth)))
+
     def test_03_steuern(self):
         self.assertEqual(self.console("current 6000").status, 200)
         self.assertEqual(self.sim.get_json("/evse/external_current", self.auth)["current"], 6000)

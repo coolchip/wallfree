@@ -442,13 +442,13 @@ static int cmd_bootloader(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
-/* SOLL-SH-24: Flash, OTP oder Optionsbytes nur lesend als Base64 (Puffer statisch, die
- * Konsole laeuft im HTTP-Server-Thread und nur einmal gleichzeitig) */
+/* SOLL-SH-24: Flash, OTP oder Optionsbytes nur lesend als Base64; zeilenweise je 57 Byte
+ * (76 Zeichen), damit kein grosser Puffer noetig ist */
 static int cmd_flashread(const struct shell *sh, size_t argc, char **argv)
 {
 	ARG_UNUSED(argc);
-	static uint8_t buf[WF_FLASHREAD_MAX];
-	static char b64[4 * ((WF_FLASHREAD_MAX + 2) / 3) + 1];
+	uint8_t buf[57];
+	char b64[4 * sizeof(buf) / 3 + 1];
 	char *end;
 	unsigned long addr = strtoul(argv[1], &end, 0);
 
@@ -473,14 +473,15 @@ static int cmd_flashread(const struct shell *sh, size_t argc, char **argv)
 				"OTP 0x1FFF7800..0x1FFF7A0F, Optionsbytes 0x1FFFC000..0x1FFFC00F)");
 		return -EPERM;
 	}
-	if (hw_flash_read((uint32_t)addr, buf, (uint32_t)len) != 0) {
-		shell_error(sh, "nicht verfuegbar (Simulation)");
-		return -ENOTSUP;
-	}
-	size_t n = wf_base64(buf, len, b64, sizeof(b64));
+	for (unsigned long off = 0; off < len; off += sizeof(buf)) {
+		uint32_t n = MIN(sizeof(buf), len - off);
 
-	for (size_t i = 0; i < n; i += 76) {
-		shell_print(sh, "%.*s", (int)MIN(76, n - i), b64 + i);
+		if (hw_flash_read((uint32_t)(addr + off), buf, n) != 0) {
+			shell_error(sh, "nicht verfuegbar (Simulation)");
+			return -ENOTSUP;
+		}
+		wf_base64(buf, n, b64, sizeof(b64));
+		shell_print(sh, "%s", b64);
 	}
 	return 0;
 }
