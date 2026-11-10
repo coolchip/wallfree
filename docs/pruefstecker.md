@@ -443,8 +443,8 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    auf" wäre eine neue Regel. Später besprechen. Beobachtet 2026-11-09 (`9f39b42`, Schlüssel ein,
    Das zweite Gerät am USB-Umsetzer, also ohne evcc): Nach dem Start um etwa 09:30 lud die Box den Leaf
    rund 2 h mit 16 A (`external_current` 80 000 aus `external_current_default`, keine
-   evcc-Vorgabe) bis fast voll (evcc danach 98 %). Zurück im Heimnetz setzte evcc (Modus
-   intelligent) den Strom auf 0, S7 nach 6 s (11:29:37). Ohne evcc wirkt der Schlüssel heute also
+   evcc-Vorgabe) bis fast voll (evcc danach 98 %). Zurück im Heimnetz setzte evcc
+   den Strom auf 0, S7 nach 6 s (11:29:37). Ohne evcc wirkt der Schlüssel heute also
    wie Zwangsladen, mit evcc gilt dessen Vorgabe.
 4. **Leaf bleibt nach PWM-Aus in C** (D2.6, nach Nutzer auch beim Ladeende mit dem Original):
    evcc kam mit dem Original nie gut damit zurecht, wenn das Fahrzeug nicht bald auf B zurückfiel
