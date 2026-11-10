@@ -274,9 +274,11 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
   zurück unter derselben Adresse, Modus 2 ok, 192.168.0.8 nie erreichbar. Laut Analyse von 1.03
   landet der Bootloader nach einer Übergabe nur dann unter 192.168.0.8, wenn alle Upload-Versuche
   gescheitert sind; der erste Hänger folgte laut Gesprächsverlauf auf ein Update über die
-  Weboberfläche, nicht auf ein Aus/Ein (nicht mehr sicher feststellbar). Andere Aus/Ein an
-  Das zweite Gerät liefen ohne Hänger (D3.9 vormittags mit `23f3260`, D3.9 abends mit `7eb08f9`). Vermutung
-  und Prüfplan: [wallbe2 Bootloader](../../wallbe2/docs/bootloader.md#bootloader-103-box-g).
+  Weboberfläche, nicht auf ein Aus/Ein (nicht mehr sicher feststellbar). Abgebrochen hat die
+  Uploads sehr wahrscheinlich ein Node-RED-Ablauf auf einem Server im Heimnetz, der die Webseite der Wallbox
+  regelmäßig abfragte (im Heimnetz, an der USB-Karte nicht). Andere Aus/Ein an
+  Das zweite Gerät liefen ohne Hänger (D3.9 vormittags mit `23f3260`, D3.9 abends mit `7eb08f9`). Analyse:
+  [wallbe2 Bootloader](../../wallbe2/docs/bootloader.md#bootloader-103-box-g).
   Beim nächsten Hänger zuerst nur Aus/Ein versuchen und nach dem Start die Konsole `boot`
   (RCC_CSR, BKP10..16) sichern.
 - `import-original` (2026-11-08, Sicherungen `wallbe2/analysis/box-g/import-2026-11-08/`): 15 Werte

@@ -398,8 +398,8 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurück).
 - Das zweite Gerät blieb am 2026-11-08 zweimal unter 192.168.0.8 im Bootloader 1.03 hängen. Laut Analyse
   von 1.03 heißt das: Alle Upload-Versuche sind gescheitert, Sektor 4..6 gelöscht; nach einem
   Update oder Aus/Ein mit gültigem Programm geht 1.03 nicht dorthin (Update per DHCP am
-  2026-11-09 sauber). Ursache der gescheiterten Uploads offen (Kandidat: andere HTTP-Anfrage
-  während des Uploads). Offen: Gegenversuch am zweiten Gerät; `update.sh` und Weboberfläche prüfen die
+  2026-11-09 sauber). Die Uploads brach sehr wahrscheinlich eine regelmäßige `GET`-Abfrage
+  aus Node-RED (einem Server im Heimnetz) ab. Offen: `update.sh` und Weboberfläche prüfen die
   Antwort des Uploads und laden bei Fehlschlag sofort neu, solange der Bootloader unter derselben
   Adresse wartet. Updates am zweiten Gerät bis dahin nur über die USB-Karte:
   [wallbe2 Bootloader 1.03](../../wallbe2/docs/bootloader.md#bootloader-103-box-g).
