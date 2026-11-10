@@ -77,8 +77,10 @@ Solange der Bootloader intakt ist, lässt sich jede Firmware über ihn neu aufsp
 die Originalfirmware. Weder Wallfree noch die Originalfirmware verändern ihn.
 
 - **Update bricht während der Übertragung ab** (anderer Tab, evcc, Netz weg): Die bisherige
-  Firmware ist dann schon gelöscht. Der Bootloader bleibt im Update-Betrieb, erst unter der
-  bisherigen Adresse, danach unter **192.168.0.8**, und wartet auf eine Datei. Dort die gewünschte
+  Firmware ist dann schon gelöscht. Ein Update aus Wallfree (Weboberfläche oder
+  `scripts/update.sh`) erkennt den Abbruch und überträgt die Datei bis zu zweimal neu, solange der
+  Bootloader unter der bisherigen Adresse wartet. Scheitert das, bleibt der Bootloader im
+  Update-Betrieb, danach unter **192.168.0.8**, und wartet auf eine Datei. Dort die gewünschte
   Datei erneut von Hand hochladen (oder mit `scripts/update.sh --upload-only <Adresse> <Datei>`).
   Ein halb geschriebenes Abbild startet er nicht.
 - **Wallfree meldet „Prüfsumme … beschädigt“:** Die Datei kam unvollständig an. Wallfree lädt

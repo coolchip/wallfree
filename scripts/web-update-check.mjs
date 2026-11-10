@@ -7,12 +7,16 @@
 // Prueft: Vorpruefung (Wallfree-Abbild mit Version, ungueltige Datei), Ablauf bis
 // "Update erfolgreich" (Pruefsumme verglichen, SOLL-BOOT-35). Mit langsamem Ersatz-Bootloader
 // (WALLFREE_SIM_BOOTLOADER_RATE=5000) prueft der Lauf auch, dass die Seite waehrend des Uploads
-// nichts anderes abfragt (das braeche ihn ab). Ergebnis: Screenshots, update.json, Exitcode 1.
+// nichts anderes abfragt (das braeche ihn ab). Mit fuenftem Argument "stoerer" schickt der Lauf
+// waehrend des ersten Uploads selbst eine Abfrage (wie Node-RED am zweiten Geraet): die Seite muss den
+// Abbruch erkennen und neu hochladen ("Versuch 2 von 3").
+// Ergebnis: Screenshots, update.json, Exitcode 1.
 import { spawn } from 'node:child_process';
 import { writeFileSync, mkdtempSync } from 'node:fs';
 import { crc32 } from 'node:zlib';
 
-const [port, user, pass, outdir] = process.argv.slice(2);
+const [port, user, pass, outdir, mode] = process.argv.slice(2);
+const stoerer = mode === 'stoerer';
 const base = `http://127.0.0.1:${port}/`;
 const dbg = 9334;
 const prof = mkdtempSync(outdir + '/chrome-');
@@ -99,11 +103,21 @@ out.started = await click('Update starten');
 let t = '';
 const head = "(() => { const b = document.querySelector('header .banner'); return (b ? b.innerText.trim() : '') + '|' + document.querySelector('main').className; })()";
 out.heads = [];
-for (let i = 0; i < 120 && !/Update (erfolgreich|fehlgeschlagen)|antwortet nicht|meldet sich nicht/.test(t); i++) {
+out.sawRetry = false;
+let upSince = 0;
+for (let i = 0; i < 120 && !/Update (erfolgreich|fehlgeschlagen)|antwortet nicht|meldet sich nicht|abgebrochen/.test(t); i++) {
 	await sleep(1000);
 	t = await text();
 	out.heads.push(await evalJs(head));
 	if (i === 6) await shot('2-update-laeuft');
+	if (t.includes('Versuch 2 von 3')) out.sawRetry = true;
+	// Stoerer: 4 s nach Beginn des Uebertragens (Loeschen 2,3 s) eine fremde Abfrage
+	if (stoerer && !out.disturbed && t.includes('Übertragen …')) {
+		upSince = upSince || i;
+		if (i - upSince >= 4) {
+			out.disturbed = (await fetch(base + 'system/info').then((r) => r.status).catch((e) => String(e)));
+		}
+	}
 }
 out.done = t;
 out.dialogs = dialogs;
@@ -123,6 +137,10 @@ const checks = [
 		out.heads.some((h) => h.startsWith('Update läuft')) && !out.heads.some((h) => h.endsWith('|offline'))],
 	['nach Neuladen: letztes Update erfolgreich', out.after.includes('Letztes Update') && out.after.includes('erfolgreich')],
 ];
+if (stoerer) {
+	checks.push(['Stoerer: Abfrage waehrend des Uploads gesendet', out.disturbed !== undefined]);
+	checks.push(['Stoerer: Abbruch erkannt, Versuch 2 von 3', out.sawRetry]);
+}
 let fail = 0;
 for (const [n, ok] of checks) {
 	console.log((ok ? 'ok   ' : 'FAIL ') + n);

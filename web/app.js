@@ -824,6 +824,29 @@ async function probe() {
 	} catch (e) { return 'weg'; }
 }
 
+// Erster Zustand aus der Liste, der sich meldet, oder null
+async function waitForAny(list, seconds) {
+	for (let i = 0; i < seconds; i++) {
+		const st = await probe();
+		if (list.includes(st)) return st;
+		await new Promise((r) => setTimeout(r, 1000));
+	}
+	return null;
+}
+
+// Upload an den Bootloader. Angekommen: 200 und eine Seite ohne Upload-Formular; ein Abbruch
+// schliesst die Verbindung ohne Antwort, ohne Datei kommt das Formular zurueck.
+async function uploadImage(file) {
+	const fd = new FormData();
+	fd.append('datafile', new Blob([file.buf], { type: 'application/octet-stream' }),
+		file.name || 'firmware.bin');
+	try {
+		const r = await fetch('/upload.cgi', { method: 'POST', body: fd, signal: AbortSignal.timeout(30000) });
+		const t = await r.text();
+		return r.ok && t.trim() !== '' && !/upload\.cgi/i.test(t);
+	} catch (e) { return false; }
+}
+
 async function waitFor(what, seconds) {
 	for (let i = 0; i < seconds; i++) {
 		if (await probe() === what) return true;
@@ -840,6 +863,7 @@ const mmss = (s) => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 function Update({ onBusy }) {
 	const [file, setFile] = useState(null); // {name, buf, check}
 	const [step, setStep] = useState(-1);
+	const [tries, setTry] = useState(1); // Upload-Versuch 1..3
 	const [msg, setMsg] = useState(null);
 	const busy = step >= 0 && step < 5;
 	const [t0, setT0] = useState(0);
@@ -887,14 +911,21 @@ function Update({ onBusy }) {
 					'/ bis zu 2 min auf einen Upload (von Hand möglich).');
 			}
 			setStep(2);
-			const fd = new FormData();
-			fd.append('datafile', new Blob([file.buf], { type: 'application/octet-stream' }),
-				file.name || 'firmware.bin');
-			// Antwort und Verbindungsende sind beim Bootloader nicht verlaesslich; das
-			// Ergebnis meldet Wallfree nach dem Neustart (SOLL-BOOT-33)
-			try {
-				await fetch('/upload.cgi', { method: 'POST', body: fd, signal: AbortSignal.timeout(30000) });
-			} catch (e) { /* weiter mit dem Neustart */ }
+			// Bis zu 3 Uploads: Eine fremde Anfrage bricht einen Upload ab (Verbindung ohne
+			// Antwort); nach der Uebergabe wartet der Bootloader dann noch unter derselben
+			// Adresse (3 Versuche), danach ohne Programm unter 192.168.0.8. Das Ergebnis meldet
+			// Wallfree nach dem Neustart (SOLL-BOOT-33).
+			for (let n = 1; ; n++) {
+				setTry(n);
+				if (await uploadImage(file)) break;
+				if (n >= 3) {
+					throw new Error('Das Hochladen wurde dreimal abgebrochen (andere Anfrage an die ' +
+						'Wallbox?). Der Bootloader wartet jetzt unter http://192.168.0.8/ auf die Datei.');
+				}
+				const st = await waitForAny(['bootloader', 'wallfree'], 90);
+				if (st === 'wallfree') break; // verfruehtes Ende: Ergebnis pruefen
+				if (!st) throw new Error('Der Bootloader antwortet nicht mehr.');
+			}
 			setStep(3);
 			if (!ver) {
 				setStep(5);
@@ -932,7 +963,8 @@ function Update({ onBusy }) {
 			<div class="stages">${STAGES.map(([s, end], i) => {
 				const from = i ? STAGES[i - 1][1] : 0;
 				const st = step >= end ? 'ok' : step >= from ? '' : 'muted';
-				return html`<span class=${st}>${step >= end ? '✓ ' : ''}${s}${st === '' ? ' …' : ''}</span>`;
+				const again = i === 1 && tries > 1 ? ` (Versuch ${tries} von 3)` : '';
+				return html`<span class=${st}>${step >= end ? '✓ ' : ''}${s}${again}${st === '' ? ' …' : ''}</span>`;
 			})}</div>
 			<p class="muted msg">Die Steuerung ist währenddessen nicht erreichbar. Diese Seite bitte offen lassen.</p>
 		</div>`}

@@ -1168,6 +1168,42 @@ class T6Update(SimCase):
         self.assertTrue(info["image"]["ok"])
         self.sim.env.pop("WALLFREE_SIM_BOOTLOADER_RATE")
 
+    def test_06b_update_sh_wiederholt_abgebrochenen_upload(self):
+        """update.sh erkennt einen abgebrochenen Upload an der fehlenden Antwort und laedt neu,
+        solange der Bootloader wartet (zweites Geraet 2026-11-08: Abfrage aus Node-RED)."""
+        self.sim.stop()
+        self.sim.env["WALLFREE_SIM_BOOTLOADER_RATE"] = "20000"  # 100 KB etwa 5 s
+        self.sim.start()
+        data = self.image()
+        boots = self.sim.boots()
+        url = f"http://127.0.0.1:{self.sim.http_port}/system/info"
+        n0 = self.sim.log_text().count("Update-Betrieb")
+        a0 = self.sim.log_text().count("Upload abgebrochen")
+
+        def stoerer():
+            # erst nach Beginn des ersten Uploads (Loeschen 2,3 s) genau eine Abfrage
+            t0 = time.monotonic()
+            while self.sim.log_text().count("Update-Betrieb") == n0 and time.monotonic() - t0 < 30:
+                time.sleep(0.1)
+            time.sleep(5)
+            try:
+                urllib.request.urlopen(url, timeout=5).read()
+            except OSError:
+                pass
+
+        st = threading.Thread(target=stoerer)
+        st.start()
+        r = self.update(data, "-u", f"{USER}:{PASSWORD}")
+        st.join()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.sim.log_text().count("Upload abgebrochen"), a0 + 1)
+        self.assertIn("Versuch 2 von 3", r.stdout)
+        self.sim.wait_restart(boots, timeout=40)
+        info = self.sim.get_json("/system/info", self.auth)
+        self.assertEqual(info["update_result"], {"mode": 2, "ok": True})
+        self.assertTrue(info["image"]["ok"])
+        self.sim.env.pop("WALLFREE_SIM_BOOTLOADER_RATE")
+
     def test_07_ohne_bootloader(self):
         self.sim.stop()
         self.sim.env.pop("WALLFREE_SIM_BOOTLOADER")

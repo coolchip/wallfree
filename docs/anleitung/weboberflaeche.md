@@ -557,9 +557,11 @@ ausdrücklichen Rückfrage auf; danach ist diese Oberfläche nicht mehr erreichb
 
 Bricht das Update ab, bevor die Übertragung begonnen hat, wartet der Bootloader bis zu dreimal
 2 Minuten auf die Datei und startet dann wieder die bisherige Firmware. Bricht es **während** der
-Übertragung ab (z. B. andere Anfrage, Seite geschlossen, Netz unterbrochen), ist die bisherige
-Firmware schon gelöscht: Der Bootloader bleibt im Update-Betrieb, erst unter der bisherigen
-Adresse, danach unter **192.168.0.8**, und wartet auf eine Datei. Sie lässt sich dort auf seiner
+Übertragung ab (z. B. andere Anfrage, Netz unterbrochen), ist die bisherige Firmware schon
+gelöscht. Die Seite erkennt das und überträgt die Datei bis zu zweimal neu („Übertragen
+(Versuch 2 von 3)“), solange der Bootloader unter der bisherigen Adresse wartet. Scheitern alle
+drei Versuche oder wird die Seite geschlossen, bleibt der Bootloader im Update-Betrieb, danach
+unter **192.168.0.8**, und wartet auf eine Datei. Sie lässt sich dort auf seiner
 einfachen Seite von Hand hochladen (PC dazu im Netz 192.168.0.x). Kommt die Firmware unvollständig
 an, startet sie, sperrt aber das Laden („Prüfsumme … beschädigt“); dann das Update wiederholen.
 Ein Fahrzeug sollte während des Updates nicht angesteckt sein.

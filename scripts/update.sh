@@ -6,6 +6,10 @@
 #   scripts/update.sh [-u benutzer:passwort] --upload-only adresse[:port] datei.bin
 #       nur Upload, z. B. nach "bootloader" in der Shell
 # Der Bootloader wartet bis 2 min auf den Upload; die Uebertragung muss in 30 s fertig sein.
+# Jede andere HTTP-Anfrage an die Wallbox waehrend des Uploads bricht ihn ab (wallbe2
+# docs/bootloader.md). Ein abgebrochener Upload wird bis zu zweimal wiederholt: Nach der
+# Uebergabe hat der Bootloader 3 Versuche unter derselben Adresse, danach wartet er ohne
+# Programm unter 192.168.0.8.
 set -eu
 creds=
 only=0
@@ -51,11 +55,43 @@ if [ $only -eq 0 ]; then
 		"http://$host/system/update" || { echo "Uebergabe abgelehnt" >&2; exit 1; }
 	echo
 fi
+# Ein Upload gilt als angekommen, wenn der Bootloader mit 200 und einer Seite ohne
+# Upload-Formular antwortet. Abbruch: Verbindung ohne Antwort geschlossen; ohne Datei: Formular.
+upload() {
+	resp=$(curl -s --max-time 30 -w '\n%{http_code}' \
+		-F "datafile=@$image;type=application/octet-stream" "http://$host/upload.cgi" 2>/dev/null) ||
+		return 1
+	code=$(printf '%s\n' "$resp" | tail -n 1)
+	[ "$code" = 200 ] || return 1
+	printf '%s\n' "$resp" | sed '$d' | grep -qi 'upload.cgi' && return 1
+	printf '%s\n' "$resp" | sed '$d' | grep -q . || return 1
+	return 0
+}
+
 echo "Warten auf den Bootloader ..."
 wait_for bootloader 60 || { echo "Bootloader antwortet nicht unter $host" >&2; exit 1; }
-echo "Hochladen ($size Byte) ..."
-curl -s --max-time 30 -o /dev/null -F "datafile=@$image;type=application/octet-stream" \
-	"http://$host/upload.cgi" || true
+n=1
+while :; do
+	echo "Hochladen ($size Byte, Versuch $n von 3) ..."
+	upload && break
+	echo "Upload nicht bestaetigt (abgebrochen, z. B. durch eine andere Anfrage an die Wallbox)"
+	[ $n -lt 3 ] || {
+		echo "Update gescheitert. Ohne Programm wartet der Bootloader unter 192.168.0.8:" >&2
+		echo "  scripts/update.sh --upload-only 192.168.0.8 $image" >&2
+		exit 1
+	}
+	n=$((n + 1))
+	# Nach einem verfruehten Ende kann schon die neue Firmware laufen
+	i=0
+	while :; do
+		st=$(probe)
+		[ "$st" = bootloader ] && break
+		[ "$st" = wallfree ] && break 2
+		i=$((i + 1))
+		[ $i -lt 90 ] || { echo "Bootloader antwortet nicht mehr unter $host" >&2; exit 1; }
+		sleep 1
+	done
+done
 echo "Warten auf den Neustart ..."
 if wait_for wallfree 120; then
 	if [ -n "$creds" ]; then
