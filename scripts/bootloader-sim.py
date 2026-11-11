@@ -43,6 +43,7 @@ import zlib
 MODE_WEB = 2
 MAX_IMAGE = 0x50000
 UPLOAD_S = 30
+HOLD_S = 60
 MSS = 1426
 TRAILER_MAGIC = 0x474D4957
 
@@ -157,6 +158,23 @@ class Box:
         self.result = None
 
 
+def reply_hold(conn, box, body):
+    """Antwort auf einen gelungenen Upload wie der Bootloader der Steuerung: HTTP/1.0 ohne
+    Content-Length, danach startet er die Firmware, ohne die Verbindung zu schliessen (Testgeraet,
+    Mitschnitt wallbe2 analysis/box-t/update4.pcap). Ein Kindprozess haelt die Verbindung
+    deshalb auch nach dem Ende der Simulation noch HOLD_S offen."""
+    try:
+        conn.sendall(b"HTTP/1.0 200 OK\r\nContent-Type: text/html\r\n\r\n" + body)
+    except OSError:
+        return
+    if os.fork() == 0:
+        try:
+            box.srv.close()
+            time.sleep(HOLD_S)
+        finally:
+            os._exit(0)
+
+
 def upload(conn, box, head, rest, length):
     """Upload Paket fuer Paket mit Loeschpause und Tempo des Originals; bricht ab, sobald
     waehrenddessen eine andere Verbindung ein GET schickt."""
@@ -198,7 +216,7 @@ def upload(conn, box, head, rest, length):
     os.environ["WALLFREE_SIM_IMAGE"] = image_state(data)
     print(f"bootloader-sim: {len(data)} Byte empfangen, "
           f"{'gueltig' if ok else 'ungueltig'} ({mode})", flush=True)
-    reply(conn, b"<!DOCTYPE html><html><body><h1>Upload abgeschlossen</h1></body></html>")
+    reply_hold(conn, box, b"<!DOCTYPE html><html><body><h1>Upload abgeschlossen</h1></body></html>")
     with box.lock:
         box.result = MODE_WEB << 8 | (1 if ok else 0)
 
@@ -227,6 +245,7 @@ def serve(port, wait_s):
     srv.bind(("", port))
     srv.listen(8)
     box = Box()
+    box.srv = srv
     start = time.monotonic()
     print(f"bootloader-sim: Update-Betrieb auf Port {port}", flush=True)
     while True:

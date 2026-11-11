@@ -1,0 +1,113 @@
+drivers: timer: cortex_m_systick: do not lose cycles when reprogramming
+
+Wallfree patch on Zephyr v4.4.2 (apply with scripts/zephyr-patches.sh).
+
+In tickless mode sys_clock_set_timeout() reprograms SysTick on every new
+timeout. Two windows on that path are counted by nobody, so the uptime
+falls behind the core clock on every call:
+
+1. elapsed() reads VAL, and set_timeout() then reads VAL again as the start
+   of its own window. The cycles between the two reads are lost. Use the
+   snapshot elapsed() counted up to (same as upstream 4c04c7f73d6).
+2. Between sampling VAL and clearing it with VAL = 0 a few cycles pass
+   that are lost as well. Compute everything before the sample, so only
+   the three register accesses remain, and add the constant
+   CONFIG_CORTEX_M_SYSTICK_RELOAD_COMPENSATION (default 0) back.
+
+Measured on STM32F207 at 100 MHz (Cortex-M3, about 1800 reprogrammings per
+second): uptime against DWT_CYCCNT -516 ppm before, -88 ppm with (1),
++0.7 ppm with (1) and a compensation of 5 cycles.
+
+diff --git a/drivers/timer/Kconfig.cortex_m_systick b/drivers/timer/Kconfig.cortex_m_systick
+index 65f56743a3f..954558ee6c0 100644
+--- a/drivers/timer/Kconfig.cortex_m_systick
++++ b/drivers/timer/Kconfig.cortex_m_systick
+@@ -26,6 +26,17 @@ config CORTEX_M_SYSTICK_INSTALL_ISR
+ 	  This option should be selected by SysTick-based drivers so that the
+ 	  sys_clock_isr() function is installed.
+ 
++config CORTEX_M_SYSTICK_RELOAD_COMPENSATION
++	int "Cycles lost when reprogramming the SysTick counter"
++	depends on CORTEX_M_SYSTICK && TICKLESS_KERNEL
++	default 0
++	help
++	  In tickless mode every new timeout reprograms SysTick: the driver
++	  samples VAL, writes LOAD and clears VAL. The cycles between the
++	  sample and the clear are counted by nobody, so the uptime falls
++	  behind the clock by this amount on every reprogramming. The value
++	  given here is added to the cycle count each time.
++
+ config CORTEX_M_SYSTICK_64BIT_CYCLE_COUNTER
+ 	bool "Cortex-M SYSTICK timer with sys_clock_cycle_get_64() support"
+ 	depends on CORTEX_M_SYSTICK
+diff --git a/drivers/timer/cortex_m_systick.c b/drivers/timer/cortex_m_systick.c
+index a5c8199c6f0..c17ab3c4f15 100644
+--- a/drivers/timer/cortex_m_systick.c
++++ b/drivers/timer/cortex_m_systick.c
+@@ -293,12 +293,17 @@ uint64_t z_sys_clock_lpm_exit(void)
+  *     - and until the current call of the function is completed.
+  * - the function is invoked with interrupts disabled.
+  */
+-static uint32_t elapsed(void)
++static uint32_t elapsed_snap(uint32_t *val_out)
+ {
+ 	uint32_t val1 = SysTick->VAL;	/* A */
+ 	uint32_t ctrl = SysTick->CTRL;	/* B */
+ 	uint32_t val2 = SysTick->VAL;	/* C */
+ 
++	/* Raw snapshot C, so that a caller can continue counting from
++	 * exactly the point up to which this call accounted.
++	 */
++	*val_out = val2;
++
+ 	/* SysTick behavior: The counter wraps after zero automatically.
+ 	 * The COUNTFLAG field of the CTRL register is set when it
+ 	 * decrements from 1 to 0. Reading the control register
+@@ -341,6 +346,13 @@ static uint32_t elapsed(void)
+ 	return (last_load - val2) + overflow_cyc;
+ }
+ 
++static inline uint32_t elapsed(void)
++{
++	uint32_t val;
++
++	return elapsed_snap(&val);
++}
++
+ /* sys_clock_isr is calling directly from the platform's vectors table.
+  * However using ISR_DIRECT_DECLARE() is not so suitable due to possible
+  * tracing overflow, so here is a stripped down version of it.
+@@ -479,9 +491,10 @@ void sys_clock_set_timeout(int32_t ticks, bool idle)
+ 
+ 	k_spinlock_key_t key = k_spin_lock(&lock);
+ 
+-	uint32_t pending = elapsed();
+-
+-	val1 = SysTick->VAL;
++	/* val1 must be the very VAL snapshot up to which elapsed() counted:
++	 * a separate read would lose the cycles in between on every call.
++	 */
++	uint32_t pending = elapsed_snap(&val1);
+ 
+ 	cycle_count += pending;
+ 	overflow_cyc = 0U;
+@@ -512,10 +525,17 @@ void sys_clock_set_timeout(int32_t ticks, bool idle)
+ 		}
+ 	}
+ 
+-	val2 = SysTick->VAL;
++	/* Keep the window between sampling VAL and clearing it as short and
++	 * as constant as possible: everything is computed beforehand, so
++	 * only the three register accesses remain. The cycles of that window
++	 * are lost to the counter and are added back below.
++	 */
++	uint32_t reload = last_load - 1;
+ 
+-	SysTick->LOAD = last_load - 1;
++	val2 = SysTick->VAL;
++	SysTick->LOAD = reload;
+ 	SysTick->VAL = 0; /* resets timer to last_load */
++	cycle_count += CONFIG_CORTEX_M_SYSTICK_RELOAD_COMPENSATION;
+ 
+ 	/*
+ 	 * Add elapsed cycles while computing the new load to cycle_count.

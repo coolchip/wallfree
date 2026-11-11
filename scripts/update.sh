@@ -58,9 +58,12 @@ fi
 # Ein Upload gilt als angekommen, wenn der Bootloader mit 200 und einer Seite ohne
 # Upload-Formular antwortet. Abbruch: Verbindung ohne Antwort geschlossen; ohne Datei: Formular.
 upload() {
+	# Der Bootloader antwortet mit HTTP/1.0 ohne Laenge und startet danach die Firmware, ohne
+	# die Verbindung zu schliessen: curl endet dann erst mit der Zeitgrenze (Fehler 28). Es
+	# zaehlt deshalb nur, was ankam, nicht der Rueckgabewert von curl.
 	resp=$(curl -s --max-time 30 -w '\n%{http_code}' \
 		-F "datafile=@$image;type=application/octet-stream" "http://$host/upload.cgi" 2>/dev/null) ||
-		return 1
+		true
 	code=$(printf '%s\n' "$resp" | tail -n 1)
 	[ "$code" = 200 ] || return 1
 	printf '%s\n' "$resp" | sed '$d' | grep -qi 'upload.cgi' && return 1

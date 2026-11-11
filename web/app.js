@@ -840,11 +840,29 @@ async function uploadImage(file) {
 	const fd = new FormData();
 	fd.append('datafile', new Blob([file.buf], { type: 'application/octet-stream' }),
 		file.name || 'firmware.bin');
+	const ctl = new AbortController();
+	const timer = setTimeout(() => ctl.abort(), 30000);
 	try {
-		const r = await fetch('/upload.cgi', { method: 'POST', body: fd, signal: AbortSignal.timeout(30000) });
-		const t = await r.text();
+		const r = await fetch('/upload.cgi', { method: 'POST', body: fd, signal: ctl.signal });
+		// Der Bootloader sendet HTTP/1.0 ohne Laenge und startet danach die Firmware, ohne die
+		// Verbindung zu schliessen: nur lesen, bis die Seite da ist oder 3 s nichts mehr kommt
+		const rd = r.body.getReader();
+		const dec = new TextDecoder();
+		let t = '';
+		for (;;) {
+			const res = await Promise.race([rd.read(),
+				new Promise((ok) => setTimeout(() => ok(null), 3000))]);
+			if (!res || res.done) break;
+			t += dec.decode(res.value, { stream: true });
+			if (/<\/html>/i.test(t)) break;
+		}
 		return r.ok && t.trim() !== '' && !/upload\.cgi/i.test(t);
-	} catch (e) { return false; }
+	} catch (e) {
+		return false;
+	} finally {
+		clearTimeout(timer);
+		ctl.abort();
+	}
 }
 
 async function waitFor(what, seconds) {

@@ -140,6 +140,9 @@ const checks = [
 if (stoerer) {
 	checks.push(['Stoerer: Abfrage waehrend des Uploads gesendet', out.disturbed !== undefined]);
 	checks.push(['Stoerer: Abbruch erkannt, Versuch 2 von 3', out.sawRetry]);
+} else {
+	// Der Ersatz-Bootloader haelt die Verbindung nach dem Upload offen wie die Steuerung
+	checks.push(['gelungener Upload ohne zweiten Versuch', !out.sawRetry]);
 }
 let fail = 0;
 for (const [n, ok] of checks) {

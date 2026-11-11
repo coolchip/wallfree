@@ -1024,6 +1024,11 @@ class T6Update(SimCase):
         data = self.image()
         r = self.update(data, "-u", f"{USER}:{PASSWORD}")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        # Der Bootloader schliesst die Verbindung nach dem Upload nicht (wie am Testgeraet): der
+        # gelungene Upload darf trotzdem nicht als abgebrochen gelten
+        self.assertNotIn("nicht bestaetigt", r.stdout)
+        self.assertIn("Versuch 1 von 3", r.stdout)
+        self.assertNotIn("Versuch 2 von 3", r.stdout)
         with open(self.out, "rb") as f:
             self.assertEqual(f.read(), data, "Bootloader erhielt genau die Datei")
         info = self.sim.get_json("/system/info", self.auth)
@@ -1198,6 +1203,7 @@ class T6Update(SimCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(self.sim.log_text().count("Upload abgebrochen"), a0 + 1)
         self.assertIn("Versuch 2 von 3", r.stdout)
+        self.assertEqual(r.stdout.count("nicht bestaetigt"), 1, r.stdout)
         self.sim.wait_restart(boots, timeout=40)
         info = self.sim.get_json("/system/info", self.auth)
         self.assertEqual(info["update_result"], {"mode": 2, "ok": True})
