@@ -461,16 +461,12 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    aus dem Original `contactor_monitor` 0. Eingeschaltet (1, Via Sense, Nutzer 2026-11-08) und mit
    Laden, evcc-Pause (17 s), Fortsetzen und Ende geprüft: Schütz jeweils 5,0 s nach S7 aus,
    `ct_sense` folgt, kein ERR-CONTACTOR. Erledigt.
-6. **Uhr läuft etwa 500 ppm zu langsam** (zweites Gerät und das Testgerät): zweites Gerät ging 2,06 s nach (2026-11-08)
-   bzw. 3,95 s 2,2 h nach dem Abgleich (2026-11-09). Gemessen 2026-11-09 über 10 min (Laufzeit
-   aus `GET /system/info` gegen die PC-Uhr per NTP, 61 Punkte, Ausgleichsgerade, Latenz 55..75 ms,
-   Restfehler unter 6 ms): zweites Gerät −497 ppm, Testgerät −571 ppm (je ±1 ppm). Der CPU-Takt selbst stimmt:
-   Am Testgerät zählte der Zyklenzähler (DWT_CYCCNT, per SWD ohne Anhalten, 5 min) 99 994 668 Hz,
-   also −53 ppm (Quarz). **Ursache ist damit die Zeitbasis von Zephyr, nicht der Quarz:** Der
-   SysTick-Treiber im tickless-Betrieb (`cortex_m_systick.c`) verliert bei jedem Neuprogrammieren
-   (`sys_clock_set_timeout`, `VAL = 0` nach dem Lesen von `VAL`) einige Takte; bei vielen
-   Aufrufen je Sekunde summiert sich das (Mechanismus aus dem Code abgeleitet, Aufrufrate nicht
-   gemessen). Folgen: Uhrzeit bis etwa 10 s falsch bis zum nächsten Abgleich (alle 6 h), alle
-   Zeiten der Box rund 0,05 % zu lang (für die Ladelogik ohne Bedeutung). Die Zeiten im
-   Ereignisprotokoll sind entsprechend verschoben. Abhilfe offen (Uhr vom Zyklenzähler oder vom
-   32-kHz-Taktgeber an PC14 ableiten, häufiger abgleichen, Zephyr-Treiber beheben).
+6. **Uhr lief etwa 500 ppm zu langsam** (zweites Gerät und das Testgerät): zweites Gerät ging 3,95 s nach, 2,2 h nach dem
+   letzten Abgleich (2026-11-09). Gemessen über 10 min (Laufzeit aus `GET /system/info` gegen die
+   PC-Uhr per NTP, Ausgleichsgerade, Restfehler unter 6 ms): zweites Gerät −497 ppm, Testgerät −571 ppm. Der
+   CPU-Takt selbst stimmte (Testgerät, `DWT_CYCCNT` per SWD: −53 ppm, Quarz). **Ursache:** Der
+   SysTick-Treiber von Zephyr verlor bei jedem Neuprogrammieren einige Takte, bei etwa 1800
+   Aufrufen je Sekunde rund 516 ppm ([Fallstricke](implementierung.md#fallstricke)).
+   **Behoben** mit Zephyr-Patch `0003` (`8c76c4b`): am Testgerät Zephyr-Zählung gegen den CPU-Takt
+   −1,5 ppm (9 min), gegen die PC-Uhr −50,5 ppm (10 min), also nur noch der Quarz (etwa 4 s am
+   Tag, mit dem Abgleich alle 6 h unter 1,1 s). Das zweite Gerät noch mit `208a7f7`.
