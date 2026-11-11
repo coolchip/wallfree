@@ -79,16 +79,17 @@ die Originalfirmware. Weder Wallfree noch die Originalfirmware verändern ihn.
 - **Update bricht während der Übertragung ab** (anderer Tab, evcc, Netz weg): Die bisherige
   Firmware ist dann schon gelöscht. Ein Update aus Wallfree (Weboberfläche oder
   `scripts/update.sh`) erkennt den Abbruch und überträgt die Datei bis zu zweimal neu, solange der
-  Bootloader unter der bisherigen Adresse wartet. Scheitert das, bleibt der Bootloader im
-  Update-Betrieb, danach unter **192.168.0.8**, und wartet auf eine Datei. Dort die gewünschte
-  Datei erneut von Hand hochladen (oder mit `scripts/update.sh --upload-only <Adresse> <Datei>`).
-  Ein halb geschriebenes Abbild startet er nicht.
+  Bootloader unter der bisherigen Adresse wartet. Scheitert das, wartet der Bootloader ohne
+  Programm unter **192.168.0.8** auf eine Datei: weiter mit dem
+  [Rettungsweg](#5-rettungsweg-steuerung-wartet-im-bootloader). Ein halb geschriebenes Abbild
+  startet er nicht.
 - **Wallfree meldet „Prüfsumme … beschädigt“:** Die Datei kam unvollständig an. Wallfree lädt
   dann nicht; das Update wiederholen.
 - **Die aufgespielte Firmware startet nicht** (falsche oder beschädigte Datei): Ist gar kein
   gültiges Programm da, bleibt der Bootloader im Update-Betrieb. Hängt die Firmware, startet der
   Watchdog die Steuerung immer wieder neu; beim fünften Mal öffnet der Bootloader für 2 Minuten
-  seine Seite unter 192.168.0.8. Dort eine passende Datei hochladen.
+  seine Seite unter 192.168.0.8. Dort eine passende Datei hochladen
+  ([Rettungsweg](#5-rettungsweg-steuerung-wartet-im-bootloader)).
 - **Weboberfläche von Wallfree nicht erreichbar, Update darüber also nicht möglich:** Notweg über
   den Reset-Taster der Steuerung. Taster gedrückt halten: Die Power-LED bleibt etwa 5 Sekunden
   dunkel, blinkt dann langsam und nach weiteren 5 Sekunden schnell. **Während sie schnell blinkt,
@@ -97,3 +98,51 @@ die Originalfirmware. Weder Wallfree noch die Originalfirmware verändern ihn.
   keine Datei, startet nach einigen Minuten wieder die bisherige Firmware. Die Einstellungen
   bleiben erhalten. Wer zu lange hält (bis die LED dauerhaft leuchtet), löst stattdessen den
   Werksreset aus.
+
+## 5 Rettungsweg: Steuerung wartet im Bootloader
+
+Nach einem gescheiterten Update ist die bisherige Firmware gelöscht, und der Bootloader wartet auf
+eine neue Datei. Die Steuerung ist dabei nicht defekt; Aus- und Einschalten hilft aber nicht, weil
+kein Programm mehr da ist, das starten könnte.
+
+**Erkennen:** Die Weboberfläche ist unter der gewohnten Adresse nicht erreichbar (auch nicht nach
+Aus/Ein), die Modul-LEDs der Steuerung blinken gemeinsam, und unter `http://192.168.0.8/`
+antwortet eine schlichte Seite „Software Update“ mit einem Feld zum Hochladen. Unmittelbar nach
+dem gescheiterten Update kann der Bootloader noch einige Minuten unter der bisherigen Adresse
+warten; dann zuerst dort nachsehen.
+
+**Vorgehen:**
+
+1. **Alles anhalten, was die Wallbox abfragt:** evcc, Home Assistant, Node-RED, Monitoring- oder
+   Logging-Skripte, Apps, weitere Browser-Tabs. Das ist der häufigste Grund für ein gescheitertes
+   Update: Schon eine einzige fremde Anfrage während der Übertragung bricht sie ab, und eine
+   regelmäßige Abfrage (etwa alle paar Sekunden) lässt jeden Versuch scheitern.
+2. **PC in das Netz 192.168.0.x bringen.** Am einfachsten den PC direkt per Netzwerkkabel mit der
+   Steuerung verbinden (oder über einen Switch ohne andere Geräte, die die Wallbox abfragen) und
+   ihm vorübergehend eine feste Adresse geben, zum Beispiel **192.168.0.10**, Netzmaske
+   255.255.255.0. Unter Linux etwa mit `sudo ip addr add 192.168.0.10/24 dev <Netzwerkkarte>`, unter
+   Windows in den Adaptereinstellungen (IPv4, feste Adresse). Liegt das Heimnetz selbst auf
+   192.168.0.x, geht es auch dort, sofern die Adresse 192.168.0.8 nicht von einem anderen Gerät
+   belegt ist.
+3. **Erreichbarkeit prüfen:** `http://192.168.0.8/` im Browser öffnen (nur ein Tab). Antwortet
+   nichts, bis zu 2 Minuten warten und neu laden: Ohne Programm startet der Bootloader seinen
+   Update-Betrieb regelmäßig neu.
+4. **Datei hochladen:** auf der Seite `wallfree-<version>.bin` (oder die Firmwaredatei des
+   Herstellers) auswählen und hochladen. Die Übertragung dauert wenige Sekunden; danach die
+   Seite nicht neu laden und keine weitere Anfrage schicken. Alternativ mit dem Skript:
+
+   ```bash
+   scripts/update.sh --upload-only 192.168.0.8 wallfree-<version>.bin
+   ```
+
+   Das Skript prüft die Antwort des Bootloaders und meldet, ob die Datei angekommen ist.
+5. **Neustart abwarten:** Die Steuerung startet die neue Firmware nach wenigen Sekunden. Wallfree
+   übernimmt seine bisherigen Einstellungen (Adresse, Zugangsdaten, Parameter) und ist danach
+   wieder unter seiner gewohnten Adresse erreichbar, bei DHCP unter der Adresse, die der Router
+   oder der PC vergibt. Unter System zeigt die Weboberfläche die Version und „Letztes Update: erfolgreich“.
+6. **Aufräumen:** Den PC wieder auf seine normale Netzwerkeinstellung stellen, die Steuerung
+   wieder ins Heimnetz bringen und die angehaltenen Programme (evcc usw.) wieder starten.
+
+Scheitert auch das (keine Seite unter 192.168.0.8, auch nicht nach Aus/Ein und einigen
+Minuten Warten), bleibt der Weg über die Programmierschnittstelle der Steuerung (SWD); dafür
+muss das Gehäuse geöffnet werden, und er setzt ein Programmiergerät und Erfahrung voraus.

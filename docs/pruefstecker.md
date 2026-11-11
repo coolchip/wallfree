@@ -463,4 +463,9 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    `ct_sense` folgt, kein ERR-CONTACTOR. Erledigt.
 6. **Uhr des zweiten Geräts 2,06 s nach** (11:28, 10 s nach dem letzten Abgleich mit `pool.ntp.org`;
    PC per NTP auf 11 ms genau, drei Messungen gleich). Auf dem Testgerät stimmte die Uhr auf 1 ms. Die
-   Zeiten im Ereignisprotokoll des zweiten Geräts sind entsprechend verschoben. Ursache offen.
+   Zeiten im Ereignisprotokoll des zweiten Geräts sind entsprechend verschoben. Nachgemessen 2026-11-09
+   20:20 (`208a7f7`, 2,2 h nach dem letzten Abgleich): 3,95 s nach; über 100 s wuchs der Abstand
+   um 48 ms, die Uhr des zweiten Geräts läuft also etwa **480 ppm zu langsam** (rund 41 s am Tag). Das
+   erklärt den Abstand fast ganz (2,2 h × 480 ppm = 3,8 s). Da Laufzeit und Uhr am Systemtakt
+   (HSE 25 MHz über PLL) hängen, weicht wohl der Quarz des zweiten Geräts ab; ein Vergleich mit dem Testgerät
+   steht aus. Mit dem Abgleich alle 6 h wird die Uhr bis zu etwa 10 s falsch.
