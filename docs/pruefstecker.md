@@ -276,7 +276,9 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
   gescheitert sind; der erste Hänger folgte laut Gesprächsverlauf auf ein Update über die
   Weboberfläche, nicht auf ein Aus/Ein (nicht mehr sicher feststellbar). Abgebrochen hat die
   Uploads sehr wahrscheinlich ein Node-RED-Ablauf auf einem Server im Heimnetz, der die Webseite der Wallbox
-  regelmäßig abfragte (im Heimnetz, an der USB-Karte nicht). Andere Aus/Ein an
+  regelmäßig abfragte (im Heimnetz, an der USB-Karte nicht). Der dritte Hänger (2026-11-09
+  17:49, Update im Heimnetz) kam von einem Mitschreibe-Skript am PC, das alle 2 s abfragte;
+  danach an der USB-Karte per `--upload-only` an 192.168.0.8 auf `208a7f7` gebracht. Andere Aus/Ein an
   Das zweite Gerät liefen ohne Hänger (D3.9 vormittags mit `23f3260`, D3.9 abends mit `7eb08f9`). Analyse:
   [wallbe2 Bootloader](../../wallbe2/docs/bootloader.md#bootloader-103-box-g).
   Beim nächsten Hänger zuerst nur Aus/Ein versuchen und nach dem Start die Konsole `boot`

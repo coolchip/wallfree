@@ -399,9 +399,13 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurück).
   von 1.03 heißt das: Alle Upload-Versuche sind gescheitert, Sektor 4..6 gelöscht; nach einem
   Update oder Aus/Ein mit gültigem Programm geht 1.03 nicht dorthin (Update per DHCP am
   2026-11-09 sauber). Die Uploads brach sehr wahrscheinlich eine regelmäßige `GET`-Abfrage
-  aus Node-RED (einem Server im Heimnetz) ab; der Ablauf ist gelöscht (Nutzer 2026-11-09). `update.sh` und
-  Weboberfläche prüfen inzwischen die Antwort des Uploads und laden bis zu zweimal neu (in der
-  Simulation geprüft, auf der Steuerung nicht). Updates am zweiten Gerät nur über die USB-Karte, bis der
+  aus Node-RED (einem Server im Heimnetz) ab; der Ablauf ist gelöscht (Nutzer 2026-11-09). Am 2026-11-09 um
+  17:49 scheiterte ein Update im Heimnetz (mit `208a7f7`, drei Versuche) erneut: Diesmal fragte
+  ein Mitschreibe-Skript vom PC alle 2 s `evse/params` und `system/info` ab und bekam ab 17:49:49
+  die Seite des Bootloaders, störte also jeden Versuch. Vor einem Update deshalb jede
+  regelmäßige Abfrage der Box anhalten. `update.sh` und Weboberfläche prüfen die Antwort des
+  Uploads und laden bis zu zweimal neu (in der Simulation geprüft; gegen Abfragen alle 2 s hilft
+  das nicht). Updates am zweiten Gerät nur über die USB-Karte, bis der
   Nutzer das aufhebt:
   [wallbe2 Bootloader 1.03](../../wallbe2/docs/bootloader.md#bootloader-103-box-g).
 - Befunde aus Stufe D ([Prüfstecker](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)):
