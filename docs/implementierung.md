@@ -409,7 +409,7 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurück).
   Nutzer das aufhebt:
   [wallbe2 Bootloader 1.03](../../wallbe2/docs/bootloader.md#bootloader-103-box-g).
 - Befunde aus Stufe D ([Prüfstecker](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)):
-  Schlüssel als Zwangsladen ohne evcc (Befund 3), Uhr des zweiten Geräts läuft etwa 480 ppm zu langsam (Befund 6); der Leaf
+  Schlüssel als Zwangsladen ohne evcc (Befund 3), Uhr läuft etwa 500 ppm zu langsam, weil der SysTick-Treiber von Zephyr Takte verliert (Befund 6); der Leaf
   bleibt nach PWM-Aus etwa 5 min in C (Befund 4, gelöst in evcc mit lokalem Patch, Issue bzw. PR
   bei evcc offen).
 - Erreichbarkeit unter Verbindungsflut: mit 12 Netzkontexten und 1,5 s TIME_WAIT werden neue

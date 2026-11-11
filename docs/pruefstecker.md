@@ -461,11 +461,16 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    aus dem Original `contactor_monitor` 0. Eingeschaltet (1, Via Sense, Nutzer 2026-11-08) und mit
    Laden, evcc-Pause (17 s), Fortsetzen und Ende geprüft: Schütz jeweils 5,0 s nach S7 aus,
    `ct_sense` folgt, kein ERR-CONTACTOR. Erledigt.
-6. **Uhr des zweiten Geräts 2,06 s nach** (11:28, 10 s nach dem letzten Abgleich mit `pool.ntp.org`;
-   PC per NTP auf 11 ms genau, drei Messungen gleich). Auf dem Testgerät stimmte die Uhr auf 1 ms. Die
-   Zeiten im Ereignisprotokoll des zweiten Geräts sind entsprechend verschoben. Nachgemessen 2026-11-09
-   20:20 (`208a7f7`, 2,2 h nach dem letzten Abgleich): 3,95 s nach; über 100 s wuchs der Abstand
-   um 48 ms, die Uhr des zweiten Geräts läuft also etwa **480 ppm zu langsam** (rund 41 s am Tag). Das
-   erklärt den Abstand fast ganz (2,2 h × 480 ppm = 3,8 s). Da Laufzeit und Uhr am Systemtakt
-   (HSE 25 MHz über PLL) hängen, weicht wohl der Quarz des zweiten Geräts ab; ein Vergleich mit dem Testgerät
-   steht aus. Mit dem Abgleich alle 6 h wird die Uhr bis zu etwa 10 s falsch.
+6. **Uhr läuft etwa 500 ppm zu langsam** (zweites Gerät und das Testgerät): zweites Gerät ging 2,06 s nach (2026-11-08)
+   bzw. 3,95 s 2,2 h nach dem Abgleich (2026-11-09). Gemessen 2026-11-09 über 10 min (Laufzeit
+   aus `GET /system/info` gegen die PC-Uhr per NTP, 61 Punkte, Ausgleichsgerade, Latenz 55..75 ms,
+   Restfehler unter 6 ms): zweites Gerät −497 ppm, Testgerät −571 ppm (je ±1 ppm). Der CPU-Takt selbst stimmt:
+   Am Testgerät zählte der Zyklenzähler (DWT_CYCCNT, per SWD ohne Anhalten, 5 min) 99 994 668 Hz,
+   also −53 ppm (Quarz). **Ursache ist damit die Zeitbasis von Zephyr, nicht der Quarz:** Der
+   SysTick-Treiber im tickless-Betrieb (`cortex_m_systick.c`) verliert bei jedem Neuprogrammieren
+   (`sys_clock_set_timeout`, `VAL = 0` nach dem Lesen von `VAL`) einige Takte; bei vielen
+   Aufrufen je Sekunde summiert sich das (Mechanismus aus dem Code abgeleitet, Aufrufrate nicht
+   gemessen). Folgen: Uhrzeit bis etwa 10 s falsch bis zum nächsten Abgleich (alle 6 h), alle
+   Zeiten der Box rund 0,05 % zu lang (für die Ladelogik ohne Bedeutung). Die Zeiten im
+   Ereignisprotokoll sind entsprechend verschoben. Abhilfe offen (Uhr vom Zyklenzähler oder vom
+   32-kHz-Taktgeber an PC14 ableiten, häufiger abgleichen, Zephyr-Treiber beheben).
