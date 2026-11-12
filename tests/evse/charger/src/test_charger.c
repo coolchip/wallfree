@@ -437,7 +437,88 @@ ZTEST(evse_charger, test_permission_register_d10)
 	sim_run(&s, 3000);
 	zassert_equal(s.e.state, EVSE_S3_WAIT, "400 startet mit 0 (F19)");
 	s.e.rt.enable_register = true;
+	sim_run(&s, 3000);
+	zassert_equal(s.e.state, EVSE_S3_WAIT, "external startet mit D10 bei 0 (F34)");
+	s.e.rt.external_ma = 16000;
 	zassert_true(sim_until_state(&s, EVSE_S5_PWM_ON, 4000) >= 0);
+}
+
+ZTEST(evse_charger, test_external_start_value_d10)
+{
+	/* SOLL-CUR-15, F34 */
+	cfg.dip = DIP(10);
+	reinit();
+	sim_start(&s);
+	zassert_equal(s.e.rt.external_ma, 0);
+	cfg.dip = 0;
+	reinit();
+	sim_start(&s);
+	zassert_equal(s.e.rt.external_ma, 80000);
+}
+
+ZTEST(evse_charger, test_external_releases_d10)
+{
+	/* SOLL-EN-01 b, SOLL-EN-12: evcc startet und beendet mit D10 allein ueber den Strom */
+	cfg.dip = DIP(10);
+	reinit();
+	sim_boot(&s);
+	s.car = EVSE_CP_B;
+	sim_run(&s, 3000);
+	zassert_equal(s.e.state, EVSE_S3_WAIT);
+	zassert_false(s.e.permission);
+	s.e.rt.external_ma = 10000;
+	zassert_true(sim_until_state(&s, EVSE_S5_PWM_ON, 4000) >= 0);
+	zassert_true(s.e.permission);
+	zassert_equal(s.e.out.cp_duty, 166);
+	s.car = EVSE_CP_C;
+	zassert_true(sim_until_state(&s, EVSE_S6_CHARGING, 2000) >= 0);
+	s.e.rt.external_ma = 0;
+	sim_run(&s, 50);
+	zassert_equal(s.e.state, EVSE_S7_STOPPING);
+	zassert_false(s.e.permission);
+}
+
+ZTEST(evse_charger, test_key_forces_charging_d7_d10)
+{
+	/* SOLL-EN-13: Schluessel hebt die evcc-Vorgabe auf, auch bei 0 */
+	cfg.dip = DIP(7) | DIP(10);
+	reinit();
+	sim_boot(&s);
+	s.car = EVSE_CP_B;
+	sim_run(&s, 3000);
+	zassert_equal(s.e.state, EVSE_S3_WAIT, "ohne evcc und ohne Schluessel kein Laden");
+	s.din_mv[EVSE_DIN_EN] = 12000;
+	zassert_true(sim_until_state(&s, EVSE_S5_PWM_ON, 4000) >= 0);
+	zassert_true(s.e.cur_in.external_ignored);
+	zassert_equal(s.e.out.cp_duty, 266, "Drehschalter 16 A trotz external 0");
+	s.e.rt.external_ma = 6000;
+	sim_run(&s, 10);
+	zassert_equal(s.e.out.cp_duty, 266, "evcc-Wert wirkungslos");
+	s.car = EVSE_CP_C;
+	zassert_true(sim_until_state(&s, EVSE_S6_CHARGING, 2000) >= 0);
+	/* Schluessel aus: evcc-Wert gilt sofort wieder */
+	s.din_mv[EVSE_DIN_EN] = 0;
+	sim_run(&s, 50);
+	zassert_false(s.e.cur_in.external_ignored);
+	zassert_equal(s.e.state, EVSE_S6_CHARGING);
+	zassert_equal(s.e.out.cp_duty, 100);
+	/* evcc 0: geordnetes Ende */
+	s.e.rt.external_ma = 0;
+	sim_run(&s, 50);
+	zassert_equal(s.e.state, EVSE_S7_STOPPING);
+}
+
+ZTEST(evse_charger, test_key_d7_only_keeps_external)
+{
+	/* SOLL-EN-13: mit D7 allein ist EN nur Erlaubnis */
+	cfg.dip = DIP(7);
+	reinit();
+	sim_boot(&s);
+	s.e.rt.external_ma = 6000;
+	s.din_mv[EVSE_DIN_EN] = 12000;
+	plug_to_pwm();
+	zassert_false(s.e.cur_in.external_ignored);
+	zassert_equal(s.e.out.cp_duty, 100);
 }
 
 ZTEST(evse_charger, test_unlock_request_during_charge)

@@ -28,6 +28,7 @@ DIP und Drehschalter gelten wie auf der Steuerung nur beim Start. Häufige DIP-M
 | `0x1` | D1 | Steckdose: PP auswerten (dann `sim cable` setzen) |
 | `0x29` | D1, D4, D6 | Steckdose mit Verriegelung und LD-Rückmeldung |
 | `0x41` | D1, D7 | Steckdose, Laden nur mit Freigabe über EN (`sim din en 1`) |
+| `0x249` | D1, D4, D7, D10 | wie das zweite Gerät: evcc startet über den Ladestrom, Schlüssel (`sim din en 1`) lädt unabhängig davon (F34); Kabel mit `sim cable 32` |
 | `0x109` | D1, D4, D9 | Steckdose, manuelle Verriegelung über ML (`sim din ml 1`) |
 
 Danach erreichbar:

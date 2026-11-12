@@ -395,7 +395,7 @@ schaltet das Ladesignal kurz ab und wieder an, um das Fahrzeug zum Laden zu bewe
 
 | Parameter | Bereich | Werk | Beschreibung |
 | --- | --- | --- | --- |
-| Startwert des Sollstroms (`external_current_default`) | 0 oder 6000..80000 mA | 80000 | Vorgabe, die nach jedem Start gilt, bis jemand (von Hand oder per Energiemanagement) eine andere setzt. 80000 = keine Einschränkung, die Station lädt mit dem Maximum. 0 = nach einem Start erst laden, wenn eine Vorgabe kommt; sinnvoll, wenn ein Energiemanagement das Laden immer steuern soll. |
+| Startwert des Sollstroms (`external_current_default`) | 0 oder 6000..80000 mA | 80000 | Vorgabe, die nach jedem Start gilt, bis jemand (von Hand oder per Energiemanagement) eine andere setzt. 80000 = keine Einschränkung, die Station lädt mit dem Maximum. 0 = nach einem Start erst laden, wenn eine Vorgabe kommt; sinnvoll, wenn ein Energiemanagement das Laden immer steuern soll. Mit DIP D10 gilt nach jedem Start 0, weil dort eine Vorgabe über 0 das Laden freigibt ([10.4](#104-freigabe-und-verfügbarkeit)). |
 | Startwert der Freigabe über Schnittstelle (`enable_register_default`) | 0..1 | 0 | Startwert für den Laufzeitwert „Freigabe über Schnittstelle“. Nur mit DIP D10 von Bedeutung ([10.4](#104-freigabe-und-verfügbarkeit)): 1 = nach einem Start ist das Laden freigegeben. |
 
 #### Laufzeitwerte (gelten bis zum Neustart)
@@ -678,14 +678,20 @@ E/F Fehler bzw. nicht verfügbar).
 ### 10.4 Freigabe und Verfügbarkeit
 
 - **Ladeerlaubnis** besteht, wenn mindestens eines gilt: D7 an und Freigabe-Eingang ein;
-  D10 an und „Freigabe über Schnittstelle“ = 1; weder D7 noch D10 an (dann immer).
+  D10 an und „Freigabe über Schnittstelle“ = 1 oder Ladestrom-Vorgabe über 0 (so startet und
+  beendet ein Energiemanagement wie evcc das Laden); weder D7 noch D10 an (dann immer).
+- **Laden mit dem Schlüssel unabhängig vom Energiemanagement:** Sind D7 und D10 an, lädt die
+  Station bei eingeschaltetem Freigabe-Eingang (z. B. Schlüsselschalter) mit dem Höchststrom aus
+  Drehschalter, Kabel und Eingängen; die Ladestrom-Vorgabe ist dann wirkungslos, auch wenn sie 0
+  ist. Nach dem Ausschalten gilt sofort wieder die Vorgabe. Mit D7 allein ist der Schlüssel nur
+  eine Erlaubnis, die Vorgabe wirkt weiter.
 - Geladen wird nur mit Ladeerlaubnis, ohne aktiven Fehler, mit verriegeltem Stecker (bei D4)
   und mit einer Vorgabe von mindestens 6 A. Fehlt nur die Erlaubnis, zeigt die Übersicht
   „Wartet auf Freigabe“.
 - **Nicht verfügbar** ist die Ladestation, wenn D8 an ist und der Verfügbarkeits-Eingang aus
   ist, oder wenn D10 an ist und „Verfügbarkeit über Schnittstelle“ = 0. Dem Fahrzeug wird
   dann Zustand F gemeldet.
-- Die Vorgabe des Ladestroms (Übersicht, Energiemanagement) wirkt unabhängig davon:
+- Ohne D10 wirkt die Vorgabe des Ladestroms (Übersicht, Energiemanagement) unabhängig davon:
   Vorgabe 0 sperrt das Laden, entzieht aber nicht die Freigabe.
 
 ### 10.5 Fehler

@@ -211,6 +211,7 @@ Gegen das zweite Gerät statt der Simulation: `scripts/evcc-boxg.sh` (eigene Kon
 | mit Zähler (`meter_type` 2, Simulation) | evcc meldet `charger: power ✓ energy ✓ currents ✓`; beim Laden 11 046 W, 15,96 A je Phase, Spannungen 230/230,7/231,4 V, Zählerstand und geladene Energie steigen |
 | Zähler fällt aus (`sim meter off`) | Laden läuft weiter; evcc zeigt 0 W und 0 A (Werte `null` werden in evcc zu 0), Zählerstand bleibt auf dem letzten Wert |
 | `POST /system/restart` beim Laden | geordnetes Ende; evcc meldet währenddessen `unknown evse status: 4` (S10 -> F -> 4, F23), danach WebSocket neu aufgebaut |
+| D1, D4, D7, D10 wie das zweite Gerät (`--dip=0x249 --rotary=4`, Kabel 32 A), F34 | nach dem Start `external` 0, ohne Schlüssel kein Laden; Fahrzeug B -> evcc setzt 16 000 mA und startet allein ("start charging"), C lädt. Modus "aus" -> Ende. Schlüssel an (`sim din en 1`) bei evcc "aus": lädt mit 16 A, `external_ignored` true, `external` bleibt 0; evcc meldet alle 5 s `charger logic error: disabled but charging`, schreibt aber nichts und lädt nicht neu. Schlüssel aus -> sofort Ende. `POST /system/restart` beim Laden mit "sofort": nach dem Start `external` 0, evcc meldet etwa 30 s "disabled but charging" (Fahrzeug noch C), sendet dann wieder 16 000 mA, Schütz 36 s nach dem Start ein |
 | Neustart mit neuen Nonces (`--seed-random`, WebSocket-Vorprüfung) | genau eine Abweisung (401 `stale=true`), evcc meldet sich ohne Neustart neu an und sieht danach "car connected" über den WebSocket |
 
 Verhalten von evcc (Grundlage für F12 und SOLL-API-32):

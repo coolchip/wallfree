@@ -435,19 +435,13 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    Zephyr-Patch `0002`: am Testgerät mit `net-load.py wsreject` (antwortet wie evcc sofort auf den
    Close-Rahmen) ohne Fix ein verlorenes Paket nach etwa 350 Versuchen, mit Fix 1880 Versuche
    ohne Verlust.
-3. **Freigabe ohne Schlüssel:** Mit D10 gibt EN oder `enable_register` frei; ab Werk ist das
-   Register 0 und nicht persistent, evcc setzt es nicht (WARP: nur der Strom). Ohne Schlüssel lädt
-   die Box mit evcc daher nicht. Wunsch (Nutzer 2026-11-08): EN = **Zwangsladen ohne evcc**, evcc
-   soll ohne EN starten können. Im Original stand Register 400 beim zweiten Gerät auf an; mit der
-   Originalfirmware konnte der Nutzer mit dem Schlüssel unabhängig von evcc laden (Nutzer
-   2026-11-08, Ablauf im Original nicht geprüft). `enable_register_default` 1 erfüllt nur den
-   zweiten Teil (mit D10 wirkt dann der Schlüssel nicht mehr); "Schlüssel hebt die evcc-Vorgabe
-   auf" wäre eine neue Regel. Später besprechen. Beobachtet 2026-11-09 (`9f39b42`, Schlüssel ein,
-   Das zweite Gerät am USB-Umsetzer, also ohne evcc): Nach dem Start um etwa 09:30 lud die Box den Leaf
-   rund 2 h mit 16 A (`external_current` 80 000 aus `external_current_default`, keine
-   evcc-Vorgabe) bis fast voll (evcc danach 98 %). Zurück im Heimnetz setzte evcc
-   den Strom auf 0, S7 nach 6 s (11:29:37). Ohne evcc wirkt der Schlüssel heute also
-   wie Zwangsladen, mit evcc gilt dessen Vorgabe.
+3. **Freigabe ohne Schlüssel:** Mit D10 gab nur EN oder `enable_register` frei; evcc schreibt
+   nur den Strom (WARP `evse/external_current`) und konnte so ohne Schlüssel nicht starten. Mit
+   Schlüssel lud die Box auch ohne evcc (2026-11-09 rund 2 h mit 16 A bis fast voll, Startwert
+   `external_current` 80 000), ohne Schlüssel lud der Leaf mit evcc gar nicht (2026-11-12).
+   **Gelöst** nach F34 (Nutzer 2026-11-12): Mit D10 gibt `external` > 0 frei, Startwert mit D10
+   ist 0; mit D7 und D10 lädt der Schlüssel unabhängig von evcc mit dem Höchststrom
+   (SOLL-EN-01/12/13, SOLL-CUR-15). In der Simulation mit evcc geprüft, am zweiten Gerät noch nicht.
 4. **Leaf bleibt nach PWM-Aus in C** (D2.6, nach Nutzer auch beim Ladeende mit dem Original):
    evcc kam mit dem Original nie gut damit zurecht, wenn das Fahrzeug nicht bald auf B zurückfiel
    (Nutzer 2026-11-08; offen, ob es an der Originalfirmware lag). Gemessen nach dem Ende über evcc
