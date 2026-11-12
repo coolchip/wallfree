@@ -467,6 +467,7 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    CPU-Takt selbst stimmte (Testgerät, `DWT_CYCCNT` per SWD: −53 ppm, Quarz). **Ursache:** Der
    SysTick-Treiber von Zephyr verlor bei jedem Neuprogrammieren einige Takte, bei etwa 1800
    Aufrufen je Sekunde rund 516 ppm ([Fallstricke](implementierung.md#fallstricke)).
-   **Behoben** mit Zephyr-Patch `0003` (`8c76c4b`): am Testgerät Zephyr-Zählung gegen den CPU-Takt
-   −1,5 ppm (9 min), gegen die PC-Uhr −50,5 ppm (10 min), also nur noch der Quarz (etwa 4 s am
-   Tag, mit dem Abgleich alle 6 h unter 1,1 s). Das zweite Gerät noch mit `208a7f7`.
+   **Behoben** mit Zephyr-Patch `0003` (`5cf8234`, Ausgleich beim Start gemessen: 3,0 Takte): an
+   Das Testgerät Zephyr-Zählung gegen den CPU-Takt +0,9 ppm, gegen die PC-Uhr −52,7 ppm (10 min), also
+   nur noch der Quarz (etwa 4,5 s am Tag, mit dem Abgleich alle 6 h unter 1,2 s). Das zweite Gerät noch mit
+   `208a7f7`.
