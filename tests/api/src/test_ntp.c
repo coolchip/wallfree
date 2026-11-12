@@ -34,7 +34,7 @@ ZTEST(api_ntp, test_parse_server)
 
 ZTEST(api_ntp, test_next)
 {
-	zassert_equal(wf_ntp_next_s(0), 6 * 3600, "nach Erfolg alle 6 h");
+	zassert_equal(wf_ntp_next_s(0), 3600, "nach Erfolg stuendlich");
 	zassert_equal(wf_ntp_next_s(1), 60);
 	zassert_equal(wf_ntp_next_s(2), 120);
 	zassert_equal(wf_ntp_next_s(6), 1920);

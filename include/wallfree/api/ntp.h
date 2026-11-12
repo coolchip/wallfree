@@ -16,7 +16,7 @@ extern "C" {
 
 #define WF_NTP_DEFAULT_SERVER "pool.ntp.org"
 #define WF_NTP_PORT           123
-#define WF_NTP_RESYNC_S       (6u * 3600u) /**< nach Erfolg */
+#define WF_NTP_RESYNC_S       3600u        /**< nach Erfolg (Quarz ~55 ppm: < 0,25 s) */
 #define WF_NTP_RETRY_MIN_S    60u          /**< nach Fehlschlag, verdoppelt ... */
 #define WF_NTP_RETRY_MAX_S    3600u        /**< ... bis hoechstens */
 /** Plausibel: 2025-01-01 .. 2100-01-01 (Unix-Sekunden) */

@@ -469,7 +469,8 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    Aufrufen je Sekunde rund 516 ppm ([Fallstricke](implementierung.md#fallstricke)).
    **Behoben** mit Zephyr-Patch `0003` (`5cf8234`, Ausgleich beim Start gemessen: 3,0 Takte): an
    Das Testgerät Zephyr-Zählung gegen den CPU-Takt +0,9 ppm, gegen die PC-Uhr −52,7 ppm (10 min), also
-   nur noch der Quarz (etwa 4,5 s am Tag, mit dem Abgleich alle 6 h unter 1,2 s). Das zweite Gerät noch mit
+   nur noch der Quarz (etwa 4,5 s am Tag, mit dem stündlichen Abgleich unter 0,25 s). Das zweite Gerät noch mit
    `208a7f7`. Der 32-kHz-Taktgeber an PC14 (treibt die RTC) liegt am Testgerät bei etwa −2,6 ppm
-   (2026-11-11, [wallbe2 hardware.md](../../wallbe2/docs/hardware.md)); Wallfree nutzt ihn bisher
-   nicht als Zeitbasis.
+   (2026-11-11, [wallbe2 hardware.md](../../wallbe2/docs/hardware.md)); Wallfree nutzt ihn nur
+   über die RTC (Uhrzeit über Neustarts, SOLL-TIME-04); die laufende Uhr zählt mit dem Quarz und
+   wird stündlich per NTP abgeglichen (SOLL-TIME-03).
