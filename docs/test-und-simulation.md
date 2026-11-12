@@ -170,7 +170,8 @@ mit `--parity E` 8E1), um die Zähleranbindung der Steuerung ohne echten
 Zähler zu prüfen. Es liefert feste Spannungen, 3450 W und einen mitlaufenden Zählerstand.
 `--ctl <datei>` schaltet zur Laufzeit die Betriebsart um (`ok`, `silent`, `badcrc`, `exception`,
 `nan`), damit die Fehlerzähler (SOLL-MTR-11/15) jede Fehlerart zeigen. Ohne `--port` greift es
-über libftdi auf einen FT232R zu und braucht kein Kernel-Modul; `--check` prüft nur den
+über libftdi auf einen FT232R zu und braucht kein Kernel-Modul; andere Adapter über ihre
+serielle Schnittstelle, z. B. CH343 mit `--port /dev/ttyACM1`; `--check` prüft nur den
 Protokollteil. Ein echter Zähler ersetzt das nicht: Antwortzeiten stammen vom Skript, und die
 Register folgen derselben Tabelle wie die Firmware; ein Fehler darin fiele nicht auf.
 
