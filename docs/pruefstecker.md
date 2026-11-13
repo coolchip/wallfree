@@ -406,6 +406,17 @@ hat keinen Zähler.
   **5 min 6 s** (wie bei Befund 4). evcc meldete in der Zeit 10-mal "disabled but charging" (alle
   30 s), schaltete aber nicht wieder ein; "stop charging" 21:29:50. Keine Fehler in der Box.
 
+**Ergebnisse 2026-11-12** (Wallfree `0ce1265`, Schlüssel aus):
+
+- D4: `208a7f7` lief vor dem Update 3 Tage 3 h ohne Neustart (`reset_reason` `power_on`), mit evcc
+  auf einem Server im Heimnetz.
+- D3.10 Update bei gestecktem Fahrzeug (Leaf in B, Schütz aus, evcc angehalten, keine andere
+  Abfrage): Update über die Weboberfläche im Heimnetz gelungen, `reset_reason` `update`, Modus 2
+  ok, Prüfsumme passt, Uhrzeit nach etwa 12 s per NTP. Danach `external_current` 0, Box wartet in
+  B (F34).
+- Freigabe durch evcc (Befund 3): evcc auf Laden -> `external_current` 16000, S6, Schütz ein,
+  erlaubt 15,96 A, `limited_by` `external`.
+
 Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
 
 1. **evcc nach Neustart der Box in Dauerschleife:** Nach dem Aus/Ein des zweiten Geräts baute evcc den

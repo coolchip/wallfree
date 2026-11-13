@@ -1,9 +1,9 @@
 # Implementierungsstand
 
-Stand: 2026-11-08. Auf dem Testgerät mit Prüfstecker und Schütz ohne Last geprüft
+Stand: 2026-11-12. Auf dem Testgerät mit Prüfstecker und Schütz ohne Last geprüft
 ([Prüfungen auf dem Testgerät](#prüfungen-auf-box-t)), auf dem zweiten Gerät mit Fahrzeug (Nissan Leaf, einphasig 16 A)
-und evcc ([Stufe D](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)), dort seit `7eb08f9` im
-Langzeittest. Bestandene Tests belegen keine elektrische Sicherheit. Rahmen und Begründungen: [Architektur](architektur.md);
+und evcc ([Stufe D](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)), dort im Dauerbetrieb
+(seit 2026-11-12 `0ce1265`). Bestandene Tests belegen keine elektrische Sicherheit. Rahmen und Begründungen: [Architektur](architektur.md);
 Tests: [Test und Simulation](test-und-simulation.md).
 
 ## Überblick
@@ -265,7 +265,7 @@ unterbrochene Verdichten wie ein Erststart aus. Getestetes Verhalten bei Stromau
 
 ## Ressourcen
 
-Stand 2026-10-28 (`0.2-dev`), `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B, Shell nur über die Konsole, Log-Ring 2 KB, 12 Netz-Kontexte: **284 836 B Flash** (86,9 % von 320 KB), **119 100 B RAM** (90,9 %).
+Stand 2026-11-12 (`0ce1265`), `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B, Shell nur über die Konsole, Log-Ring 2 KB, 12 Netz-Kontexte: **288 556 B Flash** (88,1 % von 320 KB), **119 164 B RAM** (90,9 %).
 Reserven und Einsparmöglichkeiten: [Architektur](architektur.md#5-speicherbudget).
 
 | Anteil (gemessen beim Hinzufügen) | Flash | RAM |
@@ -378,7 +378,7 @@ auf der Platine). Einzelheiten zur Hardware: [wallbe2 Hardware](../../wallbe2/do
 | evcc 0.317.2 | Anmeldung und WebSocket ohne Fehler, ohne Fahrzeug "car disconnected", `external_current` = 0 |
 | Version (`v0.1`, 2026-10-27) | Update auf 0.1 erfolgreich, `/system/info` mit `firmware` 0.1 und `build` d45de9d, Prüfsumme passt zur Datei, Protokoll läuft über den Update-Neustart weiter. Kopfzeile: Netzkabel gezogen -> nach wenigen Sekunden "getrennt" mit Hinweisleiste, eingesteckt -> wenige Sekunden bis "verbunden", ohne Neustart |
 | MQTT per Name, Home-Assistant-Erkennung (`v0.1`, 2026-10-27) | Broker `broker.lan` (Mosquitto, ohne Anmeldung) aufgelöst und sofort verbunden; nach `online` 6 Konfigurationen retained, Ladestrom/Leistung/Energie als leere Nachricht entfernt (ohne `mqtt_commands`, ohne Zähler); Gerät mit `sw` `0.1+d45de9d`. Gefunden: Wertvorlage "Zustand" auf 95 Byte gekürzt (ohne `}}`), behoben in 0.2-dev. Mit `590465a`: `mqtt_commands` an -> Ladestrom-Feld 0..16 A (Drehschalter), aus -> wieder entfernt; kein Home Assistant vorhanden, Prüfung nur mit `mosquitto_sub` |
-| Toter Broker (`b5ce020`, 2026-10-27) | Test-Broker auf dem PC (Mosquitto, Port 18830), per SIGSTOP eingefroren (TCP bleibt offen, keine Antworten): letzte Nachricht 21:11:07, PINGREQ nach 60 s ohne Antwort, Trennung mit -116 (ETIMEDOUT) nach 121 s (106 s nach dem Einfrieren); nach dem Auftauen sofort wieder verbunden, `online` retained. Ohne Zähler (kein Dauerversand); der Fall mit Zähler ist offen |
+| Toter Broker (`b5ce020`, 2026-10-27) | Test-Broker auf dem PC (Mosquitto, Port 18830), per SIGSTOP eingefroren (TCP bleibt offen, keine Antworten): letzte Nachricht 21:11:07, PINGREQ nach 60 s ohne Antwort, Trennung mit -116 (ETIMEDOUT) nach 121 s (106 s nach dem Einfrieren); nach dem Auftauen sofort wieder verbunden, `online` retained. Ohne Zähler (kein Dauerversand); mit Zähler siehe Zählerbus (Ausfall nach 230 s erkannt) |
 | Protokoll, Uhrzeit, CP-Aufnahme (`6eb0e08`, 2026-10-27) | Ereignisprotokoll übersteht den Neustart; Uhrzeit von `pool.ntp.org` (Router meldet per DHCP keinen Zeitserver, DNS über DHCP funktioniert); CP-Aufnahme im Leerlauf +11,9 V |
 | Prozessortemperatur | plausibel (31,8 Grad knapp 3 min nach dem Start, 33 Grad im Betrieb), Referenz bestätigt (`adc_vref_mv` 2493..2494, siehe Fallstricke); Abgleich `mcu_temp_offset` -3,5 Grad eingestellt (Nutzer 2026-10-29) |
 | Konsole statt Telnet (SOLL-SH-19/21/22) | läuft auf dem Testgerät (`6a6d3d5`), Kommandos ohne Vorsatz `evse` (`1f0b419`); Stacks unter [Ressourcen](#ressourcen) |
@@ -395,21 +395,15 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurück).
 
 ## Offen
 
-- Energiezähler an RS-485: Eastron SDM72D-M-2 des Nutzers anschließen (später, Nutzer 2026-10-27);
-  Abfrage. Die Anbindung ist mit der Nachbildung geprüft ([Prüfungen](#prüfungen-auf-box-t)).
-- Das zweite Gerät blieb am 2026-11-08 zweimal unter 192.168.0.8 im Bootloader 1.03 hängen. Laut Analyse
-  von 1.03 heißt das: Alle Upload-Versuche sind gescheitert, Sektor 4..6 gelöscht; nach einem
-  Update oder Aus/Ein mit gültigem Programm geht 1.03 nicht dorthin (Update per DHCP am
-  2026-11-09 sauber). Die Uploads brach sehr wahrscheinlich eine regelmäßige `GET`-Abfrage
-  aus Node-RED (einem Server im Heimnetz) ab; der Ablauf ist gelöscht (Nutzer 2026-11-09). Am 2026-11-09 um
-  17:49 scheiterte ein Update im Heimnetz (mit `208a7f7`, drei Versuche) erneut: Diesmal fragte
-  ein Mitschreibe-Skript vom PC alle 2 s `evse/params` und `system/info` ab und bekam ab 17:49:49
-  die Seite des Bootloaders, störte also jeden Versuch. Vor einem Update deshalb jede
-  regelmäßige Abfrage der Box anhalten. `update.sh` und Weboberfläche prüfen die Antwort des
-  Uploads und laden bis zu zweimal neu (in der Simulation geprüft; gegen Abfragen alle 2 s hilft
-  das nicht). Am 2026-11-12 gelang am zweiten Gerät erstmals ein Update im Heimnetz über die
-  Weboberfläche (`208a7f7` → `0ce1265`, evcc angehalten, keine andere Abfrage; Modus 2 ok).
-  Updates am zweiten Gerät weiter nur über die USB-Karte oder nach Ansage des Nutzers:
+- Echter Energiezähler an RS-485: ABB B23 ist bestellt und kommt am Testgerät (Nutzer 2026-11-12),
+  Eastron SDM72D-M-2 des Nutzers später. Die Anbindung ist mit der Nachbildung geprüft
+  ([Prüfungen](#prüfungen-auf-box-t)).
+- Updates am zweiten Gerät: Dreimal blieb sie nach einem Update unter 192.168.0.8 im Bootloader 1.03
+  hängen (2026-11-08/09). Laut Analyse von 1.03 waren das gescheiterte Uploads, abgebrochen von
+  regelmäßigen Abfragen der Box während der Übertragung (Node-RED auf einem Server im Heimnetz, inzwischen
+  gelöscht; ein Mitschreibe-Skript am PC alle 2 s). Ohne andere Abfragen gelang am 2026-11-12 das
+  erste Update im Heimnetz über die Weboberfläche (`208a7f7` → `0ce1265`, Modus 2 ok). Updates an
+  Das zweite Gerät weiter nur über die USB-Karte oder nach Ansage des Nutzers:
   [wallbe2 Bootloader 1.03](../../wallbe2/docs/bootloader.md#bootloader-103-box-g).
 - Befunde aus Stufe D ([Prüfstecker](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)):
   Freigabe durch evcc und Schlüssel als Zwangsladen (Befund 3, gelöst nach F34, am zweiten Gerät mit evcc bestätigt), Uhr lief etwa 500 ppm zu langsam (Befund 6, behoben mit Zephyr-Patch `0003`, am Testgerät geprüft; das zweite Gerät läuft seit 2026-11-12 mit `0ce1265`); der Leaf
@@ -427,17 +421,16 @@ Nicht beauftragt; gesammelt mit dem Nutzer (2026-10-26). Beauftragte Punkte steh
 
 | Idee | Nutzen | Aufwand, Bedenken |
 | --- | --- | --- |
-| Inbetriebnahme (Nutzer 2026-10-27, zurückgestellt): im Werkszustand Laden gesperrt, bis auf einer Seite die Hinweise (freie Software ohne Gewährleistung, Laden noch nicht auf Hardware geprüft, Installation durch Fachkraft) bestätigt und Drehschalter, DIP-Schalter, Verriegelungsart (LD 3/22) und Schützüberwachung angesehen sind; Eintrag im Protokoll, API `POST /system/commissioning`, Werksreset setzt zurück | zwingt vor dem ersten Laden zum Blick auf die Einstellungen (Falle LD 22 bei wallbe) | etwa 1..2 KB Flash bei 92 % Belegung; rechtlich wenig Schutz. Alternative: Hinweise und Prüfliste nur im Repo (README, [umruesten.md](umruesten.md)) |
+| Inbetriebnahme (Nutzer 2026-10-27, zurückgestellt): im Werkszustand Laden gesperrt, bis auf einer Seite die Hinweise (freie Software ohne Gewährleistung, Laden noch nicht auf Hardware geprüft, Installation durch Fachkraft) bestätigt und Drehschalter, DIP-Schalter, Verriegelungsart (LD 3/22) und Schützüberwachung angesehen sind; Eintrag im Protokoll, API `POST /system/commissioning`, Werksreset setzt zurück | zwingt vor dem ersten Laden zum Blick auf die Einstellungen (Falle LD 22 bei wallbe) | etwa 1..2 KB Flash bei 88 % Belegung; rechtlich wenig Schutz. Alternative: Hinweise und Prüfliste nur im Repo (README, [umruesten.md](umruesten.md)) |
 | S0-Zähler an einem Digitaleingang | Energie und Leistung mit einem schon vorhandenen Zähler ohne RS-485 | Anschluss: S0+ an 12 V der Steuerung, S0- an einen freien Eingang (IN oder ML), neue Eingangsfunktion "S0" (außerhalb der Originalcodes); ob der Eingang genug Laststrom zieht (S0 meist >= 1..10 mA) und unter 3 V fällt, erst messen. Keine Phasenwerte; Überstrom und Schützüberwachung über Zähler gehen damit nicht; Eingänge alle 8 ms gemessen, 2 Blöcke entprellt (S0-Impulse 30..90 ms, bei 22 kW und 1000 Imp./kWh etwa 6 Imp./s: passt). Neukauf lohnt kaum: der unterstützte Eastron SDM72D-M (Modbus) kostet etwa gleich viel und liefert mehr |
 | Ladesitzungen (Beginn, Dauer, Energie, Ende-Grund) | Abrechnung, Überblick | sinnvoll mit Zähler; nur am Sitzungsende in Sektor 7 speichern |
 | OCPP 1.6J (zurückgestellt, Nutzer 2026-10-26) | Abrechnung über Backends (Dienstwagen) | grob 25..40 KB Flash, 6..10 KB RAM, rund 25 Konfigurationsschlüssel; die meisten Backends verlangen TLS (passt kaum); wenige Privatanwender |
-| Lizenzhinweis in der Weboberfläche | Wallfree Apache-2.0, enthält Zephyr (Apache-2.0), Preact (MIT), htm (Apache-2.0); Link aufs Projekt; Vermerk in `web/vendor/preact-htm.js` (MIT verlangt ihn) | ~150 Byte; Link erst mit öffentlicher Adresse |
 | Lastmanagement mehrerer Boxen | – | kann evcc; nicht in der Firmware |
 | Eigener Bootloader (Nutzer 2026-11-08, später; zuerst 1.03 des zweiten Geräts untersuchen) | robust gegen fremde Anfragen und beliebige HTTP-Köpfe, prüft das Abbild, behält die Netzeinstellungen der Firmware, kompatibel zu allen Firmwares der Steuerung | [Bootloader-Ideen](bootloader-ideen.md); Bare Metal mit lwIP in 48 KB; Schreiben von Sektor 0 nur per SWD sicher rückholbar |
-| Ersatz für das Mobilfunkmodem (Nutzer 2026-11-08, Überlegung) | Anbindung ohne Ethernet-Kabel; die eingebauten Modems (z. B. Huawei MU709s-2 in das dritte Gerät, 3G) bekommen kein Netz mehr | ohne Umbau: LTE-Router oder WLAN-Brücke am Ethernet-Anschluss (Firmware unverändert); mit Umbau: LTE-Cat-1- oder Cat-M-Modul an der Modem-UART, in Zephyr über PPP, kostet Flash (bei 92 % Belegung knapp). ESP32 für WLAN bleibt verworfen (siehe "Bewusst nicht") |
+| Ersatz für das Mobilfunkmodem (Nutzer 2026-11-08, Überlegung) | Anbindung ohne Ethernet-Kabel; die eingebauten Modems (z. B. Huawei MU709s-2 in das dritte Gerät, 3G) bekommen kein Netz mehr | ohne Umbau: LTE-Router oder WLAN-Brücke am Ethernet-Anschluss (Firmware unverändert); mit Umbau: LTE-Cat-1- oder Cat-M-Modul an der Modem-UART, in Zephyr über PPP, kostet Flash (bei 88 % Belegung knapp). ESP32 für WLAN bleibt verworfen (siehe "Bewusst nicht") |
 | Phasenumschaltung 1p/3p über C3/C4 (Nutzer 2026-10-27, später) | Laden ab etwa 1,4 kW statt 4,1 kW (PV-Überschuss); evcc kann die Umschaltung über die WARP-Schnittstelle steuern | setzt eine getrennte Ansteuerung des Relais C3/C4 voraus; es schaltet aber über PE2 zusammen mit C1/C2 (Testgerät, Stufe C), also nur mit Änderung an der Platine. C3/C4 schaltet nur die Spule eines zweiten Schützes (wie C1/C2, Handbuch: Last nie direkt); üblich: Schütz 1 L1+N, Schütz 2 L2+L3; Umschalten nur ohne Last (Laden unterbrechen, Pause, neu starten); Rückmeldung des zweiten Schützes über einen Hilfskontakt an einem Eingang; zweites Schütz nie ohne das erste. WARP: WARP2 mit Energy Manager und externem Schütz (230-V-Schaltausgang, Hilfskontakt-Rückmeldung, Laden wird vor dem Umschalten unterbrochen), WARP3 mit zwei eingebauten zweipoligen 63-A-Hutschienenschützen (Ersatzteil `WARP-CON-2P-63A`, Hersteller nicht genannt, auf dem Produktfoto "EKMF6320" laut Nutzer 2026-10-27; 63 A gilt je Pol, Reserve für Dauerlast und Wärme; für 11 kW genügt vermutlich ein kleineres, der Nutzer würde ein anderes wählen; das zweite schaltet L2/L3 und bleibt bei einphasigem Anschluss immer aus; WARP3-Betriebsanleitung 1.2, Abschnitt 5 und 13.7). Installation durch eine Elektrofachkraft |
 | Zweite Sprache (Englisch) | Nutzer außerhalb des deutschen Sprachraums (GitHub) | etwa 8..12 KB Flash; Hilfetexte der Parameter kommen aus der Firmware und müssten doppelt vorliegen; Anleitung übersetzen. Vorerst nur Deutsch (Nutzer 2026-10-27) |
-| Kartenleser (RFID), zukünftige Erweiterung (Nutzer 2026-10-28; Nutzer prüft, ob er einen Leser bekommt) | Freigabe per Karte statt Schlüsselschalter; Freigabeliste und Anlernen über die zuletzt gelesene Karte in der Weboberfläche | Leser als Modbus-RTU-Teilnehmer am vorhandenen RS-485-Bus A/B neben dem Zähler (eigene Adresse, gleiche Baudrate und gleiches Rahmenformat für alle Teilnehmer; der Leser im Original stand auf 115200 Bd, Zähler meist 9600); Abfrage im Zähler-Thread abwechselnd; Freigabe wirkt wie EN. Befunde zum Leser des Originals (Typen `DE_950`, `MW_R7`, TeraTron, Register, 20 Karten): [wallbe2 hardware.md](../../wallbe2/docs/hardware.md#4-offene-fragen). Flash bei 92 % knapp. Soll-Spezifikation erst bei Umsetzung |
+| Kartenleser (RFID), zukünftige Erweiterung (Nutzer 2026-10-28; Nutzer prüft, ob er einen Leser bekommt) | Freigabe per Karte statt Schlüsselschalter; Freigabeliste und Anlernen über die zuletzt gelesene Karte in der Weboberfläche | Leser als Modbus-RTU-Teilnehmer am vorhandenen RS-485-Bus A/B neben dem Zähler (eigene Adresse, gleiche Baudrate und gleiches Rahmenformat für alle Teilnehmer; der Leser im Original stand auf 115200 Bd, Zähler meist 9600); Abfrage im Zähler-Thread abwechselnd; Freigabe wirkt wie EN. Befunde zum Leser des Originals (Typen `DE_950`, `MW_R7`, TeraTron, Register, 20 Karten): [wallbe2 hardware.md](../../wallbe2/docs/hardware.md#4-offene-fragen). Flash bei 88 % knapp. Soll-Spezifikation erst bei Umsetzung |
 | Weitere Umbauten der Steuerung (2026-10-28 besprochen) | Batterie oder Goldcap an VBAT (Uhr und Backup-SRAM über Stromausfall; VBAT liegt an 3,3 V, die Verbindung müsste aufgetrennt werden), Temperaturfühler DS18B20 an Steckdose oder Schütz (Strom bei Hitze senken), Display an I2C1 (PB8/PB9 laut Originalfirmware frei), zweiter RS-485-Kanal USART3 für den Kartenleser | alle ungeprüft: ob die Pins auf Pads enden, ist offen; feine MCU-Pins (0,5 mm) |
 | Weitere Zähler in `meter_type` (Nutzer 2026-10-31): **NZR EcoCount S85** (gebraucht 30..50 €, zuerst), **NZR EcoCount SL** (70..100 €); merken: Carlo G. EM23 (120 €, wirkt alt), EM340 (300..500 €), Phoenix EEM-350-D-MCB und EEM-EM357 | Günstige Zähler, die die Originalfirmware erkennt | S85 und SL haben verschiedene Registerbelegungen; beide stehen als Profil in [wallbe2 hardware.md](../../wallbe2/docs/hardware.md#zaehlerprofile-der-originalfirmware), Funktionscode und Wortreihenfolge dort noch offen, kein Zähler geprüft, Registertabelle bei NZR anfragen. Phoenix-Zähler ohne Profil. Erweiterung in `lib/meter/meter.c`, Nachbildung in `scripts/meter-emu.py`, Spezifikation SOLL-MTR erst bei Umsetzung |
 | OTA-Update (Nutzer 2026-10-31: vermutlich nicht nötig, das Update über die Webseite reicht): Gerät holt das Abbild selbst | Update ohne Browser, auch aus der Ferne | Vorschlag **Updater im RAM**: Wallfree lädt einen kleinen Updater mit Ethernet und TCP ins RAM, dieser löscht Sektor 4..6, schreibt das Abbild beim Empfang direkt in den Flash und prüft es am Ende; Original-Bootloader bleibt unberührt und fängt jeden Fehlschlag auf. A/B geht nicht (Abbild etwa 280 KB, Sektor 7 nur 128 KB, RAM kleiner); eigener Bootloader in Sektor 4 ließe nur 256 KB für die Anwendung. Echtheitsprüfung nötig (bisher unter "Bewusst nicht": signierte Updates), Bedarf des Updaters nicht ermittelt |

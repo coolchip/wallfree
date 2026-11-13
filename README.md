@@ -8,10 +8,12 @@ Vermutlich ebenfalls passend, aber **ungetestet:** wallbe Eco 2.0s, Compleo eco 
 E3/DC easy connect (gleiche Ladesteuerung; Bootloader und Bestückung nicht geprüft).
 
 **Status:** Firmware vollständig nach Spezifikation implementiert und auf dem PC getestet
-(Unit-Tests, Ende-zu-Ende-Simulation, Browser, evcc). An der Steuerung einer wallbe Eco 2.0 **ohne Last**
-geprüft: Ein-/Ausgänge, Verriegelung, Netz unter Last, MQTT, evcc ohne Fahrzeug, Update über
-die Weboberfläche und Rückweg zur Originalfirmware. **Laden (CP-PWM, Schütz) ist auf Hardware
-noch nicht geprüft.**
+(Unit-Tests, Ende-zu-Ende-Simulation, Browser, evcc). An der Steuerung einer wallbe Eco 2.0
+**ohne Last** geprüft: Ein-/Ausgänge, Verriegelung, Netz unter Last, MQTT, Update über die
+Weboberfläche und Rückweg zur Originalfirmware, mit Prüfstecker auch CP-PWM, Schütz und
+Fehlerstrom-Abschaltung. An einer zweiten wallbe Eco 2.0 lädt Wallfree ein Fahrzeug
+(einphasig, 16 A) mit evcc im Dauerbetrieb. **Dreiphasiges Laden und andere Fahrzeuge sind
+nicht geprüft.**
 Eine Ladesteuerung schaltet Netzspannung und überwacht Fehlerströme. Fehler in der Firmware
 können Menschen gefährden. Software-Tests belegen keine elektrische Sicherheit.
 

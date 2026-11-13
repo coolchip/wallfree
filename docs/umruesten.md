@@ -9,7 +9,7 @@ durchgeführt worden, ohne Fahrzeug und ohne Last. Was Wallfree anders macht, st
 ## 1 Bevor Sie anfangen
 
 - **Auf eigenes Risiko:** Wallfree ist für Erprobung durch versierte Anwender gedacht. **Laden
-  ist auf Hardware noch nicht geprüft** (siehe [README](../README.md)). Eine Ladesteuerung
+  ist nur an einer Ladestation mit einem Fahrzeug (einphasig) geprüft** (siehe [README](../README.md)). Eine Ladesteuerung
   schaltet Netzspannung und überwacht Fehlerströme; Fehler in der Firmware können Menschen
   gefährden.
 - **Firmwaredatei des Herstellers bereithalten:** Wallfree enthält die Originalfirmware nicht und

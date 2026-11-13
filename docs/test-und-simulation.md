@@ -7,7 +7,7 @@ Steuerung läuft). Sie belegen nichts über die reale Hardware (Pegel, Zeiten, I
 
 | Ebene | Umfang | Stand |
 | --- | --- | --- |
-| PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezähler, MQTT ohne Netz | 219 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zähler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
+| PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezähler, MQTT ohne Netz | 243 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zähler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
 | Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zähler, lokalen MQTT-Broker | 74 Tests, alle bestanden, ca. 460 s (T5Mqtt gelegentlich wegen eines Simulationsfehlers, Fallstricke) |
 | Browser-Durchlauf | Weboberfläche in headless Chrome gegen die Simulation | ohne Zähler 20 Prüfungen bestanden (2026-10-26); mit Zähler zuletzt 2026-10-21 bestanden |
 | Netz-Lasttest | `scripts/net-load.py` gegen Simulation (nur Skriptprüfung) und das Testgerät | auf dem Testgerät bestanden ([Implementierung](implementierung.md#prüfungen-auf-box-t)) |
