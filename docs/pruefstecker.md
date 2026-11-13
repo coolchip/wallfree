@@ -278,7 +278,9 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
   Uploads sehr wahrscheinlich ein Node-RED-Ablauf auf einem Server im Heimnetz, der die Webseite der Wallbox
   regelmäßig abfragte (im Heimnetz, an der USB-Karte nicht). Der dritte Hänger (2026-11-09
   17:49, Update im Heimnetz) kam von einem Mitschreibe-Skript am PC, das alle 2 s abfragte;
-  danach an der USB-Karte per `--upload-only` an 192.168.0.8 auf `208a7f7` gebracht. Andere Aus/Ein an
+  danach an der USB-Karte per `--upload-only` an 192.168.0.8 auf `208a7f7` gebracht. Das erste
+  gelungene Update im Heimnetz über die Weboberfläche: 2026-11-12 auf `0ce1265` (keine andere
+  Abfrage, Modus 2 ok). Andere Aus/Ein an
   Das zweite Gerät liefen ohne Hänger (D3.9 vormittags mit `23f3260`, D3.9 abends mit `7eb08f9`). Analyse:
   [wallbe2 Bootloader](../../wallbe2/docs/bootloader.md#bootloader-103-box-g).
   Beim nächsten Hänger zuerst nur Aus/Ein versuchen und nach dem Start die Konsole `boot`
@@ -441,7 +443,7 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    `external_current` 80 000), ohne Schlüssel lud der Leaf mit evcc gar nicht (2026-11-12).
    **Gelöst** nach F34 (Nutzer 2026-11-12): Mit D10 gibt `external` > 0 frei, Startwert mit D10
    ist 0; mit D7 und D10 lädt der Schlüssel unabhängig von evcc mit dem Höchststrom
-   (SOLL-EN-01/12/13, SOLL-CUR-15). In der Simulation mit evcc geprüft, am zweiten Gerät noch nicht.
+   (SOLL-EN-01/12/13, SOLL-CUR-15). In der Simulation mit evcc geprüft; das zweite Gerät läuft seit 2026-11-12 mit `0ce1265`, Prüfung mit dem Leaf steht aus.
 4. **Leaf bleibt nach PWM-Aus in C** (D2.6, nach Nutzer auch beim Ladeende mit dem Original):
    evcc kam mit dem Original nie gut damit zurecht, wenn das Fahrzeug nicht bald auf B zurückfiel
    (Nutzer 2026-11-08; offen, ob es an der Originalfirmware lag). Gemessen nach dem Ende über evcc
