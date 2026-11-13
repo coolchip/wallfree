@@ -412,7 +412,7 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurück).
   Updates am zweiten Gerät weiter nur über die USB-Karte oder nach Ansage des Nutzers:
   [wallbe2 Bootloader 1.03](../../wallbe2/docs/bootloader.md#bootloader-103-box-g).
 - Befunde aus Stufe D ([Prüfstecker](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)):
-  Freigabe durch evcc und Schlüssel als Zwangsladen (Befund 3, gelöst nach F34, am zweiten Gerät noch nicht geprüft), Uhr lief etwa 500 ppm zu langsam (Befund 6, behoben mit Zephyr-Patch `0003`, am Testgerät geprüft; das zweite Gerät läuft seit 2026-11-12 mit `0ce1265`); der Leaf
+  Freigabe durch evcc und Schlüssel als Zwangsladen (Befund 3, gelöst nach F34, am zweiten Gerät mit evcc bestätigt), Uhr lief etwa 500 ppm zu langsam (Befund 6, behoben mit Zephyr-Patch `0003`, am Testgerät geprüft; das zweite Gerät läuft seit 2026-11-12 mit `0ce1265`); der Leaf
   bleibt nach PWM-Aus etwa 5 min in C (Befund 4, gelöst in evcc mit lokalem Patch, Issue bzw. PR
   bei evcc offen).
 - Erreichbarkeit unter Verbindungsflut: mit 12 Netzkontexten und 1,5 s TIME_WAIT werden neue

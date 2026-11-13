@@ -443,7 +443,7 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    `external_current` 80 000), ohne Schlüssel lud der Leaf mit evcc gar nicht (2026-11-12).
    **Gelöst** nach F34 (Nutzer 2026-11-12): Mit D10 gibt `external` > 0 frei, Startwert mit D10
    ist 0; mit D7 und D10 lädt der Schlüssel unabhängig von evcc mit dem Höchststrom
-   (SOLL-EN-01/12/13, SOLL-CUR-15). In der Simulation mit evcc geprüft; das zweite Gerät läuft seit 2026-11-12 mit `0ce1265`, Prüfung mit dem Leaf steht aus.
+   (SOLL-EN-01/12/13, SOLL-CUR-15). In der Simulation mit evcc geprüft; am zweiten Gerät mit `0ce1265` am 2026-11-12 bestätigt: Schlüssel aus, evcc auf Laden, der Leaf lädt mit 16 A (`limited_by` external, Zustand C, Schütz zu).
 4. **Leaf bleibt nach PWM-Aus in C** (D2.6, nach Nutzer auch beim Ladeende mit dem Original):
    evcc kam mit dem Original nie gut damit zurecht, wenn das Fahrzeug nicht bald auf B zurückfiel
    (Nutzer 2026-11-08; offen, ob es an der Originalfirmware lag). Gemessen nach dem Ende über evcc
