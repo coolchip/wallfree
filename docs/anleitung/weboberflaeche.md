@@ -144,20 +144,20 @@ bis zum **Maximum**, das am Drehschalter der Steuerung eingestellt ist.
 | blauer Ring **Erlaubt** | Strom, den das Fahrzeug ziehen darf |
 | grüner Innenring **Messwert** | gemessener Strom (höchste Phase), nur mit Energiezähler |
 | orange Marke **Grenze** | eine weitere Grenze unterhalb des Maximums: Belastbarkeit des Ladekabels oder Stromgrenze über einen Digitaleingang |
-| Kreis **Vorgabe** | der vorgegebene Ladestrom; rot bei „Laden aus“ |
+| Kreis **Vorgabe** | der vorgegebene Ladestrom; rot bei Vorgabe 0 (Schalter Laden aus) |
 | Zahl in der Mitte | Messwert, ohne Zähler der erlaubte Strom; darunter die Leistung |
-| Zeile unter dem Ring | was den Strom gerade begrenzt, z. B. „begrenzt durch Kabel (20 A)“ oder „Vorgabe: Laden aus“ |
+| Zeile unter dem Ring | was den Strom gerade begrenzt, z. B. „begrenzt durch Kabel (20 A)“; fehlt, wenn die Vorgabe selbst begrenzt |
 
 Der erlaubte Strom ist immer der **kleinste** der Werte Vorgabe, Maximum, Kabel und
 Digitaleingang. Unter 6 A wird nicht geladen (Grenze der Norm).
 
-**Vorgabe ändern:** Die Tasten unter dem Ring wirken sofort.
+**Vorgabe ändern:** Die Bedienelemente unter dem Ring wirken sofort.
 
-| Taste | Wirkung |
+| Element | Wirkung |
 | --- | --- |
-| **−** / **+** | Vorgabe in Schritten von 1 A zwischen 6 A und dem Maximum |
-| **6 / 10 / 16 / 32 A** | Vorgabe auf diesen Wert (Tasten über dem Maximum entfallen) |
-| **Laden aus** | Vorgabe 0: Ein laufender Ladevorgang endet geordnet, ein neuer beginnt nicht |
+| **−** / **+** | Vorgabe in Schritten von 1 A zwischen 6 A und dem Maximum; dazwischen steht die Vorgabe („aus“ bei 0) |
+| **6 / 10 / 16 / 32 A** | Vorgabe auf diesen Wert (Werte über dem Maximum entfallen) |
+| Schalter **Laden** | aus: Vorgabe 0, ein laufender Ladevorgang endet geordnet, ein neuer beginnt nicht; ein: zurück zur letzten Vorgabe (sonst das Maximum) |
 
 Die Vorgabe gilt bis zur nächsten Änderung oder bis zum Neustart der Steuerung; danach gilt
 der Startwert (Parameter `external_current_default`, [7.1](#71-laden)). Ein angeschlossenes
@@ -404,7 +404,7 @@ Diese Werte steuern den laufenden Betrieb. Nach einem Neustart gelten wieder ihr
 
 | Parameter | Bereich | Start | Beschreibung |
 | --- | --- | --- | --- |
-| Sollstrom der Schnittstelle (`external_current`) | 0 oder 6000..80000 mA | Startwert | Die Vorgabe des Ladestroms, dieselbe wie bei den Tasten der Übersicht und dem Energiemanagement. 0 = Laden aus. Werte über dem Maximum sind erlaubt, wirksam bleibt das Maximum. |
+| Sollstrom der Schnittstelle (`external_current`) | 0 oder 6000..80000 mA | Startwert | Die Vorgabe des Ladestroms, dieselbe wie unter dem Ring der Übersicht und dem Energiemanagement. 0 = Laden aus. Werte über dem Maximum sind erlaubt, wirksam bleibt das Maximum. |
 | Freigabe über Schnittstelle (`enable_register`) | 0..1 | Startwert | Nur mit DIP D10: 1 = Laden freigegeben. |
 | Verfügbarkeit über Schnittstelle (`available_register`) | 0..1 | 1 | Nur mit DIP D10: 0 = Ladestation außer Betrieb (dem Fahrzeug wird „nicht verfügbar“ gemeldet). |
 | 5-%-Modus (`pwm5_request`) | 0..1 | 0 | 1 = Ladesignal mit 5 % (Anforderung digitaler Kommunikation nach ISO 15118). Diese Kommunikation unterstützt die Firmware nicht; es wird dann nicht geladen. Für Prüfzwecke. |
@@ -577,7 +577,7 @@ Ist die Weboberfläche nicht erreichbar, führt der Reset-Taster zum Bootloader
 | Anzeige „getrennt“, Inhalt grau | Verbindung unterbrochen (WLAN, Netz, Steuerung startet neu). Die Seite verbindet sich selbst neu. |
 | Anmeldung wird immer wieder abgefragt | Falsche Zugangsdaten. Der Browser schickt nach einer Änderung manchmal noch die alten: neuen Tab oder privates Fenster öffnen. |
 | „zu viele Fehlversuche“ | Sperre nach falschen Anmeldungen ([Abschnitt 3](#3-erste-anmeldung)). Warten (höchstens 5 Minuten) und dann richtig anmelden. Auch Programme mit veralteten Zugangsdaten (z. B. ein Energiemanagement) lösen die Sperre aus; dort die Zugangsdaten anpassen. |
-| Fahrzeug lädt nicht | Übersicht: Zeile unter dem Ring („Vorgabe: Laden aus“, „Laden gesperrt“) und Kachel Fehler prüfen; Status › Fehler. Bei „Wartet auf Freigabe“ fehlt die Freigabe ([10.4](#104-freigabe-und-verfügbarkeit)). |
+| Fahrzeug lädt nicht | Übersicht: Schalter Laden und Zeile unter dem Ring („Laden gesperrt“) und Kachel Fehler prüfen; Status › Fehler. Bei „Wartet auf Freigabe“ fehlt die Freigabe ([10.4](#104-freigabe-und-verfügbarkeit)). |
 | Zähler „gestört“ | [7.4](#74-zähler) |
 | Firmware-Update fehlgeschlagen | Unter System steht „Letztes Update: fehlgeschlagen“; es läuft die bisherige Firmware. Update wiederholen, vorher evcc und andere Abfragen anhalten. Steht die Steuerung danach im Update-Betrieb (alle LEDs der Steuerung an oder blinkend, Weboberfläche nicht erreichbar), alle Abfragen der Wallbox anhalten, die Seite des Bootloaders unter der bisherigen Adresse oder unter 192.168.0.8 öffnen und die Datei dort hochladen ([8.1](#81-firmware-update); Schritt für Schritt: [Rettungsweg](../umruesten.md#5-rettungsweg-steuerung-wartet-im-bootloader)). |
 | Passwort vergessen / Steuerung unerreichbar | **Werksreset:** Reset-Taster der Steuerung gedrückt halten. Die Power-LED bleibt zunächst etwa 5 Sekunden dunkel, blinkt dann 5 Sekunden langsam und danach 5 Sekunden schnell; erst wenn sie **dauerhaft leuchtet** (insgesamt etwa 15 Sekunden), loslassen (geht auch beim Einschalten). Alle Einstellungen und die Zugangsdaten sind danach im Werkszustand (`admin` / `wallfree`, Netzwerk per DHCP). Kurzes Drücken startet die Steuerung nur neu. |

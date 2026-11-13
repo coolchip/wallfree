@@ -387,13 +387,17 @@ function measured(meter) {
 	return ph.length ? Math.max(...ph) * 1000 : null;
 }
 
-// Zeile unter dem Ring: was gerade begrenzt. @return [Text, CSS-Klasse]
-function limitLine(l) {
+// Zeile unter dem Ring bzw. der Tabelle: was gerade begrenzt. @return [Text, CSS-Klasse]
+function limitLine(l, ring) {
 	if (l.limited_by === 'pwm5') return ['5-%-Modus (digitale Kommunikation)', ''];
 	if (l.limited_by === 'blocked') {
-		return [l.external === 0 && !l.external_ignored ? 'Vorgabe: Laden aus' : 'Laden gesperrt', 'bad'];
+		const off = l.external === 0 && !l.external_ignored;
+		if (ring && off) return ['', '']; // zeigen Stepper und Schalter
+		return [off ? 'Vorgabe: Laden aus' : 'Laden gesperrt', 'bad'];
 	}
 	const by = l.limited_by;
+	// Am Ring: begrenzt die Vorgabe, steht der Wert schon darunter (Stepper)
+	if (ring && by === 'external' && !l.external_ignored) return ['', ''];
 	const t = 'begrenzt durch ' + (LIMIT_TEXT[by] || by) + ' (' + amps(by === 'external' ? l.external : l[by]) + ')';
 	return [t + (l.external_ignored ? ' · Vorgabe ignoriert (Digitaleingang)' : ''), by === 'external' ? '' : 'warn'];
 }
@@ -412,7 +416,7 @@ function Gauge({ l, meter }) {
 	const p = mval(meter, 74);
 	const marks = ['cable', 'input'].filter((k) => l[k] > 0 && l[k] < l.hardware);
 	const set = l.external_ignored ? null : l.external / 1000;
-	const [line, cls] = limitLine(l);
+	const [line, cls] = limitLine(l, true);
 	return html`<div class="gauge">
 		<svg viewBox="0 0 300 262" role="img" aria-label="Ladestrom">
 			<path class="g-bg" d=${arc(0, max, GR)} />
@@ -432,35 +436,43 @@ function Gauge({ l, meter }) {
 				? (p !== null ? num(p / 1000, 1) + ' kW · ' : '') + 'erlaubt ' + amps(l.allowed)
 				: meter ? 'kein gültiger Messwert' : ''}</text>
 		</svg>
-		<p class=${'gline ' + cls}>${line}</p>
+		${line && html`<p class=${'gline ' + cls}>${line}</p>`}
 	</div>`;
 }
 
+// Bedienung unter dem Ring (Nutzer 2026-11-12, Entwurf A): Stepper fuer die Vorgabe, feste
+// Werte als Segmentauswahl, Schalter "Laden" fuer Vorgabe 0 bzw. die letzte Vorgabe > 0
 function CurrentControl({ ext, setExt, limits, meter }) {
 	const [msg, setMsg] = useState(null);
+	const last = useRef(0);
 	if (!limits) return null;
 	const max = limits.hardware / 1000 || 32;
-	const cur = Math.min(ext ? ext.current / 1000 : 0, max);
+	const ma = ext ? ext.current : 0;
+	if (ma > 0) last.current = ma;
+	const cur = Math.min(ma / 1000, max);
+	const on = ma > 0;
 	const send = async (a) => {
 		try {
 			setExt(await post('/evse/external_current', { current: Math.round(a * 1000) }));
 			setMsg(null);
 		} catch (e) { setMsg({ ok: false, text: e.message }); }
 	};
-	const sel = (a) => (ext && ext.current === a * 1000 ? 'sel' : '');
+	const resume = () => send(last.current ? Math.min(last.current / 1000, max) : max);
 	return html`<section class="card wide"><h2>Ladestrom</h2>
 		<${Gauge} l=${limits} meter=${meter} />
-		<div class="presets">
-			<button onClick=${() => send(cur <= 6 ? 6 : Math.ceil(cur) - 1)}>−</button>
-			${[6, 10, 16, 32].filter((a) => a <= max).map((a) =>
-				html`<button class=${sel(a)} onClick=${() => send(a)}>${a} A</button>`)}
-			<button onClick=${() => send(cur < 6 ? 6 : Math.min(Math.floor(cur) + 1, max))}>+</button>
-			<button class=${ext && ext.current === 0 ? 'primary' : 'off'} onClick=${() => send(0)}>Laden aus</button>
+		<div class="stepper" aria-label="Vorgabe">
+			<button class="round" aria-label="weniger" onClick=${() => send(cur <= 6 ? 6 : Math.ceil(cur) - 1)}>−</button>
+			<b class=${on ? '' : 'bad'}>${on ? amps(ma) : 'aus'}</b>
+			<button class="round" aria-label="mehr" onClick=${() => send(cur < 6 ? 6 : Math.min(Math.floor(cur) + 1, max))}>+</button>
 		</div>
+		<div class="seg">${[6, 10, 16, 32].filter((a) => a <= max).map((a, k, all) =>
+			html`<button class=${ma === a * 1000 ? 'on' : ''} onClick=${() => send(a)}>${a}${k === all.length - 1 ? ' A' : ''}</button>`)}</div>
 		<${Msg} m=${msg} />
-		<p class="muted msg center">Eine externe Vorgabe (z. B. Energiemanagement) kann diesen Wert jederzeit überschreiben.</p>
-		<p class="legend"><i class="sw on"></i>Erlaubt${meter ? html` <i class="sw ist"></i>Messwert` : ''}
-			<i class="sw lim"></i>Grenze <i class="sw set"></i>Vorgabe</p>
+		<div class="cfoot">
+			<label class="switch"><input type="checkbox" checked=${on}
+				onChange=${(e) => (e.target.checked ? resume() : send(0))} /><i></i>Laden</label>
+			<span class="muted msg">Ein Energiemanagement kann die Vorgabe überschreiben.</span>
+		</div>
 	</section>`;
 }
 
@@ -1439,9 +1451,11 @@ function Main() {
 		: live.online === false ? 'getrennt' : '…';
 	return html`
 		<header>
-			<${Logo} conn=${{ dot, text: conn, title: conn + (live.mode === 'live' ? ' – live (WebSocket)'
-				: live.mode === 'poll' ? ' – Abfrage alle 2 s' : '') }} />
-			<nav class="top">${AREAS.map(([k, t]) => html`<a href=${'#/' + k} class=${area === k ? 'sel' : ''}>${t}</a>`)}</nav>
+			<div class="hbar">
+				<${Logo} conn=${{ dot, text: conn, title: conn + (live.mode === 'live' ? ' – live (WebSocket)'
+					: live.mode === 'poll' ? ' – Abfrage alle 2 s' : '') }} />
+				<nav class="top">${AREAS.map(([k, t]) => html`<a href=${'#/' + k} class=${area === k ? 'sel' : ''}>${t}</a>`)}</nav>
+			</div>
 			${updating ? html`<div class="banner warn">Update läuft – die Steuerung startet neu, bitte warten.</div>`
 				: live.online === false && html`<div class="banner bad">Verbindung zur Wallbox getrennt – angezeigte Werte sind nicht aktuell.</div>`}
 		</header>
@@ -1460,7 +1474,7 @@ function App() {
 	if (err) return html`<p class="pad bad">Keine Verbindung: ${err}</p>`;
 	if (!cred) return html`<p class="pad muted">Lade …</p>`;
 	if (cred.must_change) {
-		return html`<header><${Logo} /></header><main><${Credentials} first=${true} /></main>`;
+		return html`<header><div class="hbar"><${Logo} /></div></header><main><${Credentials} first=${true} /></main>`;
 	}
 	return html`<${Main} />`;
 }
