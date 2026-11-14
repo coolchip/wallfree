@@ -3,7 +3,7 @@
 Stand: 2026-11-12. Auf dem Testgerät mit Prüfstecker und Schütz ohne Last geprüft
 ([Prüfungen auf dem Testgerät](#prüfungen-auf-box-t)), auf dem zweiten Gerät mit Fahrzeug (Nissan Leaf, einphasig 16 A)
 und evcc ([Stufe D](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)), dort im Dauerbetrieb
-(seit 2026-11-13 `ce14d18`). Bestandene Tests belegen keine elektrische Sicherheit. Rahmen und Begründungen: [Architektur](architektur.md);
+(seit 2026-11-14 `f6f0036`). Bestandene Tests belegen keine elektrische Sicherheit. Rahmen und Begründungen: [Architektur](architektur.md);
 Tests: [Test und Simulation](test-und-simulation.md).
 
 ## Überblick
