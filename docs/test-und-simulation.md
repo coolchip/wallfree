@@ -3,14 +3,14 @@
 Stand: 2026-11-14. Die Tests hier laufen auf dem PC (außer dem Netz-Lasttest, der auch gegen die
 Steuerung läuft). Sie belegen nichts über die reale Hardware (Pegel, Zeiten, Interrupts) und
 **keine elektrische Sicherheit**; Prüfungen auf der Steuerung:
-[Implementierung](implementierung.md#prüfungen-auf-box-t).
+[Implementierung](implementierung.md#prüfungen-auf-der-steuerung).
 
 | Ebene | Umfang | Stand |
 | --- | --- | --- |
 | PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezähler, MQTT ohne Netz | 249 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zähler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
 | Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zähler, lokalen MQTT-Broker | 74 Tests, alle bestanden (2026-11-14), ca. 580 s (T5Mqtt gelegentlich wegen eines Simulationsfehlers, Fallstricke) |
-| Browser-Durchlauf | Weboberfläche in headless Chrome gegen die Simulation | ohne Zähler 39 Prüfungen bestanden (2026-11-14); mit Zähler zuletzt 2026-10-21 bestanden, seit der Statusleiste nicht wiederholt |
-| Netz-Lasttest | `scripts/net-load.py` gegen Simulation (nur Skriptprüfung) und das Testgerät | auf dem Testgerät bestanden ([Implementierung](implementierung.md#prüfungen-auf-box-t)) |
+| Browser-Durchlauf | Weboberfläche in headless Chrome gegen die Simulation | ohne Zähler 40 Prüfungen bestanden (2026-11-14); mit Zähler zuletzt 2026-10-21 bestanden, seit der Statusleiste nicht wiederholt |
+| Netz-Lasttest | `scripts/net-load.py` gegen die Simulation (nur Skriptprüfung) und das Testgerät | auf dem Testgerät bestanden ([Implementierung](implementierung.md#prüfungen-auf-der-steuerung)) |
 | MQTT im LAN | Simulation gegen Mosquitto 2.1.2 im Heimnetz (von Hand, 2026-10-21) | Zustände, Zählerwerte (etwa 1/s), Ereignisse, Befehl Ladestrom, `online` true/false |
 | evcc | evcc 0.317.2 mit Vorlage `tinkerforge-warp-ws` gegen die Simulation | Laden, Aus/Sofort, Abstecken, Neustart; mit Zähler Leistung, Zählerstand, Phasenströme und -spannungen |
 
@@ -199,9 +199,6 @@ Modus "sofort"):
 scripts/sim-run.sh --http-port=8091   # Terminal 1
 scripts/evcc-sim.sh                   # Terminal 2, setzt Testzugangsdaten, evcc auf :7070
 ```
-
-Gegen das zweite Gerät statt der Simulation: `scripts/evcc-boxg.sh` (eigene Konfiguration und Datenbank in
-`build/evcc-boxg/`, siehe [Prüfstecker Abschnitt 8](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)).
 
 | Ablauf | Ergebnis |
 | --- | --- |

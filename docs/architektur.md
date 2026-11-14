@@ -88,7 +88,7 @@ und 7 bleiben über Updates und den Rückweg zur Originalfirmware erhalten).
   den Start-SP (im SRAM); Wallfree hängt deshalb eine eigene Prüfsumme an und prüft sie beim
   Start (SOLL-BOOT-35). Update über die Weboberfläche auf dem Testgerät geprüft.
 - Rückweg zur Originalfirmware über denselben Bootloaderpfad; Sektor 3 bleibt erhalten (auf
-  Das Testgerät geprüft).
+  das Testgerät geprüft).
 - Start-SP: Zephyr setzt ihn auf das Ende seines Interrupt-Stacks, das Original auf das
   RAM-Ende `0x20020000`; der Bootloader verlangt nur einen Wert im SRAM, beides passt.
 
@@ -167,10 +167,10 @@ eigenen Prüf-Firmware wurde Wallfree selbst verwendet (Shell/API, Register-Ausg
 | Stufe | Inhalt | Ausstattung | Stand (Testgerät) |
 | --- | --- | --- | --- |
 | H0 | Lesend: Debug-Anschluss, RDP-Stufe, Bootloader/Flash/OTP auslesen | ST-LINK V3SET | erledigt 2026-10-24 (RDP 0, Sicherung) |
-| H1 | Ohne Last: Ausgänge ER/LR/VR/CR, LEDs, Eingänge und ADC-Werte, IWDG, Verriegelung, Netz; Reaktionszeit RCM -> PE2 | Oszilloskop | mit Wallfree als Stufen A/B erledigt; RCM-Zeit in Stufe C4 ([Implementierung](implementierung.md#prüfungen-auf-box-t)) |
+| H1 | Ohne Last: Ausgänge ER/LR/VR/CR, LEDs, Eingänge und ADC-Werte, IWDG, Verriegelung, Netz; Reaktionszeit RCM -> PE2 | Oszilloskop | mit Wallfree als Stufen A/B erledigt; RCM-Zeit in Stufe C4 ([Implementierung](implementierung.md#prüfungen-auf-der-steuerung)) |
 | H2 | CP/PP mit EV-Simulator: Zustände A..E, Diode, PP-Widerstände; CP-PWM, Schütz-Ansteuerung | Prüfstecker | als Stufe C erledigt 2026-11-07 ([Prüfstecker](pruefstecker.md)) |
 | H3 | RCM-Selbsttest und Fehlerstrompfad mit Prüfstrom | sicherer Prüfaufbau | Selbsttest und DC-Prüfstrom (9 mA) in Stufe C4 erledigt, Reaktionszeit 2,5..3 ms; AC-Zweig (30 mA) offen |
-| H4 | Ladelogik komplett mit Netzspannung, Fahrzeug oder Lastsimulator | Elektrofachkraft, FI in der Hausverteilung | als Stufe D am zweiten Gerät mit Nissan Leaf (einphasig, 16 A) durchgeführt, dort im Dauerbetrieb ([Prüfstecker](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)); dreiphasiges Laden offen |
+| H4 | Ladelogik komplett mit Netzspannung, Fahrzeug oder Lastsimulator | Elektrofachkraft, FI in der Hausverteilung | als Stufe D am zweiten Gerät mit Nissan Leaf (einphasig, 16 A) durchgeführt, dort im Dauerbetrieb ([Implementierung](implementierung.md#prüfungen-auf-der-steuerung)); dreiphasiges Laden offen |
 
 EV-Simulator: Für H2 genügt ein selbstgebauter Prüfstecker (Diode, CP-Widerstände
 2,74 kOhm / 1,3 kOhm / 270 Ohm, PP-Widerstände 1,5 kOhm / 680 / 220 / 100 Ohm, Schalter;

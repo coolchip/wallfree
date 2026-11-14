@@ -145,7 +145,7 @@ Bedienung der Simulation: [docs/simulation-bedienung.md](docs/simulation-bedienu
 
 Details und Ergebnisse: [docs/test-und-simulation.md](docs/test-und-simulation.md). Nicht
 abgedeckt: die echte Hardwareschicht (`hw_stm32.c`, `hw_gpio.c`) und das Ethernet; diese sind
-nur auf der Steuerung geprüft (Stand in [docs/implementierung.md](docs/implementierung.md#prüfungen-auf-box-t)).
+nur auf der Steuerung geprüft (Stand in [docs/implementierung.md](docs/implementierung.md#prüfungen-auf-der-steuerung)).
 Bestandene Tests belegen keine elektrische Sicherheit.
 
 ## Herkunft der Befunde

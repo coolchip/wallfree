@@ -720,7 +720,7 @@ FUNC_NORETURN void hw_bootloader_handover(uint32_t ip, uint32_t mask)
 
 /* ------------------------------------------------ Geraete-MAC (Spezifikation 10.1) */
 
-#define OTP_MAC ((const uint8_t *)0x1FFF7800u) /* das Testgeraet: xx:xx:xx:a1:b2:c3 (wallbe2 H0) */
+#define OTP_MAC ((const uint8_t *)0x1FFF7800u) /* Geraete-MAC im OTP (wallbe2 H0) */
 
 bool hw_device_mac(uint8_t mac[6])
 {
