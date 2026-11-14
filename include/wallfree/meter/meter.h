@@ -108,6 +108,7 @@ struct meter {
 	bool have_set;
 	int64_t t_set;        /**< Zeitpunkt des letzten gueltigen Satzes */
 	int64_t v[METER_Q_COUNT];
+	bool have[METER_Q_COUNT]; /**< Wert im letzten Satz geliefert (keine Ungueltig-Kennung) */
 	struct meter_stats st;
 	uint8_t events;
 };

@@ -120,8 +120,12 @@ static bool f32_scaled(uint32_t u, uint16_t mul, int64_t *out)
 	return true;
 }
 
-/* @return false bei Ungueltig-Kennung, NaN/unendlich oder ausserhalb der Grenzen */
-static bool decode(const struct mval *v, const uint16_t *regs, int64_t *out)
+/* Ergebnis je Wert (SOLL-MTR-13) */
+enum dec { DEC_OK, DEC_MISSING, DEC_BAD };
+
+/* Ungueltig-Kennung des Zaehlers -> DEC_MISSING (nur dieser Wert fehlt);
+ * NaN/unendlich oder ausserhalb der Grenzen -> DEC_BAD (Satz verwerfen) */
+static enum dec decode(const struct mval *v, const uint16_t *regs, int64_t *out)
 {
 	const uint16_t *r = regs + v->idx;
 	int64_t x;
@@ -129,24 +133,24 @@ static bool decode(const struct mval *v, const uint16_t *regs, int64_t *out)
 	switch (v->type) {
 	case VT_F32:
 		if (!f32_scaled(u32_at(r), v->mul, &x)) {
-			return false;
+			return DEC_BAD;
 		}
 		break;
 	case VT_U16:
 		if (r[0] == 0xFFFF) {
-			return false;
+			return DEC_MISSING;
 		}
 		x = (int64_t)r[0] * v->mul;
 		break;
 	case VT_U32:
 		if (u32_at(r) == 0xFFFFFFFFu) {
-			return false;
+			return DEC_MISSING;
 		}
 		x = (int64_t)u32_at(r) * v->mul;
 		break;
 	case VT_S32:
 		if (u32_at(r) == 0x7FFFFFFFu) {
-			return false;
+			return DEC_MISSING;
 		}
 		x = (int64_t)(int32_t)u32_at(r) * v->mul;
 		break;
@@ -154,18 +158,21 @@ static bool decode(const struct mval *v, const uint16_t *regs, int64_t *out)
 		uint64_t u = ((uint64_t)u32_at(r) << 32) | u32_at(r + 2);
 
 		/* Ungueltig: alle Bytes FF; groesser als die Grenze faengt der Bereich ab */
-		if (u == UINT64_MAX || u > (uint64_t)INT64_MAX / v->mul) {
-			return false;
+		if (u == UINT64_MAX) {
+			return DEC_MISSING;
+		}
+		if (u > (uint64_t)INT64_MAX / v->mul) {
+			return DEC_BAD;
 		}
 		x = (int64_t)u * v->mul;
 		break;
 	}
 	}
 	if (x < limits[v->q].min || x > limits[v->q].max) {
-		return false;
+		return DEC_BAD;
 	}
 	*out = x;
-	return true;
+	return DEC_OK;
 }
 
 static void set_status(struct meter *m, uint8_t st)
@@ -209,6 +216,7 @@ uint32_t meter_cycle(struct meter *m)
 	const struct meter_model *md = m->model;
 	uint16_t regs[REGS_MAX];
 	int64_t v[METER_Q_COUNT];
+	bool have[METER_Q_COUNT] = {false};
 	uint16_t pos = 0;
 	bool ok = true;
 
@@ -221,18 +229,24 @@ uint32_t meter_cycle(struct meter *m)
 		pos += md->blk[i].n;
 	}
 	for (uint8_t i = 0; i < md->nval && ok; i++) {
-		if (!decode(&md->val[i], regs, &v[md->val[i].q])) {
+		enum dec d = decode(&md->val[i], regs, &v[md->val[i].q]);
+
+		if (d == DEC_BAD) {
 			m->st.implausible++;
 			ok = false;
 		}
+		have[md->val[i].q] = d == DEC_OK;
 	}
 	if (ok) {
 		/* SOLL-MTR-13: Ruecksprung uebernehmen, aber melden */
-		if (m->have_set && (v[METER_E_IMP] < m->v[METER_E_IMP] ||
-				    v[METER_E_EXP] < m->v[METER_E_EXP])) {
+		if (m->have_set && ((have[METER_E_IMP] && m->have[METER_E_IMP] &&
+				     v[METER_E_IMP] < m->v[METER_E_IMP]) ||
+				    (have[METER_E_EXP] && m->have[METER_E_EXP] &&
+				     v[METER_E_EXP] < m->v[METER_E_EXP]))) {
 			m->events |= METER_EV_ENERGY_DOWN;
 		}
 		memcpy(m->v, v, sizeof(v));
+		memcpy(m->have, have, sizeof(have));
 		m->have_set = true;
 		m->t_set = m->bus.now_ms(m->bus.ctx);
 		m->st.sets++;
@@ -266,7 +280,7 @@ void meter_values(const struct meter *m, int64_t now, struct meter_values *out)
 	out->age_ms = m->have_set ? now - m->t_set : -1;
 	out->st = m->st;
 	for (int q = 0; q < METER_Q_COUNT; q++) {
-		out->valid[q] = fresh && meter_has(m->type, (enum meter_q)q);
+		out->valid[q] = fresh && meter_has(m->type, (enum meter_q)q) && m->have[q];
 		out->v[q] = out->valid[q] ? m->v[q] : 0;
 	}
 }

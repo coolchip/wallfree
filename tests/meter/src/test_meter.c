@@ -189,31 +189,49 @@ ZTEST(meter, test_abb_decode)
 	zassert_equal(mv.v[METER_F], 50000);
 	zassert_true(mv.valid[METER_P3]);
 
-	/* Ungueltig-Kennung U32 (alle Bytes FF) -> kein Satz */
+	/* F39: Ungueltig-Kennung leert nur diesen Wert, der Satz gilt (SOLL-MTR-13) */
+	/* U32 (alle Bytes FF) */
 	r0[0] = 0xFFFF;
 	r0[1] = 0xFFFF;
 	meter_cycle(&m);
-	zassert_equal(m.st.implausible, 1);
-	zassert_equal(m.st.sets, 1);
+	values(&mv);
+	zassert_equal(m.st.implausible, 0);
+	zassert_equal(m.st.sets, 2);
+	zassert_false(mv.valid[METER_U1]);
+	zassert_true(mv.valid[METER_U2]);
 	/* S32: Hoechstwert = ungueltig */
 	r0[1] = 2301;
 	r0[0] = 0;
 	r0[20] = 0x7FFF;
 	r0[21] = 0xFFFF;
 	meter_cycle(&m);
-	zassert_equal(m.st.implausible, 2);
+	values(&mv);
+	zassert_true(mv.valid[METER_U1]);
+	zassert_false(mv.valid[METER_P]);
 	/* U16 FFFF */
 	r0[20] = 0;
 	r0[21] = 0;
 	r2[0] = 0xFFFF;
 	meter_cycle(&m);
-	zassert_equal(m.st.implausible, 3);
-	/* U64 alle FF */
+	values(&mv);
+	zassert_false(mv.valid[METER_F]);
+	zassert_true(mv.valid[METER_P]);
+	/* U64 alle FF: wie ABB B23 ohne Einspeisezaehlung (Testgeraet 2026-11-14), Bezug bleibt */
 	r2[0] = 5000;
-	memset(r1, 0xFF, sizeof(r1));
+	memset(r1 + 4, 0xFF, 8);
 	meter_cycle(&m);
-	zassert_equal(m.st.implausible, 4);
-	zassert_equal(m.st.sets, 1);
+	values(&mv);
+	zassert_equal(mv.status, METER_OK);
+	zassert_true(mv.valid[METER_E_IMP]);
+	zassert_false(mv.valid[METER_E_EXP]);
+	zassert_equal(m.st.implausible, 0);
+	zassert_equal(m.st.sets, 5);
+	/* ausserhalb des Bereichs bleibt unplausibel: kein Satz */
+	r0[0] = 0;
+	r0[1] = 9000;                   /* 900 V */
+	meter_cycle(&m);
+	zassert_equal(m.st.implausible, 1);
+	zassert_equal(m.st.sets, 5);
 }
 
 static void put_f(uint16_t *r, uint32_t w)
