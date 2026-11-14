@@ -23,6 +23,8 @@
 
 LOG_MODULE_REGISTER(evse_task, LOG_LEVEL_INF);
 
+static atomic_t want_on; /* Soll des Automaten fuer das Schuetz, fuer die Meldung */
+
 #define PROT_PRIO      0   /* hoechste preemptive Prioritaet */
 #define CHARGER_PRIO   2
 #define PROT_STACK     1024
@@ -249,6 +251,7 @@ static void charger_entry(void *p1, void *p2, void *p3)
 		}
 		in.supply_mv = blk.supply;
 		hw_gpio_read_rcm(&in.rcm);
+		in.protect_tripped = hw_protect_latched(); /* SOLL-PROT-14 */
 		in.last_sense_edge = hw_gpio_last_sense_edge();
 		in.meter_valid = false; /* keine Messquelle (F1) */
 
@@ -278,10 +281,38 @@ static void charger_entry(void *p1, void *p2, void *p3)
 			hw_protect_clear();
 		}
 
+		atomic_set(&want_on, out.contactor);
 		hw_cp_set_duty(out.cp_duty);
 		hw_gpio_apply(&out);
 		atomic_set(&charger_beat, (atomic_val_t)now);
 	}
+}
+
+/* ------------------------------------------------ Schutzpfad: Logmeldung (SOLL-PROT-15) */
+
+static const char *const prot_line_name[HW_PROT_LINES] = {"SWITCH_1", "SWITCH_2", "ERR_OUT"};
+
+/* Jede neue Ausloesung des Schutzmerkers einmal melden (Schutzthread, 1 ms) */
+static void protect_log(void)
+{
+	static bool was;
+	bool now = hw_protect_latched();
+
+	if (now && !was) {
+		struct hw_protect_diag d;
+
+		hw_protect_diag(&d);
+		/* bei Schuetz aus meist der Selbsttest (Testimpuls), bei Schuetz ein ein Befund */
+		const char *ctx = atomic_get(&want_on) ? "Schuetz soll ein" : "Schuetz soll aus";
+
+		if (d.last_line >= 0) {
+			LOG_WRN("Schutzpfad ausgeloest: %s ueber %s (%s)", prot_line_name[d.last_line],
+				d.last_path == HW_PROT_POLL ? "zyklische Kontrolle" : "Interrupt", ctx);
+		} else {
+			LOG_WRN("Schutzpfad ausgeloest (%s)", ctx);
+		}
+	}
+	was = now;
 }
 
 /* ------------------------------------------------ IWDG (SOLL-BOOT-03, SOLL-RT-12) */
@@ -391,17 +422,28 @@ static void prot_entry(void *p1, void *p2, void *p3)
 	}
 	int64_t t0 = k_uptime_get();
 	int64_t last_iface_check = t0;
+	bool prev_act[HW_PROT_LINES] = {false};
 
 	for (;;) {
 		struct evse_rcm_levels lv;
 		int64_t now = k_uptime_get();
 		uint32_t now32 = (uint32_t)now;
 
-		/* SOLL-PROT-05 Rueckfallebene: zyklische Pegelkontrolle */
+		/* SOLL-PROT-05 Rueckfallebene: zyklische Pegelkontrolle, zwei Messungen in Folge
+		 * (Stoerfilter, F35) */
 		hw_gpio_read_rcm(&lv);
-		if (lv.sw1 || lv.sw2 || lv.err) {
-			hw_protect_trip();
+		bool act[HW_PROT_LINES] = {lv.sw1, lv.sw2, lv.err};
+
+		for (int l = 0; l < HW_PROT_LINES; l++) {
+			if (act[l] && prev_act[l]) {
+				if (!hw_protect_latched()) {
+					hw_protect_note((enum hw_prot_line)l, HW_PROT_POLL);
+				}
+				hw_protect_trip();
+			}
+			prev_act[l] = act[l];
 		}
+		protect_log();
 
 		/* SOLL-RT-10: Thread- und Messueberwachung */
 		if (now - t0 > STARTUP_GRACE_MS && !atomic_get(&maint)) {

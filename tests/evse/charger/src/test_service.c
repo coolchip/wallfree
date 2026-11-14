@@ -158,6 +158,7 @@ ZTEST(evse_service, test_errors_json)
 		     "%s", small);
 
 	zassert_str_equal(api_err_name(2), "CP-INVALID");
-	zassert_is_null(api_err_name(19));
+	zassert_str_equal(api_err_name(19), "RCM-TRIP");
+	zassert_is_null(api_err_name(20));
 	zassert_not_null(api_err_reset(9));
 }

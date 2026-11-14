@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /* Weitere Szenarien: manuelle Verriegelung, Fehlerpfade, Eingangsfunktionen */
 #include <zephyr/ztest.h>
+#include <wallfree/api/evse_api.h>
 #include "sim.h"
 
 #define DIP(n) ((evse_dip_t)(1u << ((n) - 1)))
@@ -362,6 +363,64 @@ ZTEST(evse_charger2, test_charge_time)
 	sim_run(&s, 100);
 	zassert_true(s.e.charge_ms >= 9900 && s.e.charge_ms <= 10200, "%lld",
 		     (long long)s.e.charge_ms);
+}
+
+ZTEST(evse_charger2, test_protect_trip_while_charging)
+{
+	/* SOLL-PROT-14: Schutzmerker gesetzt, Automat kennt keinen Fehlerstrom -> ERR-RCM-TRIP
+	 * statt S6 mit abgeschaltetem Schuetz (Testgeraet 2026-11-13) */
+	sim_boot(&s);
+	charge();
+	s.protect_tripped = true;
+	sim_run(&s, 10);
+	zassert_true(s.e.errors & EVSE_ERR_RCM_TRIP, "Fehler 0x%x", s.e.errors);
+	zassert_false(s.e.out.contactor);
+	zassert_true(sim_until_state(&s, EVSE_S9_ERROR, 6000) >= 0, "Zustand %d", s.e.state);
+	/* Merker loest die Hardwareschicht erst, wenn das Schuetz aus sein soll */
+	s.protect_tripped = false;
+	sim_run(&s, 1000);
+	zassert_true(s.e.errors & EVSE_ERR_RCM_TRIP, "verriegelnd bis zum Selbsttest in A");
+	/* Rücksetzung wie bei Fehlerstrom: Abstecken, Selbsttest in A (SOLL-PROT-08/11) */
+	s.car = EVSE_CP_A;
+	sim_run(&s, 40000);
+	zassert_false(s.e.errors & EVSE_ERR_RCM_TRIP, "Fehler 0x%x", s.e.errors);
+	zassert_equal(s.e.state, EVSE_S1_IDLE, "Zustand %d", s.e.state);
+}
+
+ZTEST(evse_charger2, test_protect_trip_contactor_off_no_error)
+{
+	/* SOLL-PROT-14: bei Schuetz aus (z. B. Testimpuls) kein Fehler */
+	sim_boot(&s);
+	s.protect_tripped = true;
+	sim_run(&s, 100);
+	zassert_equal(s.e.errors, 0, "Fehler 0x%x", s.e.errors);
+	s.protect_tripped = false;
+	charge();
+	zassert_equal(s.e.errors, 0);
+}
+
+ZTEST(evse_charger2, test_contactor_no_pull)
+{
+	/* SOLL-PROT-25: Rueckmeldung fehlt nach dem Einschalten -> ERR-CONTACTOR nach 2 s */
+	sim_boot(&s);
+	s.no_pull = true;
+	charge();
+	sim_run(&s, 1900);
+	zassert_false(s.e.errors & EVSE_ERR_CONTACTOR, "frühestens nach 2 s");
+	sim_run(&s, 200);
+	zassert_true(s.e.errors & EVSE_ERR_CONTACTOR, "Fehler 0x%x", s.e.errors);
+	zassert_false(s.e.out.contactor);
+	zassert_equal(s.e.state, EVSE_S10_UNAVAILABLE, "Zustand %d", s.e.state);
+	zassert_equal(api_contactor_error(&s.e), 2, "WARP: sollte geschlossen sein");
+}
+
+ZTEST(evse_charger2, test_contactor_pulls_no_error)
+{
+	sim_boot(&s);
+	charge();
+	sim_run(&s, 5000);
+	zassert_equal(s.e.errors, 0, "Fehler 0x%x", s.e.errors);
+	zassert_equal(s.e.state, EVSE_S6_CHARGING);
 }
 
 ZTEST_SUITE(evse_charger2, NULL, NULL, before, NULL, NULL);

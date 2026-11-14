@@ -80,6 +80,8 @@ Die Kommandos der Ladelogik stehen ohne Vorsatz daneben (`status`, `param ...`; 
 | `sim rcm fault` / `sim rcm clear` | Fehlerstrom an (SWITCH_1 und SWITCH_2) / aus |
 | `sim rcm dead` | Sensor reagiert nicht auf den Testimpuls (Selbsttest schlägt fehl) |
 | `sim rcm err <0\|1>` | Sensorfehler ERR_OUT |
+| `sim rcm glitch` | Störung, die die Schutzabschaltung auslöst, aber nie als Pegel ankommt: beim Laden ERR-RCM-TRIP (SOLL-PROT-14) |
+| `sim rcm spike` | kurze Spitze, die der Störfilter verwirft (nur Zähler unter `status`) |
 | `sim weld <0\|1>` | Schütz verschweißt (Sense meldet weiter Spannung) |
 | `sim link <0\|1>` | Netzverbindung für die Netzwerk-LED |
 | `sim supply <mV>` | Versorgungsmessung (unter 9000 -> Warnung) |

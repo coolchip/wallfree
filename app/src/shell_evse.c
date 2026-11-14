@@ -45,6 +45,24 @@ static int cmd_status(const struct shell *sh, size_t argc, char **argv)
 	shell_print(sh, "Strom    Soll %d mA, Fahrzeug darf %d mA", cur, allowed);
 	shell_print(sh, "Schuetz  %s, Verriegelung %d", contactor ? "ein" : "aus", lock);
 	shell_print(sh, "Fehler   0x%08x, Warnungen 0x%x", err, warn);
+
+	/* SOLL-PROT-15: Schutzpfad, Zaehler je Leitung SWITCH_1/SWITCH_2/ERR_OUT */
+	struct hw_protect_diag d;
+
+	hw_protect_diag(&d);
+	shell_print(sh, "Schutz   Merker %s, Interrupt %u/%u/%u, verworfen %u/%u/%u, zyklisch %u/%u/%u",
+		    hw_protect_latched() ? "gesetzt" : "frei", d.count[HW_PROT_ISR][0],
+		    d.count[HW_PROT_ISR][1], d.count[HW_PROT_ISR][2],
+		    d.count[HW_PROT_ISR_IGNORED][0], d.count[HW_PROT_ISR_IGNORED][1],
+		    d.count[HW_PROT_ISR_IGNORED][2], d.count[HW_PROT_POLL][0],
+		    d.count[HW_PROT_POLL][1], d.count[HW_PROT_POLL][2]);
+	if (d.last_line >= 0) {
+		static const char *const ln[] = {"SWITCH_1", "SWITCH_2", "ERR_OUT"};
+
+		shell_print(sh, "         zuletzt %s ueber %s bei %lld ms", ln[d.last_line],
+			    d.last_path == HW_PROT_POLL ? "zyklisch" : "Interrupt",
+			    (long long)d.last_ms);
+	}
 	shell_print(sh, "System   %s, Resetgrund %s, Laufzeit %lld s", sysinfo_version(),
 		    wf_reset_name(sysinfo_reset_reason()), (long long)(k_uptime_get() / 1000));
 	return 0;

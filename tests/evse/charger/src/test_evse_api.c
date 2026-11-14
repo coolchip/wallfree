@@ -60,10 +60,10 @@ ZTEST(evse_api, test_error_mapping)
 	zassert_equal(api_error_state(&s.e), API_ERR_OTHER);
 	s.e.errors = EVSE_ERR_CONTACTOR | EVSE_ERR_CONFIG;
 	zassert_equal(api_error_state(&s.e), API_ERR_CONTACTOR);
-	s.e.contactor = false;
-	zassert_equal(api_contactor_error(&s.e), 6, "Schuetz aus, Fehler: geklebt");
-	s.e.contactor = true;
-	zassert_equal(api_contactor_error(&s.e), 2);
+	s.e.ctm.fault_on = false;
+	zassert_equal(api_contactor_error(&s.e), 6, "im Aus erkannt: geklebt");
+	s.e.ctm.fault_on = true;
+	zassert_equal(api_contactor_error(&s.e), 2, "im Ein erkannt: zieht nicht an (SOLL-PROT-25)");
 	s.e.errors = EVSE_ERR_RCM_DC6 | EVSE_ERR_CONTACTOR;
 	zassert_equal(api_error_state(&s.e), API_ERR_RCM, "Fehlerstrom hat Vorrang");
 	s.e.errors = 0;

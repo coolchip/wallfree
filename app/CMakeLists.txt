@@ -22,6 +22,7 @@ endif()
 target_sources(app PRIVATE
   src/main.c
   src/evse_task.c
+  src/protect_diag.c
   src/shell_evse.c
   src/shell_web.c
   src/log_ring.c

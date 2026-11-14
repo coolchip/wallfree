@@ -166,8 +166,9 @@ SOLL-CP-08), nicht der Pegel.
   der Fehler bleibt nach dem Loslassen bis zum Abstecken (S1 aus).
 - Schlüssel aus während C -> S7 STOPPING, PWM aus; Schütz-Soll bleibt, bis S2 aus (das
   Fahrzeug reagiert) oder nach `stop_timeout` 5 s, dann S3.
-- Die Schützüberwachung (Via Sense, CT) prüft nur im Aus-Zustand; ohne Spule bleibt sie
-  ruhig. Ein ERR-CONTACTOR hier wäre ein Befund (CT-Beschaltung).
+- Die Schützüberwachung (Via Sense, CT) prüft im Aus und im Ein (SOLL-PROT-25): Ohne Spule
+  fehlt die Rückmeldung im Ein, nach 2 s folgt ERR-CONTACTOR. Für Prüfungen ohne Schützspule
+  daher `contactor_monitor` 0 setzen.
 
 **C4 Fehlerstrom und Reaktionszeit (ohne Schützspule).** Ziel: SOLL-PROT-04/05/07/08/11
 auf der Hardware, Zeit vom Fehlerstrom bis zum Abschalten (Bender verlangt Schütz aus binnen

@@ -15,6 +15,7 @@ void evse_ctm_init(struct evse_ctm *c)
 	c->bad_since = EVSE_MS_NONE;
 	c->bad = false;
 	c->fault = false;
+	c->fault_on = false;
 	c->sense = false;
 }
 
@@ -48,14 +49,23 @@ void evse_ctm_update(struct evse_ctm *c, enum evse_ctm_mode mode, const struct e
 		     evse_ms_t now)
 {
 	c->sense = detect(EVSE_CTM_SENSE, in, now);
-	/* SOLL-PROT-21: nur bei ausgeschaltetem Schuetz, nach Verzoegerung */
-	if (in->contactor_on || in->off_since == EVSE_MS_NONE ||
-	    !evse_elapsed_ge(now, in->off_since, EVSE_CTM_CHECK_DELAY_MS)) {
-		c->bad = false;
-		c->bad_since = EVSE_MS_NONE;
-		return;
+	bool check;
+	evse_ms_t fault_ms;
+
+	if (in->contactor_on) {
+		/* SOLL-PROT-25: Rueckmeldung muss kommen (Modi 1..3) */
+		check = mode >= EVSE_CTM_SENSE && mode <= EVSE_CTM_NC &&
+			in->on_since != EVSE_MS_NONE &&
+			evse_elapsed_ge(now, in->on_since, EVSE_CTM_ON_DELAY_MS);
+		c->bad = check && !detect(mode, in, now);
+		fault_ms = EVSE_CTM_ON_FAULT_MS;
+	} else {
+		/* SOLL-PROT-21: nach dem Aus darf keine Rueckmeldung mehr kommen */
+		check = in->off_since != EVSE_MS_NONE &&
+			evse_elapsed_ge(now, in->off_since, EVSE_CTM_CHECK_DELAY_MS);
+		c->bad = check && detect(mode, in, now);
+		fault_ms = EVSE_CTM_FAULT_MS;
 	}
-	c->bad = detect(mode, in, now);
 	if (!c->bad) {
 		c->bad_since = EVSE_MS_NONE;
 		return;
@@ -63,8 +73,9 @@ void evse_ctm_update(struct evse_ctm *c, enum evse_ctm_mode mode, const struct e
 	if (c->bad_since == EVSE_MS_NONE) {
 		c->bad_since = now;
 	}
-	if (evse_elapsed_ge(now, c->bad_since, EVSE_CTM_FAULT_MS)) {
+	if (evse_elapsed_ge(now, c->bad_since, fault_ms) && !c->fault) {
 		c->fault = true;
+		c->fault_on = in->contactor_on;
 	}
 }
 
@@ -74,5 +85,6 @@ bool evse_ctm_acknowledge(struct evse_ctm *c)
 		return false;
 	}
 	c->fault = false;
+	c->fault_on = false;
 	return true;
 }

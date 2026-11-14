@@ -208,6 +208,26 @@ bool hw_protect_latched(void);
 void hw_protect_trip(void);
 void hw_protect_clear(void);
 
+/* ---- protect_diag.c: Diagnose des Schutzpfads (SOLL-PROT-15) ---- */
+
+enum hw_prot_line { HW_PROT_SW1, HW_PROT_SW2, HW_PROT_ERR, HW_PROT_LINES };
+enum hw_prot_path {
+	HW_PROT_ISR,         /**< Interrupt, Pegel bestaetigt: ausgeloest */
+	HW_PROT_ISR_IGNORED, /**< Interrupt, Pegel schon wieder weg: verworfen (Stoerfilter) */
+	HW_PROT_POLL,        /**< zyklische Kontrolle, zwei Messungen: ausgeloest */
+	HW_PROT_PATHS
+};
+
+struct hw_protect_diag {
+	uint32_t count[HW_PROT_PATHS][HW_PROT_LINES];
+	int last_line;   /**< letzte Ausloesung, -1 = keine */
+	int last_path;
+	int64_t last_ms; /**< Laufzeit der letzten Ausloesung */
+};
+
+void hw_protect_note(enum hw_prot_line line, enum hw_prot_path path);
+void hw_protect_diag(struct hw_protect_diag *d);
+
 #if defined(CONFIG_ARCH_POSIX)
 /** PC-Simulation: HTTP-Port aus der Kommandozeile (--http-port). */
 uint16_t hw_sim_http_port(void);

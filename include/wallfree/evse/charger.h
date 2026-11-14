@@ -137,6 +137,7 @@ struct evse_inputs {
 	int32_t din_mv[EVSE_DIN_COUNT];
 	int32_t supply_mv;            /**< Versorgung, Skalierung wie Original (x 0,001) */
 	struct evse_rcm_levels rcm;
+	bool protect_tripped;         /**< Schutzpfad hat PE2 abgeschaltet (SOLL-PROT-14) */
 	evse_ms_t last_sense_edge;    /**< PE0 */
 	bool meter_valid;
 	int32_t phase_v[3];
@@ -200,6 +201,7 @@ struct evse {
 	/* Schuetz und CP */
 	bool contactor;
 	evse_ms_t contactor_off_since;
+	evse_ms_t contactor_on_since;  /**< Ein-Befehl (SOLL-PROT-25) */
 	evse_ms_t contactor_off_at_19; /**< Nachlauf Code 38 */
 	uint16_t cp_duty;
 	evse_ms_t pwm_since;

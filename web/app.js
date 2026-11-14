@@ -76,7 +76,7 @@ const STATES = ['S0 Start', 'S1 Bereit', 'S2 Verriegeln', 'S3 Warten', 'S4 Selbs
 const ERRBITS = ['Kabel abgewiesen', 'PP ungültig', 'CP ungültig', 'Verriegeln', 'Entriegeln',
 	'LD verloren', 'Überstrom', 'Zähler', 'Zustand D', 'Schütz', 'Diode', 'Eingang',
 	'RCM-Selbsttest', 'RCM-Sensor', 'RCM 6 mA DC', 'RCM 30 mA AC', 'Drehschalter', 'Konfiguration',
-	'Intern'];
+	'Intern', 'Schutzpfad ausgelöst'];
 const errText = (m) => ERRBITS.filter((_, i) => m & (1 << i)).join(', ') || 'keine';
 const amps = (ma) => (ma / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' A';
 const num = (v, d) => v.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });

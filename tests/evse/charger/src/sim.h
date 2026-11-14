@@ -44,6 +44,8 @@ struct sim {
 
 	/* Schuetz */
 	bool welded;
+	bool no_pull;           /* zieht nicht an: keine Rueckmeldung trotz Soll ein */
+	bool protect_tripped;   /* Schutzmerker der Hardwareschicht (SOLL-PROT-14) */
 	evse_ms_t last_edge;
 
 	/* Versorgung, Messquelle */

@@ -109,10 +109,11 @@ static void model(struct sim *s, struct evse_inputs *in)
 	in->din_mv[EVSE_DIN_LD] = ld ? 12000 : 0;
 
 	/* Schuetz-Sense: 50 Hz hinter dem Schuetz */
-	if ((o->contactor || s->welded) && (s->now % 20) == 0) {
+	if (((o->contactor && !s->no_pull) || s->welded) && (s->now % 20) == 0) {
 		s->last_edge = s->now;
 	}
 	in->last_sense_edge = s->last_edge;
+	in->protect_tripped = s->protect_tripped;
 	in->new_block = (s->now % 8) == 0;
 }
 

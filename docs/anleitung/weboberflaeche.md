@@ -386,7 +386,7 @@ Nur bei Ladestationen mit Steckdose und Verriegelung (DIP D4).
 | Parameter | Bereich | Werk | Beschreibung |
 | --- | --- | --- | --- |
 | Mindestpause vor erneutem Schütz-Ein (`contactor_min_off`) | 0..10000 ms | 5000 | Kürzeste Zeit, die das Schütz nach dem Ausschalten aus bleibt, bevor es wieder einschalten darf. Schont das Schütz bei schnell wechselnden Anforderungen des Fahrzeugs; manche Schütze ziehen nach einer kürzeren Pause nicht wieder an. |
-| Schützüberwachung (`contactor_monitor`) | 0..4 | 1 | Wie geprüft wird, ob das Schütz nach dem Ausschalten wirklich offen ist (z. B. verschweißte Kontakte): 0 aus, 1 über die Spannungsmessung am Ladepunkt (Klemme CT), 2 über einen Rückmeldekontakt als Schließer (Eingangscode 5), 3 als Öffner (Eingangscode 6), 4 über den Energiezähler (Spannung je Phase über 50 V). 4 nur mit eingerichtetem Zähler. Erkennt die Überwachung einen Fehler, wird nicht mehr geladen, bis der Schützfehler quittiert ist ([6.3](#63-fehler)). |
+| Schützüberwachung (`contactor_monitor`) | 0..4 | 1 | Wie geprüft wird, ob das Schütz nach dem Ausschalten wirklich offen ist (z. B. verschweißte Kontakte) und nach dem Einschalten wirklich angezogen hat (bei 1..3; fehlt die Rückmeldung 2 s nach dem Einschalten, ist das ein Schützfehler): 0 aus, 1 über die Spannungsmessung am Ladepunkt (Klemme CT), 2 über einen Rückmeldekontakt als Schließer (Eingangscode 5), 3 als Öffner (Eingangscode 6), 4 über den Energiezähler (Spannung je Phase über 50 V). 4 nur mit eingerichtetem Zähler. Erkennt die Überwachung einen Fehler, wird nicht mehr geladen, bis der Schützfehler quittiert ist ([6.3](#63-fehler)). |
 | Zustand D abweisen (`reject_state_d`) | 0..1 | 1 | Fahrzeuge, die beim Laden eine Lüftung anfordern (Zustand D, z. B. ältere Fahrzeuge mit Bleiakku), werden mit 1 abgewiesen. Nur auf 0 setzen, wenn der Ladeplatz ausreichend belüftet ist. |
 | Überstromabschaltung (`overcurrent_enable`) | 0..1 | 0 | 1 = Laden abbrechen, wenn das Fahrzeug deutlich mehr Strom zieht als erlaubt (mehr als das 1,25-Fache für 5 s oder das 1,1-Fache für 95 s). Nur mit eingerichtetem Energiezähler einschaltbar. Fällt der Zähler dann aus, endet das Laden. |
 
@@ -717,13 +717,14 @@ E/F Fehler bzw. nicht verfügbar).
 | `OVERCURRENT` | Überstrom | Fahrzeug zieht zu viel Strom (`overcurrent_enable`) | Abstecken |
 | `METER-COMM` | Zähler | Zähler ausgefallen, obwohl eine Schutzfunktion ihn braucht | Zähler wieder erreichbar |
 | `STATE-D` | Zustand D | Fahrzeug fordert Lüftung an (`reject_state_d`) | Abstecken |
-| `CONTACTOR` | Schütz | Schütz öffnet nicht wie befohlen | Quittieren oder Neustart, wenn behoben |
+| `CONTACTOR` | Schütz | Schütz öffnet nicht oder zieht nicht an wie befohlen | Quittieren oder Neustart, wenn behoben |
 | `DIODE` | Diode | Fahrzeugseite der Ladeleitung fehlerhaft | Abstecken |
 | `INPUT` | Eingang | Fehlereingang (Code 21) aktiv | Eingang aus |
 | `RCM-SELFTEST` | RCM-Selbsttest | Selbsttest der Fehlerstromüberwachung fehlgeschlagen | bestandener Selbsttest |
 | `RCM-SENSOR` | RCM-Sensor | Sensor der Fehlerstromüberwachung meldet einen Fehler | bestandener Selbsttest |
 | `RCM-DC6` | RCM 6 mA DC | Gleichfehlerstrom erkannt | bestandener Selbsttest |
 | `RCM-AC30` | RCM 30 mA AC | Wechselfehlerstrom erkannt | bestandener Selbsttest |
+| `RCM-TRIP` | Schutzpfad ausgelöst | Die Schutzabschaltung hat das Schütz abgeschaltet, ohne dass ein Fehlerstrom erkannt wurde (z. B. eine Störung auf den Leitungen des Sensors) | bestandener Selbsttest (Abstecken) |
 | `SWITCH` | Drehschalter | Drehschalter auf A..F | Korrektur und Neustart |
 | `CONFIG` | Konfiguration | Einstellungen widersprechen sich (z. B. D6 ohne Eingang mit Code 3 oder 22) | Korrektur |
 | `INTERNAL` | Intern | interne Prüfung angesprochen | Neustart |

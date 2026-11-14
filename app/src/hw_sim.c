@@ -205,10 +205,12 @@ static void tick(struct k_timer *t)
 	m.sw1 = sw1;
 	m.sw2 = sw2;
 
-	/* Flanke nach "ausgeloest" -> Schutz-Latch wie der GPIO-Interrupt */
+	/* Flanke nach "ausgeloest" -> Schutz-Latch wie der GPIO-Interrupt (Pegel steht an,
+	 * besteht also den Stoerfilter) */
 	if (rcm && !m.rcm_prev) {
 		m.contactor = false;
 		atomic_set(&protect_latch, 1);
+		hw_protect_note(sw1 ? HW_PROT_SW1 : sw2 ? HW_PROT_SW2 : HW_PROT_ERR, HW_PROT_ISR);
 	}
 	m.rcm_prev = rcm;
 
@@ -925,12 +927,20 @@ static int cmd_rcm(const struct shell *sh, size_t argc, char **argv)
 		m.rcm_healthy = false; /* reagiert nicht auf den Testimpuls */
 	} else if (strcmp(argv[1], "err") == 0 && argc == 3) {
 		r = parse_bool(sh, argv[2], &m.rcm_err);
+	} else if (strcmp(argv[1], "glitch") == 0) {
+		/* Stoerung, die den Filter passiert, aber nie als Pegel ankommt (SOLL-PROT-14) */
+		m.contactor = false;
+		atomic_set(&protect_latch, 1);
+		hw_protect_note(HW_PROT_SW2, HW_PROT_ISR);
+	} else if (strcmp(argv[1], "spike") == 0) {
+		/* kurze Spitze: der Stoerfilter verwirft sie (SOLL-PROT-05) */
+		hw_protect_note(HW_PROT_SW2, HW_PROT_ISR_IGNORED);
 	} else {
 		r = -EINVAL;
 	}
 	irq_unlock(key);
 	if (r == -EINVAL) {
-		shell_error(sh, "ok|fault|clear|dead|err <0|1> erwartet");
+		shell_error(sh, "ok|fault|clear|dead|err <0|1>|glitch|spike erwartet");
 	}
 	return r;
 }

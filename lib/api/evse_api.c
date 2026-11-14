@@ -74,7 +74,7 @@ int api_contactor_error(const struct evse *e)
 	}
 	/* WARP: 2 = sollte geschlossen sein, nach dem Schuetz nichts;
 	 *       6 = sollte offen sein, nach dem Schuetz Spannung (geklebt) */
-	return e->contactor ? 2 : 6;
+	return e->ctm.fault_on ? 2 : 6;
 }
 
 static void kv(struct wf_jbuf *b, const char *k, int64_t v, bool first)
@@ -336,7 +336,7 @@ int api_set_params(struct evse *e, const char *body, size_t len, evse_ms_t now,
 static const char *const err_names[] = {
 	"CABLE-REJECT", "PP-INVALID", "CP-INVALID", "LOCK", "UNLOCK", "LD-LOST", "OVERCURRENT",
 	"METER-COMM", "STATE-D", "CONTACTOR", "DIODE", "INPUT", "RCM-SELFTEST", "RCM-SENSOR",
-	"RCM-DC6", "RCM-AC30", "SWITCH", "CONFIG", "INTERNAL",
+	"RCM-DC6", "RCM-AC30", "SWITCH", "CONFIG", "INTERNAL", "RCM-TRIP",
 };
 
 static const char *const err_reset[] = {
@@ -344,7 +344,7 @@ static const char *const err_reset[] = {
 	"Erfolg, CP A", "Wiederverriegeln, CP A", "CP A", "Messquelle wieder gültig", "CP A",
 	"Quittierung (F14)", "CP A", "Eingang inaktiv", "Selbsttest bestanden",
 	"Selbsttest bestanden", "Selbsttest bestanden", "Selbsttest bestanden", "Neustart",
-	"Parameterkorrektur bzw. Neustart", "Neustart",
+	"Parameterkorrektur bzw. Neustart", "Neustart", "Selbsttest bestanden",
 };
 
 #define N_ERR (sizeof(err_names) / sizeof(err_names[0]))

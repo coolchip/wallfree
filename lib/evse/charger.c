@@ -95,6 +95,7 @@ void evse_init(struct evse *e, const struct evse_config *cfg, enum evse_lock_sta
 	e->start_ms = now;
 	e->contactor = false;
 	e->contactor_off_since = now;
+	e->contactor_on_since = EVSE_MS_NONE;
 	e->cp_duty = EVSE_DUTY_OFF;
 	e->pwm_since = EVSE_MS_NONE;
 	e->diode_since = EVSE_MS_NONE;
@@ -309,11 +310,17 @@ static void protect(struct evse *e, const struct evse_inputs *in, evse_ms_t now)
 	if (e->rcm.test != EVSE_RCM_TEST_RUNNING && evse_rcm_monitor(&e->rcm, &in->rcm)) {
 		contactor_off(e, now);
 	}
+	/* SOLL-PROT-14: Schutzpfad hat abgeschaltet, ohne dass hier ein Fehlerstrom ankam */
+	if (in->protect_tripped && e->contactor && !(e->rcm.faults & ~EVSE_RCM_F_TRIP)) {
+		e->rcm.faults |= EVSE_RCM_F_TRIP;
+		contactor_off(e, now);
+	}
 
 	/* SOLL-PROT-20..23 */
 	struct evse_ctm_in ci = {
 		.contactor_on = e->contactor,
 		.off_since = e->contactor_off_since,
+		.on_since = e->contactor_on_since,
 		.last_sense_edge = in->last_sense_edge,
 		.ct_no = e->din.ct_no,
 		.ct_nc = e->din.ct_nc,
@@ -412,6 +419,9 @@ static void update_errors(struct evse *e, evse_ms_t now)
 	}
 	if (e->rcm.faults & EVSE_RCM_F_SELFTEST) {
 		dyn |= EVSE_ERR_RCM_SELFTEST;
+	}
+	if (e->rcm.faults & EVSE_RCM_F_TRIP) {
+		dyn |= EVSE_ERR_RCM_TRIP;
 	}
 	if ((dyn & EVSE_ERR_DIODE) && !(e->errors & EVSE_ERR_DIODE)) {
 		e->diode_since = now;
@@ -809,6 +819,7 @@ static void st_pwm_on(struct evse *e, enum evse_cp_state raw, evse_ms_t now)
 		    evse_elapsed_ge(now, e->contactor_off_since, e->cfg.contactor_min_off_ms) &&
 		    e->release && e->errors == 0 && !(e->errors & EVSE_ERR_CLASS_P)) {
 			e->contactor = true;
+			e->contactor_on_since = now;
 			goto_state(e, EVSE_S6_CHARGING, now);
 		}
 		return;

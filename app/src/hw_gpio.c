@@ -71,13 +71,42 @@ void hw_protect_clear(void)
 	atomic_set(&protect_latch, 0);
 }
 
+/* Stoerfilter (SOLL-PROT-05, F35): Pegel ueber etwa 100 us bestaetigen. Ein Signal des
+ * Sensors steht Sekunden an; Schaltspitzen (z. B. vom Schuetz) sind kuerzer. */
+#define RCM_CONFIRM_READS   10
+#define RCM_CONFIRM_STEP_US 10
+
+static bool rcm_confirm(const struct gpio_dt_spec *s)
+{
+	for (int i = 0; i < RCM_CONFIRM_READS; i++) {
+		if (gpio_pin_get_dt(s) != 1) {
+			return false;
+		}
+		if (i + 1 < RCM_CONFIRM_READS) {
+			k_busy_wait(RCM_CONFIRM_STEP_US);
+		}
+	}
+	return true;
+}
+
 static void rcm_isr(const struct device *port, struct gpio_callback *cb, uint32_t pins)
 {
 	ARG_UNUSED(port);
 	ARG_UNUSED(cb);
-	ARG_UNUSED(pins);
-	/* SOLL-PROT-05: Schuetz sofort aus, unabhaengig vom Automaten */
-	hw_protect_trip();
+	const struct gpio_dt_spec *spec[HW_PROT_LINES] = {&rcm_sw1, &rcm_sw2, &rcm_err};
+
+	for (int l = 0; l < HW_PROT_LINES; l++) {
+		if (!(pins & BIT(spec[l]->pin))) {
+			continue;
+		}
+		if (rcm_confirm(spec[l])) {
+			/* SOLL-PROT-05: Schuetz sofort aus, unabhaengig vom Automaten */
+			hw_protect_trip();
+			hw_protect_note((enum hw_prot_line)l, HW_PROT_ISR);
+		} else {
+			hw_protect_note((enum hw_prot_line)l, HW_PROT_ISR_IGNORED);
+		}
+	}
 }
 
 static void sense_isr(const struct device *port, struct gpio_callback *cb, uint32_t pins)

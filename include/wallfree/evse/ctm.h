@@ -23,10 +23,13 @@ enum evse_ctm_mode {
 #define EVSE_CTM_FAULT_MS       250
 #define EVSE_CTM_SENSE_EDGE_MS  100
 #define EVSE_CTM_PHASE_V        50
+#define EVSE_CTM_ON_DELAY_MS    1000 /* SOLL-PROT-25 */
+#define EVSE_CTM_ON_FAULT_MS    1000
 
 struct evse_ctm_in {
 	bool contactor_on;          /**< Soll-Zustand */
 	evse_ms_t off_since;        /**< Zeitpunkt des Aus-Befehls */
+	evse_ms_t on_since;         /**< Zeitpunkt des Ein-Befehls */
 	evse_ms_t last_sense_edge;  /**< letzte steigende Flanke an PE0 */
 	bool ct_no;                 /**< Eingang Code 5 aktiv */
 	bool ct_nc;                 /**< Eingang Code 6 aktiv */
@@ -38,6 +41,7 @@ struct evse_ctm {
 	evse_ms_t bad_since;
 	bool bad;     /**< Erkennung aktuell */
 	bool fault;   /**< ERR-CONTACTOR, verriegelnd (F14) */
+	bool fault_on; /**< Fehler im Ein erkannt: zog nicht an (SOLL-PROT-25) */
 	bool sense;   /**< Spannung an CT (Flanke an PE0 juenger als 100 ms), in jedem Modus; Anzeige */
 };
 

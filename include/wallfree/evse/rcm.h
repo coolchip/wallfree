@@ -18,6 +18,7 @@ extern "C" {
 #define EVSE_RCM_F_DC6      (1u << 1) /* SWITCH_2, ERR-RCM-DC6 */
 #define EVSE_RCM_F_AC30     (1u << 2) /* SWITCH_1, ERR-RCM-AC30 */
 #define EVSE_RCM_F_SELFTEST (1u << 3) /* ERR-RCM-SELFTEST */
+#define EVSE_RCM_F_TRIP     (1u << 4) /* ERR-RCM-TRIP: Schutzpfad ohne erkannten Fehlerstrom */
 
 /* Zeitfolge des Selbsttests ab Start (Phoenix 1.27, E16) */
 #define EVSE_RCM_T_ERRCHECK   100

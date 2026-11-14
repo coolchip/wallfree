@@ -224,9 +224,53 @@ ZTEST(evse_ctm, test_sense_ok_and_delay)
 	ctm_run(EVSE_CTM_SENSE, 190, true);
 	ctm_run(EVSE_CTM_SENSE, 1000, false);
 	zassert_false(ctm.fault);
-	/* bei eingeschaltetem Schuetz keine Pruefung */
+	/* bei eingeschaltetem Schuetz mit Rueckmeldung kein Fehler */
 	cin.contactor_on = true;
+	cin.on_since = now;
 	ctm_run(EVSE_CTM_SENSE, 2000, true);
+	zassert_false(ctm.fault);
+}
+
+ZTEST(evse_ctm, test_on_check)
+{
+	/* SOLL-PROT-25: ab 1000 ms nach Ein, Fehler nach weiteren 1000 ms ohne Rueckmeldung */
+	cin.contactor_on = true;
+	cin.on_since = now;
+	ctm_run(EVSE_CTM_SENSE, 1999, false);
+	zassert_false(ctm.fault);
+	ctm_run(EVSE_CTM_SENSE, 2, false);
+	zassert_true(ctm.fault);
+	/* nach dem Aus ohne Rueckmeldung quittierbar */
+	cin.contactor_on = false;
+	cin.off_since = now;
+	ctm_run(EVSE_CTM_SENSE, 300, false);
+	zassert_true(evse_ctm_acknowledge(&ctm));
+
+	/* Modus 2: Eingang Code 5 bleibt inaktiv */
+	ctm_before(NULL);
+	cin.contactor_on = true;
+	cin.on_since = now;
+	ctm_run(EVSE_CTM_NO, 2100, false);
+	zassert_true(ctm.fault);
+	/* Modus 3: Eingang Code 6 bleibt aktiv (ct_nc true) */
+	ctm_before(NULL);
+	cin.contactor_on = true;
+	cin.on_since = now;
+	ctm_run(EVSE_CTM_NC, 2100, false);
+	zassert_true(ctm.fault);
+	/* Modus 3 mit Rueckmeldung: Kontakt oeffnet */
+	ctm_before(NULL);
+	cin.contactor_on = true;
+	cin.on_since = now;
+	cin.ct_nc = false;
+	ctm_run(EVSE_CTM_NC, 3000, false);
+	zassert_false(ctm.fault);
+	/* Modus 4 und 0: keine Pruefung im Ein */
+	ctm_before(NULL);
+	cin.contactor_on = true;
+	cin.on_since = now;
+	ctm_run(EVSE_CTM_METER, 3000, false);
+	ctm_run(EVSE_CTM_OFF, 3000, false);
 	zassert_false(ctm.fault);
 }
 
