@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
 # Ende-zu-Ende-Test auf dem PC: Anwendung fuer native_sim/native/64 bauen
 # (simulierte Hardware, Host-Sockets, Flash-Datei) und die Python-Tests in
 # tests/e2e gegen den laufenden Prozess ausfuehren.

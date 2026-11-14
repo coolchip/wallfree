@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
 # Veroeffentlichungspaket zusammenstellen:
 #   scripts/release-package.sh [abbild.bin]
 # Ohne Angabe build/wallfree-<VERSION>.bin (veroeffentlichter Stand aus build-image.sh, Tag

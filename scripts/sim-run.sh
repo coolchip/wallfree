@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
 # Firmware als PC-Simulation starten (Browser, curl, spaeter evcc).
 #   scripts/sim-run.sh [--build] [Optionen von zephyr.exe]
 # Beispiele: --http-port=8081 --dip=0x109 --rotary=5 --reset-button=11000

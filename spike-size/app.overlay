@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /* Groessentest: Zephyr-PWM- und ADC-Treiber wie beim Messen am 2026-10-19.
  * Die eigentliche Anwendung (app/) steuert TIM1/ADC1 direkt und braucht das nicht. */
 &timers1 {

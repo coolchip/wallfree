@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Groessentest fuer die Ersatzfirmware (nur Build). Bindet die geplanten
  * Grundbausteine ein, damit Flash/RAM realistisch gemessen werden:

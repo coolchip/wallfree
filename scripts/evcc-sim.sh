@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
 # evcc (Docker, Vorlage tinkerforge-warp-ws) gegen die laufende Simulation.
 #   scripts/sim-run.sh --http-port=8091     (in einem zweiten Terminal)
 #   scripts/evcc-sim.sh [Image]             evcc-Oberflaeche: http://127.0.0.1:7070/

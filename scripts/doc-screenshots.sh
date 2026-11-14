@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
 # Screenshots fuer docs/anleitung/ neu erzeugen: eigene Simulation (fabrikneu, Telnet 2324,
 # damit eine laufende Simulation unberuehrt bleibt), 60-fach beschleunigt; Dauer etwa 8 min.
 #   scripts/doc-screenshots.sh

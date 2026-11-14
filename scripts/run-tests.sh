@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
 # Alle PC-Tests (Ladelogik, Parameterspeicher) auf native_sim/native/64 ausfuehren.
 # Voraussetzung: Zephyr-Umgebung unter ~/zephyrproject (siehe README).
 #   scripts/run-tests.sh            twister (Standard)

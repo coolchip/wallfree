@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
 # Anleitung der Weboberflaeche als PDF: pandoc (Markdown -> HTML mit eingebetteten Bildern),
 # Chrome druckt A4. Ergebnis: build/anleitung/weboberflaeche.pdf
 #   scripts/anleitung-pdf.sh

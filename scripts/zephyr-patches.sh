@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
 # Wallfree-Patches auf den Zephyr-Baum anwenden (idempotent).
 #   scripts/zephyr-patches.sh          anwenden, bereits angewendete ueberspringen
 #   scripts/zephyr-patches.sh --check  nur pruefen (Exit 1, wenn einer fehlt)

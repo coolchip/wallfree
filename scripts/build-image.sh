@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: Apache-2.0
 # Abbild fuer die Steuerung bauen und ablegen:
 #   scripts/build-image.sh [--keep N]
 # Baut pristine fuer ev_cc_ac1, prueft den Anhang mit der Pruefsumme, legt das Abbild ab und

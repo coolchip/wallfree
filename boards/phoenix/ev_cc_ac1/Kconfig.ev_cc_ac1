@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 # Phoenix Contact EV-CC-AC1-M3-CBC-RCM-ETH, STM32F207VET6 (Nutzer, Chipaufdruck)
 config BOARD_EV_CC_AC1
 	select SOC_STM32F207XX

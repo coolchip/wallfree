@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 # Groessentest: Zephyr-Grundausstattung fuer die Ersatzfirmware (nur Build, nicht flashen)
 cmake_minimum_required(VERSION 3.20.0)
 list(APPEND BOARD_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Vorlaeufige Board-Beschreibung der Steuerung EV-CC-AC1-M3-CBC-RCM-ETH.
  * Belege: wallbe2/docs/takt-adc-gpio.md, ethernet-phy.md, firmware-ladeadresse.md.
