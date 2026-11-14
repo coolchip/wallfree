@@ -70,9 +70,6 @@ async function timed(path) {
 // ------------------------------------------------------------ Texte
 
 const CHARGER = ['Kein Fahrzeug', 'Wartet auf Freigabe', 'Bereit', 'Lädt', 'Fehler'];
-const IEC = ['A – kein Fahrzeug', 'B – verbunden', 'C – lädt', 'D – lädt (Lüftung)', 'E/F – Fehler'];
-const ERRSTATE = ['Kein Fehler', 'Fehler (Details: Status)', 'Schalter-/Konfigurationsfehler',
-	'Fehlerstrom (RCM)', 'Schützfehler', 'Kommunikationsfehler'];
 const LOCK = ['Initialisierung', 'Entriegelt', 'Verriegelt …', 'Verriegelt', 'Entriegelt …', 'Fehler'];
 const STATES = ['S0 Start', 'S1 Bereit', 'S2 Verriegeln', 'S3 Warten', 'S4 Selbsttest', 'S5 PWM an',
 	'S6 Laden', 'S7 Beenden', 'S8 Entriegeln', 'S9 Fehler', 'S10 Nicht verfügbar'];
@@ -504,35 +501,41 @@ function CurrentTable({ l, meter }) {
 function Overview({ live }) {
 	const s = live.state;
 	if (!s) return html`<p class="muted">Warte auf Daten …</p>`;
-	const cls = s.charger_state === 4 || s.error_state ? 'bad' : s.charger_state === 3 ? 'ok' : '';
 	return html`<div class="cards">
-		<${Card} title="Zustand">
-			<div class="big ${cls}">${CHARGER[s.charger_state] || '?'}</div>
-			<div class="muted">Fahrzeug: ${IEC[s.iec61851_state] || '?'}</div>
-		<//>
-		<${Card} title="Fahrzeug darf">
-			<div class="big">${s.allowed_charging_current ? amps(s.allowed_charging_current) : '–'}</div>
-			<div class="muted">Schütz ${s.contactor_state ? 'ein' : 'aus'}</div>
-		<//>
-		<${Card} title="Fehler">
-			<div class="big ${s.error_state ? 'bad' : 'ok'}">${ERRSTATE[s.error_state] || s.error_state}</div>
-			<div class="muted">Verriegelung: ${LOCK[s.lock_state] || '?'}</div>
-		<//>
-		<${MeterCard} m=${live.meter} />
+		<${StatusBar} s=${s} m=${live.meter} />
 		<${CurrentControl} ext=${live.ext} setExt=${live.setExt} limits=${live.limits} meter=${live.meter} />
 	</div><${EventLog} live=${live} />`;
 }
 
-// Uebersicht: Leistung, Zaehlerstand, Zustand
-function MeterCard({ m }) {
-	if (!m) return html`<${Card} title="Zähler"><//>`; // ohne Zaehler leer, damit die Anordnung bleibt
-	const p = mval(m, 74), e = mval(m, 209);
-	const st = m.state ? m.state.status : 'connecting';
-	return html`<${Card} title="Zähler">
-		<div class="big">${p === null ? '–' : num(p / 1000, 2) + ' kW'}</div>
-		<div class="muted">${e === null ? 'Zählerstand –' : 'Zählerstand ' + num(e, 1) + ' kWh'}</div>
-		<div class=${st === 'ok' ? 'muted' : 'warn'}>${METER_STATUS[st] || st}</div>
-	<//>`;
+// Statusleiste (Nutzer 2026-11-12, Entwurf V1): Zustand mit Punkt, daneben nur, was er nicht
+// schon sagt; bei Fehler rot mit Ursache; rechts mit Zaehler Leistung und Zaehlerstand. Der
+// erlaubte Strom steht im Ring, das Schuetz folgt aus dem Zustand.
+const ERR_SHORT = ['', 'Fehler', 'Schalter- oder Konfigurationsfehler', 'Fehlerstrom (RCM)', 'Schützfehler',
+	'Kommunikationsfehler'];
+const LOCK_NOTE = ['', '', 'verriegelt …', 'verriegelt', 'entriegelt …', 'Verriegelung gestört'];
+
+function StatusBar({ s, m }) {
+	const err = s.error_state || s.charger_state === 4;
+	const dot = err ? 'bad' : s.charger_state === 3 ? 'ok' : s.charger_state ? 'acc' : '';
+	const title = err ? (ERR_SHORT[s.error_state] || 'Fehler') : CHARGER[s.charger_state] || '?';
+	const notes = [];
+	if (s.charger_state === 1) notes.push('Freigabe fehlt (Schlüssel oder Energiemanagement)');
+	if (s.iec61851_state === 3) notes.push('Fahrzeug fordert Lüftung');
+	if (LOCK_NOTE[s.lock_state]) notes.push(LOCK_NOTE[s.lock_state]);
+	const p = m ? mval(m, 74) : null, e = m ? mval(m, 209) : null;
+	const st = m ? (m.state ? m.state.status : 'connecting') : null;
+	return html`<section class=${'card wide sbar' + (err ? ' err' : '')}>
+		<div class="sb-main">
+			<span class=${'big ' + (err ? 'bad' : '')}><i class=${'dot ' + dot}></i>${title}</span>
+			${(notes.length > 0 || err) && html`<span class="muted">${notes.join(' · ')}${err
+				? html`${notes.length ? ' · ' : ''}<a href="#/status">Details unter Status</a>` : ''}</span>`}
+		</div>
+		${m && html`<div class="sb-meter">
+			${st !== 'ok' && html`<span class="warn msg">Zähler ${METER_STATUS[st] || st}</span>`}
+			<span><small>Leistung</small><b>${p === null ? '–' : num(p / 1000, 2) + ' kW'}</b></span>
+			<span><small>Zählerstand</small><b>${e === null ? '–' : num(e, 1) + ' kWh'}</b></span>
+		</div>`}
+	</section>`;
 }
 
 // Status: alle Messwerte und Fehlerzaehler (SOLL-MTR-15)

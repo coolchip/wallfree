@@ -107,7 +107,7 @@ Die **Kopfzeile** enthält:
 Der gewählte Bereich steht in der Adresszeile (z. B. `…/#/einstellungen/mqtt`). Die
 Zurück-Taste des Browsers und Lesezeichen funktionieren damit wie gewohnt.
 
-Auf dem Smartphone stehen die Bereiche unter dem Titel, die Kacheln untereinander.
+Auf dem Smartphone stehen die Bereiche unter dem Titel, die Karten untereinander.
 
 ![Übersicht auf dem Smartphone](bilder/handy-uebersicht.png)
 
@@ -125,14 +125,23 @@ der Laufzeit der Steuerung und seiner eigenen Uhr. Sie sind dann auf wenige Seku
 Die Übersicht zeigt den aktuellen Zustand auf einen Blick und erlaubt, den Ladestrom
 vorzugeben.
 
-### 5.1 Kacheln
+### 5.1 Statusleiste
 
-| Kachel | Inhalt |
-| --- | --- |
-| **Zustand** | Zustand der Ladestation: *Kein Fahrzeug*, *Wartet auf Freigabe*, *Bereit*, *Lädt* oder *Fehler*. Darunter der Zustand des Fahrzeugs nach IEC 61851 (A kein Fahrzeug, B verbunden, C lädt, D lädt mit Lüftungsanforderung, E/F Fehler). |
-| **Fahrzeug darf** | Strom, den das Fahrzeug im Moment ziehen darf (vom Ladesignal an das Fahrzeug gemeldet), und ob das Schütz (der Leistungsschalter der Ladestation) ein- oder ausgeschaltet ist. |
-| **Fehler** | *Kein Fehler* oder die Art des Fehlers; darunter der Zustand der Verriegelung des Ladesteckers. Einzelheiten zu Fehlern stehen unter Status. |
-| **Zähler** | Nur mit eingerichtetem Energiezähler: aktuelle Ladeleistung in kW, Zählerstand in kWh und Zustand der Verbindung zum Zähler. Ohne Zähler bleibt die Kachel leer. |
+Die Leiste oben nennt den Zustand der Ladestation mit einem farbigen Punkt: *Kein Fahrzeug*
+(grau), *Wartet auf Freigabe* oder *Bereit* (blau), *Lädt* (grün). Daneben steht nur, was der
+Zustand nicht schon sagt:
+
+- bei *Wartet auf Freigabe*: „Freigabe fehlt (Schlüssel oder Energiemanagement)“,
+- „Fahrzeug fordert Lüftung“ (Zustand D),
+- die Verriegelung, sobald der Stecker verriegelt ist oder sie gerade fährt oder gestört ist.
+
+Bei einem **Fehler** wird die Leiste rot und nennt die Ursache, z. B. *Fehlerstrom (RCM)*;
+der Verweis „Details unter Status“ führt zu den Einzelheiten.
+
+Mit eingerichtetem Energiezähler stehen rechts die **Leistung** in kW und der **Zählerstand**
+in kWh; ist die Verbindung zum Zähler gestört, steht das davor.
+
+Den Strom, den das Fahrzeug ziehen darf, zeigt der Ring darunter.
 
 ### 5.2 Ladestrom
 
@@ -577,7 +586,7 @@ Ist die Weboberfläche nicht erreichbar, führt der Reset-Taster zum Bootloader
 | Anzeige „getrennt“, Inhalt grau | Verbindung unterbrochen (WLAN, Netz, Steuerung startet neu). Die Seite verbindet sich selbst neu. |
 | Anmeldung wird immer wieder abgefragt | Falsche Zugangsdaten. Der Browser schickt nach einer Änderung manchmal noch die alten: neuen Tab oder privates Fenster öffnen. |
 | „zu viele Fehlversuche“ | Sperre nach falschen Anmeldungen ([Abschnitt 3](#3-erste-anmeldung)). Warten (höchstens 5 Minuten) und dann richtig anmelden. Auch Programme mit veralteten Zugangsdaten (z. B. ein Energiemanagement) lösen die Sperre aus; dort die Zugangsdaten anpassen. |
-| Fahrzeug lädt nicht | Übersicht: Schalter Laden und Zeile unter dem Ring („Laden gesperrt“) und Kachel Fehler prüfen; Status › Fehler. Bei „Wartet auf Freigabe“ fehlt die Freigabe ([10.4](#104-freigabe-und-verfügbarkeit)). |
+| Fahrzeug lädt nicht | Übersicht: Statusleiste, Schalter Laden und Zeile unter dem Ring („Laden gesperrt“) prüfen; Status › Fehler. Bei „Wartet auf Freigabe“ fehlt die Freigabe ([10.4](#104-freigabe-und-verfügbarkeit)). |
 | Zähler „gestört“ | [7.4](#74-zähler) |
 | Firmware-Update fehlgeschlagen | Unter System steht „Letztes Update: fehlgeschlagen“; es läuft die bisherige Firmware. Update wiederholen, vorher evcc und andere Abfragen anhalten. Steht die Steuerung danach im Update-Betrieb (alle LEDs der Steuerung an oder blinkend, Weboberfläche nicht erreichbar), alle Abfragen der Wallbox anhalten, die Seite des Bootloaders unter der bisherigen Adresse oder unter 192.168.0.8 öffnen und die Datei dort hochladen ([8.1](#81-firmware-update); Schritt für Schritt: [Rettungsweg](../umruesten.md#5-rettungsweg-steuerung-wartet-im-bootloader)). |
 | Passwort vergessen / Steuerung unerreichbar | **Werksreset:** Reset-Taster der Steuerung gedrückt halten. Die Power-LED bleibt zunächst etwa 5 Sekunden dunkel, blinkt dann 5 Sekunden langsam und danach 5 Sekunden schnell; erst wenn sie **dauerhaft leuchtet** (insgesamt etwa 15 Sekunden), loslassen (geht auch beim Einschalten). Alle Einstellungen und die Zugangsdaten sind danach im Werkszustand (`admin` / `wallfree`, Netzwerk per DHCP). Kurzes Drücken startet die Steuerung nur neu. |
