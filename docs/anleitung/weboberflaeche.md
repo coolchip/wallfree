@@ -155,7 +155,7 @@ bis zum **Maximum**, das am Drehschalter der Steuerung eingestellt ist.
 | blauer Ring **Erlaubt** | Strom, den das Fahrzeug ziehen darf |
 | grüner Innenring **Messwert** | gemessener Strom (höchste Phase), nur mit Energiezähler |
 | orange Marke **Grenze** | eine weitere Grenze unterhalb des Maximums: Belastbarkeit des Ladekabels oder Stromgrenze über einen Digitaleingang |
-| Kreis **Vorgabe** | der vorgegebene Ladestrom; rot bei Vorgabe 0 (Schalter Laden aus) |
+| Kreis **Vorgabe** | der vorgegebene Ladestrom; rot bei Vorgabe 0 („Aus“) |
 | Zahl in der Mitte | Messwert, ohne Zähler der erlaubte Strom; darunter die Leistung |
 | Zeile unter dem Ring | was den Strom gerade begrenzt, z. B. „begrenzt durch Kabel (20 A)“; fehlt, wenn die Vorgabe selbst begrenzt |
 
@@ -166,9 +166,9 @@ Digitaleingang. Unter 6 A wird nicht geladen (Grenze der Norm).
 
 | Element | Wirkung |
 | --- | --- |
-| **−** / **+** | Vorgabe in Schritten von 1 A zwischen 6 A und dem Maximum; dazwischen steht die Vorgabe („aus“ bei 0) |
-| **6 / 10 / 16 / 32 A** | Vorgabe auf diesen Wert (Werte über dem Maximum entfallen) |
-| Schalter **Laden** | aus: Vorgabe 0, ein laufender Ladevorgang endet geordnet, ein neuer beginnt nicht; ein: Vorgabe auf das Maximum |
+| **−** / **+** | Vorgabe in Schritten von 1 A zwischen 6 A und dem Maximum; dazwischen steht die Vorgabe („aus“ bei 0). „−“ geht nicht unter 6 A, „+“ startet aus „aus“ mit 6 A |
+| **Aus** (rot, vorn in der Auswahl) | Vorgabe 0: Ein laufender Ladevorgang endet geordnet, ein neuer beginnt nicht. Gewählt ist das Feld rot hinterlegt |
+| **6 / 10 / 16 / 32 A** | Vorgabe auf diesen Wert (Werte über dem Maximum entfallen); startet auch aus „Aus“ heraus |
 
 Die Vorgabe gilt bis zur nächsten Änderung oder bis zum Neustart der Steuerung; danach gilt
 der Startwert (Parameter `external_current_default`, [7.1](#71-laden)). Ein angeschlossenes
@@ -587,7 +587,7 @@ Ist die Weboberfläche nicht erreichbar, führt der Reset-Taster zum Bootloader
 | Anzeige „getrennt“, Inhalt grau | Verbindung unterbrochen (WLAN, Netz, Steuerung startet neu). Die Seite verbindet sich selbst neu. |
 | Anmeldung wird immer wieder abgefragt | Falsche Zugangsdaten. Der Browser schickt nach einer Änderung manchmal noch die alten: neuen Tab oder privates Fenster öffnen. |
 | „zu viele Fehlversuche“ | Sperre nach falschen Anmeldungen ([Abschnitt 3](#3-erste-anmeldung)). Warten (höchstens 5 Minuten) und dann richtig anmelden. Auch Programme mit veralteten Zugangsdaten (z. B. ein Energiemanagement) lösen die Sperre aus; dort die Zugangsdaten anpassen. |
-| Fahrzeug lädt nicht | Übersicht: Statusleiste, Schalter Laden und Zeile unter dem Ring („Laden gesperrt“) prüfen; Status › Fehler. Bei „Wartet auf Freigabe“ fehlt die Freigabe ([10.4](#104-freigabe-und-verfügbarkeit)). |
+| Fahrzeug lädt nicht | Übersicht: Statusleiste, Auswahl unter dem Ring (steht sie auf „Aus“?) und Zeile unter dem Ring („Laden gesperrt“) prüfen; Status › Fehler. Bei „Wartet auf Freigabe“ fehlt die Freigabe ([10.4](#104-freigabe-und-verfügbarkeit)). |
 | Zähler „gestört“ | [7.4](#74-zähler) |
 | Firmware-Update fehlgeschlagen | Unter System steht „Letztes Update: fehlgeschlagen“; es läuft die bisherige Firmware. Update wiederholen, vorher evcc und andere Abfragen anhalten. Steht die Steuerung danach im Update-Betrieb (alle LEDs der Steuerung an oder blinkend, Weboberfläche nicht erreichbar), alle Abfragen der Wallbox anhalten, die Seite des Bootloaders unter der bisherigen Adresse oder unter 192.168.0.8 öffnen und die Datei dort hochladen ([8.1](#81-firmware-update); Schritt für Schritt: [Rettungsweg](../umruesten.md#5-rettungsweg-steuerung-wartet-im-bootloader)). |
 | Passwort vergessen / Steuerung unerreichbar | **Werksreset:** Reset-Taster der Steuerung gedrückt halten. Die Power-LED bleibt zunächst etwa 5 Sekunden dunkel, blinkt dann 5 Sekunden langsam und danach 5 Sekunden schnell; erst wenn sie **dauerhaft leuchtet** (insgesamt etwa 15 Sekunden), loslassen (geht auch beim Einschalten). Alle Einstellungen und die Zugangsdaten sind danach im Werkszustand (`admin` / `wallfree`, Netzwerk per DHCP). Kurzes Drücken startet die Steuerung nur neu. |
@@ -703,6 +703,14 @@ E/F Fehler bzw. nicht verfügbar).
   dann Zustand F gemeldet.
 - Ohne D10 wirkt die Vorgabe des Ladestroms (Übersicht, Energiemanagement) unabhängig davon:
   Vorgabe 0 sperrt das Laden, entzieht aber nicht die Freigabe.
+
+**Einstellbeispiele mit Schlüsselschalter an EN (Eingangscode 1) und Energiemanagement:**
+
+| Gewünscht | DIP | Verhalten |
+| --- | --- | --- |
+| Schlüssel ist die Freigabe | D7 an, D10 aus | Schlüssel aus: kein Laden, egal was das Energiemanagement vorgibt. Schlüssel an: Das Energiemanagement startet, stoppt (Vorgabe 0) und regelt den Strom. |
+| Schlüssel ist Zwangsladen | D7 an, D10 an | Schlüssel aus: Das Energiemanagement startet und stoppt über die Vorgabe. Schlüssel an: Laden mit dem Höchststrom, unabhängig von der Vorgabe. |
+| ohne Schlüssel | D10 an, D7 aus | Das Energiemanagement startet und stoppt über die Vorgabe. |
 
 ### 10.5 Fehler
 

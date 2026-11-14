@@ -437,8 +437,9 @@ function Gauge({ l, meter }) {
 	</div>`;
 }
 
-// Bedienung unter dem Ring (Nutzer 2026-11-12, Entwurf A): Stepper fuer die Vorgabe, feste
-// Werte als Segmentauswahl, Schalter "Laden": aus = Vorgabe 0, ein = Maximum (Nutzer 2026-11-13)
+// Bedienung unter dem Ring (Nutzer 2026-11-12, Entwurf A): Stepper fuer die Vorgabe (nur 6 A bis
+// Maximum, nie aus), feste Werte als Segmentauswahl mit "Aus" (Vorgabe 0) vorn, rot und abgetrennt
+// (Nutzer 2026-11-14, Entwurf B+D)
 function CurrentControl({ ext, setExt, limits, meter }) {
 	const [msg, setMsg] = useState(null);
 	if (!limits) return null;
@@ -459,14 +460,13 @@ function CurrentControl({ ext, setExt, limits, meter }) {
 			<b class=${on ? '' : 'bad'}>${on ? amps(ma) : 'aus'}</b>
 			<button class="round" aria-label="mehr" onClick=${() => send(cur < 6 ? 6 : Math.min(Math.floor(cur) + 1, max))}>+</button>
 		</div>
-		<div class="seg">${[6, 10, 16, 32].filter((a) => a <= max).map((a, k, all) =>
+		<div class="seg">
+			<button class=${'off' + (on ? '' : ' on')} onClick=${() => send(0)}><svg viewBox="0 0 16 16"
+				aria-hidden="true"><path d="M8 1.5v6M4.5 3.8a5.5 5.5 0 1 0 7 0" /></svg>Aus</button>
+			${[6, 10, 16, 32].filter((a) => a <= max).map((a, k, all) =>
 			html`<button class=${ma === a * 1000 ? 'on' : ''} onClick=${() => send(a)}>${a}${k === all.length - 1 ? ' A' : ''}</button>`)}</div>
 		<${Msg} m=${msg} />
-		<div class="cfoot">
-			<label class="switch"><input type="checkbox" checked=${on}
-				onChange=${(e) => send(e.target.checked ? max : 0)} /><i></i>Laden</label>
-			<span class="muted msg">Ein Energiemanagement kann die Vorgabe überschreiben.</span>
-		</div>
+		<p class="muted msg center">Ein Energiemanagement kann die Vorgabe überschreiben.</p>
 	</section>`;
 }
 

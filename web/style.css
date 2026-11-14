@@ -115,16 +115,11 @@ button.round { width: 38px; height: 38px; padding: 0; border-radius: 50%; font-s
 .seg button { border: 0; border-radius: 0; border-right: 1px solid var(--line); padding: 7px 14px; min-width: 48px; }
 .seg button:last-child { border-right: 0; }
 .seg button.on { background: var(--accent); color: #fff; }
-.cfoot { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap;
-	margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
-label.switch { display: inline-flex; align-items: center; gap: 10px; font-size: 15px; color: var(--fg); cursor: pointer; }
-.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.switch i { position: relative; width: 40px; height: 24px; border-radius: 12px; background: var(--line); transition: background .15s; }
-.switch i::after { content: ""; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%;
-	background: #fff; transition: left .15s; }
-.switch input:checked + i { background: var(--ok); }
-.switch input:checked + i::after { left: 19px; }
-.switch input:focus-visible + i { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seg button.off { color: var(--bad); border-right-width: 3px; display: inline-flex; align-items: center; gap: 5px; }
+.seg button.off svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.seg button.off.on { background: var(--bad); color: #fff; font-weight: 600; }
+.seg button { white-space: nowrap; }
+.center { text-align: center; }
 .legend { text-align: center; }
 .legend { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
 .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 8px; vertical-align: -1px; }
