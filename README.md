@@ -91,7 +91,6 @@ Rückweg Schritt für Schritt: [Umrüsten auf Wallfree und zurück](docs/umruest
 | [docs/anleitung/weboberflaeche.md](docs/anleitung/weboberflaeche.md) | Bedienungsanleitung der Weboberfläche (PDF: `scripts/anleitung-pdf.sh`) |
 | [boards/phoenix/ev_cc_ac1/](boards/phoenix/ev_cc_ac1/) | Zephyr-Board-Beschreibung (Pins aus der Originalfirmware, an einer wallbe Eco 2.0 bestätigt) |
 | [app/](app/) | Anwendung für die Steuerung: Hardwareschicht, Threads, Shell; zusätzlich als PC-Simulation |
-| [spike-size/](spike-size/) | Größentest vor der Entscheidung für Zephyr (nur bauen) |
 | [include/wallfree/evse/](include/wallfree/evse/), [lib/evse/](lib/evse/) | Ladelogik als Zephyr-Modul, reines C ohne Hardwarebezug |
 | [include/wallfree/nvm/](include/wallfree/nvm/), [lib/nvm/](lib/nvm/) | Parameterspeicher (Log-Format in Sektor 7) und Leser für den Originalbereich, reines C |
 | [include/wallfree/api/](include/wallfree/api/), [lib/api/](lib/api/) | Digest-Anmeldung, JSON, Abbildung der Ladelogik auf die WARP-angelehnte API, reines C |

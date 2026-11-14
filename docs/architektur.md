@@ -94,7 +94,7 @@ und 7 bleiben über Updates und den Rückweg zur Originalfirmware erhalten).
 
 ## 5. Speicherbudget
 
-Größentest vor der Entscheidung (`spike-size/`, nur gebaut): Zephyr mit IPv4, DHCP, TCP,
+Größentest vor der Entscheidung (eigenes kleines Projekt, nur gebaut, nicht mehr im Repository): Zephyr mit IPv4, DHCP, TCP,
 HTTP-Server, Telnet-Shell mit Netz-Kommandos, Settings, ADC, PWM, Watchdog: **207 KB Flash,
 85 KB RAM**. Zum Vergleich: das Original belegt mit Weboberfläche, OCPP, Modbus und lwIP
 ~318 KB.
@@ -209,7 +209,6 @@ für den WebSocket-Handshake). Twister-/Testabhaengigkeiten sind in der venv ins
 ```sh
 cd ~/zephyrproject && . .venv/bin/activate && cd zephyr
 west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/app -d /pfad/zu/wallfree/build/ev_cc_ac1
-west build -p always -b ev_cc_ac1 /pfad/zu/wallfree/spike-size -d ~/zephyrproject/build-spike
 west build -d /pfad/zu/wallfree/build/ev_cc_ac1 -t rom_report   # bzw. ram_report
 ```
 

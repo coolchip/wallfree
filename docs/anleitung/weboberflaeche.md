@@ -166,7 +166,7 @@ Digitaleingang. Unter 6 A wird nicht geladen (Grenze der Norm).
 
 | Element | Wirkung |
 | --- | --- |
-| **−** / **+** | Vorgabe in Schritten von 1 A zwischen 6 A und dem Maximum; dazwischen steht die Vorgabe („aus“ bei 0). „−“ geht nicht unter 6 A, „+“ startet aus „aus“ mit 6 A |
+| **−** / **+** | Vorgabe in Schritten von 1 A zwischen 6 A und dem Maximum; dazwischen steht die Vorgabe („aus“ bei 0), höchstens das Maximum: Ab Werk ist die Vorgabe nicht eingeschränkt und zeigt deshalb das Maximum. „−“ geht nicht unter 6 A, „+“ startet aus „aus“ mit 6 A |
 | **Aus** (rot, vorn in der Auswahl) | Vorgabe 0: Ein laufender Ladevorgang endet geordnet, ein neuer beginnt nicht. Gewählt ist das Feld rot hinterlegt |
 | **6 / 10 / 16 / 32 A** | Vorgabe auf diesen Wert (Werte über dem Maximum entfallen); startet auch aus „Aus“ heraus |
 

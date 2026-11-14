@@ -445,6 +445,7 @@ function CurrentControl({ ext, setExt, limits, meter }) {
 	if (!limits) return null;
 	const max = limits.hardware / 1000 || 32;
 	const ma = ext ? ext.current : 0;
+	// Anzeige hoechstens das Maximum: ab Werk steht die Vorgabe auf 80 A (= keine Einschraenkung)
 	const cur = Math.min(ma / 1000, max);
 	const on = ma > 0;
 	const send = async (a) => {
@@ -457,14 +458,14 @@ function CurrentControl({ ext, setExt, limits, meter }) {
 		<${Gauge} l=${limits} meter=${meter} />
 		<div class="stepper" aria-label="Vorgabe">
 			<button class="round" aria-label="weniger" onClick=${() => send(cur <= 6 ? 6 : Math.ceil(cur) - 1)}>−</button>
-			<b class=${on ? '' : 'bad'}>${on ? amps(ma) : 'aus'}</b>
+			<b class=${on ? '' : 'bad'}>${on ? amps(cur * 1000) : 'aus'}</b>
 			<button class="round" aria-label="mehr" onClick=${() => send(cur < 6 ? 6 : Math.min(Math.floor(cur) + 1, max))}>+</button>
 		</div>
 		<div class="seg">
 			<button class=${'off' + (on ? '' : ' on')} onClick=${() => send(0)}><svg viewBox="0 0 16 16"
 				aria-hidden="true"><path d="M8 1.5v6M4.5 3.8a5.5 5.5 0 1 0 7 0" /></svg>Aus</button>
 			${[6, 10, 16, 32].filter((a) => a <= max).map((a, k, all) =>
-			html`<button class=${ma === a * 1000 ? 'on' : ''} onClick=${() => send(a)}>${a}${k === all.length - 1 ? ' A' : ''}</button>`)}</div>
+			html`<button class=${cur === a ? 'on' : ''} onClick=${() => send(a)}>${a}${k === all.length - 1 ? ' A' : ''}</button>`)}</div>
 		<${Msg} m=${msg} />
 		<p class="muted msg center">Ein Energiemanagement kann die Vorgabe überschreiben.</p>
 	</section>`;

@@ -109,6 +109,7 @@ await shell('sim car C');
 await sleep(4000);
 out.simple2 = await text();
 out.gauge2 = await evalJs("[...document.querySelectorAll('.gauge text')].map((t) => t.textContent).join('|')");
+out.stepper2 = await evalJs("document.querySelector('.stepper b').textContent + '|' + [...document.querySelectorAll('.seg button.on')].map((b) => b.textContent).join(',')");
 await shot('2-einfach-laden');
 
 out.clickOff = await click('Aus');
@@ -288,6 +289,7 @@ const checks = [
 	['Ereignis Start (live nachgereicht)', out.simple2.includes('S0 Start → S1 Bereit')],
 	['Laden', out.simple2.includes('Lädt') && out.simple2.includes('Schütz ein')],
 	['Maximum wirkt sichtbar', out.simple2.includes('begrenzt durch Maximum Drehschalter (32 A)')],
+	['Vorgabe ab Werk zeigt das Maximum statt 80 A', out.stepper2 === '32 A|32 A'],
 	['Feld Aus: Laden endet, Vorgabe aus', out.clickOff && out.simple3.includes('S7 Beenden → S3 Warten') && out.stepper3 === 'aus|off on'],
 	['Status: Ladestrom als Werte', out.expert.includes('Maximum Drehschalter') && out.expert.includes('Erlaubt')],
 	['Status: Verlauf ohne Ablesezeile, Hinweis nur beim Zeigen', !out.tipBefore && out.history.includes('jetzt')],

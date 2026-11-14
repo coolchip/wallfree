@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 /*
- * Vorlaeufige Board-Beschreibung der Steuerung EV-CC-AC1-M3-CBC-RCM-ETH.
+ * Board-Beschreibung der Steuerung EV-CC-AC1-M3-CBC-RCM-ETH.
  * Belege: wallbe2/docs/takt-adc-gpio.md, ethernet-phy.md, firmware-ladeadresse.md.
- * Nur fuer statische Builds; auf Hardware nicht erprobt und nicht freigegeben.
+ * Auf der Steuerung einer wallbe Eco 2.0 in Betrieb (docs/implementierung.md).
  * Flash-Aufteilung: docs/architektur.md (Sektoren 0..2 Bootloader,
  * Sektor 3 Originalparameter, Anwendung ab 0x08010000, Parameter in Sektor 7).
  */

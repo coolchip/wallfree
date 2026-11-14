@@ -467,7 +467,8 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    (Nutzer 2026-11-13): Die WARP selbst meldet C nur, wenn Strom erlaubt ist, sonst B; Wallfree
    meldet `iec61851_state` jetzt ebenso. Nach dem Ausschalten sieht evcc sofort „verbunden“, kein
    Wiedereinschalten. Vorher lokal mit evcc-Patch (10 min statt 60 s) geprüft; der Patch und ein
-   Issue bei evcc sind damit nicht mehr nötig. Am zweiten Gerät noch zu bestätigen.
+   Issue bei evcc sind damit nicht mehr nötig. Am zweiten Gerät mit `f6f0036` bestätigt (Nutzer 2026-11-14):
+   keine Warnung mehr.
 5. **Schützüberwachung:** das zweite Gerät hat den Hilfskontakt (`ct_sense` folgt dem Schütz), übernommen war
    aus dem Original `contactor_monitor` 0. Eingeschaltet (1, Via Sense, Nutzer 2026-11-08) und mit
    Laden, evcc-Pause (17 s), Fortsetzen und Ende geprüft: Schütz jeweils 5,0 s nach S7 aus,
