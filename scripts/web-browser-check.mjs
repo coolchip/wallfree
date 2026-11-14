@@ -111,9 +111,10 @@ out.simple2 = await text();
 out.gauge2 = await evalJs("[...document.querySelectorAll('.gauge text')].map((t) => t.textContent).join('|')");
 await shot('2-einfach-laden');
 
-out.clickOff = await click('Laden aus');
+out.clickOff = await click('Aus');
 await sleep(7000);
 out.simple3 = await text();
+out.stepper3 = await evalJs("document.querySelector('.stepper b').textContent + '|' + document.querySelector('.seg button.off').className");
 await shot('2b-einfach-laden-aus');
 const go = async (hash) => { await evalJs(`location.hash = ${JSON.stringify(hash)}`); await sleep(2500); return text(); };
 out.expert = await go('#/status');
@@ -287,7 +288,7 @@ const checks = [
 	['Ereignis Start (live nachgereicht)', out.simple2.includes('S0 Start → S1 Bereit')],
 	['Laden', out.simple2.includes('Lädt') && out.simple2.includes('Schütz ein')],
 	['Maximum wirkt sichtbar', out.simple2.includes('begrenzt durch Maximum Drehschalter (32 A)')],
-	['Laden aus', out.simple3.includes('S7 Beenden → S3 Warten') && out.simple3.includes('Vorgabe: Laden aus')],
+	['Feld Aus: Laden endet, Vorgabe aus', out.clickOff && out.simple3.includes('S7 Beenden → S3 Warten') && out.stepper3 === 'aus|off on'],
 	['Status: Ladestrom als Werte', out.expert.includes('Maximum Drehschalter') && out.expert.includes('Erlaubt')],
 	['Status: Verlauf ohne Ablesezeile, Hinweis nur beim Zeigen', !out.tipBefore && out.history.includes('jetzt')],
 	['Status: Verlauf (laufendes Intervall)', /jetzt .* · (lädt|angesteckt)/.test(out.history)],
@@ -335,7 +336,7 @@ if (withMeter) {
 } else {
 	checks.push(['ohne Zaehler: Ring zeigt erlaubt', out.gauge2.includes('|32 A|erlaubt')]);
 	checks.push(['ohne Zaehler: kein Messwert', !out.gauge2.includes('Messwert') && !out.simple2.includes('Messwert')]);
-	checks.push(['ohne Zaehler: leere Zaehlerkachel', /zähler\n/i.test(out.simple1) && !/ kW/.test(out.simple1)]);
+	checks.push(['ohne Zaehler: Statusleiste ohne Leistung', out.simple1.includes('Kein Fahrzeug') && !/ kW/.test(out.simple1)]);
 	checks.push(['ohne Zaehler: Verlauf nur Strom', out.history.startsWith('1|') && !/kW/.test(out.history)]);
 }
 let bad = 0;

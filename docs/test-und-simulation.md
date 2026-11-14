@@ -8,8 +8,8 @@ Steuerung läuft). Sie belegen nichts über die reale Hardware (Pegel, Zeiten, I
 | Ebene | Umfang | Stand |
 | --- | --- | --- |
 | PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezähler, MQTT ohne Netz | 249 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zähler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
-| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zähler, lokalen MQTT-Broker | 74 Tests, alle bestanden, ca. 460 s (T5Mqtt gelegentlich wegen eines Simulationsfehlers, Fallstricke) |
-| Browser-Durchlauf | Weboberfläche in headless Chrome gegen die Simulation | ohne Zähler 20 Prüfungen bestanden (2026-10-26); mit Zähler zuletzt 2026-10-21 bestanden |
+| Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zähler, lokalen MQTT-Broker | 74 Tests, alle bestanden (2026-11-14), ca. 580 s (T5Mqtt gelegentlich wegen eines Simulationsfehlers, Fallstricke) |
+| Browser-Durchlauf | Weboberfläche in headless Chrome gegen die Simulation | ohne Zähler 39 Prüfungen bestanden (2026-11-14); mit Zähler zuletzt 2026-10-21 bestanden, seit der Statusleiste nicht wiederholt |
 | Netz-Lasttest | `scripts/net-load.py` gegen Simulation (nur Skriptprüfung) und das Testgerät | auf dem Testgerät bestanden ([Implementierung](implementierung.md#prüfungen-auf-box-t)) |
 | MQTT im LAN | Simulation gegen Mosquitto 2.1.2 im Heimnetz (von Hand, 2026-10-21) | Zustände, Zählerwerte (etwa 1/s), Ereignisse, Befehl Ladestrom, `online` true/false |
 | evcc | evcc 0.317.2 mit Vorlage `tinkerforge-warp-ws` gegen die Simulation | Laden, Aus/Sofort, Abstecken, Neustart; mit Zähler Leistung, Zählerstand, Phasenströme und -spannungen |
@@ -108,8 +108,8 @@ Simulation (Zugangsdaten vorher geändert; läuft schon eine zweite, eigenen Tel
 beantwortet Chrome selbst. Ablauf: Seite laden ("verbunden" über WebSocket), einfache Ansicht
 ab Werk (Status mit Verbindungen, ohne Rohwerte; Einstellungen ohne "Laden" und ohne Zustandszeile), Expertenansicht auf der Seite
 System einschalten (im `localStorage` gespeichert), `sim car C` (Laden; Ring
-zeigt "begrenzt durch Maximum Drehschalter (32 A)", ohne Zähler "32 A erlaubt"), Knopf
-"Laden aus" (S6 -> S7 -> S3, "Vorgabe: Laden aus"), Status (Ladestrom-Tabelle, Verlauf
+zeigt "begrenzt durch Maximum Drehschalter (32 A)", ohne Zähler "32 A erlaubt"), Feld
+"Aus" (S6 -> S7 -> S3, Vorgabe "aus", Feld gewählt), Status (Ladestrom-Tabelle, Verlauf
 mit laufendem Intervall, Ereignisprotokoll mit Fehlversuch und Taste "Protokoll löschen"), Einstellungen/Netzwerk und /Zaehler,
 System mit Konsole (`status` ausführen, Tab ergänzt `sta`, Vorschläge nach
 `param get lock_`), Zurück-Taste (Adresse im Hash), `sim car A`, Status neu geladen: alle Abfragen über eine TCP-Verbindung; Tab verborgen
@@ -126,7 +126,9 @@ Mit `meter` (in der Simulation `meter_type` != 0) zusätzlich: Zählerkarte mit 
 Laden, Messwert mit Leistung im Ring, Messwerte und Fehlerzähler, Leistung im Verlauf, Auswahlliste des Zählertyps mit Zustand;
 ohne Zähler zeigt der Verlauf nur den Strom. Nicht abgedeckt: erste Anmeldung im Werkszugang
 (Seite "Zugangsdaten festlegen"; Ende-zu-Ende-Test prüft die API), Firmware-Update (eigener
-Durchlauf, unten). Simulation 2026-10-27: bestanden.
+Durchlauf, unten). Simulation 2026-11-14 ohne Zähler: bestanden; der Lauf mit Zähler ist seit
+der Statusleiste (2026-11-13) nicht wiederholt, seine Prüfungen der Zähleranzeige in der
+Übersicht erwarten noch die frühere Kachel.
 
 ### Firmware-Update im Browser
 
