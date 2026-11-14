@@ -1,13 +1,13 @@
 # Test und Simulation
 
-Stand: 2026-10-26. Die Tests hier laufen auf dem PC (außer dem Netz-Lasttest, der auch gegen die
+Stand: 2026-11-14. Die Tests hier laufen auf dem PC (außer dem Netz-Lasttest, der auch gegen die
 Steuerung läuft). Sie belegen nichts über die reale Hardware (Pegel, Zeiten, Interrupts) und
 **keine elektrische Sicherheit**; Prüfungen auf der Steuerung:
 [Implementierung](implementierung.md#prüfungen-auf-box-t).
 
 | Ebene | Umfang | Stand |
 | --- | --- | --- |
-| PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezähler, MQTT ohne Netz | 243 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zähler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
+| PC-Tests (ztest) | Ladelogik, Parameterspeicher, API-Bausteine, Energiezähler, MQTT ohne Netz | 249 Tests in sechs Testprogrammen, alle bestanden; Abdeckung `lib/` zuletzt (vor dem Zähler) 96 % Zeilen, 88 % Verzweigungen (nicht abgedeckt sind vor allem Lesefehler des Flashs) |
 | Ende-zu-Ende | ganze Anwendung als `native_sim`-Programm gegen HTTP, Digest, WebSocket, Shell, Neustarts, simulierten Zähler, lokalen MQTT-Broker | 74 Tests, alle bestanden, ca. 460 s (T5Mqtt gelegentlich wegen eines Simulationsfehlers, Fallstricke) |
 | Browser-Durchlauf | Weboberfläche in headless Chrome gegen die Simulation | ohne Zähler 20 Prüfungen bestanden (2026-10-26); mit Zähler zuletzt 2026-10-21 bestanden |
 | Netz-Lasttest | `scripts/net-load.py` gegen Simulation (nur Skriptprüfung) und das Testgerät | auf dem Testgerät bestanden ([Implementierung](implementierung.md#prüfungen-auf-box-t)) |
@@ -230,5 +230,9 @@ Verhalten von evcc (Grundlage für F12 und SOLL-API-32):
   11 040 W), auch wenn wirksam weniger gilt. Mit Zähler nimmt evcc die gemessenen Werte
   (`meters/0/values`); die Fähigkeiten liest es nur beim Verbinden, nach Änderung von
   `meter_type` evcc neu starten.
-- `charger logic error: disabled but charging` erscheint, solange nach "aus" der CP-Zustand C
-  bleibt (nur beim Modellfahrzeug dauerhaft; WARP meldet dasselbe).
+- Bleibt ein Fahrzeug nach "aus" im CP-Zustand C (das Modellfahrzeug dauerhaft, ein Nissan Leaf
+  etwa 5 min), meldet Wallfree wie die WARP `iec61851_state` B, solange kein Strom erlaubt ist
+  (F36); evcc sieht dann "verbunden" statt `charger logic error: disabled but charging`
+  (PC-Tests `test_evse_api`, `test_charger2`). Die Zeile zu F34 in der Tabelle oben wurde vor
+  F36 aufgenommen; die Meldung beim Neustart mit Fahrzeug in C ist seitdem mit evcc nicht
+  erneut geprüft.

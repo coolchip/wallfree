@@ -1,11 +1,11 @@
 # Prüfstecker, Stufe C und D
 
-Stand: 2026-11-07. Plan für einen selbstgebauten Prüfstecker (Fahrzeugnachbildung an der
+Stand: 2026-11-14. Plan für einen selbstgebauten Prüfstecker (Fahrzeugnachbildung an der
 Typ-2-Steckdose) und den Prüfablauf der Stufe C auf dem Testgerät (CP-PWM, Verriegelung mit Stecker,
 Fehlerstrom, Schütz, evcc). Prüfstecker gebaut (Nutzer 2026-11-07). Stufe C ist freigegeben
 ([Abschnitt 7](#7-freigabe-stufe-c)) und auf dem Testgerät durchgeführt (C1..C6, 2026-11-07; Ergebnisse in
-[Implementierung](implementierung.md#prüfungen-auf-box-t)). Stufe D mit Fahrzeug am zweiten Gerät ist geplant
-([Abschnitt 8](#8-stufe-d-laden-mit-fahrzeug-box-g)).
+[Implementierung](implementierung.md#prüfungen-auf-box-t)). Stufe D mit Fahrzeug am zweiten Gerät ist durchgeführt
+(ab 2026-11-08, Plan, Ergebnisse und Befunde in [Abschnitt 8](#8-stufe-d-laden-mit-fahrzeug-box-g)).
 
 ## 1. Grundsatz: keine Netzspannung im Prüfstecker
 
@@ -260,7 +260,8 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
   mit `scripts/update.sh --upload-only 192.168.0.8`. Wallfree (`23f3260`) bezieht wie das Original
   die Adresse per DHCP und bekommt im Heimnetz mit derselben MAC wieder 192.168.1.60, Name
   `wallfree-d4e5f6`.
-- Das zweite Gerät bleibt im Bootloader hängen** (2026-11-08, Ursache offen): Nach Aus/Ein der Box
+- Das zweite Gerät bleibt im Bootloader hängen** (2026-11-08/09; Ursache: fremde Abfragen während des
+  Uploads, siehe unten): Nach Aus/Ein der Box
   (lief `23f3260`) und beim Update über die API von `46edcb3` auf `7eb08f9` (Übergabe an den
   Bootloader mit Adresse 192.168.1.60, Upload ohne Fehlermeldung, beim Laden mit Schlüssel)
   meldete sich Wallfree nicht zurück; das zweite Gerät war im Heimnetz verschwunden und wartete unter
@@ -269,8 +270,8 @@ Einstellungen des zweiten Geräts laut Weboberfläche des Originals: [wallbe2 Ha
   Wallfree (`update_result` Modus 4). Nach dem Update lud der Leaf wieder (Schlüssel, S6). An
   Das Testgerät läuft derselbe Update-Weg zuverlässig (Modus 2). Modus 4 heißt beim untersuchten
   Bootloader des Testgeräts "kein startbares Programm" (ungültiger Stack-Pointer bei `0x08010000`),
-  ohne Zeitablauf; das zweite Gerät hat Bootloader 1.03 (am 2026-11-09 mit `flashread` ausgelesen, Analyse
-  offen, Optionsbytes: BOR aus). Update `7eb08f9` -> `9f39b42` am 2026-11-09 per DHCP
+  ohne Zeitablauf; das zweite Gerät hat Bootloader 1.03 (am 2026-11-09 mit `flashread` ausgelesen und
+  analysiert, Optionsbytes: BOR aus). Update `7eb08f9` -> `9f39b42` am 2026-11-09 per DHCP
   (192.168.0.223 an der USB-Karte), nach dem Upload nur Ping statt `GET`: Wallfree nach etwa 10 s
   zurück unter derselben Adresse, Modus 2 ok, 192.168.0.8 nie erreichbar. Laut Analyse von 1.03
   landet der Bootloader nach einer Übergabe nur dann unter 192.168.0.8, wenn alle Upload-Versuche

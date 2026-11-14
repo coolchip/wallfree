@@ -60,7 +60,7 @@ Zum Testen mit evcc: [Test und Simulation](test-und-simulation.md#evcc-gegen-die
 Der Telnet-Client startet im Zeilenmodus; Pfeiltasten erscheinen dann als `^[[A` und wirken erst
 mit Enter. Für Historie (Pfeil hoch/runter), Zeilenbearbeitung und Tab-Vervollständigung nach
 dem Verbinden einmal **Strg+]** drücken und `mode character` eingeben. (Eine `~/.telnetrc`
-schaltet den Modus bei inetutils-telnet nicht um.) Das gilt genauso für die Steuerung.
+schaltet den Modus bei inetutils-telnet nicht um.)
 
 ## Das Kommando `sim`
 

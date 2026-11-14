@@ -1,13 +1,13 @@
 # Soll-Spezifikation der Ersatzfirmware "Wallfree"
 
-Stand: 2026-10-26. Beschreibt, **was die Ersatzfirmware tun soll**, bezogen auf
+Stand: 2026-11-14. Beschreibt, **was die Ersatzfirmware tun soll**, bezogen auf
 die Klemmen der Steuerung **EV-CC-AC1-M3-CBC-RCM-ETH** (Phoenix Contact). Das
 Originalverhalten steht in der [Ladeautomat-Spezifikation](../../wallbe2/docs/ladeautomat-spezifikation.md)
 (im Folgenden "Ist-Spez."). Diese Datei ist Grundlage für Implementierung und Tests.
 Sie ist **kein Sicherheitsnachweis**. Weder bestandene Tests noch diese Spezifikation
 belegen elektrische Sicherheit oder Eignung für den Ladebetrieb.
 
-Die Fragen F1..F32 sind entschieden (F32 durch SOLL-TIME ersetzt) ([Abschnitt 15](#15-entscheidungen-und-offene-punkte)).
+Die Fragen F1..F39 sind entschieden (F19 entfallen mit F37, F32 durch SOLL-TIME ersetzt) ([Abschnitt 15](#15-entscheidungen-und-offene-punkte)).
 Umsetzungsstand und Festlegungen im Detail: [Implementierung](implementierung.md).
 
 ## Lesehilfe
@@ -1106,9 +1106,10 @@ Taster, Persistenz.
 
 ## 15. Entscheidungen und offene Punkte
 
-### 15.1 Entscheidungen des Nutzers zu F1..F30
+### 15.1 Entscheidungen des Nutzers zu F1..F39
 
-F1..F27 am 2026-10-19 entschieden (F12 am 2026-10-20 bestätigt), F28..F30 am 2026-10-21; die betroffenen
+F1..F27 am 2026-10-19 entschieden (F12 am 2026-10-20 bestätigt), F28..F30 am 2026-10-21, spätere mit
+Datum in der Tabelle; die betroffenen
 Anforderungen sind angepasst. Rahmenentscheidungen (Zephyr, Takt, Speicher, Weboberfläche,
 Projekt): [Architektur](architektur.md#2-entscheidungen).
 
@@ -1145,14 +1146,14 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 | F29 | Modbus-Implementierung | Modbus-Client von Zephyr, gekapselt und austauschbar; Fehlerzähler zur Beurteilung | ein eigener Master wäre kaum kleiner; Austausch, falls die Fehlerzähler im Betrieb Probleme zeigen | SOLL-MTR-04/15, [Architektur](architektur.md#5-speicherbudget) |
 | F30 | MQTT-Client (2026-10-21) | MQTT 3.1.1 ohne TLS, Zustände als WARP-JSON (kein Einzelwert je Topic); Home-Assistant-Erkennung seit 2026-10-27 (Nutzer: viele Nutzer haben Home Assistant, SOLL-MQTT-40..42); Befehle minimal (Ladestrom), erweiterbar, Default aus; zusätzlich Erreichbarkeit per Last Will | Anbindung an vorhandene MQTT-Umgebungen mit demselben Datenformat wie HTTP und WebSocket; der Ladestrom muss über MQTT setzbar sein; weitere Befehle sollen später ohne Umbau möglich sein | 12.6, 10.1 |
 | F31 | Gliederung der Weboberfläche, Verlauf (2026-10-21) | Bereiche Übersicht, Status (bis 2026-10-27 "Insights", Nutzer: deutscher Begriff), Einstellungen, System statt "Einfach"/"Experte"; Leiste oben; Verlauf als Ringpuffer nur im RAM; keine Ladesitzungen | bei vier Bereichen versteckt ein Seitenmenü nur; Einstellungen und Status getrennt statt in einer Karte gemischt; Flash nicht für Verläufe (Verschleiß, Aufwand), Sitzungen vorerst nicht benötigt; einige KB RAM sind frei | SOLL-API-31/33 |
+| F32 | Uhrzeit (2026-10-21, geändert 2026-10-26) | SNTP mit Zeitserver aus DHCP bzw. `pool.ntp.org`, abschaltbar; ohne Zeitserver wie vorher (ms seit Start, Umrechnung im Browser); jeder Abgleich stellt die RTC, die Uhrzeit übersteht damit Neustarts (Nutzer 2026-10-30, SOLL-TIME-04) | Nutzer 2026-10-26: Protokoll übersteht Neustarts (SOLL-ERR-12) und braucht dafür echte Zeiten; Flash reicht seit dem Entfernen der Netz-Shell; die Ladelogik hängt nie an der Uhrzeit | SOLL-TIME-01..04 |
 | F33 | Mindestpause vor erneutem Schütz-Ein (2026-11-07) | `contactor_min_off` ab Werk 5 s, einstellbar bis 10 s; Feld 519 wird beim Import nicht übernommen | Das Schütz des Testgeräts (Schneider iCT 25 A) zieht nach 0,5 s und einmal nach 3,3 s Pause nicht an und bleibt dann trotz Spannung an der Spule aus (230 V an A1/A2 gemessen, Nutzer 2026-11-07; vermutlich elektronische Spulenansteuerung, die ihren Anzugsimpuls erst nach einer Erholzeit wieder liefert; im Datenblatt nicht genannt). Im Original kommt zu den 500 ms von Feld 519 bei jedem Wiedereinschalten der blockierende RCM-Selbsttest (bis etwa 2,1 s); Wallfree testet nur einmal je Steckvorgang und bräuchte die Pause daher selbst. Eine Prüfung im Ein-Zustand über CT wurde erwogen und zurückgestellt: einfacher, und so kurze Schaltfolgen kommen im Betrieb kaum vor (Nutzer 2026-11-07) | SOLL-SM-60 |
 | F34 | Freigabe durch evcc, Schlüssel als Zwangsladen (2026-11-12) | Mit D10 gibt `external` > 0 frei; mit D7 und D10 hebt der Schlüssel die evcc-Vorgabe auf und lädt mit dem Höchststrom aus Drehschalter, Kabel und Eingängen; Startwert von `external` mit D10 = 0 | Nutzer: evcc muss Laden starten können (bei Tinkerforge WARP genügt `external_current` > 0, weil der manuelle Slot ab Werk mit Autostart offen ist; evcc schreibt nur diesen Wert), und der Schlüssel soll ohne evcc laden (Befund 3). Ein eigener Schlüssel-Ladestrom wurde erwogen und verworfen: der Höchststrom genügt. Folge: Lädt der Schlüssel, während evcc 0 vorgibt, meldet evcc "disabled but charging" | SOLL-EN-01/12/13, SOLL-CUR-04/15 |
 | F35 | Schutzpfad und Schützüberwachung (2026-11-13) | Störfilter im Interrupt und in der zyklischen Kontrolle; Schutzauslösung ohne erkannten Fehlerstrom wird ERR-RCM-TRIP; Diagnosezähler; Schützüberwachung auch im Ein (Modi 1..3) | Testgerät hing in S6 mit abgeschaltetem Schütz: Der Interrupt hatte (vermutlich bei einer Schaltstörung) den Schutzmerker gesetzt, der Automat kannte keinen Fehler und der Merker löste sich nur bei Schütz aus. Das Original fragt die Leitungen nur alle ~25 ms ab und setzt die Überwachung bei Unterspannung aus, ist also gegen kurze Spitzen unempfindlich; die Ausblendung bei Unterspannung wird nicht übernommen | SOLL-PROT-05/14/15/25 |
-| F39 | Ungültig-Kennung eines einzelnen Zählerwerts (2026-11-14) | leert nur diesen Wert, der Satz gilt | ABB B23 am Testgerät liefert für die Einspeise-Energie `FF..FF` (Variante ohne getrennte Einspeisezählung); vorher wurde deshalb jeder Satz verworfen und der Zähler blieb in `error`. Werte außerhalb des Bereichs oder NaN deuten eher auf Übertragungs- oder Belegungsfehler und verwerfen den Satz weiter | SOLL-MTR-12/13 |
-| F38 | D7, D10 und EN wie beim Original (2026-11-14) | bleiben, wie sie sind: Die Stromvorgabe der Schnittstelle wirkt immer (wie Original Feld 528), D10 macht sie zusätzlich zur Freigabe, D7 den Freigabe-Eingang EN; D7 und D10 zusammen sind ein ODER, der Schlüssel lädt dabei mit dem Höchststrom (SOLL-EN-13). Einstellung „Schlüssel ist Freigabe, evcc steuert darunter“: D7 an, D10 aus; „Schlüssel aus = evcc, an = volle Leistung“: D7 und D10 an. Verworfen: Vorgabe ohne D10 sperren, Zwangsladen über Code 19 statt D7+D10, eigener EN-Code für UND | Umrüster sollen ihre DIP-Schalter behalten können; beide Wünsche (Schlüssel als Freigabe, Schlüssel als Zwangsladen) sind damit möglich; im Original wirkte der Strom ebenfalls immer und D7+D10 war ein ODER | SOLL-EN-01/12/13, SOLL-CUR-04 |
-| F37 | Freigabe-Register (Original Feld 400) (2026-11-13) | entfällt mit `enable_register_default` | WARP kennt keine eigene Freigabe, nur Stromslots; das Gegenstück (Slot "Modbus TCP Freigabe") nutzen nur Modbus-Clients, Wallfree hat kein Modbus, evcc setzt nur `external`. Mit D10 gibt allein `external` > 0 frei. `available_register` und `pause_request` bleiben (F38) | SOLL-EN-01/03/12 |
 | F36 | `iec61851_state` bei erlaubtem Strom 0 (2026-11-13) | C wird als B gemeldet, wie WARP | evcc wertet C als „lädt“; bleibt ein Fahrzeug nach dem Ausschalten in C (Nissan Leaf ZE0 etwa 5 min), meldet evcc „disabled but charging“ und schaltet nach 60 s wieder ein (An/Aus-Schleife). WARP meldet in diesem Fall B; ohne PWM ist das Schütz offen, also fließt sicher kein Strom (kein Zähler nötig). Ersetzt die Entscheidung vom 2026-11-08, den CP-Zustand unverändert zu melden | SOLL-API-03, Befund 4 |
-| F32 | Uhrzeit (2026-10-21, geändert 2026-10-26) | SNTP mit Zeitserver aus DHCP bzw. `pool.ntp.org`, abschaltbar; ohne Zeitserver wie vorher (ms seit Start, Umrechnung im Browser); RTC nicht gestellt | Nutzer 2026-10-26: Protokoll übersteht Neustarts (SOLL-ERR-12) und braucht dafür echte Zeiten; Flash reicht seit dem Entfernen der Netz-Shell; die Ladelogik hängt nie an der Uhrzeit | SOLL-TIME-01..04 |
+| F37 | Freigabe-Register (Original Feld 400) (2026-11-13) | entfällt mit `enable_register_default` | WARP kennt keine eigene Freigabe, nur Stromslots; das Gegenstück (Slot "Modbus TCP Freigabe") nutzen nur Modbus-Clients, Wallfree hat kein Modbus, evcc setzt nur `external`. Mit D10 gibt allein `external` > 0 frei. `available_register` und `pause_request` bleiben (F38) | SOLL-EN-01/03/12 |
+| F38 | D7, D10 und EN wie beim Original (2026-11-14) | bleiben, wie sie sind: Die Stromvorgabe der Schnittstelle wirkt immer (wie Original Feld 528), D10 macht sie zusätzlich zur Freigabe, D7 den Freigabe-Eingang EN; D7 und D10 zusammen sind ein ODER, der Schlüssel lädt dabei mit dem Höchststrom (SOLL-EN-13). Einstellung „Schlüssel ist Freigabe, evcc steuert darunter“: D7 an, D10 aus; „Schlüssel aus = evcc, an = volle Leistung“: D7 und D10 an. Verworfen: Vorgabe ohne D10 sperren, Zwangsladen über Code 19 statt D7+D10, eigener EN-Code für UND | Umrüster sollen ihre DIP-Schalter behalten können; beide Wünsche (Schlüssel als Freigabe, Schlüssel als Zwangsladen) sind damit möglich; im Original wirkte der Strom ebenfalls immer und D7+D10 war ein ODER | SOLL-EN-01/12/13, SOLL-CUR-04 |
+| F39 | Ungültig-Kennung eines einzelnen Zählerwerts (2026-11-14) | leert nur diesen Wert, der Satz gilt | ABB B23 am Testgerät liefert für die Einspeise-Energie `FF..FF` (Variante ohne getrennte Einspeisezählung); vorher wurde deshalb jeder Satz verworfen und der Zähler blieb in `error`. Werte außerhalb des Bereichs oder NaN deuten eher auf Übertragungs- oder Belegungsfehler und verwerfen den Satz weiter | SOLL-MTR-12/13 |
 
 ### 15.2 Annahmen und offene Punkte
 
@@ -1160,13 +1161,13 @@ Projekt): [Architektur](architektur.md#2-entscheidungen).
 | --- | --- | --- |
 | PE1-Ziel | nicht das Relais C3/C4 (Testgerät 2026-10-27); Bahn nicht verfolgt | H1 (PE1 schalten und beobachten) |
 | CP-Treiber, Quelle der -12 V | ICL7662 gesehen (Spannungsinverter), Beschaltung offen | Durchgang spannungsfrei, H1 |
-| LD-Signalform der Steckdose (Impulsdauer, Impulse beim Entriegeln) | unbekannt; bestimmt SOLL-LOCK-14/15 | H1 |
+| LD-Signalform der Steckdose (Impulsdauer, Impulse beim Entriegeln) | Testgerät: Impuls von grob 60..100 ms während der Fahrt (Code 22 nötig, [Implementierung](implementierung.md#prüfungen-auf-box-t)); Impulse beim Entriegeln nicht untersucht (`unlock_check` ab Werk aus) | Messung beim Entriegeln, falls `unlock_check` genutzt werden soll |
 | CP-Treiber (Polarität, Pegel), ADC-Skalierung CP/PP/Versorgung | Original-Skalierung übernommen [ANN] | H1/H2 |
 | RCM: Inversionsstufe, direkter Pfad SWITCH_1/2 -> Schütztreiber, Konfigurationspins | [HYP] | H1/H3 |
-| Quelle an PE0 (Klemme CT) | [HYP] | H1 |
+| Quelle an PE0 (Klemme CT) | auf dem Testgerät und das zweite Gerät bestätigt: `ct_sense` folgt dem Schütz, Schütz gegen das Soll ein -> ERR-CONTACTOR | – |
 | "Automatische Entriegelung bei Stromausfall" (HB S. 9): Hardwarefunktion? | in der Firmware nicht gefunden; auf dem Testgerät nicht vorhanden, andere Steuerungen haben Pufferelkos ([wallbe2 hardware.md](../../wallbe2/docs/hardware.md)); vermutlich reine Hardware, Wallfree ist davon nicht betroffen, solange das zutrifft | H1 |
-| Bootloader: Prüfungen, Nutzung von BKP-Registern, löscht er Sektor 7, Start-SP | aus dem Testgerät ausgelesen (H0, RDP 0), eigener Webserver für den Upload; Analyse offen | [Bootloader](../../wallbe2/docs/bootloader.md#stand-und-offene-fragen) |
-| IWDG-Umprogrammierung im Betrieb; Löschzeit Sektor 7 | Löschzeit höchstens 4000 ms laut Zephyr-Devicetree (`stm32f2.dtsi`, `max-erase-time`), nicht am Datenblatt geprüft (DS6329 fehlt); IWDG-Umprogrammierung über Register umgesetzt, auf Hardware ungeprüft | Datenblatt, H1 |
+| Bootloader: Prüfungen, Nutzung von BKP-Registern, löscht er Sektor 7, Start-SP | aus dem Testgerät (0.81) und das zweite Gerät (1.03) ausgelesen und analysiert: prüft vor dem Start nur den Start-SP, beim Upload nichts; löscht nur Sektor 4..6 (Sektor 3 und 7 bleiben, auf dem Testgerät geprüft); Übergabe über BKP10..15, zählt IWDG-Resets in BKP16 | [Bootloader](../../wallbe2/docs/bootloader.md#stand-und-offene-fragen) |
+| IWDG-Umprogrammierung im Betrieb; Löschzeit Sektor 7 | Löschzeit höchstens 4000 ms laut Zephyr-Devicetree (`stm32f2.dtsi`, `max-erase-time`), nicht am Datenblatt geprüft (DS6329 fehlt); IWDG-Umprogrammierung und Löschen von Sektor 7 im Betrieb auf dem Testgerät bestätigt (Verdichten gelaufen) | Datenblatt |
 | Normzeiten IEC 61851-1 (Abschaltung nach C->B, Reaktionszeit des Fahrzeugs) | Norm nicht im Projekt; 5-s-Frist durch HB S. 38 gestützt | Normtext |
 | Diodenprüfung: Vorgabe der IEC 61851-1 zur Ausgabe nach Fehlschlag | Norm nicht im Projekt | Normtext |
 | LD-Signal Küster 03S (Fremdquelle nennt 02S: 0 V in beiden Endlagen, 12 V während der Fahrt) | Hypothese | H1-Messung |

@@ -1,6 +1,6 @@
 # Architektur und Rahmenentscheidungen
 
-Stand: 2026-10-26. Rahmen der Ersatzfirmware mit Begründungen. Das Soll-Verhalten steht in
+Stand: 2026-11-14. Rahmen der Ersatzfirmware mit Begründungen. Das Soll-Verhalten steht in
 der [Soll-Spezifikation](soll-spezifikation.md), der Umsetzungsstand in
 [Implementierung](implementierung.md), Tests und Simulation in
 [Test und Simulation](test-und-simulation.md). Belege zur Originalfirmware liegen in
@@ -25,7 +25,8 @@ der [Soll-Spezifikation](soll-spezifikation.md), der Umsetzungsstand in
 - **Energiezähler über Modbus RTU nur zur Anzeige** (Nutzer 2026-10-21, F28): Messwerte für
   Weboberfläche und evcc; die Steuerung arbeitet ohne Zähler vollständig.
 - **MQTT-Client** (Nutzer 2026-10-21, F30): Zustände als WARP-JSON an einen Broker, Ladestrom
-  als erster Befehl, weitere Befehle später ergänzbar; ohne TLS, ohne Home-Assistant-Erkennung.
+  als erster Befehl, weitere Befehle später ergänzbar; ohne TLS, mit Home-Assistant-Erkennung
+  (Nutzer 2026-10-27).
 - Hardwaretests erst nach ausdrücklicher Freigabe, in Stufen (Abschnitt 7).
 
 ## 2. Entscheidungen
@@ -40,14 +41,14 @@ der [Soll-Spezifikation](soll-spezifikation.md), der Umsetzungsstand in
 | Parameterspeicher | **P1: Sektor 7 mit eigenem Log-Format**, Sektor 3 nur lesen | siehe Abschnitt 3 |
 | HTTP-Schnittstelle | an WARP angelehnt, Ströme in **mA**, Typ `warp2`, erster Umfang = evcc-Mindestumfang, danach alle Parameter über eigene Ressourcen | evcc-Treiber `warp-ws.go` bestimmt Mindestumfang und Verhalten; mA wie WARP (16000 = 16 A) |
 | Zugriffsschutz | HTTP-Digest (MD5, `qop=auth`) für Web und API, Werkszugang mit Änderungszwang | evcc spricht WARP mit Digest (`charger/warp/connection.go`); Passwort wird nie übertragen. Ohne TLS bleibt Mitlesen im LAN möglich |
-| Weboberfläche | **Preact + htm** mit eigenem kleinem CSS, gzip im Flash | Komponenten wie React ohne Build-Schritt, ~5 KB; WARP nutzt ebenfalls Preact. Verglichen mit Vanilla JS (kleiner, mehr Handarbeit), petite-vue (~7 KB), Alpine.js (~15 KB). Gemessen: 11,7 KB gzip für die ganze Oberfläche |
+| Weboberfläche | **Preact + htm** mit eigenem kleinem CSS, gzip im Flash | Komponenten wie React ohne Build-Schritt, ~5 KB; WARP nutzt ebenfalls Preact. Verglichen mit Vanilla JS (kleiner, mehr Handarbeit), petite-vue (~7 KB), Alpine.js (~15 KB). Gemessen: Bibliothek 5,3 KB gzip, die ganze Oberfläche rund 38 KB gzip |
 | Projekt | Name **Wallfree**, eigenes veröffentlichbares Repository, **Apache-2.0** | wallbe2 enthält Originalfirmware und Handbücher und bleibt privat; Befunde werden hier nur in eigenen Worten mit Verweis genutzt |
 
 ## 3. Speicheraufteilung und Parameterspeicher
 
 | Bereich | Sektoren | Inhalt | Beleg |
 | --- | --- | --- | --- |
-| `0x08000000..0x0800BFFF` | 0..2 (je 16 KB) | Bootloader (nicht im Abbild, Hypothese) | [Bootloader](../../wallbe2/docs/bootloader.md) |
+| `0x08000000..0x0800BFFF` | 0..2 (je 16 KB) | Bootloader (nicht im Abbild; aus der Steuerung ausgelesen) | [Bootloader](../../wallbe2/docs/bootloader.md) |
 | `0x0800C000..0x0800FFFF` | 3 (16 KB) | Originalparameter, **nur lesen** | [Parameterspeicher](../../wallbe2/docs/parameterspeicher.md) |
 | `0x08010000..0x0805FFFF` | 4 (64 KB), 5..6 (je 128 KB) | Anwendung, max. 320 KB (Original belegt bis `0x0805F677`) | [Ladeadresse](../../wallbe2/docs/firmware-ladeadresse.md) |
 | `0x08060000..0x0807FFFF` | 7 (128 KB) | **Wallfree-Parameter** (vom Original nicht belegt) | |
@@ -73,8 +74,8 @@ löscht selbstständig beim Start und bei der Speicherbereinigung. Daher ein eig
 Kennung (direkt nach dem Löschen) und Abschluss (zuletzt), sodass ein unterbrochenes Verdichten
 beim Start erkannt wird. Format und Ausfallverhalten: [Implementierung](implementierung.md#parameterspeicher).
 
-**Noch zu prüfen (H0):** ob der Bootloader beim Update Sektor 7 löscht. Falls ja, ist der
-Speicherort neu zu bewerten (z. B. P3).
+Der Bootloader löscht beim Update nur Sektor 4..6 (analysiert und auf dem Testgerät geprüft: Sektor 3
+und 7 bleiben über Updates und den Rückweg zur Originalfirmware erhalten).
 
 ## 4. Bootloader und Updatepfad
 
@@ -169,7 +170,7 @@ eigenen Prüf-Firmware wurde Wallfree selbst verwendet (Shell/API, Register-Ausg
 | H1 | Ohne Last: Ausgänge ER/LR/VR/CR, LEDs, Eingänge und ADC-Werte, IWDG, Verriegelung, Netz; Reaktionszeit RCM -> PE2 | Oszilloskop | mit Wallfree als Stufen A/B erledigt; RCM-Zeit in Stufe C4 ([Implementierung](implementierung.md#prüfungen-auf-box-t)) |
 | H2 | CP/PP mit EV-Simulator: Zustände A..E, Diode, PP-Widerstände; CP-PWM, Schütz-Ansteuerung | Prüfstecker | als Stufe C erledigt 2026-11-07 ([Prüfstecker](pruefstecker.md)) |
 | H3 | RCM-Selbsttest und Fehlerstrompfad mit Prüfstrom | sicherer Prüfaufbau | Selbsttest und DC-Prüfstrom (9 mA) in Stufe C4 erledigt, Reaktionszeit 2,5..3 ms; AC-Zweig (30 mA) offen |
-| H4 | Ladelogik komplett mit Netzspannung, Fahrzeug oder Lastsimulator | Elektrofachkraft, FI in der Hausverteilung | geplant als Stufe D am zweiten Gerät mit Nissan Leaf ([Prüfstecker](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)) |
+| H4 | Ladelogik komplett mit Netzspannung, Fahrzeug oder Lastsimulator | Elektrofachkraft, FI in der Hausverteilung | als Stufe D am zweiten Gerät mit Nissan Leaf (einphasig, 16 A) durchgeführt, dort im Dauerbetrieb ([Prüfstecker](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)); dreiphasiges Laden offen |
 
 EV-Simulator: Für H2 genügt ein selbstgebauter Prüfstecker (Diode, CP-Widerstände
 2,74 kOhm / 1,3 kOhm / 270 Ohm, PP-Widerstände 1,5 kOhm / 680 / 220 / 100 Ohm, Schalter;
@@ -214,5 +215,6 @@ west build -d /pfad/zu/wallfree/build/ev_cc_ac1 -t rom_report   # bzw. ram_repor
 
 ## 10. Offene Punkte
 
-- H2..H4 (Stufe C ff.) und die restlichen Hardwareannahmen ([Implementierung](implementierung.md#annahmen-der-hardwareschicht)).
+- Fehlerstrom im AC-Zweig (30 mA), dreiphasiges Laden und die restlichen Hardwareannahmen
+  ([Implementierung](implementierung.md#annahmen-der-hardwareschicht)).
 - TLS/OCPP: bei Bedarf Speicherort (P3) und Budget neu bewerten.

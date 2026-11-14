@@ -1,6 +1,6 @@
 # Implementierungsstand
 
-Stand: 2026-11-12. Auf dem Testgerät mit Prüfstecker und Schütz ohne Last geprüft
+Stand: 2026-11-14. Auf dem Testgerät mit Prüfstecker und Schütz ohne Last geprüft
 ([Prüfungen auf dem Testgerät](#prüfungen-auf-box-t)), auf dem zweiten Gerät mit Fahrzeug (Nissan Leaf, einphasig 16 A)
 und evcc ([Stufe D](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)), dort im Dauerbetrieb
 (seit 2026-11-14 `f6f0036`). Bestandene Tests belegen keine elektrische Sicherheit. Rahmen und Begründungen: [Architektur](architektur.md);
@@ -13,7 +13,7 @@ Tests: [Test und Simulation](test-und-simulation.md).
 | Ladelogik (`lib/evse`) | vollständig nach Soll-Spezifikation, PC-getestet |
 | Parameterspeicher (`lib/nvm`) | fertig, PC-getestet inkl. Stromausfall nach jedem Byte |
 | API-Bausteine (`lib/api`) | fertig, PC-getestet |
-| Energiezähler (`lib/meter`, Zählerthread, nur Anzeige) | fertig, PC-getestet, in der Simulation Ende-zu-Ende und gegen evcc geprüft; Modbus-Anbindung auf UART4 auf dem Testgerät gegen eine Zähler-Nachbildung geprüft, echter Zähler steht aus |
+| Energiezähler (`lib/meter`, Zählerthread, nur Anzeige) | fertig, PC-getestet, in der Simulation Ende-zu-Ende und gegen evcc geprüft; Modbus-Anbindung auf UART4 auf dem Testgerät gegen eine Zähler-Nachbildung und einen echten ABB B23 (ohne Laststrom) geprüft |
 | MQTT-Client (`lib/api/mqtt.c`, `mqtt_task.c`) | fertig, PC-getestet, in der Simulation Ende-zu-Ende und auf dem Testgerät gegen Mosquitto geprüft |
 | Anwendung (`app/`) | baut für `ev_cc_ac1` ohne Warnung; als PC-Simulation Ende-zu-Ende getestet; auf dem Testgerät unter Netzlast geprüft |
 | Weboberfläche (`web/`) | fertig (Bereiche, Verlauf, Auswahllisten, Begriffe), Browser-Durchlauf in der Simulation, auf dem Testgerät im Einsatz |
@@ -201,7 +201,7 @@ Punkte, die die Spezifikation offen ließ. Alle vom Nutzer bestätigt, außer wo
 | Lizenzhinweis | Karte "Lizenz" unter System: Apache-2.0, ohne Gewährleistung, Link auf `/lizenzen.txt` (`web/lizenzen.txt`, gzip etwa 1,8 KB): Liste der Fremdsoftware im Abbild mit Lizenz, Volltexte MIT (Preact) und BSD-3-Clause (ST); Apache- und picolibc-Text nur als Verweis (Flash). Urheberzeile "Copyright 2026 Sebastian Balling" (Nutzer 2026-10-27) | MIT und BSD verlangen den Hinweis bei Weitergabe des Binärs; Nutzer 2026-10-27 |
 | Favicon | Blitz weiß auf Türkis (#009670, abgerundetes Quadrat), SVG als `data:`-URL in `index.html` (etwa 200 Byte) | Nutzer 2026-10-22 (Variante 2 von 5); keine eigene Datei im Flash, keine Anfrage an die Steuerung, keine vergebliche Anfrage nach `/favicon.ico` |
 | Kopf | Blitz-Symbol (wie Favicon, Inline-SVG, Farbe `--logo-free`, etwa 200 Byte) vor der Wortmarke (Nutzer 2026-10-24); Wortmarke des Nutzers als Text statt SVG, ohne Hintergrund (Farbe der Kopfzeile); "Wall" in der Textfarbe, "free" türkisgrün #009670 hell (Kontrast 3,8:1) bzw. #1fd1a0 dunkel; fett kursiv, eng; Link zur Übersicht | Nutzer 2026-10-21: Farben ans Design angepasst; das Original-Grün #00b88a war auf Weiß zu blass (2,6:1); Türkis bleibt vom Statusgrün unterscheidbar; Text skaliert mit dem Kopf und kostet keinen Flash |
-| Gliederung | Leiste oben mit Übersicht, Status (bis 2026-10-27 "Auswertung", davor "Insights"), Einstellungen, System. Status: Verlauf, Verbindungen (Netzwerk, Uhrzeit, MQTT, Zähler, Prozessortemperatur; nacheinander abgefragt, alle 10 s), Fehler, Ereignisprotokoll, in der Expertenansicht Ladestrom, CP-Oszilloskop, Zähler, Ladelogik. Einstellungen nur mit Parametern, nach dem Speichern Verweis auf Status → Verbindungen; Uhrzeit nicht mehr unter System (Nutzer 2026-10-27: Zustand gehört nicht in die Einstellungen, Verlauf ganz oben); Kopf auf Inhaltsbreite (960 px wie die Karten), Reiter direkt neben dem Logo, gewählter Reiter mit Unterstrich in der Akzentfarbe statt Rahmen (Nutzer 2026-11-12, Entwurf 1 von drei: das Menü am rechten Rand wirkte vom Inhalt getrennt, der Rahmen wie ein Knopf); auf dem Handy volle Breite unter dem Titel. Einstellungen mit Unterseiten als Reiter. Adresse `#/<bereich>/<unterseite>`, unbekannt = Übersicht bzw. Laden. Netzwerk: `net_*`, `telnet_enable`; MQTT: `mqtt_*`; Zähler: `meter_*`. Nach dem Speichern von Werten, die erst nach einem Neustart wirken, steht der Hinweis mit "Jetzt neu starten" auf der Seite | Nutzer 2026-10-21 (F31) |
+| Gliederung | Leiste oben mit Übersicht, Status (bis 2026-10-27 "Auswertung", davor "Insights"), Einstellungen, System. Status: Verlauf, Verbindungen (Netzwerk, Uhrzeit, MQTT, Zähler, Prozessortemperatur; nacheinander abgefragt, alle 10 s), Fehler, Ereignisprotokoll, in der Expertenansicht Ladestrom, CP-Oszilloskop, Zähler, Ladelogik. Einstellungen nur mit Parametern, nach dem Speichern Verweis auf Status → Verbindungen; Uhrzeit nicht mehr unter System (Nutzer 2026-10-27: Zustand gehört nicht in die Einstellungen, Verlauf ganz oben); Kopf auf Inhaltsbreite (960 px wie die Karten), Reiter direkt neben dem Logo, gewählter Reiter mit Unterstrich in der Akzentfarbe statt Rahmen (Nutzer 2026-11-12, Entwurf 1 von drei: das Menü am rechten Rand wirkte vom Inhalt getrennt, der Rahmen wie ein Knopf); auf dem Handy volle Breite unter dem Titel. Einstellungen mit Unterseiten als Reiter. Adresse `#/<bereich>/<unterseite>`, unbekannt = Übersicht bzw. Laden. Netzwerk: `net_*`; MQTT: `mqtt_*`; Zähler: `meter_*`. Nach dem Speichern von Werten, die erst nach einem Neustart wirken, steht der Hinweis mit "Jetzt neu starten" auf der Seite | Nutzer 2026-10-21 (F31) |
 | Verlauf | je 10 min Mittelwert der Wirkleistung (W, nur gültige Zählerwerte; Einspeisung = 0; ohne Zähler `null`), Mittelwert des erlaubten Stroms (Tastgrad, 0,25 A) und Zustand als ODER (angesteckt, lädt, Fehler); 288 Zeilen = 48 h, 4 Byte je Zeile; Intervalle ab Start der Steuerung, Intervalle ohne Abtastung als leere Zeilen. `GET /evse/history` in Teilen; `age_ms` und das laufende Intervall stehen am Ende, damit sie zu den Zeilen passen. Anzeige: je Größe ein Diagramm mit eigener Achse (Leistung nur mit Zähler), Stufen je Intervall, Zustandsband darunter, Fenster mindestens 6 h, Werte nur beim Zeigen/Tippen als Hinweis an der Kurve (nächstgelegenes Intervall, damit auch schmale treffbar sind), keine feste Ablesezeile (Nutzer 2026-10-21: zu viel), neu geladen jede Minute | Nutzer 2026-10-21: Leistung, erlaubter Strom, Zustand, 10 min, 48 h; Darstellung mit zwei Diagrammen vorerst beibehalten (Alternative: mit Zähler nur Leistung, ohne nur Strom; eine Linie "mögliche Leistung" scheidet aus, weil die Phasenzahl des Fahrzeugs unbekannt ist); Mittel statt Momentanwert, damit kurze Spitzen nicht verzerren; zwei Diagramme statt zweier y-Achsen |
 | Statusleiste (Übersicht) | eine Leiste statt der Kacheln Zustand, Fahrzeug darf, Fehler, Zähler: Punkt (grau kein Fahrzeug, blau wartet/bereit, grün lädt, rot Fehler) und Zustand; daneben nur Zusätze, die er nicht schon sagt (fehlende Freigabe, Lüftung D, Verriegelung außer "entriegelt"); bei Fehler rot mit Ursache und Verweis auf Status (bei Fehlerstrom fragt die Seite sofort und alle 10 s `/evse/errors` ab und zeigt bei RCM-TRIP allein "Schutzpfad ausgelöst", weil die WARP-Schnittstelle beides als Fehlerstrom meldet); mit Zähler rechts Leistung und Zählerstand, Zählerstörung als Hinweis. Entfallen: erlaubter Strom (steht im Ring), Schütz (folgt aus dem Zustand), CP-Zustand A..E (doppelt zum Zustand), "Kein Fehler", leere Zählerkachel | Nutzer 2026-11-12, Entwurf V1 von drei: die Kacheln wiederholten sich gegenseitig und den Ring |
 | Ladestrom-Anzeige (Übersicht) | Ring über 270 Grad von 0 bis zum Maximum (Drehschalter bzw. abgesenkt); blau "Erlaubt" (Strom des Tastgrads), grüner Innenring "Messwert" (Zähler, höchste Phase, nur wenn > 0), orange Marke für Kabel/Eingang, wenn kleiner als das Maximum; Kreis = Vorgabe (rot bei 0, am Ende, wenn über dem Maximum). Mitte: Messwert, ohne Zähler der erlaubte Strom; darunter Leistung und "erlaubt". Darunter eine Zeile, was begrenzt ("begrenzt durch Kabel (20 A)", "Laden gesperrt", 5-%-Modus); sie entfällt, wenn die Vorgabe selbst begrenzt oder 0 ist (steht dann im Stepper). Keine Legende mehr (erklärt die Anleitung) | Nutzer 2026-10-21, aufgeräumt 2026-11-12; Begriffe Erlaubt/Vorgabe/Messwert, weil "Freigabe" schon die Ladeerlaubnis (EN, Schnittstelle) bezeichnet |
@@ -267,13 +267,13 @@ unterbrochene Verdichten wie ein Erststart aus. Getestetes Verhalten bei Stromau
 
 ## Ressourcen
 
-Stand 2026-11-13 (`ce14d18`), `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B, Shell nur über die Konsole, Log-Ring 2 KB, 12 Netz-Kontexte: **290 868 B Flash** (88,8 % von 320 KB), **119 228 B RAM** (91,0 %).
+Stand 2026-11-14 (`c28f363`), `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B, Shell nur über die Konsole, Log-Ring 2 KB, 12 Netz-Kontexte: **290 896 B Flash** (88,8 % von 320 KB), **119 292 B RAM** (91,0 %).
 Reserven und Einsparmöglichkeiten: [Architektur](architektur.md#5-speicherbudget).
 
 | Anteil (gemessen beim Hinzufügen) | Flash | RAM |
 | --- | --- | --- |
 | HTTP-/WebSocket-API (HTTP-Server 13,5 KB, WebSocket 2,6 KB, PSA-SHA-1 5,9 KB) | 37,8 KB | 22 KB (davon 4 Client-Kontexte 9,7 KB) |
-| Weboberfläche (gzip) | 12 KB | – |
+| Weboberfläche (gzip, erster Stand; heute rund 38 KB, in den Zeilen darunter anteilig enthalten) | 12 KB | – |
 | Parameterspeicher | 8,2 KB | 5,1 KB |
 | Shell-Kommandos, Resetgrund, Fehlerhistorie | 6 KB | – |
 | Konsole statt Telnet-Shell (ohne Telnet, interaktive Funktionen, Shell-Log-Backend und Zephyr-Zusatzkommandos, mit eigenem Backend und Konsolenseite) | -24 KB | -2 KB |
@@ -286,7 +286,7 @@ Reserven und Einsparmöglichkeiten: [Architektur](architektur.md#5-speicherbudge
 | Verlauf (Ringpuffer 1,2 KB) und Gliederung der Weboberfläche in Bereiche (gzip +2,9 KB) | 5,3 KB | 1,5 KB |
 | Energiezähler: UART-Treiber 2,1 KB, Zephyr-Modbus 2,7 KB, Interrupttabelle 1 KB, Zählermodul 1,4 KB, JSON/API/Shell/Parameter 2,9 KB, Weboberfläche 1,4 KB, Rest (Treiberanteile) | 15,2 KB | 3,9 KB (Stack 1,3 KB, Modbus-Kontext 1 KB, Zählerzustand, WebSocket-Rahmen) |
 
-Reserve rund **44 KB Flash und 12 KB RAM**. Der RAM ist bis auf die Stacks statisch belegt
+Reserve rund **36 KB Flash und 11,5 KB RAM**. Der RAM ist bis auf die Stacks statisch belegt
 (kein Wachstum zur Laufzeit); Stacks haben MPU-Schutz (Überlauf -> Fault -> sicherer Zustand),
 ihre Auslastung auf dem Testgerät steht in der Tabelle unten (`threads`). Weitere
 Einsparungen in der [Architektur](architektur.md#5-speicherbudget).
@@ -295,7 +295,7 @@ Einsparungen in der [Architektur](architektur.md#5-speicherbudget).
 Bootloader nicht. Sektor 7 (128 KB, davon wenige hundert Byte Parameter) käme nur für Daten in
 Frage, die Wallfree selbst schreibt (z. B. die Weboberfläche), mit eigenem Aktualisierungsweg
 und Verdichten; Sektor 3 (16 KB) nur bei Verzicht auf die Originalparameter (Rückweg, Import).
-Weitere Hebel: `app.js` minifizieren (gzip 15,8 KB, geschätzt 4..5 KB weniger); Netzstack und HTTP
+Weitere Hebel: `app.js` minifizieren (gzip 26,7 KB, Ersparnis nicht gemessen); Netzstack und HTTP
 (~120 KB) sind nötig.
 Beim RAM (Heap umgesetzt, Nutzer 2026-10-21):
 
@@ -312,13 +312,17 @@ Bestätigt auf dem Testgerät: Pinbelegung und Pegel der Eingänge, Ausgänge, L
 Reset-Taster und CP-Messung; PHY-Takt und -Reset (Netz läuft); IWDG-Umprogrammierung und
 Löschen von Sektor 7 im Betrieb (Verdichten gelaufen); RTC-Backup-Register ohne RTC-Takt
 (Resetgrund, Update-Ergebnis); Freigabe ruhender HTTP-Verbindungen nach 5 s (Lasttest).
+
+PE2 High = Schütz ein und RCM "High = ausgelöst" (Inversion zum Bender-Ausgang), beides aus der
+Originalfirmware, sind in Stufe C bestätigt (Schütz schaltet, DC-Prüfstrom löst aus). Die
+Sendepegel des Zählerbusses an A/B werden nicht gemessen (Nutzer 2026-10-30): Adapter und echter
+Zähler lesen jede Anfrage fehlerfrei, und der Zähler sitzt in der Box an kurzer Leitung.
 Noch offen:
 
-- PE2 High = Schütz ein und RCM "High = ausgelöst" (Inversion zum Bender-Ausgang) stammen aus
-  der Originalfirmware; der RCM-Selbsttest besteht, das Schütz ist ungeprüft (Stufe C).
-- Reaktionszeit RCM-Flanke -> PE2 Low über den Zephyr-GPIO-Callback: Ziel <= 1 ms
-  (SOLL-PROT-05), am Oszilloskop messen.
-- Zählerbus: einen echten Zähler abfragen. Die Sendepegel an A/B werden nicht gemessen (Nutzer 2026-10-30): Der Adapter las jede Anfrage fehlerfrei, und der Zähler sitzt in der Box an kurzer Leitung.
+- Reaktionszeit RCM-Flanke -> PE2 Low über den Zephyr-GPIO-Callback allein: Ziel <= 1 ms
+  (SOLL-PROT-05). Gemessen ist nur die Kette Fehlerstrom -> Relais offen mit 2,5..3 ms (Stufe
+  C4c), die Sensor, Hardwarepfad und Relaisabfall einschließt.
+- Fehlerstrom im AC-Zweig (30 mA) und dreiphasiges Laden.
 
 ## Fallstricke
 

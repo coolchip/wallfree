@@ -81,7 +81,7 @@ Rückweg Schritt für Schritt: [Umrüsten auf Wallfree und zurück](docs/umruest
 | [docs/umruesten.md](docs/umruesten.md) | Wallfree aufspielen, Rückweg zur Originalfirmware, wenn etwas schiefgeht |
 | [docs/unterschiede-originalfirmware.md](docs/unterschiede-originalfirmware.md) | Unterschiede zur Originalfirmware mit Grund, Hinweise zum Umrüsten und zum Rückweg |
 | [docs/technik-und-lizenzen.md](docs/technik-und-lizenzen.md) | Verwendete Technik (Zephyr, Preact/htm, Testwerkzeuge) und Lizenzen der eingebundenen Software |
-| [docs/soll-spezifikation.md](docs/soll-spezifikation.md) | Soll-Verhalten der Firmware (Kennungen `SOLL-*`), Entscheidungen F1..F32 |
+| [docs/soll-spezifikation.md](docs/soll-spezifikation.md) | Soll-Verhalten der Firmware (Kennungen `SOLL-*`), Entscheidungen F1..F39 |
 | [docs/architektur.md](docs/architektur.md) | Rahmenentscheidungen mit Begründung: Zephyr, Speicheraufteilung, Bootloader, Parameterspeicher, evcc/WARP, Inbetriebnahmestufen |
 | [docs/implementierung.md](docs/implementierung.md) | Implementierungsstand, Zuordnung Modul -> SOLL, Festlegungen, Ressourcen, Fallstricke |
 | [docs/test-und-simulation.md](docs/test-und-simulation.md) | PC-Tests, Ende-zu-Ende-Simulation, Browser-Durchlauf, evcc-Test |
@@ -89,9 +89,9 @@ Rückweg Schritt für Schritt: [Umrüsten auf Wallfree und zurück](docs/umruest
 | [docs/pruefstecker.md](docs/pruefstecker.md) | Prüfstecker (Bauanleitung) und Prüfablauf mit Fahrzeugnachbildung |
 | [docs/vergleich-weboberflaeche.md](docs/vergleich-weboberflaeche.md) | Weboberfläche vorher und nachher: was aus den Seiten der Originaloberfläche wird |
 | [docs/anleitung/weboberflaeche.md](docs/anleitung/weboberflaeche.md) | Bedienungsanleitung der Weboberfläche (PDF: `scripts/anleitung-pdf.sh`) |
-| [boards/phoenix/ev_cc_ac1/](boards/phoenix/ev_cc_ac1/) | Zephyr-Board-Beschreibung (Pins aus der Originalfirmware, an einer wallbe Eco 2.0 bis auf Schütz und PWM bestätigt) |
+| [boards/phoenix/ev_cc_ac1/](boards/phoenix/ev_cc_ac1/) | Zephyr-Board-Beschreibung (Pins aus der Originalfirmware, an einer wallbe Eco 2.0 bestätigt) |
 | [app/](app/) | Anwendung für die Steuerung: Hardwareschicht, Threads, Shell; zusätzlich als PC-Simulation |
-| [spike-size/](spike-size/) | Größentest (nur bauen) |
+| [spike-size/](spike-size/) | Größentest vor der Entscheidung für Zephyr (nur bauen) |
 | [include/wallfree/evse/](include/wallfree/evse/), [lib/evse/](lib/evse/) | Ladelogik als Zephyr-Modul, reines C ohne Hardwarebezug |
 | [include/wallfree/nvm/](include/wallfree/nvm/), [lib/nvm/](lib/nvm/) | Parameterspeicher (Log-Format in Sektor 7) und Leser für den Originalbereich, reines C |
 | [include/wallfree/api/](include/wallfree/api/), [lib/api/](lib/api/) | Digest-Anmeldung, JSON, Abbildung der Ladelogik auf die WARP-angelehnte API, reines C |
@@ -99,6 +99,8 @@ Rückweg Schritt für Schritt: [Umrüsten auf Wallfree und zurück](docs/umruest
 | [patches/zephyr/](patches/zephyr/) | Patches am Zephyr-Baum (WebSocket-Anmeldung vor dem Upgrade prüfen, Paketleck beim Schließen von Sockets, Zeitverlust des SysTick-Zeitgebers), Anwenden mit `scripts/zephyr-patches.sh` |
 | [web/](web/) | Weboberfläche (Preact + htm, gzip im Flash); Fremdcode unter [web/vendor/](web/vendor/) mit eigenen Lizenzen |
 | [tests/](tests/) | PC-Tests (ztest auf `native_sim/native/64`), Aufruf `scripts/run-tests.sh`; Ende-zu-Ende-Tests in [tests/e2e/](tests/e2e/), Aufruf `scripts/run-e2e.sh` |
+| [scripts/](scripts/), [tools/evcc/](tools/evcc/) | Bauen, Testen, Simulation, Update, Zähler-Nachbildung; evcc-Konfigurationen für die Tests |
+| [mechanik/abstandshalter-ladedose/](mechanik/abstandshalter-ladedose/) | Abstandshalter für die Typ-2-Ladedose (3D-Druck), unabhängig von der Firmware |
 
 ## Bauen
 
