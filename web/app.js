@@ -516,11 +516,26 @@ const LOCK_NOTE = ['', '', 'verriegelt …', 'verriegelt', 'entriegelt …', 'Ve
 
 function StatusBar({ s, m }) {
 	const err = s.error_state || s.charger_state === 4;
+	// RCM-TRIP meldet die WARP-Schnittstelle als Fehlerstrom; die Fehlerliste unterscheidet.
+	// Nur solange ein Fehlerstrom gemeldet wird: sofort und alle 10 s
+	const [trip, setTrip] = useState(false);
+	useEffect(() => {
+		setTrip(false);
+		if (s.error_state !== 3) return undefined;
+		const load = () => api('/evse/errors')
+			.then((d) => setTrip(d.active.length === 1 && d.active[0] === 'RCM-TRIP'))
+			.catch(() => { /* bleibt Fehlerstrom */ });
+		load();
+		const t = setInterval(load, 10000);
+		return () => clearInterval(t);
+	}, [s.error_state]);
 	const dot = err ? 'bad' : s.charger_state === 3 ? 'ok' : s.charger_state ? 'acc' : '';
-	const title = err ? (ERR_SHORT[s.error_state] || 'Fehler') : CHARGER[s.charger_state] || '?';
+	const title = err ? (trip ? 'Schutzpfad ausgelöst' : ERR_SHORT[s.error_state] || 'Fehler')
+		: CHARGER[s.charger_state] || '?';
 	const notes = [];
 	if (s.charger_state === 1) notes.push('Freigabe fehlt (Schlüssel oder Energiemanagement)');
 	if (s.iec61851_state === 3) notes.push('Fahrzeug fordert Lüftung');
+	if (trip) notes.push('kein Fehlerstrom erkannt, vermutlich eine Störung');
 	if (LOCK_NOTE[s.lock_state]) notes.push(LOCK_NOTE[s.lock_state]);
 	const p = m ? mval(m, 74) : null, e = m ? mval(m, 209) : null;
 	const st = m ? (m.state ? m.state.status : 'connecting') : null;

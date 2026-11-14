@@ -136,7 +136,9 @@ Zustand nicht schon sagt:
 - die Verriegelung, sobald der Stecker verriegelt ist oder sie gerade fährt oder gestört ist.
 
 Bei einem **Fehler** wird die Leiste rot und nennt die Ursache, z. B. *Fehlerstrom (RCM)*;
-der Verweis „Details unter Status“ führt zu den Einzelheiten.
+der Verweis „Details unter Status“ führt zu den Einzelheiten. *Schutzpfad ausgelöst* heißt: Die
+Schutzabschaltung hat das Schütz abgeschaltet, ohne dass ein Fehlerstrom erkannt wurde
+(vermutlich eine Störung); zurückgesetzt wird es wie ein Fehlerstrom durch Abstecken.
 
 Mit eingerichtetem Energiezähler stehen rechts die **Leistung** in kW und der **Zählerstand**
 in kWh; ist die Verbindung zum Zähler gestört, steht das davor.
