@@ -9,7 +9,7 @@
 # Jede andere HTTP-Anfrage an die Wallbox waehrend des Uploads bricht ihn ab (wallbe2
 # docs/bootloader.md). Ein abgebrochener Upload wird bis zu zweimal wiederholt: Nach der
 # Uebergabe hat der Bootloader 3 Versuche unter derselben Adresse, danach wartet er ohne
-# Programm unter 192.168.0.8.
+# Programm unter 192.168.0.8; so lange laesst sich unter derselben Adresse nachladen.
 set -eu
 creds=
 only=0
@@ -79,7 +79,10 @@ while :; do
 	upload && break
 	echo "Upload nicht bestaetigt (abgebrochen, z. B. durch eine andere Anfrage an die Wallbox)"
 	[ $n -lt 3 ] || {
-		echo "Update gescheitert. Ohne Programm wartet der Bootloader unter 192.168.0.8:" >&2
+		echo "Update gescheitert. Der Bootloader wartet zunaechst noch unter $host (alle anderen" >&2
+		echo "Abfragen der Box anhalten, dann sofort):" >&2
+		echo "  scripts/update.sh --upload-only $host $image" >&2
+		echo "Antwortet dort nichts mehr (Versuche abgelaufen, je bis 2 min), dann ohne Programm unter:" >&2
 		echo "  scripts/update.sh --upload-only 192.168.0.8 $image" >&2
 		exit 1
 	}

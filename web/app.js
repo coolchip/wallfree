@@ -950,7 +950,8 @@ function Update({ onBusy }) {
 				if (await uploadImage(file)) break;
 				if (n >= 3) {
 					throw new Error('Das Hochladen wurde dreimal abgebrochen (andere Anfrage an die ' +
-						'Wallbox?). Der Bootloader wartet jetzt unter http://192.168.0.8/ auf die Datei.');
+						'Wallbox?). Der Bootloader wartet zunächst noch unter http://' + r.address +
+						'/ auf die Datei, nach einigen Minuten unter http://192.168.0.8/.');
 				}
 				const st = await waitForAny(['bootloader', 'wallfree'], 90);
 				if (st === 'wallfree') break; // verfruehtes Ende: Ergebnis pruefen

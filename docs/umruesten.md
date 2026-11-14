@@ -79,8 +79,9 @@ die Originalfirmware. Weder Wallfree noch die Originalfirmware verändern ihn.
 - **Update bricht während der Übertragung ab** (anderer Tab, evcc, Netz weg): Die bisherige
   Firmware ist dann schon gelöscht. Ein Update aus Wallfree (Weboberfläche oder
   `scripts/update.sh`) erkennt den Abbruch und überträgt die Datei bis zu zweimal neu, solange der
-  Bootloader unter der bisherigen Adresse wartet. Scheitert das, wartet der Bootloader ohne
-  Programm unter **192.168.0.8** auf eine Datei: weiter mit dem
+  Bootloader unter der bisherigen Adresse wartet. Scheitert das, wartet der Bootloader zunächst
+  noch einige Minuten unter der bisherigen Adresse, danach ohne Programm unter **192.168.0.8** auf
+  eine Datei: weiter mit dem
   [Rettungsweg](#5-rettungsweg-steuerung-wartet-im-bootloader). Ein halb geschriebenes Abbild
   startet er nicht.
 - **Wallfree meldet „Prüfsumme … beschädigt“:** Die Datei kam unvollständig an. Wallfree lädt
