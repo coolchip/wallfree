@@ -441,14 +441,12 @@ function Gauge({ l, meter }) {
 }
 
 // Bedienung unter dem Ring (Nutzer 2026-11-12, Entwurf A): Stepper fuer die Vorgabe, feste
-// Werte als Segmentauswahl, Schalter "Laden" fuer Vorgabe 0 bzw. die letzte Vorgabe > 0
+// Werte als Segmentauswahl, Schalter "Laden": aus = Vorgabe 0, ein = Maximum (Nutzer 2026-11-13)
 function CurrentControl({ ext, setExt, limits, meter }) {
 	const [msg, setMsg] = useState(null);
-	const last = useRef(0);
 	if (!limits) return null;
 	const max = limits.hardware / 1000 || 32;
 	const ma = ext ? ext.current : 0;
-	if (ma > 0) last.current = ma;
 	const cur = Math.min(ma / 1000, max);
 	const on = ma > 0;
 	const send = async (a) => {
@@ -457,7 +455,6 @@ function CurrentControl({ ext, setExt, limits, meter }) {
 			setMsg(null);
 		} catch (e) { setMsg({ ok: false, text: e.message }); }
 	};
-	const resume = () => send(last.current ? Math.min(last.current / 1000, max) : max);
 	return html`<section class="card wide"><h2>Ladestrom</h2>
 		<${Gauge} l=${limits} meter=${meter} />
 		<div class="stepper" aria-label="Vorgabe">
@@ -470,7 +467,7 @@ function CurrentControl({ ext, setExt, limits, meter }) {
 		<${Msg} m=${msg} />
 		<div class="cfoot">
 			<label class="switch"><input type="checkbox" checked=${on}
-				onChange=${(e) => (e.target.checked ? resume() : send(0))} /><i></i>Laden</label>
+				onChange=${(e) => send(e.target.checked ? max : 0)} /><i></i>Laden</label>
 			<span class="muted msg">Ein Energiemanagement kann die Vorgabe überschreiben.</span>
 		</div>
 	</section>`;

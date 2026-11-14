@@ -157,7 +157,7 @@ Digitaleingang. Unter 6 A wird nicht geladen (Grenze der Norm).
 | --- | --- |
 | **−** / **+** | Vorgabe in Schritten von 1 A zwischen 6 A und dem Maximum; dazwischen steht die Vorgabe („aus“ bei 0) |
 | **6 / 10 / 16 / 32 A** | Vorgabe auf diesen Wert (Werte über dem Maximum entfallen) |
-| Schalter **Laden** | aus: Vorgabe 0, ein laufender Ladevorgang endet geordnet, ein neuer beginnt nicht; ein: zurück zur letzten Vorgabe (sonst das Maximum) |
+| Schalter **Laden** | aus: Vorgabe 0, ein laufender Ladevorgang endet geordnet, ein neuer beginnt nicht; ein: Vorgabe auf das Maximum |
 
 Die Vorgabe gilt bis zur nächsten Änderung oder bis zum Neustart der Steuerung; danach gilt
 der Startwert (Parameter `external_current_default`, [7.1](#71-laden)). Ein angeschlossenes
