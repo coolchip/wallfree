@@ -249,13 +249,13 @@ ZTEST(evse_param, test_restore)
 
 ZTEST(evse_param, test_startup_defaults_from_config)
 {
-	/* F12/F19: Startwerte kommen aus der Konfiguration */
+	/* F12: Startwert kommt aus der Konfiguration */
 	cfg.external_current_default_ma = 0;
-	cfg.enable_register_default = true;
 	sim_init(&s, &cfg);
 	sim_start(&s);
 	zassert_equal(s.e.rt.external_ma, 0);
-	zassert_true(s.e.rt.enable_register);
+	zassert_is_null(evse_param_find("enable_register"), "F37");
+	zassert_is_null(evse_param_by_id(400), "F37: Feld 400 nicht mehr");
 }
 
 ZTEST_SUITE(evse_param, NULL, NULL, before, NULL, NULL);

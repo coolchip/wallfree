@@ -13,7 +13,8 @@ int api_iec61851_state(const struct evse *e)
 	case EVSE_CP_B:
 		return 1;
 	case EVSE_CP_C:
-		return 2;
+		/* F36: wie WARP C nur mit erlaubtem Strom, sonst B (Fahrzeug in C1, kein Strom) */
+		return evse_allowed_current(e) > 0 ? 2 : 1;
 	case EVSE_CP_D:
 		return 3;
 	default:

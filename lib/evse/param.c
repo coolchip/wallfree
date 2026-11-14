@@ -210,17 +210,11 @@ static const struct evse_param params[] = {
 	 .min = 0, .max = 80000, .def = 80000, CF(external_current_default_ma),
 	 .check = chk_current, .is_signed = true,
 	 .help = "Startwert des Sollstroms nach jedem Start, 80000 = keine Einschränkung, 0 = Laden erst nach Vorgabe"},
-	{.name = "enable_register_default", .id = 1005, .unit = "", .kind = EVSE_PK_CONFIG,
-	 .min = 0, .max = 1, .def = 0, CF(enable_register_default),
-	 .help = "Startwert der Freigabe über Schnittstelle"},
 
 	/* 10.2 Laufzeitwerte */
 	{.name = "external_current", .id = 528, .orig_field = 528, .unit = "mA",
 	 .kind = EVSE_PK_RUNTIME, .min = 0, .max = 80000, .def = 80000, RF(external_ma),
 	 .check = chk_current, .is_signed = true, .help = "Sollstrom der Schnittstelle (evcc)"},
-	{.name = "enable_register", .id = 400, .orig_field = 400, .unit = "",
-	 .kind = EVSE_PK_RUNTIME, .min = 0, .max = 1, .def = 0, RF(enable_register),
-	 .help = "Freigabe über Schnittstelle (D10)"},
 	{.name = "available_register", .id = 402, .orig_field = 402, .unit = "",
 	 .kind = EVSE_PK_RUNTIME, .min = 0, .max = 1, .def = 1, RF(available_register),
 	 .help = "Verfügbarkeit über Schnittstelle (D10)"},

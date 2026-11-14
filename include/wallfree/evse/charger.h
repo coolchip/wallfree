@@ -109,7 +109,6 @@ struct evse_config {
 	uint8_t wakeup_mode;        /**< 0 einmal je Steckvorgang, 1 auch nach Sperre */
 	bool meter_available;       /**< Messquelle vorhanden (F1), derzeit false */
 	int32_t external_current_default_ma; /**< Startwert Slot external (F12) */
-	bool enable_register_default;        /**< Startwert Freigabe 400 (F19) */
 };
 
 /** Werkseinstellungen (E20, Abschnitt 10.1). */
@@ -118,7 +117,6 @@ void evse_config_defaults(struct evse_config *cfg);
 /** Laufzeitwerte (Abschnitt 10.2). */
 struct evse_runtime {
 	int32_t external_ma;
-	bool enable_register;
 	bool available_register;
 	bool pwm5_request;
 	bool pause_request;

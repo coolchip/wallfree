@@ -77,10 +77,16 @@ ZTEST(evse_api, test_iec_states)
 		{EVSE_CP_F, 4},
 	};
 
+	s.e.out.cp_duty = 266; /* PWM an, 16 A */
+	s.e.cur.allowed_ma = 16000;
 	for (size_t i = 0; i < ARRAY_SIZE(map); i++) {
 		s.e.status = map[i][0];
 		zassert_equal(api_iec61851_state(&s.e), map[i][1]);
 	}
+	/* F36: C ohne erlaubten Strom wird als B gemeldet (wie WARP) */
+	s.e.out.cp_duty = EVSE_DUTY_OFF;
+	s.e.status = EVSE_CP_C;
+	zassert_equal(api_iec61851_state(&s.e), 1);
 	static const int cs[][2] = {
 		{EVSE_S0_INIT, 0}, {EVSE_S1_IDLE, 0}, {EVSE_S2_LOCKING, 1}, {EVSE_S3_WAIT, 1},
 		{EVSE_S4_SELFTEST, 2}, {EVSE_S5_PWM_ON, 2}, {EVSE_S6_CHARGING, 3},

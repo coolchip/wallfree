@@ -428,15 +428,12 @@ ZTEST(evse_charger, test_permission_en)
 	zassert_equal(s.e.state, EVSE_S7_STOPPING);
 }
 
-ZTEST(evse_charger, test_permission_register_d10)
+ZTEST(evse_charger, test_permission_d10_external)
 {
 	cfg.dip = DIP(10);
 	reinit();
 	sim_boot(&s);
 	s.car = EVSE_CP_B;
-	sim_run(&s, 3000);
-	zassert_equal(s.e.state, EVSE_S3_WAIT, "400 startet mit 0 (F19)");
-	s.e.rt.enable_register = true;
 	sim_run(&s, 3000);
 	zassert_equal(s.e.state, EVSE_S3_WAIT, "external startet mit D10 bei 0 (F34)");
 	s.e.rt.external_ma = 16000;

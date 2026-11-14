@@ -449,7 +449,7 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    Zephyr-Patch `0002`: am Testgerät mit `net-load.py wsreject` (antwortet wie evcc sofort auf den
    Close-Rahmen) ohne Fix ein verlorenes Paket nach etwa 350 Versuchen, mit Fix 1880 Versuche
    ohne Verlust.
-3. **Freigabe ohne Schlüssel:** Mit D10 gab nur EN oder `enable_register` frei; evcc schreibt
+3. **Freigabe ohne Schlüssel:** Mit D10 gab nur EN oder `enable_register` frei (das Register entfiel mit F37); evcc schreibt
    nur den Strom (WARP `evse/external_current`) und konnte so ohne Schlüssel nicht starten. Mit
    Schlüssel lud die Box auch ohne evcc (2026-11-09 rund 2 h mit 16 A bis fast voll, Startwert
    `external_current` 80 000), ohne Schlüssel lud der Leaf mit evcc gar nicht (2026-11-12).
@@ -462,9 +462,11 @@ Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
    (S7 11:34:26, PC-Zeit): C mit +6,05 V bis 11:39:31, dann B mit +8,97 V, also **etwa 5 min 6 s**
    nach dem PWM-Aus (abends noch einmal genau so, siehe oben). Bis dahin meldete evcc alle 10 s
    "disabled but charging" (38-mal), danach nicht mehr. evcc schaltet nach fest 60 s
-   (`chargerSwitchDuration`, nicht einstellbar) wieder ein. Umgang (Nutzer 2026-11-08): Wallfree
-   meldet den Zustand weiter so, wie er ist (C); gelöst in evcc. Lokal mit Patch auf 10 min
-   geprüft (kein Wiedereinschalten), Issue bzw. PR bei evcc steht aus (dort besser einstellbar).
+   (`chargerSwitchDuration`, nicht einstellbar) wieder ein. **Gelöst** nach F36
+   (Nutzer 2026-11-13): Die WARP selbst meldet C nur, wenn Strom erlaubt ist, sonst B; Wallfree
+   meldet `iec61851_state` jetzt ebenso. Nach dem Ausschalten sieht evcc sofort „verbunden“, kein
+   Wiedereinschalten. Vorher lokal mit evcc-Patch (10 min statt 60 s) geprüft; der Patch und ein
+   Issue bei evcc sind damit nicht mehr nötig. Am zweiten Gerät noch zu bestätigen.
 5. **Schützüberwachung:** das zweite Gerät hat den Hilfskontakt (`ct_sense` folgt dem Schütz), übernommen war
    aus dem Original `contactor_monitor` 0. Eingeschaltet (1, Via Sense, Nutzer 2026-11-08) und mit
    Laden, evcc-Pause (17 s), Fortsetzen und Ende geprüft: Schütz jeweils 5,0 s nach S7 aus,

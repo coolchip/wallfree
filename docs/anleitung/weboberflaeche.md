@@ -407,7 +407,6 @@ schaltet das Ladesignal kurz ab und wieder an, um das Fahrzeug zum Laden zu bewe
 | Parameter | Bereich | Werk | Beschreibung |
 | --- | --- | --- | --- |
 | Startwert des Sollstroms (`external_current_default`) | 0 oder 6000..80000 mA | 80000 | Vorgabe, die nach jedem Start gilt, bis jemand (von Hand oder per Energiemanagement) eine andere setzt. 80000 = keine Einschränkung, die Station lädt mit dem Maximum. 0 = nach einem Start erst laden, wenn eine Vorgabe kommt; sinnvoll, wenn ein Energiemanagement das Laden immer steuern soll. Mit DIP D10 gilt nach jedem Start 0, weil dort eine Vorgabe über 0 das Laden freigibt ([10.4](#104-freigabe-und-verfügbarkeit)). |
-| Startwert der Freigabe über Schnittstelle (`enable_register_default`) | 0..1 | 0 | Startwert für den Laufzeitwert „Freigabe über Schnittstelle“. Nur mit DIP D10 von Bedeutung ([10.4](#104-freigabe-und-verfügbarkeit)): 1 = nach einem Start ist das Laden freigegeben. |
 
 #### Laufzeitwerte (gelten bis zum Neustart)
 
@@ -416,7 +415,6 @@ Diese Werte steuern den laufenden Betrieb. Nach einem Neustart gelten wieder ihr
 | Parameter | Bereich | Start | Beschreibung |
 | --- | --- | --- | --- |
 | Sollstrom der Schnittstelle (`external_current`) | 0 oder 6000..80000 mA | Startwert | Die Vorgabe des Ladestroms, dieselbe wie unter dem Ring der Übersicht und dem Energiemanagement. 0 = Laden aus. Werte über dem Maximum sind erlaubt, wirksam bleibt das Maximum. |
-| Freigabe über Schnittstelle (`enable_register`) | 0..1 | Startwert | Nur mit DIP D10: 1 = Laden freigegeben. |
 | Verfügbarkeit über Schnittstelle (`available_register`) | 0..1 | 1 | Nur mit DIP D10: 0 = Ladestation außer Betrieb (dem Fahrzeug wird „nicht verfügbar“ gemeldet). |
 | 5-%-Modus (`pwm5_request`) | 0..1 | 0 | 1 = Ladesignal mit 5 % (Anforderung digitaler Kommunikation nach ISO 15118). Diese Kommunikation unterstützt die Firmware nicht; es wird dann nicht geladen. Für Prüfzwecke. |
 | Laden unterbrechen (`pause_request`) | 0..1 | 0 | 1 = Ladepause: ein laufendes Laden endet geordnet, die Verriegelung bleibt bestehen. 0 = weiter. |
@@ -613,7 +611,7 @@ beim Start gelesen; nach einer Änderung muss die Steuerung neu gestartet werden
 | D7 | Laden nur mit Freigabe über einen Eingang (Code 1, 16 oder 18) |
 | D8 | Verfügbarkeit über einen Eingang (Code 2) |
 | D9 | Manuelle Verriegelung (Eingang Code 4 oder 17, oder `lock_request`) |
-| D10 | Freigabe und Verfügbarkeit über die Schnittstelle (`enable_register`, `available_register`) |
+| D10 | Freigabe über die Ladestrom-Vorgabe der Schnittstelle (über 0 = frei), Verfügbarkeit über `available_register` |
 
 | Drehschalter | Maximum |
 | --- | --- |
@@ -690,8 +688,8 @@ E/F Fehler bzw. nicht verfügbar).
 ### 10.4 Freigabe und Verfügbarkeit
 
 - **Ladeerlaubnis** besteht, wenn mindestens eines gilt: D7 an und Freigabe-Eingang ein;
-  D10 an und „Freigabe über Schnittstelle“ = 1 oder Ladestrom-Vorgabe über 0 (so startet und
-  beendet ein Energiemanagement wie evcc das Laden); weder D7 noch D10 an (dann immer).
+  D10 an und Ladestrom-Vorgabe über 0 (so startet und beendet ein Energiemanagement wie evcc
+  das Laden); weder D7 noch D10 an (dann immer).
 - **Laden mit dem Schlüssel unabhängig vom Energiemanagement:** Sind D7 und D10 an, lädt die
   Station bei eingeschaltetem Freigabe-Eingang (z. B. Schlüsselschalter) mit dem Höchststrom aus
   Drehschalter, Kabel und Eingängen; die Ladestrom-Vorgabe ist dann wirkungslos, auch wenn sie 0

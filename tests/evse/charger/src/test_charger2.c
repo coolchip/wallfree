@@ -316,7 +316,7 @@ ZTEST(evse_charger2, test_available_register_d10)
 	cfg.dip = DIP(10);
 	reinit();
 	sim_boot(&s);
-	s.e.rt.enable_register = true;
+	s.e.rt.external_ma = 16000; /* F37: Freigabe mit D10 nur ueber external */
 	s.e.rt.available_register = false;
 	sim_run(&s, 50);
 	zassert_equal(s.e.state, EVSE_S10_UNAVAILABLE);
@@ -412,6 +412,26 @@ ZTEST(evse_charger2, test_contactor_no_pull)
 	zassert_false(s.e.out.contactor);
 	zassert_equal(s.e.state, EVSE_S10_UNAVAILABLE, "Zustand %d", s.e.state);
 	zassert_equal(api_contactor_error(&s.e), 2, "WARP: sollte geschlossen sein");
+}
+
+ZTEST(evse_charger2, test_c1_reported_as_b)
+{
+	/* F36: Fahrzeug bleibt nach dem Ausschalten in C (Nissan Leaf, C1) -> WARP-Zustand B */
+	sim_boot(&s);
+	charge();
+	zassert_equal(api_iec61851_state(&s.e), 2, "lädt: C");
+	s.e.rt.external_ma = 0; /* evcc: Laden aus */
+	sim_run(&s, 100);
+	zassert_equal(evse_allowed_current(&s.e), 0);
+	zassert_equal(evse_cp_raw(&s.e.cp), EVSE_CP_C, "Fahrzeug bleibt in C");
+	zassert_equal(api_iec61851_state(&s.e), 1, "kein Strom erlaubt: B");
+	sim_run(&s, 10000);
+	zassert_false(s.e.out.contactor);
+	zassert_equal(api_iec61851_state(&s.e), 1);
+	/* wieder freigegeben: PWM an, Fahrzeug in C -> C */
+	s.e.rt.external_ma = 16000;
+	zassert_true(sim_until_state(&s, EVSE_S6_CHARGING, 10000) >= 0, "Zustand %d", s.e.state);
+	zassert_equal(api_iec61851_state(&s.e), 2);
 }
 
 ZTEST(evse_charger2, test_contactor_pulls_no_error)

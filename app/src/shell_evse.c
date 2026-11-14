@@ -295,12 +295,6 @@ static int cmd_current(const struct shell *sh, size_t argc, char **argv)
 	return set_rt(sh, "external_current", argv[1]);
 }
 
-static int cmd_enable(const struct shell *sh, size_t argc, char **argv)
-{
-	ARG_UNUSED(argc);
-	return set_rt(sh, "enable_register", argv[1]);
-}
-
 static int cmd_avail(const struct shell *sh, size_t argc, char **argv)
 {
 	ARG_UNUSED(argc);
@@ -720,7 +714,6 @@ SHELL_CMD_ARG_REGISTER(ack, NULL, "Schuetzfehler quittieren", cmd_ack, 1, 0);
 SHELL_CMD_REGISTER(sys, &sub_sys, "Netz- und Systemparameter", NULL);
 SHELL_CMD_ARG_REGISTER(current, NULL, "<mA> Sollstrom Slot external (0, 6000..80000)",
 		       cmd_current, 2, 0);
-SHELL_CMD_ARG_REGISTER(enable, NULL, "0|1 Freigabe-Register (mit D10)", cmd_enable, 2, 0);
 SHELL_CMD_ARG_REGISTER(avail, NULL, "0|1 Verfuegbarkeit (mit D10)", cmd_avail, 2, 0);
 SHELL_CMD_ARG_REGISTER(pause, NULL, "0|1 Laden unterbrechen", cmd_pause, 2, 0);
 SHELL_CMD_ARG_REGISTER(pwm5, NULL, "0|1 5-%-Modus", cmd_pwm5, 2, 0);

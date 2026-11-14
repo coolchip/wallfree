@@ -404,13 +404,20 @@ ist (die Kommandos sind kurz; `reboot` und `bootloader` kehren sofort zurück).
   ([Prüfungen](#prüfungen-auf-box-t)).
 - Befunde aus Stufe D ([Prüfstecker](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)):
   Freigabe durch evcc und Schlüssel als Zwangsladen (Befund 3, gelöst nach F34, am zweiten Gerät mit evcc bestätigt), Uhr lief etwa 500 ppm zu langsam (Befund 6, behoben mit Zephyr-Patch `0003`, am Testgerät −53 ppm und das zweite Gerät +21 ppm, nur noch der Quarz); der Leaf
-  bleibt nach PWM-Aus etwa 5 min in C (Befund 4, gelöst in evcc mit lokalem Patch, Issue bzw. PR
-  bei evcc offen).
+  bleibt nach PWM-Aus etwa 5 min in C (Befund 4, gelöst nach F36: `iec61851_state` wie WARP B bei
+  erlaubtem Strom 0; am zweiten Gerät mit evcc zu bestätigen).
 - Erreichbarkeit unter Verbindungsflut: mit 12 Netzkontexten und 1,5 s TIME_WAIT werden neue
   HTTP-Verbindungen abgewiesen, solange die Flut anhält (etwa 1 s danach wieder erreichbar).
 - Zephyr-Patches 0001/0002 als Issue bzw. PR bei Zephyr einreichen; für `0003` ist der PR vorbereitet (Zweig `timer-systick-reload-compensation` in `einem eigenen Zephyr-Klon` auf `main`, mit Messung beim Start; Text in `build/zephyr-pr/PR.md`), noch nicht eingereicht.
 - Ziel von PE1 (F15) weiter offen. Das Relais C3/C4 schaltet PE2 zusammen mit C1/C2 (Testgerät, Stufe C
   2026-11-07; Schaltung am dritten Gerät, [wallbe2 hardware.md](../../wallbe2/docs/hardware.md#2a-box-e-zweite-steuerung-mobilfunkausfuehrung)).
+
+- Freigabe-Konzept überarbeiten (Nutzer 2026-11-13, zurückgestellt): WARP kennt keine eigene
+  Freigabe, nur Stromslots (0 sperrt); evcc setzt nur `external`. `enable_register` ist entfallen (F37). Offene
+  Fragen: `available_register` (D10) und `pause_request` (Feld 468) entfernen, da ohne Modbus kein Nutzer;
+  Vorgabe über die API ohne D10 sperren (dann auch Stepper/Schalter und MQTT nur mit D10, die
+  Kombination „nur D7, evcc regelt den Strom“ entfiele); Schlüssel-Zwangsladen über Eingangscode 19
+  statt der Sonderregel D7+D10 (SOLL-EN-13).
 
 ## Ideen für später
 

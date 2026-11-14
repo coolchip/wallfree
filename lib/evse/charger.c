@@ -33,7 +33,6 @@ void evse_config_defaults(struct evse_config *cfg)
 	cfg->wakeup_delay_ms = 30000;
 	cfg->wakeup_mode = 0;
 	cfg->external_current_default_ma = EVSE_CURRENT_MAX_MA; /* F12: keine Einschraenkung */
-	cfg->enable_register_default = false;
 }
 
 static bool dip(const struct evse *e, int n)
@@ -78,7 +77,6 @@ void evse_init(struct evse *e, const struct evse_config *cfg, enum evse_lock_sta
 
 	/* F12; mit D10 gibt external > 0 frei, daher Start mit 0 (SOLL-CUR-15, F34) */
 	e->rt.external_ma = evse_dip(cfg->dip, 10) ? 0 : cfg->external_current_default_ma;
-	e->rt.enable_register = cfg->enable_register_default; /* F19 */
 	e->rt.available_register = true;         /* SOLL-EN-11 */
 
 	evse_cp_init(&e->cp);
@@ -481,7 +479,7 @@ static void update_release_and_current(struct evse *e)
 			   e->shutdown; /* SOLL-RT-22 */
 	/* SOLL-EN-01, SOLL-EN-12 (F34: external > 0 gibt mit D10 frei) */
 	e->permission = (dip(e, 7) && e->din.en) ||
-			(dip(e, 10) && (e->rt.enable_register || e->rt.external_ma > 0)) ||
+			(dip(e, 10) && e->rt.external_ma > 0) ||
 			(!dip(e, 7) && !dip(e, 10));
 	/* SOLL-EN-13: Zwangsladen mit dem Schluessel hebt external auf */
 	bool key_force = dip(e, 7) && dip(e, 10) && e->din.en;
