@@ -3,7 +3,7 @@
 Stand: 2026-11-12. Auf dem Testgerät mit Prüfstecker und Schütz ohne Last geprüft
 ([Prüfungen auf dem Testgerät](#prüfungen-auf-box-t)), auf dem zweiten Gerät mit Fahrzeug (Nissan Leaf, einphasig 16 A)
 und evcc ([Stufe D](pruefstecker.md#8-stufe-d-laden-mit-fahrzeug-box-g)), dort im Dauerbetrieb
-(seit 2026-11-12 `0ce1265`). Bestandene Tests belegen keine elektrische Sicherheit. Rahmen und Begründungen: [Architektur](architektur.md);
+(seit 2026-11-13 `ce14d18`). Bestandene Tests belegen keine elektrische Sicherheit. Rahmen und Begründungen: [Architektur](architektur.md);
 Tests: [Test und Simulation](test-und-simulation.md).
 
 ## Überblick
@@ -267,7 +267,7 @@ unterbrochene Verdichten wie ein Erststart aus. Getestetes Verhalten bei Stromau
 
 ## Ressourcen
 
-Stand 2026-11-12 (`0ce1265`), `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B, Shell nur über die Konsole, Log-Ring 2 KB, 12 Netz-Kontexte: **288 556 B Flash** (88,1 % von 320 KB), **119 164 B RAM** (90,9 %).
+Stand 2026-11-13 (`ce14d18`), `-Os`, Assert-Texte ohne Ausdruck und Meldung, System-Heap 512 B, Shell nur über die Konsole, Log-Ring 2 KB, 12 Netz-Kontexte: **290 868 B Flash** (88,8 % von 320 KB), **119 228 B RAM** (91,0 %).
 Reserven und Einsparmöglichkeiten: [Architektur](architektur.md#5-speicherbudget).
 
 | Anteil (gemessen beim Hinzufügen) | Flash | RAM |
