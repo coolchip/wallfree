@@ -79,6 +79,7 @@ Rückweg Schritt für Schritt: [Umrüsten auf Wallfree und zurück](docs/umruest
 | Pfad | Inhalt |
 | --- | --- |
 | [docs/umruesten.md](docs/umruesten.md) | Wallfree aufspielen, Rückweg zur Originalfirmware, wenn etwas schiefgeht |
+| [docs/hardware.md](docs/hardware.md) | Hardware der Steuerung: Anschlüsse, Drehschalter, DIP-Schalter, Ein- und Ausgänge, LEDs, Reset-Taster |
 | [docs/unterschiede-originalfirmware.md](docs/unterschiede-originalfirmware.md) | Unterschiede zur Originalfirmware mit Grund, Hinweise zum Umrüsten und zum Rückweg |
 | [docs/technik-und-lizenzen.md](docs/technik-und-lizenzen.md) | Verwendete Technik (Zephyr, Preact/htm, Testwerkzeuge) und Lizenzen der eingebundenen Software |
 | [docs/soll-spezifikation.md](docs/soll-spezifikation.md) | Soll-Verhalten der Firmware (Kennungen `SOLL-*`), Entscheidungen F1..F39 |

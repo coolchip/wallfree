@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Anschluesse der Ladesteuerung als Funktionsuebersicht (keine Lage der Klemmen), siehe docs/hardware.md -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" font-family="sans-serif" font-size="14">
+  <rect width="900" height="560" fill="#ffffff"/>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#475569"/>
+    </marker>
+  </defs>
+  <g stroke="#475569" stroke-width="1.5" fill="none">
+    <!-- links -->
+    <path d="M210 70H330" marker-end="url(#a)"/>
+    <path d="M210 150H330" marker-start="url(#a)" marker-end="url(#a)"/>
+    <path d="M210 230H330" marker-end="url(#a)"/>
+    <path d="M210 310H330" marker-start="url(#a)"/>
+    <path d="M210 390H330" marker-start="url(#a)" marker-end="url(#a)"/>
+    <path d="M210 470H330" marker-end="url(#a)"/>
+    <!-- rechts -->
+    <path d="M570 70H690" marker-end="url(#a)"/>
+    <path d="M570 150H690" marker-start="url(#a)"/>
+    <path d="M570 230H690" marker-start="url(#a)" marker-end="url(#a)"/>
+    <path d="M570 310H690" marker-start="url(#a)"/>
+    <path d="M570 390H690" marker-end="url(#a)"/>
+    <path d="M570 470H690" marker-start="url(#a)" marker-end="url(#a)"/>
+  </g>
+  <rect x="330" y="30" width="240" height="480" rx="10" fill="#e6f5f0" stroke="#009670" stroke-width="2"/>
+  <text x="450" y="262" text-anchor="middle" font-size="18" font-weight="bold" fill="#0f172a">Ladesteuerung</text>
+  <text x="450" y="286" text-anchor="middle" fill="#334155">EV-CC-AC1-M3-CBC-RCM-ETH</text>
+  <g fill="#0f172a" font-weight="bold">
+    <text x="342" y="75">L / N / PE</text>
+    <text x="342" y="155">Ethernet</text>
+    <text x="342" y="235">LD EN ML XR IN</text>
+    <text x="342" y="315">ER LR VR CR</text>
+    <text x="342" y="395">A / B</text>
+    <text x="342" y="475">12a</text>
+    <text x="558" y="75" text-anchor="end">C1 / C2</text>
+    <text x="558" y="155" text-anchor="end">CT</text>
+    <text x="558" y="235" text-anchor="end">CP</text>
+    <text x="558" y="315" text-anchor="end">PX</text>
+    <text x="558" y="395" text-anchor="end">R1 / R2</text>
+    <text x="558" y="475" text-anchor="end">RCM</text>
+  </g>
+  <g fill="#334155">
+    <text x="200" y="66" text-anchor="end">Versorgung</text>
+    <text x="200" y="84" text-anchor="end">230 V AC</text>
+    <text x="200" y="146" text-anchor="end">Netzwerk: Weboberfläche,</text>
+    <text x="200" y="164" text-anchor="end">evcc, MQTT</text>
+    <text x="200" y="226" text-anchor="end">5 Eingänge 12 V:</text>
+    <text x="200" y="244" text-anchor="end">Schlüssel, Rückmeldungen</text>
+    <text x="200" y="306" text-anchor="end">4 Ausgänge:</text>
+    <text x="200" y="324" text-anchor="end">Anzeigen, Meldungen</text>
+    <text x="200" y="386" text-anchor="end">RS-485:</text>
+    <text x="200" y="404" text-anchor="end">Energiezähler</text>
+    <text x="200" y="466" text-anchor="end">Speisung der Ausgänge</text>
+    <text x="200" y="484" text-anchor="end">8..30 V DC</text>
+    <text x="700" y="66">Spule des Ladeschützes</text>
+    <text x="700" y="84">(Relaiskontakt)</text>
+    <text x="700" y="146">Spannung hinter dem</text>
+    <text x="700" y="164">Schütz (Überwachung)</text>
+    <text x="700" y="226">Control Pilot</text>
+    <text x="700" y="244">zum Fahrzeug</text>
+    <text x="700" y="306">Proximity:</text>
+    <text x="700" y="324">Kabelkodierung</text>
+    <text x="700" y="386">Motor der</text>
+    <text x="700" y="404">Steckerverriegelung</text>
+    <text x="700" y="466">Fehlerstromsensor</text>
+    <text x="700" y="484">(Summenstromwandler)</text>
+  </g>
+</svg>
