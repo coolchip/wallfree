@@ -87,6 +87,7 @@ Rückweg Schritt für Schritt: [Umrüsten auf Wallfree und zurück](docs/umruest
 | [docs/test-und-simulation.md](docs/test-und-simulation.md) | PC-Tests, Ende-zu-Ende-Simulation, Browser-Durchlauf, evcc-Test |
 | [docs/simulation-bedienung.md](docs/simulation-bedienung.md) | Simulation starten und bedienen (Optionen, Shell-Kommando `sim`, Beispielabläufe) |
 | [docs/pruefstecker.md](docs/pruefstecker.md) | Prüfstecker (Bauanleitung) und Prüfablauf mit Fahrzeugnachbildung |
+| [docs/pruefprotokoll.md](docs/pruefprotokoll.md) | Prüfungen an der Hardware mit Einzelwerten: Prüfstecker, Schütz, Fehlerstrom, Laden mit Fahrzeug, Befunde |
 | [docs/vergleich-weboberflaeche.md](docs/vergleich-weboberflaeche.md) | Weboberfläche vorher und nachher: was aus den Seiten der Originaloberfläche wird |
 | [docs/anleitung/weboberflaeche.md](docs/anleitung/weboberflaeche.md) | Bedienungsanleitung der Weboberfläche (PDF: `scripts/anleitung-pdf.sh`) |
 | [boards/phoenix/ev_cc_ac1/](boards/phoenix/ev_cc_ac1/) | Zephyr-Board-Beschreibung (Pins aus der Originalfirmware, an einer wallbe Eco 2.0 bestätigt) |

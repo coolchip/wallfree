@@ -365,7 +365,7 @@ Geprüft an zwei Ladestationen wallbe Eco 2.0: einem Testgerät auf dem Tisch (F
 Werk, Bootloader und Originalparameter unverändert, Prüfstecker als Fahrzeugnachbildung, Schütz
 ohne Last) und einem fest installierten Gerät mit Fahrzeug. Steuerung über Shell/API von
 Wallfree; unter Spannung wurde nur an den Klemmen gemessen, nie auf der Platine. Die Protokolle
-mit Einzelwerten liegen im nicht veröffentlichten Analyse-Repository.
+mit Einzelwerten stehen im [Prüfprotokoll](pruefprotokoll.md).
 
 | Bereich | Ergebnis |
 | --- | --- |
