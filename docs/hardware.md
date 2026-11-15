@@ -2,7 +2,7 @@
 
 Diese Seite beschreibt die Ladesteuerung **EV-CC-AC1-M3-CBC-RCM-ETH** (Phoenix Contact), wie
 Wallfree sie benutzt: Anschlüsse, Drehschalter, DIP-Schalter, Ein- und Ausgänge, LEDs und
-Reset-Taster. Sie ersetzt nicht das Handbuch des Herstellers. Für Lage und Nummern der Klemmen,
+Reset-Taster. Sie ersetzt nicht das Handbuch des Herstellers. Für Nummern der Klemmen,
 Anschlussquerschnitte und Grenzwerte gilt das Handbuch der Steuerung; die Angaben hier stammen
 aus der Analyse der Originalfirmware und aus Prüfungen an zwei Ladestationen wallbe Eco 2.0
 ([Prüfprotokoll](pruefprotokoll.md)).
@@ -13,9 +13,16 @@ spannungsfreien Zustand verstellen.
 
 ## 1 Anschlüsse
 
-![Anschlüsse der Ladesteuerung](bilder/steuerung-anschluesse.svg)
+![Lage der Anschlüsse und Bedienelemente](bilder/steuerung-lage.svg)
 
-Das Bild zeigt die Funktion der Anschlüsse, nicht ihre Lage auf der Steuerung.
+Das erste Bild zeigt, wo Klemmen, Schalter und LEDs liegen: schematisch, nach Fotos der
+Platine, in der Lage, in der die Steuerung in der wallbe Eco 2.0 eingebaut ist. Die
+Bedienelemente liegen rechts neben dem Prozessor: oben Drehschalter und Reset-Taster, darunter
+die DIP-Schalter D1 (oben) bis D10, eingeschaltet nach rechts (ON), und rechts daneben die LEDs.
+Die fünfte LED ist nur bei Ausführungen mit Modem bestückt. Das zweite Bild ordnet die
+Anschlüsse nach ihrer Funktion.
+
+![Anschlüsse der Ladesteuerung nach Funktion](bilder/steuerung-anschluesse.svg)
 
 | Klemme | Funktion | Bei Wallfree |
 | --- | --- | --- |
@@ -136,6 +143,10 @@ Die Beschriftung A/B ist zwischen Herstellern nicht einheitlich. Antwortet der Z
 war das nötig; ein USB-Adapter arbeitete mit D+ an A und D− an B.
 
 ## 7 LEDs
+
+Die vier LEDs liegen rechts neben den DIP-Schaltern untereinander, in der Zeichnung von oben
+Power, Error, Connect, Ready. Dass die oberste Power ist, ist an der Steuerung geprüft; die
+Reihenfolge der übrigen drei noch nicht.
 
 | LED | Bedeutung |
 | --- | --- |

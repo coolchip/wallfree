@@ -70,6 +70,10 @@ können Menschen gefährden. Software-Tests belegen keine elektrische Sicherheit
 **Nicht enthalten:** OCPP, RFID (als Erweiterung vorgemerkt), Modbus TCP, Mobilfunk, Lastmanagement mehrerer Boxen (kann
 evcc), HTTPS.
 
+Fertige Abbilder: [Releases](https://github.com/coolchip/wallfree/releases). Anleitungen für
+Anwender gibt es auch im [Wiki](https://github.com/coolchip/wallfree/wiki); es wird mit
+`scripts/wiki-export.py` aus `docs/` erzeugt, Quelle bleibt `docs/`.
+
 Was Wallfree anders macht als die Originalfirmware und worauf man beim Umrüsten achten muss:
 [Unterschiede zur Originalfirmware](docs/unterschiede-originalfirmware.md). Aufspielen und
 Rückweg Schritt für Schritt: [Umrüsten auf Wallfree und zurück](docs/umruesten.md).
