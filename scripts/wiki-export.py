@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Wiki-Seiten aus docs/ erzeugen:  scripts/wiki-export.py <wiki-verzeichnis>
 
-Quelle bleibt docs/ (und README.md fuer die Startseite); das Wiki auf GitHub ist eine Kopie fuer
+Quelle bleibt docs/ (fuer die Startseite docs/wiki-startseite.md und README.md); das Wiki auf GitHub ist eine Kopie fuer
 Anwender. Das Skript schreibt die Seiten nach PAGES in das Verzeichnis (ein Klon von
 <repo>.wiki.git), kopiert die eingebundenen Bilder und stellt Links um: Links zwischen den
 Seiten zeigen auf die Wiki-Seite, Links auf andere Dateien des Repositorys auf GitHub, Links ins
@@ -32,6 +32,9 @@ PAGES = {
     'docs/simulation-bedienung.md': 'Simulation',
 }
 
+# Kopf der Startseite (Logo, Einleitung, Hinweise); README.md liefert den Rest
+HOME_HEAD = 'docs/wiki-startseite.md'
+
 SIDEBAR = """**Wallfree**
 
 - [Startseite](Home)
@@ -59,6 +62,15 @@ FOOTER = ('Diese Seite wird aus dem Repository erzeugt ({src}); Änderungen bitt
 LINK = re.compile(r'(!?)\[((?:[^\[\]]|\[[^\]]*\])*)\]\(([^)\s]+)\)')
 
 
+HTML_SRC = re.compile(r'\b(src|srcset)="([^":]+)"')
+
+
+def convert_src(src, m, images):
+    full = os.path.normpath(os.path.join(os.path.dirname(src), m.group(2)))
+    images.add(full)
+    return '%s="%s"' % (m.group(1), full)
+
+
 def convert_link(src, m, images):
     bang, text, target = m.group(1), m.group(2), m.group(3)
     if re.match(r'^[a-z]+:', target) or target.startswith('#'):
@@ -79,20 +91,22 @@ def convert_link(src, m, images):
 
 
 def home(text):
-    # Startseite: README ohne die Abschnitte fuer Entwickler, dafuer mit Seitenliste
+    # Startseite: Kopf aus docs/wiki-startseite.md, dann aus README Status, Funktionen und Lizenz
+    # (ohne Titel, Wahlspruch und Einleitung, die der Kopf selbst bringt), dann die Seitenliste
+    text = text[text.index('**Status:**'):]
     keep = []
     for part in re.split(r'(?m)^(?=## )', text):
         head = part.splitlines()[0] if part else ''
         if head.startswith('## ') and head[3:] not in ('Funktionen', 'Lizenz'):
             continue
         keep.append(part)
-    body = ''.join(keep)
-    # README beginnt mit "# Wallfree"; das Wiki zeigt den Seitennamen selbst
-    body = re.sub(r'\A# Wallfree\n\n', '', body)
-    body += ('\n## Seiten\n\n' + SIDEBAR.split('\n', 2)[2].split('\n\n**')[0] + '\n\n'
-             'Für Entwickler: Bauen, Testen und Aufbau des Quelltexts stehen im '
-             '[README des Repositorys](%s#bauen).\n' % GITHUB)
-    return body
+    return ''.join(keep)
+
+
+# Seitenliste am Ende der Startseite; Links schon im Wiki-Format, nicht mehr umstellen
+HOME_PAGES = ('\n## Seiten\n\n' + SIDEBAR.split('\n', 2)[2].split('\n\n**')[0] + '\n\n'
+              'Für Entwickler: Bauen, Testen und Aufbau des Quelltexts stehen im '
+              '[README des Repositorys](%s#bauen).\n' % GITHUB)
 
 
 def main():
@@ -103,11 +117,17 @@ def main():
     for src, page in PAGES.items():
         text = open(os.path.join(REPO, src), encoding='utf-8').read()
         if src == 'README.md':
-            text = home(text)
+            # Links des README gelten relativ zum Repository, die des Kopfs relativ zu docs/
+            head = open(os.path.join(REPO, HOME_HEAD), encoding='utf-8').read()
+            head = re.sub(r'\A<!--[^\n]*-->\n\n', '', head)
+            head = LINK.sub(lambda m: convert_link(HOME_HEAD, m, images), head)
+            head = HTML_SRC.sub(lambda m: convert_src(HOME_HEAD, m, images), head)
+            text = LINK.sub(lambda m: convert_link(src, m, images), home(text)) + HOME_PAGES
+            text = head.replace('<!-- README -->\n', text)
         else:
             # Ueberschrift der Datei entfaellt, das Wiki zeigt den Seitennamen
             text = re.sub(r'\A# [^\n]*\n\n', '', text)
-        text = LINK.sub(lambda m: convert_link(src, m, images), text)
+            text = LINK.sub(lambda m: convert_link(src, m, images), text)
         text = text.rstrip('\n') + '\n'
         with open(os.path.join(out, page + '.md'), 'w', encoding='utf-8') as f:
             f.write(text)
