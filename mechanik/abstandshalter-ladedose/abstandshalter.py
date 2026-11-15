@@ -27,11 +27,19 @@ import Part
 # ---------------------------------------------------------------- Parameter
 VERSATZ = 80.0           # Buchse wandert um dieses Mass nach aussen
                          # (Dichtung hinten + Rohr + Dichtung vorn + Platte)
-AUSSEN = 116.0           # Aussenmass quadratisch
-ECK_R_AUSSEN = 8.0       # Eckradius aussen
-INNEN = 88.0             # Innenraum quadratisch (Dosenflansch 75 mm + Luft)
+
+# Innenraum, gemessen von der Mitte der Ladedose. Seitlich liegt die Wand direkt am Rahmen
+# der Dose (ca. 77 mm), weil rechts daneben nur 8 mm bis zum naechsten Bauteil frei sind.
+# Oben sitzt der Verriegelungsaktor (bis 53 mm ueber der Mitte), dort ist mehr Platz.
+INNEN_B = 78.0           # Breite (Rahmen 77 mm + je 0,5 mm Luft)
+INNEN_OBEN = 58.0        # Mitte -> Innenkante oben (Aktor 53 mm + 5 mm Luft)
+INNEN_UNTEN = 44.0       # Mitte -> Innenkante unten
+WAND_SEITE = 7.5         # Rahmen bis Aussenkante hoechstens 8 mm
+WAND_OBEN_UNTEN = 12.0   # traegt die Gewindeeinsaetze fuer die Platte
+ECK_R_AUSSEN = 6.0       # Eckradius aussen
 ECK_R_INNEN = 4.0
-PLATTE_T = 5.0           # Dicke der vorderen Platte (zulaessig laut Hersteller bis 31 mm)
+PLATTE_T = 4.8           # Dicke der vorderen Platte wie die originale Gehaeusewand
+                         # (zulaessig laut Hersteller bis 31 mm)
 KRAGEN_T = 6.0           # Dicke des hinteren Kragens
 DICHTUNG_T = 2.0         # Dicke der beiden TPU-Dichtungen
 
@@ -43,8 +51,9 @@ LOCH_TEILUNG = 60.0      # Lochbild quadratisch
 LOCH_D_PLATTE = 7.0      # Bohrung in der Platte (wie Gehaeusewand)
 LOCH_D_KRAGEN = 5.5      # Durchgang M5 im Kragen
 
-# Verbindung Platte <-> Rohr
-VERB_TEILUNG = 104.0     # Lochbild quadratisch, ausserhalb des Schutzdeckels (85 mm breit)
+# Verbindung Platte <-> Rohr: je zwei Schrauben in der oberen und unteren Wand
+# (die Seitenwaende sind fuer Gewindeeinsaetze zu duenn)
+VERB_X = 34.0            # Abstand von der Mitte, links und rechts
 VERB_D_PLATTE = 5.5      # Durchgang M5
 EINSATZ_D = 6.4          # Bohrung fuer M5-Gewindeeinsatz (z. B. 9,5 mm lang)
 EINSATZ_TIEFE = 12.0
@@ -56,11 +65,18 @@ ABLAUF_ABSTAND = 8.0     # von der Vorderkante des Rohrs
 ROHR_L = VERSATZ - PLATTE_T - 2 * DICHTUNG_T
 PLATTE_Z = ROHR_L + DICHTUNG_T   # Rueckseite der Platte
 
+# Aussenkontur
+AUSSEN_X = INNEN_B / 2 + WAND_SEITE
+AUSSEN_OBEN = INNEN_OBEN + WAND_OBEN_UNTEN
+AUSSEN_UNTEN = INNEN_UNTEN + WAND_OBEN_UNTEN
+VERB_Y_OBEN = INNEN_OBEN + WAND_OBEN_UNTEN / 2
+VERB_Y_UNTEN = -(INNEN_UNTEN + WAND_OBEN_UNTEN / 2)
+
 
 # ---------------------------------------------------------------- Hilfen
-def rundes_quadrat(seite, r, hoehe, z0=0.0):
-    """Quader seite x seite x hoehe, senkrechte Kanten mit Radius r, mittig in XY."""
-    box = Part.makeBox(seite, seite, hoehe, App.Vector(-seite / 2, -seite / 2, z0))
+def rundes_rechteck(x, oben, unten, r, hoehe, z0=0.0):
+    """Quader von -x..x und -unten..oben, senkrechte Kanten mit Radius r."""
+    box = Part.makeBox(2 * x, oben + unten, hoehe, App.Vector(-x, -unten, z0))
     kanten = [k for k in box.Edges
               if abs(k.Vertexes[0].Point.z - k.Vertexes[1].Point.z) > 1e-6]
     return box.makeFillet(r, kanten) if r > 0 else box
@@ -95,27 +111,41 @@ def durchbruch(hoehe, z0=0.0):
     return flaeche.extrude(App.Vector(0, 0, hoehe))
 
 
+def aussen(hoehe, z0=0.0):
+    return rundes_rechteck(AUSSEN_X, AUSSEN_OBEN, AUSSEN_UNTEN, ECK_R_AUSSEN, hoehe, z0)
+
+
+def innen(hoehe, z0=0.0):
+    return rundes_rechteck(INNEN_B / 2, INNEN_OBEN, INNEN_UNTEN, ECK_R_INNEN, hoehe, z0)
+
+
+def loecher(punkte, d, hoehe, z0=0.0):
+    zyl = [Part.makeCylinder(d / 2, hoehe, App.Vector(x, y, z0)) for x, y in punkte]
+    return zyl[0].fuse(zyl[1:])
+
+
 def lochbild(teilung, d, hoehe, z0=0.0):
     s = teilung / 2
-    loecher = [Part.makeCylinder(d / 2, hoehe, App.Vector(x, y, z0))
-               for x in (-s, s) for y in (-s, s)]
-    return loecher[0].fuse(loecher[1:])
+    return loecher([(x, y) for x in (-s, s) for y in (-s, s)], d, hoehe, z0)
+
+
+def verbindung(d, hoehe, z0=0.0):
+    return loecher([(x, y) for x in (-VERB_X, VERB_X)
+                    for y in (VERB_Y_OBEN, VERB_Y_UNTEN)], d, hoehe, z0)
 
 
 # ---------------------------------------------------------------- Rohr
 def mache_rohr():
     eps = 0.5
-    rohr = rundes_quadrat(AUSSEN, ECK_R_AUSSEN, ROHR_L)
-    innen = rundes_quadrat(INNEN, ECK_R_INNEN, ROHR_L - KRAGEN_T + eps, KRAGEN_T)
-    rohr = rohr.cut(innen)
+    rohr = aussen(ROHR_L)
+    rohr = rohr.cut(innen(ROHR_L - KRAGEN_T + eps, KRAGEN_T))
     rohr = rohr.cut(durchbruch(KRAGEN_T + 2 * eps, -eps))
     rohr = rohr.cut(lochbild(LOCH_TEILUNG, LOCH_D_KRAGEN, KRAGEN_T + 2 * eps, -eps))
-    rohr = rohr.cut(lochbild(VERB_TEILUNG, EINSATZ_D, EINSATZ_TIEFE + eps,
-                             ROHR_L - EINSATZ_TIEFE))
+    rohr = rohr.cut(verbindung(EINSATZ_D, EINSATZ_TIEFE + eps, ROHR_L - EINSATZ_TIEFE))
     if ABLAUF_D > 0:
         z = ROHR_L - ABLAUF_ABSTAND
-        ablauf = Part.makeCylinder(ABLAUF_D / 2, (AUSSEN - INNEN) / 2 + 2 * eps,
-                                   App.Vector(0, -AUSSEN / 2 - eps, z),
+        ablauf = Part.makeCylinder(ABLAUF_D / 2, WAND_OBEN_UNTEN + 2 * eps,
+                                   App.Vector(0, -AUSSEN_UNTEN - eps, z),
                                    App.Vector(0, 1, 0))
         rohr = rohr.cut(ablauf)
     return rohr
@@ -125,10 +155,10 @@ def mache_rohr():
 def mache_platte():
     eps = 0.5
     z0 = PLATTE_Z
-    platte = rundes_quadrat(AUSSEN, ECK_R_AUSSEN, PLATTE_T, z0)
+    platte = aussen(PLATTE_T, z0)
     platte = platte.cut(durchbruch(PLATTE_T + 2 * eps, z0 - eps))
     platte = platte.cut(lochbild(LOCH_TEILUNG, LOCH_D_PLATTE, PLATTE_T + 2 * eps, z0 - eps))
-    platte = platte.cut(lochbild(VERB_TEILUNG, VERB_D_PLATTE, PLATTE_T + 2 * eps, z0 - eps))
+    platte = platte.cut(verbindung(VERB_D_PLATTE, PLATTE_T + 2 * eps, z0 - eps))
     return platte
 
 
@@ -137,7 +167,7 @@ def mache_dichtung_hinten():
     """Flachdichtung zwischen Kragen und Gehaeusewand, Z = -DICHTUNG_T .. 0."""
     eps = 0.5
     z0 = -DICHTUNG_T
-    d = rundes_quadrat(AUSSEN, ECK_R_AUSSEN, DICHTUNG_T, z0)
+    d = aussen(DICHTUNG_T, z0)
     d = d.cut(durchbruch(DICHTUNG_T + 2 * eps, z0 - eps))
     d = d.cut(lochbild(LOCH_TEILUNG, LOCH_D_KRAGEN, DICHTUNG_T + 2 * eps, z0 - eps))
     return d
@@ -147,9 +177,9 @@ def mache_dichtung_vorn():
     """Rahmendichtung zwischen Rohr und Platte."""
     eps = 0.5
     z0 = ROHR_L
-    d = rundes_quadrat(AUSSEN, ECK_R_AUSSEN, DICHTUNG_T, z0)
-    d = d.cut(rundes_quadrat(INNEN, ECK_R_INNEN, DICHTUNG_T + 2 * eps, z0 - eps))
-    d = d.cut(lochbild(VERB_TEILUNG, VERB_D_PLATTE, DICHTUNG_T + 2 * eps, z0 - eps))
+    d = aussen(DICHTUNG_T, z0)
+    d = d.cut(innen(DICHTUNG_T + 2 * eps, z0 - eps))
+    d = d.cut(verbindung(VERB_D_PLATTE, DICHTUNG_T + 2 * eps, z0 - eps))
     return d
 
 
