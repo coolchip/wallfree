@@ -88,7 +88,7 @@ und 7 bleiben über Updates und den Rückweg zur Originalfirmware erhalten).
   den Start-SP (im SRAM); Wallfree hängt deshalb eine eigene Prüfsumme an und prüft sie beim
   Start (SOLL-BOOT-35). Update über die Weboberfläche auf dem Testgerät geprüft.
 - Rückweg zur Originalfirmware über denselben Bootloaderpfad; Sektor 3 bleibt erhalten (auf
-  das Testgerät geprüft).
+  dem Testgerät geprüft).
 - Start-SP: Zephyr setzt ihn auf das Ende seines Interrupt-Stacks, das Original auf das
   RAM-Ende `0x20020000`; der Bootloader verlangt nur einen Wert im SRAM, beides passt.
 
@@ -116,7 +116,7 @@ Gemessene Einsparmöglichkeiten (jeweils einzeln gebaut, Basis 295 KB):
 **Entscheidung (Nutzer 2026-10-21):** Assert-Ausdruck und -Meldung sind entfernt, Datei und
 Zeile bleiben (siehe Tabelle). Die Netz-Shell (`net iface`, `ping`, `arp`, `conn`, `mem` ...)
 ist entfernt (Nutzer 2026-10-26), nachdem sie bei der Inbetriebnahme und im Netz-Lasttest auf
-Das Testgerät gebraucht wurde. Seit 2026-10-28 läuft die Shell nur noch über die Konsole der
+dem Testgerät gebraucht wurde. Seit 2026-10-28 läuft die Shell nur noch über die Konsole der
 Weboberfläche (ohne Telnet, interaktive Funktionen und Zephyrs Zusatzkommandos, 24 KB weniger).
 Weitere Reihenfolge, wenn es wieder knapp wird: LTO, Shell-Hilfe. TLS (mbedTLS) passt neben P1
 voraussichtlich nicht (nicht gemessen); dann Speicherort und Budget neu bewerten.
