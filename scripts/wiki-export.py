@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Wiki-Seiten aus docs/ erzeugen:  scripts/wiki-export.py <wiki-verzeichnis>
 
-Quelle bleibt docs/ (fuer die Startseite docs/wiki-startseite.md und README.md); das Wiki auf GitHub ist eine Kopie fuer
+Quelle bleibt docs/ (fuer die Startseite README.md); das Wiki auf GitHub ist eine Kopie fuer
 Anwender. Das Skript schreibt die Seiten nach PAGES in das Verzeichnis (ein Klon von
 <repo>.wiki.git), kopiert die eingebundenen Bilder und stellt Links um: Links zwischen den
 Seiten zeigen auf die Wiki-Seite, Links auf andere Dateien des Repositorys auf GitHub, Links ins
@@ -32,8 +32,8 @@ PAGES = {
     'docs/simulation-bedienung.md': 'Simulation',
 }
 
-# Kopf der Startseite (Logo, Einleitung, Hinweise); README.md liefert den Rest
-HOME_HEAD = 'docs/wiki-startseite.md'
+# Abschnitte des README, die auf der Wiki-Startseite fehlen (fuer Entwickler)
+DEV_SECTIONS = ('Inhalt', 'Bauen', 'Testen (PC)', 'Herkunft der Befunde')
 
 SIDEBAR = """**Wallfree**
 
@@ -92,13 +92,11 @@ def convert_link(src, m, images):
 
 
 def home(text):
-    # Startseite: Kopf aus docs/wiki-startseite.md, dann aus README Status, Funktionen und Lizenz
-    # (ohne Titel, Wahlspruch und Einleitung, die der Kopf selbst bringt), dann die Seitenliste
-    text = text[text.index('**Status:**'):]
+    # Startseite: README ohne die Abschnitte fuer Entwickler, danach die Seitenliste
     keep = []
     for part in re.split(r'(?m)^(?=## )', text):
         head = part.splitlines()[0] if part else ''
-        if head.startswith('## ') and head[3:] not in ('Funktionen', 'Lizenz'):
+        if head.startswith('## ') and head[3:] in DEV_SECTIONS:
             continue
         keep.append(part)
     return ''.join(keep)
@@ -118,13 +116,8 @@ def main():
     for src, page in PAGES.items():
         text = open(os.path.join(REPO, src), encoding='utf-8').read()
         if src == 'README.md':
-            # Links des README gelten relativ zum Repository, die des Kopfs relativ zu docs/
-            head = open(os.path.join(REPO, HOME_HEAD), encoding='utf-8').read()
-            head = re.sub(r'\A<!--[^\n]*-->\n\n', '', head)
-            head = LINK.sub(lambda m: convert_link(HOME_HEAD, m, images), head)
-            head = HTML_SRC.sub(lambda m: convert_src(HOME_HEAD, m, images), head)
-            text = LINK.sub(lambda m: convert_link(src, m, images), home(text)) + HOME_PAGES
-            text = head.replace('<!-- README -->\n', text)
+            text = LINK.sub(lambda m: convert_link(src, m, images), home(text))
+            text = HTML_SRC.sub(lambda m: convert_src(src, m, images), text) + HOME_PAGES
         else:
             # Ueberschrift der Datei entfaellt, das Wiki zeigt den Seitennamen
             text = re.sub(r'\A# [^\n]*\n\n', '', text)
