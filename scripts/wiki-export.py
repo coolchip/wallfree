@@ -68,7 +68,8 @@ HTML_SRC = re.compile(r'\b(src|srcset)="([^":]+)"')
 def convert_src(src, m, images):
     full = os.path.normpath(os.path.join(os.path.dirname(src), m.group(2)))
     images.add(full)
-    return '%s="%s"' % (m.group(1), full)
+    # GitHub stellt in HTML nur src um, nicht srcset; deshalb beide mit voller Adresse
+    return '%s="%s/wiki/%s"' % (m.group(1), GITHUB, full)
 
 
 def convert_link(src, m, images):
