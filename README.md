@@ -79,6 +79,14 @@ um die eigene Wallbox.
 10. **Offen.** Quelltext unter Apache-2.0, Fehler lassen sich beheben, neue Funktionen ergänzen;
     auf dem PC läuft die ganze Firmware als Simulation zum Ausprobieren.
 
+## KI-Unterstützung
+
+Wie unschwer zu erkennen ist, ist Wallfree mit sehr viel KI-Unterstützung entstanden. Ohne diese
+Hilfe wäre es nicht möglich gewesen, das Projekt in so kurzer Zeit umzusetzen. Vermutlich hätte
+ich es dann gar nicht gemacht, weil meine Freizeit es nicht hergegeben hätte. Meine langjährige
+Erfahrung im Embedded-Bereich versetzt mich aber in die Lage, zu beurteilen und zu überblicken,
+was ich hier gebaut habe.
+
 ## Stand
 
 **Status:** Firmware vollständig nach Spezifikation implementiert und auf dem PC getestet
