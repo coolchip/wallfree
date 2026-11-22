@@ -136,7 +136,8 @@ warten; dann zuerst dort nachsehen.
    scripts/update.sh --upload-only 192.168.0.8 wallfree-<version>.bin
    ```
 
-   Das Skript prüft die Antwort des Bootloaders und meldet, ob die Datei angekommen ist.
+   Das Skript prüft die Antwort des Bootloaders und meldet, ob die Datei angekommen ist
+   ([Abschnitt 6](#6-update-mit-dem-skript-updatesh)).
 5. **Neustart abwarten:** Die Steuerung startet die neue Firmware nach wenigen Sekunden. Wallfree
    übernimmt seine bisherigen Einstellungen (Adresse, Zugangsdaten, Parameter) und ist danach
    wieder unter seiner gewohnten Adresse erreichbar, bei DHCP unter der Adresse, die der Router
@@ -147,3 +148,55 @@ warten; dann zuerst dort nachsehen.
 Scheitert auch das (keine Seite unter 192.168.0.8, auch nicht nach Aus/Ein und einigen
 Minuten Warten), bleibt der Weg über die Programmierschnittstelle der Steuerung (SWD); dafür
 muss das Gehäuse geöffnet werden, und er setzt ein Programmiergerät und Erfahrung voraus.
+
+## 6 Update mit dem Skript `update.sh`
+
+Das Skript [`scripts/update.sh`](../scripts/update.sh) lädt eine Firmwaredatei ohne Browser in
+den Bootloader. Es ist der bequemste Rettungsweg, wenn die Steuerung im Bootloader wartet
+(Abschnitt 5), und kann auch ein normales Update ausführen.
+
+**Voraussetzungen:** ein PC mit Linux oder macOS (Shell `sh` und `curl` sind dort vorhanden);
+unter Windows in WSL oder Git Bash. Das Skript liegt nicht im ZIP einer Veröffentlichung, sondern
+im Repository; herunterladen zum Beispiel mit
+
+```bash
+curl -O https://raw.githubusercontent.com/coolchip/wallfree/main/scripts/update.sh
+chmod +x update.sh
+```
+
+Vor jedem Aufruf alles anhalten, was die Wallbox abfragt (evcc, Home Assistant, Node-RED,
+Monitoring, Browser-Tabs mit der Wallbox): Jede fremde Anfrage bricht die Übertragung ab.
+
+**Steuerung wartet im Bootloader** (nur hochladen, ohne Anmeldung):
+
+```bash
+./update.sh --upload-only 192.168.0.8 wallfree-<version>.bin
+```
+
+Statt 192.168.0.8 die bisherige Adresse angeben, solange der Bootloader kurz nach einem
+gescheiterten Update noch dort wartet. Das Skript wartet bis zu 60 s, bis der Bootloader
+antwortet, lädt hoch und wiederholt einen abgebrochenen Upload bis zu zweimal. Danach wartet es
+bis zu 2 Minuten auf den Start von Wallfree.
+
+**Normales Update aus dem laufenden Wallfree** (übergibt selbst an den Bootloader):
+
+```bash
+./update.sh -u admin:<passwort> <adresse> wallfree-<version>.bin
+```
+
+`<adresse>` ist die Adresse der Weboberfläche, `admin:<passwort>` die Zugangsdaten von Wallfree.
+Am Ende gibt das Skript die Systeminformation der neuen Firmware aus (Version, Build).
+
+**Meldungen** (das Skript schreibt ohne Umlaute):
+
+| Meldung | Bedeutung, was tun |
+| --- | --- |
+| „Bootloader antwortet nicht unter …“ | Adresse falsch oder PC nicht im Netz 192.168.0.x (Abschnitt 5, Schritt 2); bis zu 2 Minuten warten und erneut aufrufen |
+| „Upload nicht bestaetigt …“ | Übertragung abgebrochen, meist durch eine andere Anfrage; das Skript versucht es erneut |
+| „Update gescheitert …“ | alle drei Versuche abgebrochen; das Skript nennt die Befehle für den nächsten Versuch, erst die bisherige Adresse, dann 192.168.0.8 |
+| „Wallfree laeuft wieder …“ oder die Systeminformation | Update gelungen |
+| „Keine Wallfree-Antwort …“ | Es läuft eine andere Firmware (etwa die des Herstellers) oder das Update ist gescheitert; unter 192.168.0.8 nachsehen |
+| „Abbild zu gross …“ | keine Firmwaredatei für diese Steuerung (höchstens 320 KB) |
+
+Die Datei des Herstellers lässt sich ebenso hochladen (`--upload-only`); das Skript meldet dann
+„Keine Wallfree-Antwort“, weil danach die Originalfirmware läuft.
