@@ -145,6 +145,32 @@ Gerät hat keinen Zähler.
 - Freigabe durch evcc (Befund 3): evcc auf Laden -> `external_current` 16000, S6, Schütz ein,
   erlaubt 15,96 A, `limited_by` `external`.
 
+**Ergebnisse 2026-11-22: Stromstufen von 60 mA** (Wallfree 0.2, Leaf mit 80 % Ladestand,
+Drehschalter 5 (20 A), ABB B23 im zweiten Gerät). evcc angehalten, Sollstrom über
+`evse/external_current` in Stufen vorgegeben, je Stufe 60 s; Strom L1 und Leistung vom Zähler,
+jede Sekunde in den letzten 20 s der Stufe, Mittelwert und Spanne:
+
+| Vorgabe (mA) | Tastgrad erlaubt (mA) | Strom L1 (A) | Spanne (A) | Leistung (W) |
+| --- | --- | --- | --- | --- |
+| 8000 | 7980 | 7,899 | 7,72..8,01 | 1802 |
+| 8060 | 8040 | 7,971 | 7,93..8,02 | 1820 |
+| 8120 | 8100 | 7,976 | 7,92..8,01 | 1822 |
+| 8180 | 8160 | 7,970 | 7,91..8,04 | 1824 |
+| 8240 | 8220 | 8,033 | 7,93..8,43 | 1835 |
+| 8300 | 8280 | 8,043 | 7,93..8,26 | 1835 |
+| 8600 | 8580 | 8,422 | 8,39..8,46 | 1921 |
+| 9000 | 9000 | 8,902 | 8,86..8,93 | 2031 |
+| 16000 | 15960 | 15,313 | 14,94..15,43 | 3471 |
+| 16060 | 16020 | 15,401 | 15,38..15,44 | 3491 |
+| 16120 | 16080 | 15,382 | 15,36..15,41 | 3490 |
+| 16300 | 16260 | 15,445 | 15,38..15,86 | 3502 |
+
+Wallfree gibt jede Stufe aus (`allowed_charging_current` folgt in 60-mA-Schritten). Der Leaf
+folgt einzelnen 60-mA-Schritten nicht erkennbar (Änderungen unter der Streuung von etwa
+±0,05 A), größeren Schritten aber ohne Rundung auf ganze Ampere: 8,04 -> 8,42 -> 8,90 A bei
+8,3 -> 8,6 -> 9,0 A. Er bleibt um 0,1 A (8 A) bzw. 0,6 A (16 A) unter der Vorgabe; bei 20 A
+zog er 18,9 A. Mit einem anderen Fahrzeug kann das feiner oder gröber ausfallen.
+
 Befunde, Umgang wird später geplant (Nutzer 2026-11-08):
 
 1. **evcc nach Neustart der Box in Dauerschleife:** Nach dem Aus/Ein des zweiten Geräts baute evcc den

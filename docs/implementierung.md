@@ -383,7 +383,8 @@ mit Einzelwerten stehen im [Prüfprotokoll](pruefprotokoll.md).
 | Netzlast | 83 Anfragen/s, 3 WebSockets, 2300 Verbindungsabbrüche in 60 s, 30 min Dauerlast mit MQTT: kein Neustart; Verbindungsflut mit sofort geschlossenen WebSockets ohne Paketverlust (Zephyr-Patch `0002`) |
 | MQTT | Mosquitto im LAN: Zustände, Befehle, Last Will, Neuverbindung nach Broker-Neustart, toter Broker nach 121 s erkannt (mit Zähler-Dauerversand nach 230 s); Broker per Name; Home-Assistant-Konfigurationen nur mit `mosquitto_sub` geprüft, nicht mit Home Assistant |
 | evcc | 0.317.2 und 0.319.0 mit der Vorlage `tinkerforge-warp-ws`: Anmeldung, WebSocket, Laden starten und beenden, Strom ändern, Neustart der Steuerung ohne Verbindungsschleife |
-| Energiezähler | Bus an Klemme A/B gegen eine Nachbildung (Eastron SDM72D-M V2, ABB B23) mit allen Fehlerarten; echter ABB B23 ohne Laststrom (19200 Bd; seine Klemmen A/B sind gegenüber der Steuerung vertauscht beschriftet) |
+| Energiezähler | Bus an Klemme A/B gegen eine Nachbildung (Eastron SDM72D-M V2, ABB B23) mit allen Fehlerarten; echter ABB B23 (19200 Bd; seine Klemmen A/B sind gegenüber der Steuerung vertauscht beschriftet), am zweiten Gerät unter Last mit evcc |
+| Stromstufen | Leaf folgt Schritten von etwa 0,3 A ohne Rundung auf ganze Ampere, einzelne 60-mA-Schritte nicht erkennbar ([Prüfprotokoll](pruefprotokoll.md#2-laden-mit-fahrzeug-stufe-d-zweites-gerät)) |
 | Uhrzeit | Abgleich per NTP, Uhrzeit aus der RTC nach Neustart und Update; Gang nach Zephyr-Patch `0003` nur noch der Quarz (-53 bzw. +21 ppm) |
 | Stacks | keiner über 82 % ([Ressourcen](#ressourcen)) |
 
