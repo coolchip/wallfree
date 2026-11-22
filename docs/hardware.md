@@ -142,6 +142,10 @@ Die Beschriftung A/B ist zwischen Herstellern nicht einheitlich. Antwortet der Z
 (Fehlerzähler „timeouts“ unter Status), die beiden Adern am Zähler tauschen. Bei einem ABB B23
 war das nötig; ein USB-Adapter arbeitete mit D+ an A und D− an B.
 
+evcc (Vorlage `tinkerforge-warp-ws`) fragt beim Start ab, ob die Wallbox einen Zähler hat. Wird
+der Zähler erst später eingerichtet, evcc einmal neu starten; vorher zeigt evcc nur eine aus der
+Stromvorgabe geschätzte Leistung und keine Phasenströme.
+
 ## 7 LEDs
 
 Die vier LEDs liegen rechts neben den DIP-Schaltern untereinander, in der Zeichnung von oben
